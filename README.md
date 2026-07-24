@@ -1,6 +1,6 @@
 # Binge（汉化版）
 
-> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。
+> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.4.1**。
 
 为 [Stash](https://github.com/stashapp/stash) 提供的 Instagram 风格社交与发现层：竖屏 Reel、Stories、演员档案、StashDB 驱动的发现功能——全部基于 Stash 既有的 GraphQL API。Web 插件形态。
 
@@ -20,6 +20,24 @@
 - 品牌名保持英文：Stash、StashDB、Reddit、X (Twitter)、PornHub、Cookie、forage、binge-server、HLS、MP4、WebM
 
 ### 功能修复
+
+#### v0.4.1 新增修复（11 项）
+
+| # | 修复 | 说明 |
+|-|-|-|
+| 1 | 静音按钮失效 | 独立 effect 同步 `video.muted` 与 React 状态，IO 闭包不再固定初始值 |
+| 2 | 演员详情页影片封面右对齐 | `.binge-profile-scene-poster` 设置 `background-position: right center` |
+| 3 | 演员详情页图库封面 3:4 竖排 | 新增 `.binge-gallery-cover-btn` 样式，`aspect-ratio: 3/4` |
+| 4 | 发现页影片封面右对齐 | `.binge-discovery-card-cover img` 设置 `object-position: right center` |
+| 5 | 首页/发现页影片跳转错误 | `setTab` 后设置 pin + `reelMode=chained`，利用 React 18 批处理"后写胜"语义 |
+| 6 | 首页图库卡片白底无头像 | 复用 `AvatarStack` 组件，统一头像样式 |
+| 7 | 首页图库卡片图片数量限制 | `MAX_GALLERY_IMAGES` 10 → 500（与演员档案图库上限一致） |
+| 8 | 首页图库卡片末张纯色图点击跳转 | 修改点击事件为 `openProfile(primaryPerformer.id, "galleries")` |
+| 9 | 合集文件夹名翻译 | `Favourites` → 收藏夹, `Watch Later` → 稍后观看 |
+| 10 | 首页更多选项翻译 | `Saved` → 已保存, `Settings` → 设置 |
+| 11 | 设置页 X (Twitter) 媒体标签页实装 | 新增 `PerformerXGrid` 组件，演员档案含 twitter.com / x.com 链接时显示 X 标签页 |
+
+#### v0.4.0 已有修复
 
 | 修复 | 说明 |
 |-|-|
@@ -61,11 +79,19 @@
 
 ### 方式二：添加插件源
 
-在 **Stash → 设置 → 插件 → 可用插件 → 添加源** 中添加：
+在 **Stash → 设置 → 插件 → 可用插件 → 添加源** 中添加以下任一 URL：
 
+**推荐（GitHub Pages，需启用 Pages）**：
 ```
 https://k6cc.github.io/binge-cn/plugins/main/index.yml
 ```
+
+**备用（raw URL，无需启用 Pages，立即可用）**：
+```
+https://raw.githubusercontent.com/k6cc/binge-cn/main/plugins/main/index.yml
+```
+
+> **启用 Pages 步骤**：仓库 → Settings → Pages → Source: `Deploy from a branch` → Branch: `main` / `(root)` → Save。等待 1-2 分钟后 `k6cc.github.io/binge-cn/` 即可访问。
 
 然后从列表中安装 **Binge**。Stash 主导航栏会出现一个无穷符号按钮——点击即可。
 
