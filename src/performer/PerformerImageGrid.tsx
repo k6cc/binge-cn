@@ -250,6 +250,9 @@ function GalleryCoverCell({
     const fetchTimerRef = useRef<number | null>(null);
     const cycleTimerRef = useRef<number | null>(null);
     const hoverGuardRef = useRef(false);
+    // 需求3：封面默认右对齐，但悬停循环切换图片时改为铺满（center）。
+    // 用 React 状态驱动 className，避免直接操作 DOM class。
+    const [cycling, setCycling] = useState(false);
 
     const coverSrc = gallery.cover?.paths.thumbnail ?? "";
 
@@ -267,6 +270,7 @@ function GalleryCoverCell({
     const restoreCover = () => {
         if (imgRef.current) imgRef.current.src = coverSrc;
         indexRef.current = 0;
+        setCycling(false);
     };
 
     const startCycle = async () => {
@@ -284,6 +288,7 @@ function GalleryCoverCell({
         if (!hoverGuardRef.current) return;
         const imgs = imagesCacheRef.current;
         if (imgs.length > 1 && imgRef.current) {
+            setCycling(true);
             indexRef.current = (indexRef.current + 1) % imgs.length;
             imgRef.current.src =
                 imgs[indexRef.current]?.paths?.thumbnail || coverSrc;
@@ -328,7 +333,10 @@ function GalleryCoverCell({
                     ref={imgRef}
                     src={coverSrc}
                     alt={gallery.title || ""}
-                    className="binge-gallery-cover"
+                    className={
+                        "binge-gallery-cover" +
+                        (cycling ? " is-cycling" : "")
+                    }
                     loading="lazy"
                 />
                 <span className="binge-gallery-cell-title">

@@ -3952,6 +3952,26 @@ body,
     text-align: center;
 }
 
+/* 需求7：卡片宽度自适应。移动端铺满（100%），PC 端适当留空。
+   通过 CSS 变量 --binge-card-max 统一控制 wrapper/card/discovery
+   三处的 max-width，避免分散修改。断点：
+     移动端 (< 720px)  : 无 max-width 约束，width:100% 铺满
+     平板 (≥ 720px)    : 520px，两侧留白
+     桌面 (≥ 1100px)   : 560px，更宽但仍居中留空 */
+.binge-feed {
+    --binge-card-max: none;
+}
+@media (min-width: 720px) {
+    .binge-feed {
+        --binge-card-max: 520px;
+    }
+}
+@media (min-width: 1100px) {
+    .binge-feed {
+        --binge-card-max: 560px;
+    }
+}
+
 /* Each virtual card wrapper. Absolute-positioned inside .binge-feed;
    horizontally centered via translateX(-50%) on `left: 50%`. The
    vertical translate component is set inline per-card from the
@@ -3963,7 +3983,7 @@ body,
     top: 0;
     left: 50%;
     width: 100%;
-    max-width: 470px;
+    max-width: var(--binge-card-max, none);
     padding-bottom: 1.5rem;
     box-sizing: border-box;
 }
@@ -3980,7 +4000,7 @@ body,
 
 .binge-feed-card {
     width: 100%;
-    max-width: 470px;
+    max-width: var(--binge-card-max, none);
     background: var(--bg-1, #111);
     border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: 14px;
@@ -4002,7 +4022,7 @@ body,
 */
 .binge-discovery-card {
     width: 100%;
-    max-width: 470px;
+    max-width: var(--binge-card-max, none);
     background: var(--bg-1, #111);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 14px;
@@ -5026,6 +5046,34 @@ body,
     border-color: var(--glass-bg, #00000080);
 }
 
+/* 需求5：GalleryFeedCard 使用的单头像样式。原本此 class 无 CSS 定义，
+   导致图库卡片 header 头像区域显示为白底无头像。复用 stack-avatar
+   的尺寸/圆形/背景规则，使图库卡片与场景卡片头像视觉一致。 */
+.binge-feed-card-avatar {
+    appearance: none;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background-color: var(--bg-2, #222);
+    background-size: cover;
+    background-position: center top;
+    background-repeat: no-repeat;
+    border: 2px solid var(--bg-1, #111);
+    box-sizing: border-box;
+    flex: 0 0 38px;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    color: #fff;
+}
+.binge-feed-card-initial {
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+.binge-app.refract .binge-feed-card-avatar {
+    border-color: var(--glass-bg, #00000080);
+}
+
 .binge-feed-card-name {
     font-size: 0.85rem;
     font-weight: 600;
@@ -5900,7 +5948,9 @@ body,
     border-radius: 10px;
     background-color: #1a1a1a;
     background-size: cover;
-    background-position: center;
+    /* 需求2：周围 peek 卡片图片右对齐，与中间播放卡片一致，
+       保留主体动作区域。 */
+    background-position: right center;
     flex: 0 0 auto;
     aspect-ratio: 9 / 16;
     position: relative;
@@ -7367,9 +7417,14 @@ body,
     width: 100%;
     height: 100%;
     object-fit: cover;
-    /* 与场景卡片一致：右对齐保留主体（图库封面通常来自截图）。 */
+    /* 需求3：封面默认右对齐保留主体。 */
     object-position: right center;
     display: block;
+}
+/* 需求3：悬停循环切换图片时改为铺满（center），因为循环展示的
+   是图库内实际图片而非封面截图，居中铺满更自然。 */
+.binge-gallery-cover.is-cycling {
+    object-position: center;
 }
 .binge-gallery-cell-title {
     position: absolute;

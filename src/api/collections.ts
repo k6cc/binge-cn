@@ -107,10 +107,17 @@ export function getCollections(): Promise<CollectionDef[]> {
                 isDefault: true,
             },
         ];
-        // User-created collections (excluding Watch Later, which is a
-        // default we already include).
+        // 需求6：过滤掉与默认合集重复的用户 tag。原先只按 tagName
+        // 过滤（"Watch Later 📁"），但如果用户库里有 `稍后观看 📁`
+        // 这样的中文 tag（stripSuffix 后与默认 name "稍后观看" 相同），
+        // 会导致列表出现两个"稍后观看"。现在按 stripSuffix 后的
+        // display name 与所有默认 name 比对，同时仍按 tagName 过滤
+        // 以排除 "Watch Later 📁" 本身。
+        const defaultNames = new Set(defaults.map((d) => d.name));
+        const defaultTagNames = new Set(defaults.map((d) => d.tagName));
         const userCollections: CollectionDef[] = userTags
-            .filter((t) => t.name !== DEFAULT_WATCH_LATER_TAG_NAME)
+            .filter((t) => !defaultTagNames.has(t.name))
+            .filter((t) => !defaultNames.has(stripSuffix(t.name)))
             .map((t) => ({
                 name: stripSuffix(t.name),
                 tagName: t.name,

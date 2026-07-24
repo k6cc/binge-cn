@@ -170,6 +170,13 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
     // Auto-play when scrolled into view. Mirrors SceneSlide's IO logic
     // but drops the muted-fallback dance — feed previews are always
     // muted by default, the user has to click the card to unmute.
+    //
+    // 需求1 修复：原代码在 IO callback 里写 `video.muted = muted`，但
+    // 闭包固定了 mount 时的 muted 值——用户切换静音后，新进入视口的
+    // 卡片会被旧闭包值覆盖，导致每部影片都要关再开才有声音。
+    // 现在 IO 只负责 play/pause，muted 完全交给下方的独立 effect 同步。
+    // threshold 提高到 0.75，减少窄卡片场景下两张影片同时满足阈值
+    // 而同时播放声音的问题。
     useEffect(() => {
         const container = containerRef.current;
         const video = videoRef.current;
@@ -177,9 +184,8 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
         const observer = new IntersectionObserver(
             (entries) => {
                 for (const entry of entries) {
-                    const active = entry.intersectionRatio >= 0.6;
+                    const active = entry.intersectionRatio >= 0.75;
                     if (active) {
-                        video.muted = muted;
                         void video.play().catch(() => {
                             // Retry muted, accept failure silently.
                             video.muted = true;
@@ -190,19 +196,15 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
                     }
                 }
             },
-            { threshold: [0, 0.6, 1] }
+            { threshold: [0, 0.75, 1] }
         );
         observer.observe(container);
         return () => observer.disconnect();
-        // muted intentionally not a dep — IO callback reads the latest
-        // value from closure; if we depend on it the observer
-        // tears down on every mute toggle.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Bug 1 修复：IO callback 闭包固定在初始 muted 值，用户点击静音
-    // 按钮后 video.muted 永远不会更新。独立的 effect 同步 video.muted
-    // 与 React muted 状态，确保静音按钮立即生效。
+    // 同步 video.muted 与 React muted 状态。IO 不再触碰 muted，
+    // 因此无论用户何时切换静音，当前及后续进入视口的卡片都会
+    // 立即应用最新的 muted 值。
     useEffect(() => {
         const video = videoRef.current;
         if (!video) return;
