@@ -9,6 +9,7 @@ import { PerformerStatsRow } from "./PerformerStatsRow";
 import { PerformerBio } from "./PerformerBio";
 import { PerformerSceneGrid } from "./PerformerSceneGrid";
 import { PerformerImageGrid } from "./PerformerImageGrid";
+import { PerformerXGrid } from "./PerformerXGrid";
 import { CriterionRatingModal } from "../components/CriterionRatingModal";
 import { PerformerMoreSheet } from "./PerformerMoreSheet";
 import { useSharedStories } from "../home/StoriesContext";
@@ -18,7 +19,8 @@ import { getXFeed, xHandleFromUrls } from "../api/bingeServer";
 import type { Story, StoryScene } from "../home/useStories";
 import { BingeLoading } from "../components/BingeLoading";
 
-type ProfileTab = "scenes" | "galleries";
+// Bug 11：增加 "x" tab — 仅在演员有 X 链接且设置开启时显示。
+type ProfileTab = "scenes" | "galleries" | "x";
 
 // How far back the profile pulls X media for the story ring/viewer.
 // Matches the "just their latest stuff" intent — not the whole profile.
@@ -78,10 +80,21 @@ export function PerformerProfile() {
             />
         );
     }
-    return <LocalPerformerProfile localId={currentProfile.id} />;
+    return (
+        <LocalPerformerProfile
+            localId={currentProfile.id}
+            initialTab={currentProfile.tab}
+        />
+    );
 }
 
-function LocalPerformerProfile({ localId }: { localId: string }) {
+function LocalPerformerProfile({
+    localId,
+    initialTab,
+}: {
+    localId: string;
+    initialTab?: string;
+}) {
     const currentId = localId;
     const { close } = usePerformerProfile();
     const [state, setState] = useState<LoadState>({ kind: "idle" });
@@ -90,7 +103,13 @@ function LocalPerformerProfile({ localId }: { localId: string }) {
     const [favorite, setFavorite] = useState(false);
     const [busy, setBusy] = useState(false);
     const [scrolled, setScrolled] = useState(false);
-    const [tab, setTab] = useState<ProfileTab>("scenes");
+    const [tab, setTab] = useState<ProfileTab>(
+        initialTab === "galleries"
+            ? "galleries"
+            : initialTab === "x"
+              ? "x"
+              : "scenes"
+    );
     const includeX = useIncludeX();
     const [ratingOpen, setRatingOpen] = useState(false);
     const [moreOpen, setMoreOpen] = useState(false);
@@ -143,10 +162,16 @@ function LocalPerformerProfile({ localId }: { localId: string }) {
 
     // Reset tab when the profile changes to a different performer — IG
     // does the same; opening a new profile always lands on the default
-    // tab.
+    // tab (or the tab specified by initialTab for deep-links).
     useEffect(() => {
-        setTab("scenes");
-    }, [currentId]);
+        setTab(
+            initialTab === "galleries"
+                ? "galleries"
+                : initialTab === "x"
+                  ? "x"
+                  : "scenes"
+        );
+    }, [currentId, initialTab]);
 
     // On-demand X media for the story ring/viewer. Reset immediately on
     // performer change (so a stale strip never lights the wrong ring),
@@ -171,6 +196,21 @@ function LocalPerformerProfile({ localId }: { localId: string }) {
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentId, includeX, state.kind]);
+
+    // Bug 11：如果当前 tab 是 "x" 但条件不再满足（设置关闭 / 演员
+    // 无 X 链接 / 演员未加载完成），回退到 "scenes" tab，避免渲染
+    // 一个不可见 tab 对应的内容。
+    useEffect(() => {
+        if (tab !== "x") return;
+        if (state.kind !== "ready") {
+            setTab("scenes");
+            return;
+        }
+        if (!includeX || !xHandleFromUrls(state.performer.urls)) {
+            setTab("scenes");
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [tab, state.kind, includeX]);
 
     useEffect(() => {
         if (!currentId) {
@@ -386,12 +426,31 @@ function LocalPerformerProfile({ localId }: { localId: string }) {
                             >
                                 图库
                             </button>
+                            {/* Bug 11：X (Twitter) tab — 仅在设置开启且演员
+                                有 X 链接时渲染。 */}
+                            {includeX &&
+                                xHandleFromUrls(state.performer.urls) && (
+                                    <button
+                                        type="button"
+                                        role="tab"
+                                        aria-selected={tab === "x"}
+                                        className={
+                                            "binge-profile-tab" +
+                                            (tab === "x" ? " is-active" : "")
+                                        }
+                                        onClick={() => setTab("x")}
+                                    >
+                                        X
+                                    </button>
+                                )}
                         </div>
                         {tab === "scenes" ? (
                             <PerformerSceneGrid
                                 performer={state.performer}
                                 onClose={close}
                             />
+                        ) : tab === "x" ? (
+                            <PerformerXGrid performer={state.performer} />
                         ) : (
                             <PerformerImageGrid performer={state.performer} />
                         )}

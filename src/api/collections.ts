@@ -85,19 +85,23 @@ export function subscribeCollections(fn: Subscriber): () => void {
 // Later (default), then appends any user-created tags ending in the
 // suffix. Default tags are find-or-created lazily on first toggle —
 // we don't want loading the menu to mutate the user's tag list.
+//
+// Bug 9：默认合集的 display name（界面显示名）翻译为中文。Stash 的
+// 实际 tag name（"Favourite ★" / "Watch Later 📁"）保持不变，因为
+// 它们是 Stash 标签库中的真实记录，且 "Favourite ★" 与 ASR 共享。
 export function getCollections(): Promise<CollectionDef[]> {
     if (cachedCollectionsPromise) return cachedCollectionsPromise;
     cachedCollectionsPromise = (async () => {
         const userTags = await findTagsContaining(COLLECTION_TAG_SUFFIX);
         const defaults: CollectionDef[] = [
             {
-                name: "Favourites",
+                name: "收藏夹",
                 tagName: FAVOURITES_TAG_NAME,
                 icon: "favourite",
                 isDefault: true,
             },
             {
-                name: "Watch Later",
+                name: "稍后观看",
                 tagName: DEFAULT_WATCH_LATER_TAG_NAME,
                 icon: "watchLater",
                 isDefault: true,
@@ -263,7 +267,7 @@ export async function createCollection(
 export async function deleteCollection(tagName: string): Promise<boolean> {
     if (tagName === FAVOURITES_TAG_NAME) {
         throw new Error(
-            "The Favourites collection is shared with ASR and can't be deleted from binge."
+            "收藏夹合集与 ASR 共享，无法从 binge 中删除。"
         );
     }
     const tagIds = await getCollectionTagIds();

@@ -282,7 +282,10 @@ export function Reel() {
                             behavior: "auto",
                         });
                     });
-                    setPinnedQueue(null);
+                    // Bug 5 修复：不要在这里清除 queue。pinnedQueue 在依赖
+                    // 数组中，清除会立即触发 effect 重跑 → 走 random 路径
+                    // → 用随机场景覆盖 queue 场景。queue 由 setTab 在用户
+                    // 离开时清除。
                 })
                 .catch((err: Error) => {
                     if (token !== fetchTokenRef.current) return;
@@ -333,13 +336,24 @@ export function Reel() {
                     setRatingOverrides({});
                     setCollectionOverrides({});
                     scrollRef.current?.scrollTo({ top: 0, behavior: "auto" });
-                    setPinFirstSceneId(null);
+                    // Bug 5 修复：不要在这里清除 pin。pinFirstSceneId 在依赖
+                    // 数组中，清除会立即触发 effect 重跑 → 落入 random 路径
+                    // → 用随机场景覆盖 chained 场景。pin 由 setTab 或
+                    // filter-takeover 在用户离开 chained 模式时清除。
                 })
                 .catch((err: Error) => {
                     if (token !== fetchTokenRef.current) return;
                     setState({ kind: "error", message: err.message });
                     setPinFirstSceneId(null);
                 });
+            return;
+        }
+
+        // Bug 5 修复：chained 模式下若 pin 已被清除（例如 chained 路径
+        // 完成后 effect 重跑），不要落入 random 路径，否则会用随机场景
+        // 覆盖已加载的 chained 场景。等待 pin 重新设置或用户退出
+        // chained 模式（filter-takeover 会 setReelMode("random")）。
+        if (reelMode === "chained") {
             return;
         }
 

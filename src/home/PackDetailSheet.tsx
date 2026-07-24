@@ -44,9 +44,12 @@ export function PackDetailSheet({
         // queue here (startIndex starts it at the tapped scene), and
         // a leftover pin would otherwise resurface in chained mode.
         // Mirrors SceneFeedCard's "Watch full scene" handoff.
+        //
+        // Bug 5 修复：setTab 会清除 pin/queue，因此 setPinnedQueue
+        // 必须在 setTab 之后调用，利用 React 18 批处理"后写胜"语义。
+        setTab("foryou");
         setPinFirstSceneId(null);
         setPinnedQueue({ ids, startIndex });
-        setTab("foryou");
         onClose();
     };
 

@@ -65,12 +65,7 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
     const oBusyRef = useRef(false);
 
     const { replace } = useFilter();
-    const {
-        setTab,
-        setPinFirstSceneId,
-        setReelMode,
-        setPinnedQueue,
-    } = useTab();
+    const { setTab, setPinFirstSceneId, setReelMode } = useTab();
     const { openProfile } = usePerformerProfile();
     const { open: openStoryViewer } = useStoryViewer();
     const storiesState = useSharedStories();
@@ -205,6 +200,15 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // Bug 1 修复：IO callback 闭包固定在初始 muted 值，用户点击静音
+    // 按钮后 video.muted 永远不会更新。独立的 effect 同步 video.muted
+    // 与 React muted 状态，确保静音按钮立即生效。
+    useEffect(() => {
+        const video = videoRef.current;
+        if (!video) return;
+        video.muted = muted;
+    }, [muted]);
+
     // Track play state for the centred play-glyph overlay.
     useEffect(() => {
         const video = videoRef.current;
@@ -274,11 +278,14 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
         // 种子进入 reel，chainAlgo 基于该场景的演员/标签生成后续推荐，
         // 避免 pinnedQueue 的 scrollTo() 被虚拟列表逻辑覆盖。
         // 清空筛选以防 chained 模式的 filter-takeover 把用户弹回 random。
-        setReelMode("chained");
+        //
+        // Bug 5 修复：setTab 会清除 pin/queue 并重置 reelMode=random，
+        // 因此必须在 setTab 之后再设置 pin 和 reelMode=chained，利用
+        // React 18 批处理"后写胜"语义保证最终状态正确。
         replace({ performers: [], tags: [], studios: [] });
-        setPinnedQueue(null);
-        setPinFirstSceneId(item.sceneId);
         setTab("foryou");
+        setPinFirstSceneId(item.sceneId);
+        setReelMode("chained");
     };
 
     return (

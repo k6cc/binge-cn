@@ -16,14 +16,16 @@ import {
 //   - `#/sdbp/<stashId>` StashDB-only performer (NEW — not in the user's
 //                        Stash library yet; profile renders from StashDB
 //                        data + their StashDB scenes)
+// Bug 8：可选 `?tab=galleries` 查询参数指定初始 tab，用于从首页图库卡片的
+// "查看图库"按钮直接跳转到演员档案的图库 tab。
 export type ProfileTarget =
-    | { kind: "local"; id: string }
-    | { kind: "stashdb"; id: string };
+    | { kind: "local"; id: string; tab?: string }
+    | { kind: "stashdb"; id: string; tab?: string };
 
 interface PerformerProfileContextValue {
     currentProfile: ProfileTarget | null;
-    openProfile: (id: string) => void;
-    openStashDBProfile: (stashId: string) => void;
+    openProfile: (id: string, tab?: string) => void;
+    openStashDBProfile: (stashId: string, tab?: string) => void;
     close: () => void;
 }
 
@@ -39,11 +41,13 @@ function readProfileFromHash(): ProfileTarget | null {
     const hash = window.location.hash;
     const stashdbMatch = hash.match(STASHDB_HASH_PATTERN);
     if (stashdbMatch) {
-        return { kind: "stashdb", id: decodeURIComponent(stashdbMatch[1]) };
+        const tab = new URLSearchParams(hash.split("?")[1] ?? "").get("tab") ?? undefined;
+        return { kind: "stashdb", id: decodeURIComponent(stashdbMatch[1]), tab };
     }
     const localMatch = hash.match(LOCAL_HASH_PATTERN);
     if (localMatch) {
-        return { kind: "local", id: decodeURIComponent(localMatch[1]) };
+        const tab = new URLSearchParams(hash.split("?")[1] ?? "").get("tab") ?? undefined;
+        return { kind: "local", id: decodeURIComponent(localMatch[1]), tab };
     }
     return null;
 }
@@ -51,7 +55,10 @@ function readProfileFromHash(): ProfileTarget | null {
 function writeProfileHash(target: ProfileTarget): void {
     if (typeof window === "undefined") return;
     const prefix = target.kind === "stashdb" ? "sdbp" : "p";
-    const next = `#/${prefix}/${encodeURIComponent(target.id)}`;
+    let next = `#/${prefix}/${encodeURIComponent(target.id)}`;
+    if (target.tab) {
+        next += `?tab=${encodeURIComponent(target.tab)}`;
+    }
     if (window.location.hash === next) return;
     window.history.pushState(null, "", next);
 }
@@ -73,14 +80,14 @@ export function PerformerProfileProvider({
         return () => window.removeEventListener("hashchange", onHashChange);
     }, []);
 
-    const openProfile = useCallback((id: string) => {
-        const target: ProfileTarget = { kind: "local", id };
+    const openProfile = useCallback((id: string, tab?: string) => {
+        const target: ProfileTarget = { kind: "local", id, tab };
         writeProfileHash(target);
         setCurrentProfile(target);
     }, []);
 
-    const openStashDBProfile = useCallback((stashId: string) => {
-        const target: ProfileTarget = { kind: "stashdb", id: stashId };
+    const openStashDBProfile = useCallback((stashId: string, tab?: string) => {
+        const target: ProfileTarget = { kind: "stashdb", id: stashId, tab };
         writeProfileHash(target);
         setCurrentProfile(target);
     }, []);

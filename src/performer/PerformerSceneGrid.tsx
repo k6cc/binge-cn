@@ -253,8 +253,11 @@ export function PerformerSceneGrid({
         });
         // Tell the Reel to open with this exact scene as slide 0;
         // remaining slides come from the normal random filter feed.
-        setPinFirstSceneId(sceneId);
+        //
+        // Bug 5 修复：setTab 会清除 pin，因此 setPinFirstSceneId 必须在
+        // setTab 之后调用，利用 React 18 批处理"后写胜"语义。
         setTab("foryou");
+        setPinFirstSceneId(sceneId);
         onClose();
     };
 

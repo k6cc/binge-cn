@@ -4147,6 +4147,9 @@ body,
     width: 100%;
     height: 100%;
     object-fit: cover;
+    /* Bug 4：发现页的影片封面右对齐。横版封面被裁切到 16:9 时，
+       右对齐能保留动作区域。 */
+    object-position: right center;
     display: block;
 }
 .binge-discovery-card-cover-empty {
@@ -6883,7 +6886,10 @@ body,
     position: absolute;
     inset: 0;
     background-size: cover;
-    background-position: center;
+    /* Bug 2：演员详情页的影片封面右对齐。横版封面被裁切到 9:16 竖屏
+       时，右对齐能保留动作区域（中居裁切常切掉主体）。竖版封面因
+       object-fit:cover 已基本完整显示，右对齐影响可忽略。 */
+    background-position: right center;
     background-repeat: no-repeat;
     background-color: #050505;
     /* background-size is a keyword — it doesn't tween — so the
@@ -6897,6 +6903,8 @@ body,
     .binge-profile-scene-card:focus-visible
     .binge-profile-scene-poster {
     background-size: contain;
+    /* 悬停查看完整封面时改回居中，避免 contain 状态下右侧出现黑边。 */
+    background-position: center;
 }
 
 /* Preview clip — sits above the poster, below the hover overlay.
@@ -7300,6 +7308,117 @@ body,
     display: block;
 }
 
+/* ──────────────────────────────────────────────────────────────────────
+   Gallery cover grid (performer profile → 图库 tab, layer 1)
+
+   Bug 3：图库封面约束 3:4 竖排比例。封面被锁定到 3:4 竖屏（与场景
+   卡片 9:16 区分），3 列网格。悬停时由 mYf GalleryCoverCell 自动
+   循环切换该图库前 50 张图片。
+   ────────────────────────────────────────────────────────────────────── */
+.binge-gallery-grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+}
+@media (min-width: 720px) {
+    .binge-gallery-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+    }
+}
+@media (min-width: 1100px) {
+    .binge-gallery-grid {
+        grid-template-columns: repeat(5, 1fr);
+    }
+}
+.binge-gallery-cell {
+    display: block;
+    margin: 0;
+    padding: 0;
+}
+.binge-gallery-cover-btn {
+    appearance: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    background: #050505;
+    cursor: pointer;
+    width: 100%;
+    /* Bug 3：3:4 竖排比例 */
+    aspect-ratio: 3 / 4;
+    overflow: hidden;
+    position: relative;
+    border-radius: 6px;
+    display: block;
+    color: inherit;
+    transition: filter 0.18s ease;
+}
+.binge-gallery-cover-btn:hover {
+    filter: brightness(1.08);
+}
+.binge-gallery-cover-btn:focus-visible {
+    outline: 2px solid rgba(244, 114, 182, 0.7);
+    outline-offset: 2px;
+}
+.binge-gallery-cover {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    /* 与场景卡片一致：右对齐保留主体（图库封面通常来自截图）。 */
+    object-position: right center;
+    display: block;
+}
+.binge-gallery-cell-title {
+    position: absolute;
+    left: 0.4rem;
+    right: 0.4rem;
+    bottom: 0.4rem;
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 600;
+    line-height: 1.2;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    pointer-events: none;
+}
+.binge-gallery-cell-count {
+    position: absolute;
+    top: 0.35rem;
+    right: 0.35rem;
+    padding: 0.15rem 0.4rem;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    pointer-events: none;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+.binge-gallery-back {
+    appearance: none;
+    border: none;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    padding: 0.4rem 0;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+.binge-gallery-title {
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+    padding: 0 0.25rem;
+}
+
 /* X (Twitter) media cell — the card is an <a> (opens the tweet), so it
    needs block layout + no underline. Video cells get a centered play
    badge over the first-frame poster. */
@@ -7323,6 +7442,54 @@ body,
     font-size: 13px;
     padding-left: 2px;
     pointer-events: none;
+}
+
+/* Bug 11：X tab 专属样式 — meta 行 + 单元格点赞数徽章。
+   .binge-x-tile 复用 .binge-gallery-cover-btn 的 3:4 卡片样式，
+   仅补充 anchor 专属重置。 */
+.binge-x-grid-meta {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0 0.25rem 0.75rem;
+}
+.binge-x-grid-handle {
+    color: #6aa9ff;
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-decoration: none;
+}
+.binge-x-grid-handle:hover,
+.binge-x-grid-handle:focus-visible {
+    text-decoration: underline;
+    outline: none;
+}
+.binge-app.refract .binge-x-grid-handle {
+    color: rgba(var(--accent-rgb), 1);
+}
+.binge-x-grid-count {
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 0.78rem;
+    font-weight: 500;
+}
+.binge-x-tile {
+    text-decoration: none;
+    color: inherit;
+}
+.binge-x-cell-likes {
+    position: absolute;
+    left: 0.35rem;
+    bottom: 0.35rem;
+    padding: 0.12rem 0.4rem;
+    background: rgba(0, 0, 0, 0.6);
+    color: rgba(244, 114, 182, 1);
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    pointer-events: none;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
 }
 
 /* Lightbox — full-screen image viewer over the profile (z:90) and any

@@ -384,7 +384,7 @@ function HomeBurger() {
                                 <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z" />
                             </svg>
                         </span>
-                        <span className="binge-home-menu-label">Saved</span>
+                        <span className="binge-home-menu-label">已保存</span>
                     </button>
                     <button
                         type="button"
@@ -413,7 +413,7 @@ function HomeBurger() {
                             </svg>
                         </span>
                         <span className="binge-home-menu-label">
-                            Settings
+                            设置
                         </span>
                     </button>
                 </div>

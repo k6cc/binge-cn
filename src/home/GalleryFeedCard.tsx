@@ -186,11 +186,19 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                     )}
 
                     {/* End panel — always rendered so the carousel has
-                        a "more →" outro slot even on small galleries. */}
+                        a "more →" outro slot even on small galleries.
+                        Bug 8：点击纯色图直接跳转到演员档案的图库 tab，
+                        而非打开灯箱。 */}
                     <button
                         type="button"
                         className="binge-gallery-slide binge-gallery-end"
-                        onClick={() => setLightboxOpenAt(0)}
+                        onClick={() => {
+                            if (primaryPerformer) {
+                                openProfile(primaryPerformer.id, "galleries");
+                            } else {
+                                setLightboxOpenAt(0);
+                            }
+                        }}
                         aria-label="查看完整图库"
                     >
                         <span className="binge-gallery-end-inner">
