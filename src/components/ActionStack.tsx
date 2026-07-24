@@ -83,7 +83,7 @@ export function ActionStack({
     const useAdvancedRating = hasAdvancedRating && !!onOpenAdvancedRating;
 
     return (
-        <aside className="binge-actions" aria-label="scene actions">
+        <aside className="binge-actions" aria-label="场景操作">
             <HeartButton
                 oCount={oCount}
                 oError={oError}
@@ -131,8 +131,8 @@ export function ActionStack({
                     e.stopPropagation();
                     onOpenMore();
                 }}
-                aria-label="More actions"
-                title="More"
+                aria-label="更多操作"
+                title="更多"
             >
                 <MoreIcon />
             </button>
@@ -221,8 +221,8 @@ function HeartButton({
             onPointerLeave={handlePointerLeave}
             onPointerCancel={handlePointerLeave}
             onContextMenu={suppressContextMenu}
-            aria-label={`O counter ${oCount}. Tap to like, hold to unlike.`}
-            title="Tap to like · hold to unlike"
+            aria-label={`O 计数 ${oCount}。点击喜欢，长按取消喜欢。`}
+            title="点击喜欢 · 长按取消喜欢"
         >
             <HeartIcon filled={oCount > 0} />
             {oCount > 0 && (
@@ -272,12 +272,12 @@ function RateButton({
                 }}
                 aria-label={
                     ratingStars
-                        ? `Rated ${ratingStars} stars. Tap to change.`
+                        ? `已评 ${ratingStars} 颗星。点击修改。`
                         : advanced
-                          ? "Rate this scene (advanced)"
-                          : "Rate this scene"
+                          ? "为场景评分（高级）"
+                          : "为场景评分"
                 }
-                title={advanced ? "Rate (advanced)" : "Rate"}
+                title={advanced ? "评分（高级）" : "评分"}
             >
                 <StarIcon filled={rated} />
                 {rated && (
@@ -317,7 +317,7 @@ function RateStrip({
             className="binge-rate-strip"
             onClick={(e) => e.stopPropagation()}
             role="radiogroup"
-            aria-label="Rate scene"
+            aria-label="为场景评分"
         >
             {[1, 2, 3, 4, 5].map((n) => (
                 <button
@@ -331,7 +331,7 @@ function RateStrip({
                         // Tapping the current rating clears it (toggle).
                         onPick(n === current ? null : n);
                     }}
-                    aria-label={`${n} star${n === 1 ? "" : "s"}`}
+                    aria-label={`${n} 颗星`}
                     role="radio"
                     aria-checked={n === current}
                 >
@@ -400,10 +400,10 @@ function MultiviewButton({
             onPointerCancel={onPointerLeave}
             aria-label={
                 inQueue
-                    ? "Remove from Multiview queue. Hold to open player."
-                    : "Add to Multiview queue. Hold to open player."
+                    ? "从多视图队列移除。长按打开播放器。"
+                    : "加入多视图队列。长按打开播放器。"
             }
-            title="Tap to queue · hold to open Multiview"
+            title="点击加入队列 · 长按打开多视图"
         >
             <GridIcon filled={inQueue} />
         </button>
@@ -421,8 +421,8 @@ function ScribeButton({ onTap }: { onTap: () => void }) {
                 e.stopPropagation();
                 onTap();
             }}
-            aria-label="Write a review with Scribe"
-            title="Write a review"
+            aria-label="用 Scribe 写评价"
+            title="写评价"
         >
             <PencilIcon />
         </button>
@@ -455,11 +455,11 @@ function BookmarkButton({
                     setSheetOpen(true);
                 }}
                 aria-label={
-                    savedSomewhere ? "Manage saved-to" : "Save scene"
+                    savedSomewhere ? "管理保存位置" : "保存场景"
                 }
                 aria-haspopup="dialog"
                 aria-expanded={sheetOpen}
-                title="Save to..."
+                title="保存到…"
             >
                 <BookmarkIcon filled={savedSomewhere} />
             </button>

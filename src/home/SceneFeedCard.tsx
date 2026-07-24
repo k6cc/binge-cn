@@ -45,12 +45,6 @@ import { useScribeModal } from "../scribe/ScribeContext";
 
 interface SceneFeedCardProps {
     item: SceneFeedItem;
-    /// Date-sorted list of every scene id in the home feed.
-    /// "Watch full scene" now drops the user into the reel
-    /// pre-populated with this list, starting at this card's
-    /// scene — they walk through the home timeline rather than
-    /// landing in a filter-scoped reel.
-    feedSceneIds: string[];
 }
 
 // Scene-as-post IG-style card. Preview WebM auto-plays muted when ≥60%
@@ -58,14 +52,10 @@ interface SceneFeedCardProps {
 // the media to toggle play/pause; double-click to like; tap the header
 // avatar/name to open that performer's profile.
 //
-// The CTA "Watch full scene →" drops into the reel with the WHOLE
-// home feed pre-loaded as a deterministic queue (no filter, no
-// chained algo) — the user keeps walking the home timeline,
-// starting at the tapped scene. Same UX as the iOS port.
-export function SceneFeedCard({
-    item,
-    feedSceneIds,
-}: SceneFeedCardProps) {
+// 硬约束：CTA "观看完整场景 →" 使用 chained 模式（而非 pinnedQueue）。
+// chained 模式以当前场景为种子，由 chainAlgo 生成后续推荐，避免
+// pinnedQueue 的 scrollTo() 被虚拟列表逻辑覆盖的问题。
+export function SceneFeedCard({ item }: SceneFeedCardProps) {
     const videoRef = useRef<HTMLVideoElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [isPlaying, setIsPlaying] = useState(false);
@@ -280,27 +270,14 @@ export function SceneFeedCard({
     };
 
     const handleWatchFullScene = () => {
-        // Home → reel timeline jump. Hands the reel the home
-        // feed's ordered scene id list + the index of this
-        // card's scene; the reel's pinnedQueue path renders them
-        // verbatim, in order, no pagination. User walks the
-        // timeline forward/back from where they tapped.
-        //
-        // Previously this was filter-scoped (replace filter to
-        // primary performer + pin first scene). That dropped the
-        // user out of the date-ordered timeline and into a
-        // random feed of one performer's scenes — surprising on
-        // a date-ordered home page. Same change shipped on iOS.
-        setReelMode("random");
-        // Clear any stale chained-mode filter so the reel reads
-        // the pinned queue cleanly.
+        // 硬约束：使用 chained 模式（而非 pinnedQueue）。以当前场景为
+        // 种子进入 reel，chainAlgo 基于该场景的演员/标签生成后续推荐，
+        // 避免 pinnedQueue 的 scrollTo() 被虚拟列表逻辑覆盖。
+        // 清空筛选以防 chained 模式的 filter-takeover 把用户弹回 random。
+        setReelMode("chained");
         replace({ performers: [], tags: [], studios: [] });
-        const startIndex = Math.max(
-            0,
-            feedSceneIds.indexOf(item.sceneId)
-        );
-        setPinFirstSceneId(null);
-        setPinnedQueue({ ids: feedSceneIds, startIndex });
+        setPinnedQueue(null);
+        setPinFirstSceneId(item.sceneId);
         setTab("foryou");
     };
 
@@ -374,13 +351,13 @@ export function SceneFeedCard({
                                                 }
                                                 aria-label={
                                                     p.favorite
-                                                        ? "Favourited"
-                                                        : "In library"
+                                                        ? "已收藏"
+                                                        : "在库中"
                                                 }
                                                 title={
                                                     p.favorite
-                                                        ? "Favourited"
-                                                        : "In library"
+                                                        ? "已收藏"
+                                                        : "在库中"
                                                 }
                                             >
                                                 <VerifiedIcon />
@@ -392,7 +369,7 @@ export function SceneFeedCard({
                         </PerformerHoverCard>
                     ) : (
                         <span className="binge-feed-card-name">
-                            Unknown
+                            未知
                         </span>
                     )}
                 </div>
@@ -402,8 +379,8 @@ export function SceneFeedCard({
                 <SceneCardMenu
                     items={[
                         {
-                            label: "Open in Stash",
-                            sub: "Opens the scene in your Stash UI",
+                            label: "在 Stash 中打开",
+                            sub: "在 Stash 界面中打开此场景",
                             onClick: () =>
                                 window.open(
                                     `/scenes/${item.sceneId}`,
@@ -437,7 +414,7 @@ export function SceneFeedCard({
                     type="button"
                     className="binge-feed-card-tap"
                     onClick={handleTap}
-                    aria-label={isPlaying ? "Pause" : "Play"}
+                    aria-label={isPlaying ? "暂停" : "播放"}
                     tabIndex={-1}
                 />
                 {!isPlaying && (
@@ -461,8 +438,8 @@ export function SceneFeedCard({
                         e.stopPropagation();
                         setMuted(!muted);
                     }}
-                    aria-label={muted ? "Unmute" : "Mute"}
-                    title={muted ? "Unmute" : "Mute"}
+                    aria-label={muted ? "取消静音" : "静音"}
+                    title={muted ? "取消静音" : "静音"}
                 >
                     {muted ? <MutedIcon /> : <UnmutedIcon />}
                 </button>
@@ -476,8 +453,8 @@ export function SceneFeedCard({
                         (liked || oCount > 0 ? " is-liked" : "")
                     }
                     onClick={triggerLike}
-                    aria-label="Like"
-                    title="Like"
+                    aria-label="喜欢"
+                    title="喜欢"
                 >
                     <HeartIcon filled={liked || oCount > 0} />
                     {oCount > 0 && (
@@ -491,8 +468,8 @@ export function SceneFeedCard({
                         type="button"
                         className="binge-feed-card-iconbtn"
                         onClick={() => setRatingOpen(true)}
-                        aria-label="Rate"
-                        title="Rate (advanced)"
+                        aria-label="评分"
+                        title="评分（高级）"
                     >
                         <StarIcon filled={false} />
                     </button>
@@ -507,10 +484,10 @@ export function SceneFeedCard({
                         onClick={handleToggleMV}
                         aria-label={
                             inMVQueue
-                                ? "Remove from Multiview"
-                                : "Add to Multiview"
+                                ? "移出多视图"
+                                : "加入多视图"
                         }
-                        title="Send to Multiview"
+                        title="发送到多视图"
                     >
                         <GridIcon filled={inMVQueue} />
                     </button>
@@ -520,8 +497,8 @@ export function SceneFeedCard({
                         type="button"
                         className="binge-feed-card-iconbtn"
                         onClick={handleOpenScribe}
-                        aria-label="Write review with Scribe"
-                        title="Write review"
+                        aria-label="用 Scribe 写评价"
+                        title="写评价"
                     >
                         <PencilIcon />
                     </button>
@@ -533,8 +510,8 @@ export function SceneFeedCard({
                         (savedSomewhere ? " is-active" : "")
                     }
                     onClick={() => setSaveSheetOpen(true)}
-                    aria-label="Save"
-                    title="Save"
+                    aria-label="保存"
+                    title="保存"
                 >
                     <BookmarkIcon filled={savedSomewhere} />
                 </button>
@@ -543,7 +520,7 @@ export function SceneFeedCard({
                     className="binge-feed-card-cta"
                     onClick={handleWatchFullScene}
                 >
-                    Watch full scene →
+                    观看完整场景 →
                 </button>
             </div>
 
@@ -617,7 +594,7 @@ function FeedCaption({
                             className="binge-feed-card-more-btn"
                             onClick={() => setExpanded(true)}
                         >
-                            more
+                            更多
                         </button>
                     </>
                 )}
@@ -630,7 +607,7 @@ function FeedCaption({
                         className="binge-feed-card-more-btn"
                         onClick={() => setExpanded(false)}
                     >
-                        less
+                        收起
                     </button>
                 </div>
             )}
@@ -727,8 +704,8 @@ function AvatarStack({
                             {ringedNode}
                             <span
                                 className="binge-feed-card-stack-repost-badge"
-                                aria-label="Reposted"
-                                title="Reposted — back-catalog you re-added"
+                                aria-label="转发了"
+                                title="转发了 — 你重新添加的旧内容"
                             >
                                 <RepostIcon />
                             </span>
@@ -793,11 +770,9 @@ function HashtagRow({
                     type="button"
                     className="binge-feed-card-hashtag-more"
                     onClick={() => setExpanded(true)}
-                    aria-label={`Show ${hidden} more tag${
-                        hidden === 1 ? "" : "s"
-                    }`}
+                    aria-label={`显示另外 ${hidden} 个标签`}
                 >
-                    +{hidden} more
+                    +{hidden}
                 </button>
             )}
             {expanded && tags.length > INITIAL && (
@@ -805,9 +780,9 @@ function HashtagRow({
                     type="button"
                     className="binge-feed-card-hashtag-more"
                     onClick={() => setExpanded(false)}
-                    aria-label="Show fewer tags"
+                    aria-label="显示更少标签"
                 >
-                    less
+                    收起
                 </button>
             )}
         </div>

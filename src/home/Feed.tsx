@@ -57,22 +57,6 @@ export function Feed({ scrollContainerRef }: FeedProps) {
         [rawItems, hidden]
     );
 
-    // Date-ordered list of every scene id in the home feed (skips
-    // gallery + discovery rows). Passed to SceneFeedCard so the
-    // "Watch full scene" CTA can drop the user into the reel
-    // pre-populated with the home timeline, starting at the tapped
-    // scene — same UX as the iOS port. Memoized so the array stays
-    // referentially stable and doesn't bust every card's props.
-    const feedSceneIds = useMemo(
-        () =>
-            items
-                .filter((it): it is Extract<typeof it, { kind: "scene" }> =>
-                    it.kind === "scene"
-                )
-                .map((it) => it.sceneId),
-        [items]
-    );
-
     // The feed isn't at the top of its scroll container — there's a
     // page title and the stories row above it. Tell the virtualizer
     // about that offset so it computes visibility correctly. Re-measure
@@ -126,7 +110,7 @@ export function Feed({ scrollContainerRef }: FeedProps) {
         return (
             <section className="binge-feed">
                 <div className="binge-feed-empty binge-status-error">
-                    couldn't load feed: {state.message}
+                    无法加载动态：{state.message}
                 </div>
             </section>
         );
@@ -136,8 +120,8 @@ export function Feed({ scrollContainerRef }: FeedProps) {
             <section className="binge-feed">
                 <div className="binge-feed-empty">
                     {rawItems.length > 0
-                        ? "everything's filtered out — adjust the filter."
-                        : "nothing new in your recent window."}
+                        ? "所有内容被筛选掉了 — 调整筛选条件。"
+                        : "近期窗口内没有新内容。"}
                 </div>
             </section>
         );
@@ -146,7 +130,7 @@ export function Feed({ scrollContainerRef }: FeedProps) {
     return (
         <section
             className="binge-feed"
-            aria-label="New scenes and galleries"
+            aria-label="新场景和图库"
             ref={feedRef}
             style={{
                 position: "relative",
@@ -173,10 +157,7 @@ export function Feed({ scrollContainerRef }: FeedProps) {
                         }}
                     >
                         {item.kind === "scene" ? (
-                            <SceneFeedCard
-                                item={item}
-                                feedSceneIds={feedSceneIds}
-                            />
+                            <SceneFeedCard item={item} />
                         ) : item.kind === "gallery" ? (
                             <GalleryFeedCard item={item} />
                         ) : item.kind === "pack" ? (
@@ -210,7 +191,7 @@ export function Feed({ scrollContainerRef }: FeedProps) {
                 }}
             >
                 <div className="binge-feed-empty">
-                    you've reached the end · {items.length} items
+                    已到底 · 共 {items.length} 项
                 </div>
             </div>
         </section>

@@ -19,7 +19,7 @@ export function PerformerBio({ performer, nameAccessory }: PerformerBioProps) {
     const birthYear = parseBirthYear(performer.birthdate);
     if (birthYear) attributes.push(String(birthYear));
     if (performer.hair_color) attributes.push(performer.hair_color);
-    if (performer.eye_color) attributes.push(`${performer.eye_color} eyes`);
+    if (performer.eye_color) attributes.push(`${performer.eye_color}色眼睛`);
 
     const aliases = performer.alias_list ?? [];
 
@@ -39,8 +39,8 @@ export function PerformerBio({ performer, nameAccessory }: PerformerBioProps) {
                         type="button"
                         className="binge-profile-name-link"
                         onClick={handleOpenInStash}
-                        title="Open in Stash"
-                        aria-label={`Open ${performer.name} in Stash`}
+                        title="在 Stash 中打开"
+                        aria-label={`在 Stash 中打开 ${performer.name}`}
                     >
                         {performer.name}
                     </button>
@@ -49,7 +49,7 @@ export function PerformerBio({ performer, nameAccessory }: PerformerBioProps) {
             </div>
             {aliases.length > 0 && (
                 <p className="binge-profile-aliases">
-                    a.k.a. {aliases.join(", ")}
+                    又名 {aliases.join(", ")}
                 </p>
             )}
             {attributes.length > 0 && (

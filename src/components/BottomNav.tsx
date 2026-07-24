@@ -7,11 +7,11 @@ import { useTab, type Tab } from "../tabs/TabContext";
 // header and a bottom nav over the top would be redundant.
 
 const SLOTS: { id: Tab; label: string }[] = [
-    { id: "home", label: "Home" },
-    { id: "foryou", label: "For You" },
-    { id: "explore", label: "Explore" },
-    { id: "following", label: "Following" },
-    { id: "menu", label: "Menu" },
+    { id: "home", label: "首页" },
+    { id: "foryou", label: "推荐" },
+    { id: "explore", label: "发现" },
+    { id: "following", label: "关注中" },
+    { id: "menu", label: "菜单" },
 ];
 
 export function BottomNav() {
@@ -24,7 +24,7 @@ export function BottomNav() {
                 "binge-bottom-nav" + (tabBarVisible ? "" : " is-hidden")
             }
             role="tablist"
-            aria-label="Sections"
+            aria-label="分区"
         >
             {SLOTS.map((slot) => {
                 const active = tab === slot.id;

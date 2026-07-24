@@ -61,7 +61,7 @@ export function StoriesRow({ stories }: { stories: StoriesResult }) {
         return (
             <section className="binge-stories-row">
                 <div className="binge-stories-empty binge-status-error">
-                    couldn't load stories: {state.message}
+                    无法加载故事：{state.message}
                 </div>
             </section>
         );
@@ -72,11 +72,11 @@ export function StoriesRow({ stories }: { stories: StoriesResult }) {
     return (
         <section
             className="binge-stories-row"
-            aria-label="Performers with new scenes"
+            aria-label="有新场景的演员"
         >
             {list.length === 0 ? (
                 <div className="binge-stories-empty">
-                    no new scenes from your favourites in the last 30 days.
+                    过去 30 天内你的收藏没有新场景。
                 </div>
             ) : (
                 <>
@@ -85,7 +85,7 @@ export function StoriesRow({ stories }: { stories: StoriesResult }) {
                             type="button"
                             className="binge-stories-chevron binge-stories-chevron-left"
                             onClick={() => scrollByAmount(-280)}
-                            aria-label="Scroll left"
+                            aria-label="向左滚动"
                         >
                             <ChevronLeft />
                         </button>
@@ -107,7 +107,7 @@ export function StoriesRow({ stories }: { stories: StoriesResult }) {
                             type="button"
                             className="binge-stories-chevron binge-stories-chevron-right"
                             onClick={() => scrollByAmount(280)}
-                            aria-label="Scroll right"
+                            aria-label="向右滚动"
                         >
                             <ChevronRight />
                         </button>

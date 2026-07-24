@@ -12,9 +12,9 @@ interface AddChipMenuProps {
 }
 
 const TABS: { id: FilterCategory; label: string }[] = [
-    { id: "performers", label: "Performers" },
-    { id: "tags", label: "Tags" },
-    { id: "studios", label: "Studios" },
+    { id: "performers", label: "演员" },
+    { id: "tags", label: "标签" },
+    { id: "studios", label: "制片厂" },
 ];
 
 // Search-and-add picker. One tab per filter category. Type to search; each
@@ -126,16 +126,16 @@ export function AddChipMenu({ onClose }: AddChipMenuProps) {
                 ref={inputRef}
                 type="text"
                 className="binge-chip-menu-input"
-                placeholder={`Search ${tab}…`}
+                placeholder={`搜索${TABS.find((t) => t.id === tab)?.label ?? tab}…`}
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
             />
             <ul className="binge-chip-menu-results">
                 {loading && (
-                    <li className="binge-chip-menu-status">searching…</li>
+                    <li className="binge-chip-menu-status">搜索中…</li>
                 )}
                 {!loading && results.length === 0 && (
-                    <li className="binge-chip-menu-status">no results</li>
+                    <li className="binge-chip-menu-status">无结果</li>
                 )}
                 {results.map((r) => {
                     const isSelected = alreadySelected.has(r.id);

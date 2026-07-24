@@ -65,12 +65,12 @@ export function SettingsPage() {
                     type="button"
                     className="binge-saved-back"
                     onClick={() => setTab("home")}
-                    aria-label="Back to Home"
-                    title="Back"
+                    aria-label="返回首页"
+                    title="返回"
                 >
                     <ChevronLeft />
                 </button>
-                <h1 className="binge-saved-title">Settings</h1>
+                <h1 className="binge-saved-title">设置</h1>
                 <span className="binge-saved-spacer" />
             </header>
 
@@ -103,8 +103,8 @@ function TranscodeRow() {
     const value = useTranscodeType();
     return (
         <SettingRow
-            title="Stream type"
-            description="How videos are delivered to the binge reel. Auto follows Stash's transcode rules. Direct skips transcoding (best for already-compatible formats). MP4/WebM force a transcoded output. HLS uses chunked streaming."
+            title="流媒体类型"
+            description="视频如何传输到 binge reel。自动跟随 Stash 的转码规则。直连跳过转码（最适合已兼容的格式）。MP4/WebM 强制转码输出。HLS 使用分块流式传输。"
         >
             <select
                 className="binge-settings-select"
@@ -115,11 +115,11 @@ function TranscodeRow() {
                     )
                 }
             >
-                <option value="auto">Auto (Stash decides)</option>
-                <option value="direct">Direct (no transcode)</option>
-                <option value="mp4">Transcoded MP4</option>
-                <option value="webm">Transcoded WebM</option>
-                <option value="hls">HLS streaming</option>
+                <option value="auto">自动（Stash 决定）</option>
+                <option value="direct">直连（无转码）</option>
+                <option value="mp4">转码 MP4</option>
+                <option value="webm">转码 WebM</option>
+                <option value="hls">HLS 流式传输</option>
             </select>
         </SettingRow>
     );
@@ -135,13 +135,13 @@ function GenderRow() {
     };
     return (
         <SettingRow
-            title="Genders to surface"
-            description="Performers of these genders appear on the Home discovery feed and Explore's Discover Performers row. Defaults to female + trans female; toggle others to broaden the surface."
+            title="显示的性别"
+            description="这些性别的演员会出现在首页发现动态和探索的“发现演员”行中。默认为女性 + 跨性别女性；切换其他以扩大范围。"
         >
             <div
                 className="binge-settings-gender-row"
                 role="group"
-                aria-label="Genders to surface"
+                aria-label="显示的性别"
             >
                 {GENDER_OPTIONS.map(({ value, label }) => {
                     const active = allowed.has(value);
@@ -171,11 +171,11 @@ const GENDER_OPTIONS: ReadonlyArray<{
     value: Gender;
     label: string;
 }> = [
-    { value: "FEMALE", label: "Female" },
-    { value: "MALE", label: "Male" },
-    { value: "TRANSGENDER_FEMALE", label: "Trans female" },
-    { value: "TRANSGENDER_MALE", label: "Trans male" },
-    { value: "NON_BINARY", label: "Non-binary" },
+    { value: "FEMALE", label: "女性" },
+    { value: "MALE", label: "男性" },
+    { value: "TRANSGENDER_FEMALE", label: "跨性别女性" },
+    { value: "TRANSGENDER_MALE", label: "跨性别男性" },
+    { value: "NON_BINARY", label: "非二元" },
 ];
 
 // Hand-drawn gender glyphs that scale crisply at small sizes —
@@ -249,13 +249,13 @@ function GalleriesRow() {
     const value = useShowGalleries();
     return (
         <SettingRow
-            title="Show galleries in feed"
-            description="Mix gallery posts (photo sets) into the Home feed alongside scenes. Disable to see scenes only."
+            title="在动态中显示图库"
+            description="将图库帖子（图集）混入首页动态中与场景一起展示。关闭则只看场景。"
         >
             <SwitchToggle
                 checked={value}
                 onChange={(v) => setShowGalleries(v)}
-                label="Show galleries"
+                label="显示图库"
             />
         </SettingRow>
     );
@@ -265,8 +265,8 @@ function LookbackRow() {
     const value = useLookbackDays();
     return (
         <SettingRow
-            title="Recent window"
-            description='How far back "new" looks on the Home tab. Affects both the stories row and the initial feed load. Shorter windows feel tighter; longer windows surface more content but slow first-load on heavy libraries.'
+            title="近期窗口"
+            description="首页“新”内容的回溯范围。同时影响故事栏和初始动态加载。窗口越短越紧凑；窗口越长展示更多内容，但库较大时首屏加载会变慢。"
         >
             <select
                 className="binge-settings-select"
@@ -287,8 +287,8 @@ function StashDBRow() {
     const value = useIncludeStashDB();
     return (
         <SettingRow
-            title="Include StashDB new releases in stories"
-            description="Stories row also surfaces new releases on StashDB for performers in your library that you don't already own. Requires a StashDB API key in Stash → Settings → Metadata Providers → StashBox. Results cached for 12h."
+            title="在故事中包含 StashDB 新发布"
+            description="故事栏也会展示你库中演员在 StashDB 上的新发布（你尚未拥有的内容）。需要在 Stash → 设置 → 元数据提供商 → StashBox 中配置 StashDB API 密钥。结果缓存 12 小时。"
         >
             <SwitchToggle
                 checked={value}
@@ -303,13 +303,13 @@ function StashDBProfileRow() {
     const value = useIncludeStashDBInProfile();
     return (
         <SettingRow
-            title="Mix StashDB scenes into performer profiles"
-            description="When viewing a library performer's profile, also surface scenes from their StashDB catalogue that you don't already own — interleaved with your library scenes by date. Tapping a StashDB-only scene opens the same add-to-library modal as the discovery feed."
+            title="将 StashDB 场景混入演员档案"
+            description="查看库中演员档案时，也展示其 StashDB 目录中你尚未拥有的场景——按日期与库中场景交错排列。点击仅存在于 StashDB 的场景会打开与发现动态相同的加入库弹窗。"
         >
             <SwitchToggle
                 checked={value}
                 onChange={(v) => setIncludeStashDBInProfile(v)}
-                label="StashDB in profiles"
+                label="档案中的 StashDB"
             />
         </SettingRow>
     );
@@ -319,8 +319,8 @@ function RedditRow() {
     const value = useIncludeReddit();
     return (
         <SettingRow
-            title="Include Reddit posts in stories"
-            description="Stories row surfaces new Reddit submissions from performers whose profile has a reddit.com URL. Requires binge-server running (set the URL below) and a configured script-app on reddit.com. Daemon-off cleanly no-ops."
+            title="在故事中包含 Reddit 帖子"
+            description="故事栏展示个人资料含 reddit.com 链接的演员在 Reddit 上的新提交。需要 binge-server 运行（在下方设置 URL）并在 reddit.com 上配置一个 script-app。关闭守护进程则自动跳过。"
         >
             <SwitchToggle
                 checked={value}
@@ -335,8 +335,8 @@ function XRow() {
     const value = useIncludeX();
     return (
         <SettingRow
-            title="Include X (Twitter) media on profiles"
-            description="Adds an X tab to performer profiles whose profile has a twitter.com / x.com URL, fetched on demand. Requires binge-server running (URL below) with X cookies configured. Daemon-off or no cookies cleanly no-ops."
+            title="在档案中包含 X (Twitter) 媒体"
+            description="为个人资料含 twitter.com / x.com 链接的演员档案添加一个 X 标签页，按需获取。需要 binge-server 运行（在下方设置 URL）并配置 X cookies。关闭守护进程或无 cookies 则自动跳过。"
         >
             <SwitchToggle
                 checked={value}
@@ -351,8 +351,8 @@ function PornhubRow() {
     const value = useIncludePornhub();
     return (
         <SettingRow
-            title="Include PornHub videos"
-            description="Folds a performer's PornHub videos into their scenes grid (and new uploads into stories) for performers with a pornhub.com pornstar/model URL. Hover plays the preview; tap streams it; Save downloads into Stash. Requires binge-server. Daemon-off cleanly no-ops."
+            title="包含 PornHub 视频"
+            description="将演员的 PornHub 视频折叠进其场景网格（新上传加入故事栏），适用于个人资料含 pornhub.com pornstar/model 链接的演员。悬停播放预览；点击流式播放；保存则下载到 Stash。需要 binge-server。关闭守护进程则自动跳过。"
         >
             <SwitchToggle
                 checked={value}
@@ -376,7 +376,7 @@ function BingeServerRow() {
     return (
         <SettingRow
             title="binge-server URL"
-            description="HTTP address of the binge-server daemon. Default is http://localhost:7878 — change it if you run binge-server on a different host or port. Status dot pings /healthz."
+            description="binge-server 守护进程的 HTTP 地址。默认为 http://localhost:7878——如果你在其他主机或端口上运行 binge-server，请更改此项。状态点会 ping /healthz。"
         >
             <div className="binge-settings-url-row">
                 <input
@@ -421,10 +421,10 @@ function BingeServerHealthDot({ url }: { url: string }) {
 
     const label =
         state === "ok"
-            ? "binge-server reachable"
+            ? "binge-server 可达"
             : state === "down"
-              ? "binge-server unreachable"
-              : "Checking…";
+              ? "binge-server 不可达"
+              : "检查中…";
     return (
         <span
             className={`binge-settings-status-dot is-${state}`}
@@ -592,11 +592,11 @@ function BingeServerConfigCard() {
             <div className="binge-settings-card">
                 <div className="binge-settings-card-header">
                     <h3 className="binge-settings-card-title">
-                        binge-server configuration
+                        binge-server 配置
                     </h3>
                     <span className="binge-settings-card-status">
                         <span className="binge-settings-status-dot is-pending" />
-                        Checking…
+                        检查中…
                     </span>
                 </div>
             </div>
@@ -608,23 +608,23 @@ function BingeServerConfigCard() {
             <div className="binge-settings-card is-disconnected">
                 <div className="binge-settings-card-header">
                     <h3 className="binge-settings-card-title">
-                        binge-server configuration
+                        binge-server 配置
                     </h3>
                     <span className="binge-settings-card-status">
                         <span className="binge-settings-status-dot is-down" />
-                        Unreachable
+                        不可达
                     </span>
                 </div>
                 <p className="binge-settings-card-description">
-                    Daemon unreachable at <code>{url}</code>. Reddit
-                    stories will be silently skipped until it's running.{" "}
+                    在 <code>{url}</code> 上无法连接到守护进程。在它运行之前，Reddit
+                    故事会被静默跳过。{" "}
                     <a
                         href="https://github.com/ordureconnoisseur/binge-server"
                         target="_blank"
                         rel="noreferrer noopener"
                         className="binge-settings-card-link"
                     >
-                        Set up binge-server →
+                        设置 binge-server →
                     </a>
                 </p>
             </div>
@@ -633,8 +633,8 @@ function BingeServerConfigCard() {
 
     // Daemon is reachable — render the full config card.
     const stashKeyState = config?.stashApiKeySet
-        ? "✓ Auto-detected"
-        : "Setting up…";
+        ? "✓ 已自动检测"
+        : "配置中…";
     const cookieIsSet = !!config?.redditCookieSet;
     const xCookiesSet = !!config?.xCookiesSet;
 
@@ -642,29 +642,27 @@ function BingeServerConfigCard() {
         <div className="binge-settings-card">
             <div className="binge-settings-card-header">
                 <h3 className="binge-settings-card-title">
-                    binge-server configuration
+                    binge-server 配置
                 </h3>
                 <span className="binge-settings-card-status">
                     <span className="binge-settings-status-dot is-ok" />
-                    Connected
+                    已连接
                     {health.lastPoll && (
                         <span className="binge-settings-card-status-meta">
-                            · {health.performerCount} performers ·{" "}
-                            last poll {formatRelative(health.lastPoll)}
+                            · {health.performerCount} 名演员 ·{" "}
+                            上次轮询 {formatRelative(health.lastPoll)}
                         </span>
                     )}
                 </span>
             </div>
             <p className="binge-settings-card-description">
-                Credentials the daemon uses to poll Reddit on your
-                behalf. The Stash API key is filled in automatically; the
-                Reddit session cookie has to be pasted (it lives in your
-                browser, not in Stash).
+                守护进程代表你轮询 Reddit 所使用的凭据。Stash API
+                密钥会自动填入；Reddit 会话 Cookie 需要你手动粘贴（它保存在你的浏览器中，不在 Stash 中）。
             </p>
 
             <div className="binge-settings-card-field">
                 <span className="binge-settings-card-field-label">
-                    Stash API key
+                    Stash API 密钥
                 </span>
                 <span className="binge-settings-card-field-value">
                     {stashKeyState}
@@ -673,7 +671,7 @@ function BingeServerConfigCard() {
 
             <div className="binge-settings-card-field is-stacked">
                 <span className="binge-settings-card-field-label">
-                    Reddit session cookie
+                    Reddit 会话 Cookie
                 </span>
                 <div className="binge-server-config-cookie-row">
                     <input
@@ -687,8 +685,8 @@ function BingeServerConfigCard() {
                         }}
                         placeholder={
                             cookieIsSet
-                                ? "✓ Set · paste a new value to rotate"
-                                : "Paste your reddit_session value"
+                                ? "✓ 已设置 · 粘贴新值以轮换"
+                                : "粘贴你的 reddit_session 值"
                         }
                         spellCheck={false}
                         autoCapitalize="off"
@@ -701,7 +699,7 @@ function BingeServerConfigCard() {
                         onClick={() => void handleSaveCookie()}
                         disabled={cookieBusy || !cookieInput.trim()}
                     >
-                        {cookieBusy ? "Saving…" : "Save"}
+                        {cookieBusy ? "保存中…" : "保存"}
                     </button>
                 </div>
                 {cookieError && (
@@ -710,34 +708,31 @@ function BingeServerConfigCard() {
                     </p>
                 )}
                 {cookieSaved && (
-                    <p className="binge-server-config-ok">Saved ✓</p>
+                    <p className="binge-server-config-ok">已保存 ✓</p>
                 )}
                 <button
                     type="button"
                     className="binge-server-config-help-toggle"
                     onClick={() => setShowHelp((v) => !v)}
                 >
-                    {showHelp ? "▾" : "▸"} How to find your Reddit cookie
+                    {showHelp ? "▾" : "▸"} 如何找到你的 Reddit cookie
                 </button>
                 {showHelp && (
                     <ol className="binge-server-config-help">
                         <li>
-                            In a regular browser tab, log into
-                            reddit.com.
+                            在普通浏览器标签页中登录 reddit.com。
                         </li>
                         <li>
-                            Open DevTools (F12) → Application → Cookies
+                            打开开发者工具（F12）→ Application → Cookies
                             → https://www.reddit.com
                         </li>
                         <li>
-                            Find the row named{" "}
-                            <code>reddit_session</code> and copy its
-                            Value column (a long JWT-looking string).
-                            Paste it above.
+                            找到名为{" "}
+                            <code>reddit_session</code> 的行，复制其
+                            Value 列（一长串类似 JWT 的字符串），粘贴到上方。
                         </li>
                         <li>
-                            Cookies expire every few months. When
-                            stories stop updating, repeat steps 1–3.
+                            Cookie 每几个月过期。当故事停止更新时，重复步骤 1–3。
                         </li>
                     </ol>
                 )}
@@ -759,7 +754,7 @@ function BingeServerConfigCard() {
                         }}
                         placeholder={
                             xCookiesSet
-                                ? "✓ Set · paste auth_token to rotate"
+                                ? "✓ 已设置 · 粘贴 auth_token 以轮换"
                                 : "auth_token"
                         }
                         spellCheck={false}
@@ -790,37 +785,34 @@ function BingeServerConfigCard() {
                             xBusy || !xAuthInput.trim() || !xCt0Input.trim()
                         }
                     >
-                        {xBusy ? "Saving…" : "Save"}
+                        {xBusy ? "保存中…" : "保存"}
                     </button>
                 </div>
                 {xError && (
                     <p className="binge-server-config-error">{xError}</p>
                 )}
-                {xSaved && <p className="binge-server-config-ok">Saved ✓</p>}
+                {xSaved && <p className="binge-server-config-ok">已保存 ✓</p>}
                 <button
                     type="button"
                     className="binge-server-config-help-toggle"
                     onClick={() => setShowXHelp((v) => !v)}
                 >
-                    {showXHelp ? "▾" : "▸"} How to find your X cookies
+                    {showXHelp ? "▾" : "▸"} 如何找到你的 X cookies
                 </button>
                 {showXHelp && (
                     <ol className="binge-server-config-help">
-                        <li>In a regular browser tab, log into x.com.</li>
+                        <li>在普通浏览器标签页中登录 x.com。</li>
                         <li>
-                            Open DevTools (F12) → Application → Cookies →
+                            打开开发者工具（F12）→ Application → Cookies →
                             https://x.com
                         </li>
                         <li>
-                            Copy the Value of both <code>auth_token</code>{" "}
-                            and <code>ct0</code> into the fields above, then
-                            Save.
+                            复制 <code>auth_token</code>{" "}
+                            和 <code>ct0</code> 的 Value 到上方字段，然后保存。
                         </li>
                         <li>
-                            Use a secondary X account if you can — automated
-                            access is against X's terms. Cookies expire
-                            periodically; re-paste when X media stops
-                            loading.
+                            如有可能，建议使用副 X 账号——自动化访问违反 X 的条款。Cookie
+                            会定期过期；当 X 媒体停止加载时请重新粘贴。
                         </li>
                     </ol>
                 )}
@@ -828,15 +820,11 @@ function BingeServerConfigCard() {
 
             <div className="binge-settings-card-field is-stacked">
                 <span className="binge-settings-card-field-label">
-                    Save-to-Stash library paths{" "}
+                    保存到 Stash 的库路径{" "}
                     {config?.socialSaveConfigured ? "✓" : ""}
                 </span>
                 <p className="binge-settings-card-description">
-                    Where saved X/Reddit/Redgifs posts are written. Two paths
-                    because the daemon and Stash can be on different hosts:
-                    the first is where binge-server writes; the second is the
-                    same folder as Stash sees it (a Stash library path). When
-                    they're the same machine, both are identical.
+                    保存的 X/Reddit/Redgifs 帖子写入位置。两个路径是因为守护进程和 Stash 可能在不同主机上：第一个是 binge-server 写入的位置；第二个是 Stash 看到的同一文件夹（一个 Stash 库路径）。当它们是同一台机器时，两者相同。
                 </p>
                 <input
                     type="text"
@@ -847,7 +835,7 @@ function BingeServerConfigCard() {
                         setSocSaved(false);
                         setSocError(null);
                     }}
-                    placeholder="daemon write path, e.g. /library/social"
+                    placeholder="守护进程写入路径，例如 /library/social"
                     spellCheck={false}
                     autoCapitalize="off"
                     autoCorrect="off"
@@ -863,7 +851,7 @@ function BingeServerConfigCard() {
                             setSocSaved(false);
                             setSocError(null);
                         }}
-                        placeholder="Stash path, e.g. Z:\Media\social"
+                        placeholder="Stash 路径，例如 Z:\Media\social"
                         spellCheck={false}
                         autoCapitalize="off"
                         autoCorrect="off"
@@ -875,14 +863,14 @@ function BingeServerConfigCard() {
                         onClick={() => void handleSaveSocialPaths()}
                         disabled={socBusy}
                     >
-                        {socBusy ? "Saving…" : "Save"}
+                        {socBusy ? "保存中…" : "保存"}
                     </button>
                 </div>
                 {socError && (
                     <p className="binge-server-config-error">{socError}</p>
                 )}
                 {socSaved && (
-                    <p className="binge-server-config-ok">Saved ✓</p>
+                    <p className="binge-server-config-ok">已保存 ✓</p>
                 )}
             </div>
         </div>
@@ -895,13 +883,13 @@ function formatRelative(iso: string): string {
     if (!Number.isFinite(t)) return "—";
     const diffMs = Date.now() - t;
     const secs = Math.floor(diffMs / 1000);
-    if (secs < 60) return "just now";
+    if (secs < 60) return "刚刚";
     const mins = Math.floor(secs / 60);
-    if (mins < 60) return `${mins} min ago`;
+    if (mins < 60) return `${mins} 分钟前`;
     const hours = Math.floor(mins / 60);
-    if (hours < 24) return `${hours} h ago`;
+    if (hours < 24) return `${hours} 小时前`;
     const days = Math.floor(hours / 24);
-    return `${days} d ago`;
+    return `${days} 天前`;
 }
 
 // ── forage integration rows ─────────────────────────────────────────
@@ -917,8 +905,8 @@ function ForageUrlRow() {
 
     return (
         <SettingRow
-            title="forage server URL"
-            description='Base URL of your forage daemon (e.g. https://forage.tailf01ca.ts.net). "Send to forage" appears on discovery scenes once this daemon is reachable. Authentication is automatic — binge presents your Stash API key, which forage already trusts; nothing to paste. Status dot pings /healthz.'
+            title="forage 服务器 URL"
+            description="你的 forage 守护进程的基础 URL（例如 https://forage.tailf01ca.ts.net）。当此守护进程可达时，发现场景上会出现“发送到 forage”。认证是自动的——binge 出示你的 Stash API 密钥，forage 已信任它；无需粘贴任何内容。状态点会 ping /healthz。"
         >
             <div className="binge-settings-url-row">
                 <input
@@ -968,10 +956,10 @@ function ForageHealthDot({ url }: { url: string }) {
     if (state === "idle") return null;
     const label =
         state === "ok"
-            ? "forage reachable"
+            ? "forage 可达"
             : state === "down"
-              ? "forage unreachable"
-              : "Checking…";
+              ? "forage 不可达"
+              : "检查中…";
     return (
         <span
             className={`binge-settings-status-dot is-${state}`}
@@ -986,8 +974,8 @@ function ForageTargetRow() {
     const value = useForageWatchTarget();
     return (
         <SettingRow
-            title="forage watch quality"
-            description='When you send a scene to forage, this is the quality it waits for before flagging a release ready to grab. "Any" surfaces the first release of any resolution.'
+            title="forage 监看质量"
+            description="当你发送场景到 forage 时，这是它在标记发布可抓取前等待的质量。“任意”会在任意分辨率的第一个发布出现时即展示。"
         >
             <select
                 className="binge-settings-select"
@@ -998,7 +986,7 @@ function ForageTargetRow() {
             >
                 {ALLOWED_FORAGE_TARGETS.map((t) => (
                     <option key={t} value={t}>
-                        {t === "any" ? "Any release" : t}
+                        {t === "any" ? "任意发布" : t}
                     </option>
                 ))}
             </select>
@@ -1010,13 +998,13 @@ function RefractRow() {
     const value = useRefractIntegration();
     return (
         <SettingRow
-            title="Follow refract accent"
-            description="If you also use the refract theme, binge's accent colour will match the refract accent you've picked in the Stash settings (orange / cyan / pink / yellow / purple / green / teal). Story rings keep Instagram's signature gradient regardless."
+            title="跟随 refract 强调色"
+            description="如果你也使用 refract 主题，binge 的强调色将匹配你在 Stash 设置中选择的 refract 强调色（橙色 / 青色 / 粉色 / 黄色 / 紫色 / 绿色 / 蓝绿色）。故事环始终保留 Instagram 标志性的渐变。"
         >
             <SwitchToggle
                 checked={value}
                 onChange={(v) => setRefractIntegration(v)}
-                label="Follow refract accent"
+                label="跟随 refract 强调色"
             />
         </SettingRow>
     );
@@ -1026,13 +1014,13 @@ function ShowcaseRow() {
     const value = useShowcaseBlur();
     return (
         <SettingRow
-            title="Showcase mode (blur all media)"
-            description="Blurs every image, video, and avatar across binge while leaving the interface sharp — for screenshots, demo recordings, or screen-sharing without exposing library content. Nothing is uploaded or changed; it's a display-only filter applied in your browser. Hotkey: | (Shift + \\)"
+            title="展示模式（模糊所有媒体）"
+            description="模糊 binge 中所有图片、视频和头像，同时保持界面清晰——用于截图、演示录制或屏幕共享而不暴露库内容。不会上传或修改任何内容；仅为浏览器内的显示滤镜。快捷键：|（Shift + \\）"
         >
             <SwitchToggle
                 checked={value}
                 onChange={(v) => setShowcaseBlur(v)}
-                label="Showcase blur"
+                label="展示模糊"
             />
         </SettingRow>
     );
@@ -1042,13 +1030,13 @@ function DemoRow() {
     const value = useDemoMode();
     return (
         <SettingRow
-            title="Demo content"
-            description="Replace your library with fictional, SFW placeholder content (gradients + invented names) for capturing marketing footage — no real performers, scenes, or media are shown. Display-only; nothing in Stash changes."
+            title="演示内容"
+            description="用虚构的、SFW 占位内容（渐变 + 虚构名字）替换你的库，用于录制营销素材——不显示真实的演员、场景或媒体。仅显示用；Stash 中无任何变化。"
         >
             <SwitchToggle
                 checked={value}
                 onChange={(v) => setDemoMode(v)}
-                label="Demo content"
+                label="演示内容"
             />
         </SettingRow>
     );
@@ -1058,13 +1046,13 @@ function DebugRow() {
     const value = useShowDebug();
     return (
         <SettingRow
-            title="Show debug overlay"
-            description="Pin a small diagnostic panel showing mounted video count, JS heap, scroll/tab state, and recent GraphQL response times. Hotkey: \\"
+            title="显示调试覆盖层"
+            description="固定一个小型诊断面板，显示已挂载的视频数量、JS 堆、滚动/标签页状态以及最近的 GraphQL 响应时间。快捷键：\\"
         >
             <SwitchToggle
                 checked={value}
                 onChange={(v) => setShowDebug(v)}
-                label="Debug overlay"
+                label="调试覆盖层"
             />
         </SettingRow>
     );
@@ -1117,12 +1105,12 @@ function SwitchToggle({
 }
 
 function lookbackLabel(days: number): string {
-    if (days === 7) return "Last 7 days";
-    if (days === 14) return "Last 14 days";
-    if (days === 30) return "Last 30 days";
-    if (days === 60) return "Last 60 days";
-    if (days === 90) return "Last 90 days";
-    return `Last ${days} days`;
+    if (days === 7) return "最近 7 天";
+    if (days === 14) return "最近 14 天";
+    if (days === 30) return "最近 30 天";
+    if (days === 60) return "最近 60 天";
+    if (days === 90) return "最近 90 天";
+    return `最近 ${days} 天`;
 }
 
 function ChevronLeft() {

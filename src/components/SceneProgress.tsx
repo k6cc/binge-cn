@@ -67,7 +67,7 @@ export function SceneProgress({ videoRef, duration }: SceneProgressProps) {
             aria-valuemin={0}
             aria-valuemax={1}
             aria-valuenow={progress}
-            aria-label="Scene progress"
+            aria-label="场景进度"
         >
             <div
                 className="binge-progress-fill"

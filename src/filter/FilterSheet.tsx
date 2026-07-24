@@ -74,24 +74,24 @@ export function FilterSheet({ onClose }: FilterSheetProps) {
             <div
                 className="binge-sheet binge-filter-sheet"
                 role="dialog"
-                aria-label="Filter"
+                aria-label="筛选条件"
             >
                 <div className="binge-sheet-handle" aria-hidden="true" />
                 <div className="binge-filter-sheet-header">
-                    <h2 className="binge-filter-sheet-title">Filter</h2>
+                    <h2 className="binge-filter-sheet-title">筛选条件</h2>
                 </div>
 
                 {/* Active state */}
                 <section className="binge-filter-sheet-section">
                     <header className="binge-filter-sheet-section-head">
-                        <h3>Active</h3>
+                        <h3>当前生效</h3>
                         {(!isEmpty || activeSavedFilter) && (
                             <button
                                 type="button"
                                 className="binge-filter-sheet-clear"
                                 onClick={() => clear()}
                             >
-                                Clear all
+                                全部清除
                             </button>
                         )}
                     </header>
@@ -101,7 +101,7 @@ export function FilterSheet({ onClose }: FilterSheetProps) {
                                 type="button"
                                 className="binge-filter-sheet-chip binge-filter-sheet-chip-saved"
                                 onClick={() => clearSavedFilter()}
-                                title={`Clear "${activeSavedFilter.name}"`}
+                                title={`清除“${activeSavedFilter.name}”`}
                             >
                                 <span>{activeSavedFilter.name}</span>
                                 <span
@@ -114,7 +114,7 @@ export function FilterSheet({ onClose }: FilterSheetProps) {
                         </div>
                     ) : isEmpty ? (
                         <div className="binge-filter-sheet-empty">
-                            No active filter — showing everything.
+                            没有生效的筛选条件 — 显示全部内容。
                         </div>
                     ) : (
                         <div className="binge-filter-sheet-chips">
@@ -151,23 +151,22 @@ export function FilterSheet({ onClose }: FilterSheetProps) {
                 {/* Stash saved filters */}
                 <section className="binge-filter-sheet-section">
                     <header className="binge-filter-sheet-section-head">
-                        <h3>Stash saved filters</h3>
+                        <h3>Stash 保存的筛选条件</h3>
                     </header>
                     {state.kind === "loading" && (
                         <div className="binge-filter-sheet-empty">
-                            Loading…
+                            加载中…
                         </div>
                     )}
                     {state.kind === "error" && (
                         <div className="binge-filter-sheet-empty">
-                            Couldn't load: {state.message}
+                            无法加载：{state.message}
                         </div>
                     )}
                     {state.kind === "ready" && state.filters.length === 0 && (
                         <div className="binge-filter-sheet-empty">
-                            No saved filters for scenes. Create them in
-                            Stash's main scene browser — they'll appear
-                            here automatically.
+                            没有场景的已保存筛选条件。请在 Stash
+                            的主场景浏览器中创建 — 创建后会自动出现在这里。
                         </div>
                     )}
                     {state.kind === "ready" && state.filters.length > 0 && (
@@ -208,7 +207,7 @@ function FilterChip({
                 "binge-filter-sheet-chip binge-filter-sheet-chip-" + tone
             }
             onClick={onRemove}
-            title={`Remove ${label}`}
+            title={`移除 ${label}`}
         >
             <span>{label}</span>
             <span className="binge-filter-sheet-chip-x" aria-hidden="true">
@@ -231,7 +230,7 @@ function SavedFilterRow({
     const criteria = Object.keys(sf.object_filter ?? {});
     const summary =
         criteria.length === 0
-            ? "no criteria"
+            ? "无筛选条件"
             : criteria.slice(0, 4).join(" · ") +
               (criteria.length > 4 ? ` · +${criteria.length - 4}` : "");
     const sort = sf.find_filter?.sort ?? "";
@@ -252,7 +251,7 @@ function SavedFilterRow({
                 </span>
                 <span className="binge-filter-sheet-preset-meta">
                     {summary}
-                    {sort && ` · sort: ${sort}`}
+                    {sort && ` · 排序：${sort}`}
                 </span>
             </button>
         </li>

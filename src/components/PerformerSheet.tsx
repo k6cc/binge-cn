@@ -38,11 +38,11 @@ export function PerformerSheet({
             <div
                 className="binge-sheet"
                 role="dialog"
-                aria-label="Performers in this scene"
+                aria-label="此场景的演员"
             >
                 <div className="binge-sheet-handle" aria-hidden="true" />
                 <h2 className="binge-sheet-title">
-                    {performers.length > 1 ? "Performers" : "Performer"}
+                    {performers.length > 1 ? "演员" : "演员"}
                 </h2>
                 <ul className="binge-sheet-list">
                     {performers.map((p) => (
@@ -106,7 +106,7 @@ function PerformerSheetRow({ performer, onClose, onFavoriteChange }: RowProps) {
                 type="button"
                 className="binge-sheet-row-main"
                 onClick={handlePick}
-                title={`Scroll ${performer.name}'s content`}
+                title={`浏览 ${performer.name} 的内容`}
             >
                 <span
                     className="binge-sheet-avatar"
@@ -135,7 +135,7 @@ function PerformerSheetRow({ performer, onClose, onFavoriteChange }: RowProps) {
                 disabled={busy}
                 aria-pressed={favorite}
             >
-                {favorite ? "Favourited" : "Favourite"}
+                {favorite ? "已收藏" : "收藏"}
             </button>
         </li>
     );

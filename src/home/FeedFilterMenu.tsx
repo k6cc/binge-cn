@@ -11,10 +11,10 @@ import {
 // in localStorage (binge.feedHidden) so it persists and the Feed
 // reacts live via useHiddenFeedCategories.
 const LABELS: Record<FeedCategory, string> = {
-    discover: "Discover",
-    trending: "Trending",
-    posts: "Posts",
-    reposts: "Reposts",
+    discover: "发现",
+    trending: "热门",
+    posts: "帖子",
+    reposts: "转发",
 };
 
 export function FeedFilterMenu() {
@@ -61,9 +61,9 @@ export function FeedFilterMenu() {
                     (anyHidden ? " is-active" : "")
                 }
                 onClick={() => setOpen((o) => !o)}
-                aria-label="Filter feed"
+                aria-label="筛选动态"
                 aria-expanded={open}
-                title="Filter feed"
+                title="筛选动态"
             >
                 <FilterIcon />
                 {anyHidden && (
@@ -76,7 +76,7 @@ export function FeedFilterMenu() {
             {open && (
                 <div className="binge-feed-filter-menu" role="menu">
                     <div className="binge-feed-filter-heading">
-                        Show in feed
+                        动态中显示
                     </div>
                     {ALL_FEED_CATEGORIES.map((cat) => {
                         const shown = !hidden.has(cat);

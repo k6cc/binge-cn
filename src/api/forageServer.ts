@@ -130,13 +130,13 @@ export async function addForageWatch(
     if (!base) {
         return {
             ok: false,
-            error: "Add your forage server URL in Settings first.",
+            error: "请先在设置中添加 forage 服务器 URL。",
         };
     }
     if (mixedContentBlocked(base)) {
         return {
             ok: false,
-            error: "forage URL is http:// but binge is loaded over https — the browser blocks this. Use an https:// (or tailnet) forage URL.",
+            error: "forage URL 为 http:// 但 binge 通过 https 加载——浏览器会阻止此请求。请使用 https://（或 tailnet）的 forage URL。",
         };
     }
     // We send the Stash API key as the Bearer credential — a powerful
@@ -146,7 +146,7 @@ export async function addForageWatch(
     if (!isTrustedDaemonUrl(base)) {
         return {
             ok: false,
-            error: "Won't send your Stash API key to an untrusted URL — use https:// or a local/tailnet address.",
+            error: "不会将 Stash API 密钥发送到不受信任的 URL——请使用 https:// 或本地/tailnet 地址。",
         };
     }
 
@@ -169,7 +169,7 @@ export async function addForageWatch(
             if (resp.status === 401) {
                 return {
                     ok: false,
-                    error: "forage rejected the request (401) — check the API token in Settings.",
+                    error: "forage 拒绝了请求（401）——请在设置中检查 API 令牌。",
                 };
             }
             return {

@@ -18,7 +18,7 @@ import { getXFeed, xHandleFromUrls } from "../api/bingeServer";
 import type { Story, StoryScene } from "../home/useStories";
 import { BingeLoading } from "../components/BingeLoading";
 
-type ProfileTab = "scenes" | "photos";
+type ProfileTab = "scenes" | "galleries";
 
 // How far back the profile pulls X media for the story ring/viewer.
 // Matches the "just their latest stuff" intent — not the whole profile.
@@ -245,7 +245,7 @@ function LocalPerformerProfile({ localId }: { localId: string }) {
     };
 
     return createPortal(
-        <div className="binge-profile-root" role="dialog" aria-label="Performer profile">
+        <div className="binge-profile-root" role="dialog" aria-label="演员档案">
             <header
                 className={
                     "binge-profile-topbar" +
@@ -256,7 +256,7 @@ function LocalPerformerProfile({ localId }: { localId: string }) {
                     type="button"
                     className="binge-profile-back"
                     onClick={close}
-                    aria-label="Close profile"
+                    aria-label="关闭档案"
                 >
                     <BackIcon />
                 </button>
@@ -269,9 +269,9 @@ function LocalPerformerProfile({ localId }: { localId: string }) {
                                 (favorite ? " is-favorite" : "")
                             }
                             aria-label={
-                                favorite ? "Favourited" : "In library"
+                                favorite ? "已收藏" : "在库中"
                             }
-                            title={favorite ? "Favourited" : "In library"}
+                            title={favorite ? "已收藏" : "在库中"}
                         >
                             <VerifiedIcon />
                         </span>
@@ -280,8 +280,8 @@ function LocalPerformerProfile({ localId }: { localId: string }) {
                 <button
                     type="button"
                     className="binge-profile-more"
-                    aria-label="More actions"
-                    title="More"
+                    aria-label="更多操作"
+                    title="更多"
                     onClick={() => setMoreOpen(true)}
                 >
                     <MoreIcon />
@@ -291,7 +291,7 @@ function LocalPerformerProfile({ localId }: { localId: string }) {
                 {state.kind === "loading" && <BingeLoading minHeight="50vh" />}
                 {state.kind === "error" && (
                     <div className="binge-status binge-status-error">
-                        error: {state.message}
+                        错误：{state.message}
                     </div>
                 )}
                 {state.kind === "ready" && (
@@ -317,8 +317,8 @@ function LocalPerformerProfile({ localId }: { localId: string }) {
                                         type="button"
                                         className="binge-profile-rate"
                                         onClick={() => setRatingOpen(true)}
-                                        aria-label="Rate performer"
-                                        title="Rate (advanced)"
+                                        aria-label="评分"
+                                        title="评分（高级）"
                                     >
                                         ★
                                     </button>
@@ -336,7 +336,7 @@ function LocalPerformerProfile({ localId }: { localId: string }) {
                                 disabled={busy}
                                 aria-pressed={favorite}
                             >
-                                {favorite ? "Favourited" : "Favourite"}
+                                {favorite ? "已收藏" : "收藏"}
                             </button>
                         </div>
                         {ratingOpen && state.kind === "ready" && (
@@ -360,7 +360,7 @@ function LocalPerformerProfile({ localId }: { localId: string }) {
                         <div
                             className="binge-profile-tabs"
                             role="tablist"
-                            aria-label="Profile content"
+                            aria-label="档案内容"
                         >
                             <button
                                 type="button"
@@ -372,19 +372,19 @@ function LocalPerformerProfile({ localId }: { localId: string }) {
                                 }
                                 onClick={() => setTab("scenes")}
                             >
-                                Scenes
+                                场景
                             </button>
                             <button
                                 type="button"
                                 role="tab"
-                                aria-selected={tab === "photos"}
+                                aria-selected={tab === "galleries"}
                                 className={
                                     "binge-profile-tab" +
-                                    (tab === "photos" ? " is-active" : "")
+                                    (tab === "galleries" ? " is-active" : "")
                                 }
-                                onClick={() => setTab("photos")}
+                                onClick={() => setTab("galleries")}
                             >
-                                Photos
+                                图库
                             </button>
                         </div>
                         {tab === "scenes" ? (
@@ -440,8 +440,8 @@ function ProfileAvatar({
             type="button"
             className="binge-profile-avatar-ring"
             onClick={onOpenStory}
-            aria-label={`View ${name}'s story`}
-            title="View story"
+            aria-label={`查看 ${name} 的故事`}
+            title="查看故事"
         >
             {inner}
         </button>

@@ -262,10 +262,10 @@ export function Explore() {
                     <input
                         type="search"
                         className="binge-explore-search"
-                        placeholder="Search scenes"
+                        placeholder="搜索场景"
                         value={searchInput}
                         onChange={(e) => setSearchInput(e.target.value)}
-                        aria-label="Search scenes"
+                        aria-label="搜索场景"
                         autoCorrect="off"
                         autoCapitalize="off"
                         spellCheck={false}
@@ -279,7 +279,7 @@ export function Explore() {
                             (canScrollLeft ? "" : " is-hidden")
                         }
                         onClick={() => scrollChips(-280)}
-                        aria-label="Scroll tags left"
+                        aria-label="标签向左滚动"
                         tabIndex={canScrollLeft ? 0 : -1}
                     >
                         <ChevronLeft />
@@ -296,7 +296,7 @@ export function Explore() {
                             }
                             onClick={() => setActiveTag(null)}
                         >
-                            For you
+                            推荐
                         </button>
                         {chipsToRender.map((t) => (
                             <button
@@ -322,7 +322,7 @@ export function Explore() {
                             (canScrollRight ? "" : " is-hidden")
                         }
                         onClick={() => scrollChips(280)}
-                        aria-label="Scroll tags right"
+                        aria-label="标签向右滚动"
                         tabIndex={canScrollRight ? 0 : -1}
                     >
                         <ChevronRight />
@@ -345,7 +345,7 @@ export function Explore() {
                                       }
                                     : undefined
                             }
-                            aria-label="Open scene"
+                            aria-label="打开场景"
                         >
                             <span
                                 className="binge-explore-tile-play"
@@ -359,14 +359,14 @@ export function Explore() {
 
                 {error && (
                     <div className="binge-feed-empty binge-status-error">
-                        couldn't load explore: {error}
+                        无法加载发现页：{error}
                     </div>
                 )}
                 {tiles.length === 0 && !isLoading && !error && (
                     <div className="binge-feed-empty">
                         {searchQuery || activeTag
-                            ? "no scenes match this filter."
-                            : "no scenes in your library."}
+                            ? "没有场景匹配此筛选。"
+                            : "您的库中没有场景。"}
                     </div>
                 )}
 
@@ -376,12 +376,12 @@ export function Explore() {
                         className="binge-feed-sentinel"
                         aria-hidden="true"
                     >
-                        {isLoading ? "loading…" : ""}
+                        {isLoading ? "加载中…" : ""}
                     </div>
                 )}
                 {!hasMore && tiles.length > 0 && (
                     <div className="binge-feed-empty">
-                        you've reached the end · {tiles.length} scenes
+                        已到达底部 · {tiles.length} 个场景
                     </div>
                 )}
             </div>

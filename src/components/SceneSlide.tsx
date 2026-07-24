@@ -237,14 +237,16 @@ export function SceneSlide({
     //       state where you'd expect "load now" silently stays blank.
     //   (2) we need an explicit `video.load()` call right after setting
     //       src to force the browser to actually start fetching.
-    // The effect deps `[currentlyScrolling, scene.id]` mean: on mount
-    // (or scene change) we assign src if scroll is settled; entering
-    // scroll = no-op (existing src stays whatever it was); leaving
-    // scroll = assign src on any slide that doesn't yet have it.
+    // 视频 poster 懒加载（修改9）：useEffect 增加 !isActive 守卫，视频源
+    // 只在卡片进入视口时才请求并加载。不在视口的卡片仅显示 poster 封面，
+    // 离开视口时由 IntersectionObserver 触发 pause()。大幅减少不可见卡片
+    // 的带宽与内存占用。
     useEffect(() => {
         const video = videoRef.current;
         if (!video) return;
         if (currentlyScrolling) return;
+        // 仅视口内（active）卡片加载视频源。
+        if (!isActive) return;
         // Demo mode: no real stream — leave src unset so the gradient
         // poster shows (a data-URI can't play as <video>).
         if (readDemoMode()) return;
@@ -256,9 +258,9 @@ export function SceneSlide({
         // Kick playback for the active slide once src is settled. If
         // the IO fired play() mid-scroll (before src was assigned) it
         // rejected and won't re-fire, so the slide would otherwise sit
-        // frozen on its poster. Guarded by isActive (off-screen slides
-        // stay paused) and paused (don't double-play).
-        if (isActive && video.paused) {
+        // frozen on its poster. Guarded by paused (don't double-play);
+        // isActive 已在上方守卫，无需重复判断。
+        if (video.paused) {
             playPreferred(video);
         }
     }, [currentlyScrolling, scene.id, isActive, transcodeType]);
@@ -553,7 +555,7 @@ export function SceneSlide({
         () =>
             scene.title ||
             scene.performers.map((p) => p.name).join(", ") ||
-            `Scene ${scene.id}`,
+            `场景 ${scene.id}`,
         [scene.id, scene.title, scene.performers]
     );
     const detailsLine = scene.details?.trim() || "";
@@ -594,7 +596,7 @@ export function SceneSlide({
                 type="button"
                 className="binge-tap-target"
                 onClick={handleTap}
-                aria-label={isPlaying ? "Pause" : "Play"}
+                aria-label={isPlaying ? "暂停" : "播放"}
                 tabIndex={-1}
             />
             {bursts.length > 0 && (
@@ -629,7 +631,7 @@ export function SceneSlide({
                     type="button"
                     className="binge-caption"
                     onClick={() => setDetailsOpen(true)}
-                    aria-label="Show details"
+                    aria-label="查看详情"
                 >
                     <span className="binge-caption-line">
                         <span className="binge-caption-title">

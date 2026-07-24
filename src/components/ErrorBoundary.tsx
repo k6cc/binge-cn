@@ -44,7 +44,7 @@ export class ErrorBoundary extends Component<Props, State> {
                     }}
                 >
                     <div style={{ fontSize: "1.1rem", fontWeight: 700 }}>
-                        binge hit an error
+                        binge 遇到了错误
                     </div>
                     <div
                         style={{
@@ -53,7 +53,7 @@ export class ErrorBoundary extends Component<Props, State> {
                             maxWidth: "32rem",
                         }}
                     >
-                        {this.state.error.message || "Unexpected render error."}
+                        {this.state.error.message || "意外的渲染错误。"}
                     </div>
                     <button
                         type="button"
@@ -70,7 +70,7 @@ export class ErrorBoundary extends Component<Props, State> {
                             borderRadius: "999px",
                         }}
                     >
-                        Reload binge
+                        重新加载 binge
                     </button>
                 </div>
             );

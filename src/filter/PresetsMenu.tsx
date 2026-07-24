@@ -34,10 +34,10 @@ export function PresetsMenu({ onClose }: PresetsMenuProps) {
             filter.performers[0]?.name ||
             filter.tags[0]?.name ||
             filter.studios[0]?.name ||
-            "Preset";
+            "预设";
         const suffix = total > 1 ? ` +${total - 1}` : "";
         const name = window.prompt(
-            "Name this preset",
+            "为这个预设命名",
             `${defaultName}${suffix}`
         );
         if (!name) return;
@@ -56,7 +56,7 @@ export function PresetsMenu({ onClose }: PresetsMenuProps) {
     };
 
     const handleDelete = (id: string) => {
-        if (!window.confirm("Delete this preset?")) return;
+        if (!window.confirm("删除这个预设？")) return;
         persist(presets.filter((p) => p.id !== id));
     };
 
@@ -111,7 +111,7 @@ export function PresetsMenu({ onClose }: PresetsMenuProps) {
     return (
         <div className="binge-chip-menu binge-presets-menu" ref={panelRef} role="dialog">
             <div className="binge-chip-menu-tabs">
-                <span className="binge-chip-menu-tab is-active">Saved filters</span>
+                <span className="binge-chip-menu-tab is-active">已保存的筛选条件</span>
                 <button
                     type="button"
                     className="binge-chip-menu-tab binge-presets-save"
@@ -119,17 +119,17 @@ export function PresetsMenu({ onClose }: PresetsMenuProps) {
                     disabled={isEmpty}
                     title={
                         isEmpty
-                            ? "Add some chips first, then save"
-                            : "Save current filter as a preset"
+                            ? "请先添加一些筛选标签再保存"
+                            : "将当前筛选条件保存为预设"
                     }
                 >
-                    + save current
+                    + 保存当前
                 </button>
             </div>
 
             {presets.length === 0 && (
                 <div className="binge-chip-menu-status">
-                    no saved presets yet
+                    还没有已保存的预设
                 </div>
             )}
 
@@ -161,7 +161,7 @@ export function PresetsMenu({ onClose }: PresetsMenuProps) {
                                         type="button"
                                         className="binge-chip-menu-row binge-preset-load"
                                         onClick={() => handleLoad(p)}
-                                        title="Load this preset"
+                                        title="加载此预设"
                                     >
                                         <span className="binge-chip-menu-name">
                                             {p.name}
@@ -177,8 +177,8 @@ export function PresetsMenu({ onClose }: PresetsMenuProps) {
                                             type="button"
                                             className="binge-preset-icon-button"
                                             onClick={() => startRename(p)}
-                                            title="Rename"
-                                            aria-label="Rename preset"
+                                            title="重命名"
+                                            aria-label="重命名预设"
                                         >
                                             ✎
                                         </button>
@@ -186,8 +186,8 @@ export function PresetsMenu({ onClose }: PresetsMenuProps) {
                                             type="button"
                                             className="binge-preset-icon-button binge-preset-delete"
                                             onClick={() => handleDelete(p.id)}
-                                            title="Delete"
-                                            aria-label="Delete preset"
+                                            title="删除"
+                                            aria-label="删除预设"
                                         >
                                             ×
                                         </button>

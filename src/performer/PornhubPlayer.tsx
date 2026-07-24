@@ -43,7 +43,7 @@ export function PornhubPlayer({
         <div
             className="binge-ph-player-root"
             role="dialog"
-            aria-label="PornHub video"
+            aria-label="PornHub 视频"
             onClick={onClose}
         >
             <div
@@ -67,23 +67,23 @@ export function PornhubPlayer({
                         }
                         title={
                             saveState === "error"
-                                ? "Save failed — tap to retry"
-                                : "Download into Stash"
+                                ? "保存失败 — 点击重试"
+                                : "下载到 Stash"
                         }
                     >
                         {saveState === "saved"
-                            ? "✓ Saved"
+                            ? "✓ 已保存"
                             : saveState === "saving"
-                              ? "Saving…"
+                              ? "保存中…"
                               : saveState === "error"
-                                ? "Retry"
-                                : "Save to Stash"}
+                                ? "重试"
+                                : "保存到 Stash"}
                     </button>
                     <button
                         type="button"
                         className="binge-ph-player-close"
                         onClick={onClose}
-                        aria-label="Close"
+                        aria-label="关闭"
                     >
                         ✕
                     </button>

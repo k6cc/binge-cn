@@ -309,7 +309,7 @@ export function Reel() {
                     if (!pinnedScene) {
                         setState({
                             kind: "error",
-                            message: "pinned scene not found",
+                            message: "找不到置顶场景",
                         });
                         return;
                     }
@@ -388,12 +388,12 @@ export function Reel() {
                 setState({ kind: "error", message: err.message });
                 if (pin) setPinFirstSceneId(null);
             });
-        // pinFirstSceneId is intentionally NOT a dependency — we only want
-        // it consumed when the filter/seed/mode changes (which is what
-        // brought the user here). Reading it via closure is fine because
-        // the entry-point handlers all set pin BEFORE calling setTab.
+        // 硬约束：依赖数组必须包含 pinnedQueue 和 pinFirstSceneId。
+        // 原实现故意排除它们（通过闭包读取），但当调用方在 setTab 之后
+        // 才设置 pin/queue 时，effect 不会重跑，导致种子场景丢失。
+        // 显式加入依赖可保证任一变化都重新加载。
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [sortSeed, sceneFilter, findFilterBase, reelMode]);
+    }, [sortSeed, sceneFilter, findFilterBase, reelMode, pinnedQueue, pinFirstSceneId]);
 
     // Auto-paginate: when the active slide is near the tail, fetch the
     // next batch and append. Branches on reelMode — random mode keeps
@@ -520,9 +520,9 @@ export function Reel() {
     const scenes = state.kind === "ready" ? state.scenes : [];
     const errorOrEmpty =
         state.kind === "error"
-            ? `error: ${state.message}`
+            ? `错误：${state.message}`
             : state.kind === "ready" && state.scenes.length === 0
-              ? "no scenes matched. (any saved filters or chips active?)"
+              ? "没有匹配的场景。（是否有保存的筛选条件或筛选标签生效？）"
               : null;
     return (
         <div className="binge-reel" ref={scrollRef}>

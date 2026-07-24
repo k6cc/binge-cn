@@ -38,7 +38,7 @@ export function MoreSheet({ sceneId, onClose }: MoreSheetProps) {
             <div
                 className="binge-sheet binge-more-sheet"
                 role="dialog"
-                aria-label="More actions"
+                aria-label="更多操作"
             >
                 <div className="binge-sheet-handle" aria-hidden="true" />
                 <ul className="binge-more-sheet-list">
@@ -50,10 +50,9 @@ export function MoreSheet({ sceneId, onClose }: MoreSheetProps) {
                             aria-pressed={autoScroll}
                         >
                             <span className="binge-more-sheet-row-label">
-                                <span>Auto-scroll</span>
+                                <span>自动滚动</span>
                                 <small className="binge-more-sheet-row-sub">
-                                    advance to next scene when the
-                                    current one ends
+                                    当前场景结束时自动切换到下一个场景
                                 </small>
                             </span>
                             <span
@@ -74,7 +73,7 @@ export function MoreSheet({ sceneId, onClose }: MoreSheetProps) {
                             onClick={handleOpenInStash}
                         >
                             <span className="binge-more-sheet-row-label">
-                                Open in Stash
+                                在 Stash 中打开
                             </span>
                             <ExternalLinkIcon />
                         </button>

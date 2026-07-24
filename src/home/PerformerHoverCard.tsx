@@ -220,12 +220,12 @@ export function PerformerHoverCard({
     const followError =
         followState.kind === "error" ? followState.message : null;
     const followLabel = followBusy
-        ? "Following…"
+        ? "关注中…"
         : followedAlready
-          ? "Following"
+          ? "已关注"
           : followError
-            ? `Retry · Follow ${name}`
-            : `Follow ${name}`;
+            ? `重试 · 关注 ${name}`
+            : `关注 ${name}`;
 
     return (
         <>
@@ -293,13 +293,13 @@ export function PerformerHoverCard({
                                             }
                                             aria-label={
                                                 favorite
-                                                    ? "Favourited"
-                                                    : "In library"
+                                                    ? "已收藏"
+                                                    : "在库中"
                                             }
                                             title={
                                                 favorite
-                                                    ? "Favourited"
-                                                    : "In library"
+                                                    ? "已收藏"
+                                                    : "在库中"
                                             }
                                         >
                                             <VerifiedIcon />
@@ -312,7 +312,7 @@ export function PerformerHoverCard({
                                         age !== null ? `${age}` : null,
                                     ]
                                         .filter(Boolean)
-                                        .join(" · ") || "Performer"}
+                                        .join(" · ") || "演员"}
                                 </span>
                                 <span
                                     className={
@@ -322,7 +322,7 @@ export function PerformerHoverCard({
                                             : " is-stashdb")
                                     }
                                 >
-                                    {inLibrary ? "In library" : "StashDB"}
+                                    {inLibrary ? "在库中" : "StashDB"}
                                 </span>
                             </div>
                         </div>
@@ -335,7 +335,7 @@ export function PerformerHoverCard({
                                     setOpen(false);
                                 }}
                             >
-                                Open profile
+                                打开主页
                             </button>
                         )}
                         {!inLibrary && (
@@ -397,17 +397,17 @@ function formatGender(g: string | null): string | null {
     if (!g) return null;
     switch (g) {
         case "FEMALE":
-            return "Female";
+            return "女性";
         case "TRANSGENDER_FEMALE":
-            return "Trans female";
+            return "跨性别女性";
         case "MALE":
-            return "Male";
+            return "男性";
         case "TRANSGENDER_MALE":
-            return "Trans male";
+            return "跨性别男性";
         case "INTERSEX":
-            return "Intersex";
+            return "间性";
         case "NON_BINARY":
-            return "Non-binary";
+            return "非二元";
         default:
             return g
                 .replace(/_/g, " ")

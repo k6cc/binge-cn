@@ -58,6 +58,46 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
         el.scrollTo({ left: i * el.clientWidth, behavior: "smooth" });
     };
 
+    // 修改10：首页图库卡片自动播放。IntersectionObserver 监听卡片是否
+    // 进入视口（threshold 0.5，即 50% 可见）。进入视口且图片数 >1 时，
+    // 启动 setInterval 每 2 秒切换到下一张；离开视口时 clearInterval。
+    // 组件卸载时 disconnect observer 并清理 interval。
+    useEffect(() => {
+        const el = carouselRef.current;
+        if (!el) return;
+        if (item.images.length <= 1) return;
+        let intervalId: number | null = null;
+        const observer = new IntersectionObserver(
+            (entries) => {
+                for (const entry of entries) {
+                    if (entry.isIntersecting) {
+                        if (intervalId !== null) continue;
+                        intervalId = window.setInterval(() => {
+                            const cur = el.scrollLeft / el.clientWidth;
+                            const n = Math.round(cur);
+                            const c = item.images.length + 1;
+                            el.scrollTo({
+                                left: ((n + 1) % c) * el.clientWidth,
+                                behavior: "smooth",
+                            });
+                        }, 2000);
+                    } else {
+                        if (intervalId !== null) {
+                            window.clearInterval(intervalId);
+                            intervalId = null;
+                        }
+                    }
+                }
+            },
+            { threshold: 0.5 }
+        );
+        observer.observe(el);
+        return () => {
+            observer.disconnect();
+            if (intervalId !== null) window.clearInterval(intervalId);
+        };
+    }, [item.images.length]);
+
     return (
         <article className="binge-feed-card binge-feed-card-gallery">
             <header className="binge-feed-card-header">
@@ -67,7 +107,7 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                     onClick={() =>
                         primaryPerformer && openProfile(primaryPerformer.id)
                     }
-                    aria-label={primaryPerformer?.name ?? "Performer"}
+                    aria-label={primaryPerformer?.name ?? "演员"}
                 >
                     <span
                         className="binge-feed-card-avatar"
@@ -89,7 +129,7 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                     </span>
                     <span className="binge-feed-card-name">
                         {item.performers.map((p) => p.name).join(", ") ||
-                            "Gallery"}
+                            "图库"}
                     </span>
                 </button>
                 <span className="binge-feed-card-time">
@@ -103,7 +143,7 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                     ref={carouselRef}
                     role="region"
                     aria-roledescription="carousel"
-                    aria-label={item.title ?? "Gallery images"}
+                    aria-label={item.title ?? "图库图片"}
                 >
                     {item.images.length === 0 ? (
                         // Empty image list — typically means the gallery
@@ -120,7 +160,7 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                                     : undefined
                             }
                             onClick={() => setLightboxOpenAt(0)}
-                            aria-label={`Open ${item.title ?? "gallery"}`}
+                            aria-label={`打开 ${item.title ?? "图库"}`}
                         />
                     ) : (
                         item.images.map((img, idx) => {
@@ -137,9 +177,9 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                                             : undefined
                                     }
                                     onClick={() => setLightboxOpenAt(idx)}
-                                    aria-label={`Image ${idx + 1} of ${
+                                    aria-label={`第 ${idx + 1} 张，共 ${
                                         item.imageCount
-                                    }`}
+                                    } 张`}
                                 />
                             );
                         })
@@ -151,15 +191,14 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                         type="button"
                         className="binge-gallery-slide binge-gallery-end"
                         onClick={() => setLightboxOpenAt(0)}
-                        aria-label="View full gallery"
+                        aria-label="查看完整图库"
                     >
                         <span className="binge-gallery-end-inner">
                             <span className="binge-gallery-end-label">
-                                View gallery
+                                查看图库
                             </span>
                             <span className="binge-gallery-end-sub">
-                                {item.imageCount}{" "}
-                                {item.imageCount === 1 ? "photo" : "photos"}
+                                {item.imageCount} 张照片
                             </span>
                             <ChevronRight />
                         </span>
@@ -178,7 +217,7 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                 <div
                     className="binge-gallery-dots"
                     role="tablist"
-                    aria-label="Gallery position"
+                    aria-label="图库位置"
                 >
                     {Array.from({ length: slideCount }).map((_, i) => (
                         <button
@@ -192,7 +231,7 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                             }
                             onClick={() => scrollToSlide(i)}
                             tabIndex={-1}
-                            aria-label={`Go to slide ${i + 1}`}
+                            aria-label={`跳转到第 ${i + 1} 张`}
                         />
                     ))}
                 </div>

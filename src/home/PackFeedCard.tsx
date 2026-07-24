@@ -102,7 +102,7 @@ export function PackFeedCard({ item }: { item: PackFeedItem }) {
                                 {item.isRepost && (
                                     <span
                                         className="binge-pack-card-repost-badge"
-                                        aria-label="Reposted"
+                                        aria-label="转发了"
                                     >
                                         <RepostIcon />
                                     </span>
@@ -138,8 +138,8 @@ export function PackFeedCard({ item }: { item: PackFeedItem }) {
                                         }
                                         aria-label={
                                             primary.favorite
-                                                ? "Favourited"
-                                                : "In library"
+                                                ? "已收藏"
+                                                : "在库中"
                                         }
                                     >
                                         <VerifiedIcon />
@@ -147,8 +147,8 @@ export function PackFeedCard({ item }: { item: PackFeedItem }) {
                                 </span>
                                 <span className="binge-pack-card-sub">
                                     {item.isRepost
-                                        ? `reposted ${item.sceneCount} scenes`
-                                        : `added ${item.sceneCount} new scenes`}
+                                        ? `转发了 ${item.sceneCount} 个场景`
+                                        : `添加了 ${item.sceneCount} 个新场景`}
                                 </span>
                             </button>
                         </PerformerHoverCard>
@@ -161,7 +161,7 @@ export function PackFeedCard({ item }: { item: PackFeedItem }) {
                     className="binge-pack-card-mosaic"
                     role="button"
                     tabIndex={0}
-                    aria-label={`Open pack — ${item.sceneCount} scenes`}
+                    aria-label={`打开包 — ${item.sceneCount} 个场景`}
                     onClick={() => setSheetOpen(true)}
                     onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === " ") {

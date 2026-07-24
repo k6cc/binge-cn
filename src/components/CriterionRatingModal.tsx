@@ -129,7 +129,7 @@ export function CriterionRatingModal({
                     // the parent-tag hierarchy.
                     const name = scoreTagName(criterion, newScore);
                     setMissingTagWarning(
-                        `Score tag "${name}" doesn't exist yet. Open the Advanced Rating plugin's settings panel in Stash once — it'll create the tag hierarchy under the right parent. Then try again here.`
+                        `评分标签 "${name}" 尚不存在。请在 Stash 中打开 Advanced Rating 插件的设置面板一次 — 它会在正确的父级下创建标签层级。然后再在此处重试。`
                     );
                     return;
                 }
@@ -189,8 +189,8 @@ export function CriterionRatingModal({
                 role="dialog"
                 aria-label={
                     target.kind === "scene"
-                        ? "Rate scene"
-                        : "Rate performer"
+                        ? "场景评分"
+                        : "演员评分"
                 }
             >
                 <div className="binge-sheet-handle" aria-hidden="true" />
@@ -223,8 +223,8 @@ function Header({
             <header className="binge-rating-modal-header">
                 <h2>
                     {target.kind === "scene"
-                        ? "Rate scene"
-                        : "Rate performer"}
+                        ? "场景评分"
+                        : "演员评分"}
                 </h2>
             </header>
         );
@@ -235,18 +235,18 @@ function Header({
     );
     const rating100 = state.rating100;
     const ratingDisplay =
-        rating100 !== null ? Math.round(rating100) + " / 100" : "unrated";
+        rating100 !== null ? Math.round(rating100) + " / 100" : "未评分";
     return (
         <header className="binge-rating-modal-header">
             <h2>
-                {target.kind === "scene" ? "Rate scene" : "Rate performer"}
+                {target.kind === "scene" ? "场景评分" : "演员评分"}
             </h2>
             <div className="binge-rating-modal-summary">
                 <span className="binge-rating-modal-rating">
                     {ratingDisplay}
                 </span>
                 <span className="binge-rating-modal-progress">
-                    {rated}/{total} rated
+                    {rated}/{total} 已评分
                 </span>
             </div>
         </header>
@@ -263,12 +263,12 @@ function Body({
     onScore: (criterion: Criterion, newScore: number | null) => void;
 }) {
     if (state.kind === "loading") {
-        return <div className="binge-rating-modal-empty">loading…</div>;
+        return <div className="binge-rating-modal-empty">加载中…</div>;
     }
     if (state.kind === "error") {
         return (
             <div className="binge-rating-modal-empty binge-status-error">
-                couldn't load rating config: {state.message}
+                无法加载评分配置：{state.message}
             </div>
         );
     }
@@ -310,9 +310,9 @@ function Body({
             })}
             {previewRating !== null && (
                 <footer className="binge-rating-modal-footer">
-                    preview · {Math.round(previewRating)} / 100
+                    预览 · {Math.round(previewRating)} / 100
                     <small>
-                        Stash's plugin hook will lock this in.
+                        Stash 的插件钩子将锁定此值。
                     </small>
                 </footer>
             )}
@@ -369,7 +369,7 @@ function CriterionRow({
                         }
                         onMouseEnter={() => setHover(s)}
                         onClick={() => onScore(s)}
-                        aria-label={`${criterion.name}: ${s} of 5`}
+                        aria-label={`${criterion.name}：${s} / 5`}
                     >
                         ★
                     </button>
@@ -379,8 +379,8 @@ function CriterionRow({
                     className="binge-rating-modal-clear"
                     disabled={disabled || score === null}
                     onClick={() => onScore(null)}
-                    aria-label={`Clear ${criterion.name} rating`}
-                    title="Clear"
+                    aria-label={`清除 ${criterion.name} 评分`}
+                    title="清除"
                 >
                     ×
                 </button>

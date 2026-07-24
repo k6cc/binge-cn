@@ -18,8 +18,8 @@ export function FilterBar() {
                         type="button"
                         className="binge-filter-chip binge-filter-chip-saved"
                         onClick={() => clearSavedFilter()}
-                        title={`Clear "${activeSavedFilter.name}" filter`}
-                        aria-label={`Clear ${activeSavedFilter.name} filter`}
+                        title={`清除“${activeSavedFilter.name}”筛选条件`}
+                        aria-label={`清除 ${activeSavedFilter.name} 筛选条件`}
                     >
                         <span className="binge-filter-chip-label">
                             {activeSavedFilter.name}
@@ -54,8 +54,8 @@ export function FilterBar() {
                             type="button"
                             className={`binge-filter-chip binge-filter-chip-${category}`}
                             onClick={() => remove(category, e.id)}
-                            title={`Remove ${e.name}`}
-                            aria-label={`Remove ${e.name} from filter`}
+                            title={`移除 ${e.name}`}
+                            aria-label={`从筛选条件中移除 ${e.name}`}
                         >
                             {category === "performers" && (
                                 <span

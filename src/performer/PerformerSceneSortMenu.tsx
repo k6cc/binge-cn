@@ -4,6 +4,22 @@ import {
     type PerformerSceneSort,
 } from "../api/queries";
 
+// Sort-key → 中文 label. The shared `PERFORMER_SCENE_SORTS` constant in
+// `api/queries.ts` is also consumed by other surfaces (e.g. the API
+// layer's stashSort mapping), so we keep the English source strings
+// there and override only the display text here.
+const SORT_LABELS: Record<PerformerSceneSort, string> = {
+    recent: "最近",
+    views: "最多播放",
+    orgasms: "最多高潮",
+    rating: "最高评分",
+    added: "最近添加",
+};
+
+function sortLabel(key: PerformerSceneSort): string {
+    return SORT_LABELS[key] ?? PERFORMER_SCENE_SORTS.find((s) => s.key === key)?.label ?? key;
+}
+
 // Subtle sort control for the performer scene grid. Renders as a small
 // muted label ("Recent ⌄") that opens a popover of the sort options —
 // deliberately understated so it sits quietly in the SCENES heading next
@@ -54,9 +70,9 @@ export function PerformerSceneSortMenu({
                 onClick={() => setOpen((o) => !o)}
                 aria-haspopup="menu"
                 aria-expanded={open}
-                title="Sort scenes"
+                title="场景排序"
             >
-                {current.label}
+                {sortLabel(current.key)}
                 <ChevronIcon />
             </button>
             {open && (
@@ -81,7 +97,7 @@ export function PerformerSceneSortMenu({
                                 <span className="binge-scene-sort-check">
                                     {active && <CheckIcon />}
                                 </span>
-                                {opt.label}
+                                {sortLabel(opt.key)}
                             </button>
                         );
                     })}

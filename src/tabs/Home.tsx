@@ -22,7 +22,7 @@ export function Home() {
             <div className="binge-tab-inner">
                 <div className="binge-tab-title-row">
                     <div className="binge-tab-title-group">
-                        <h1 className="binge-tab-title">Home</h1>
+                        <h1 className="binge-tab-title">首页</h1>
                         <FeedFilterMenu />
                     </div>
                     <button
@@ -33,8 +33,8 @@ export function Home() {
                         }
                         onClick={stories.refresh}
                         disabled={stories.refreshing}
-                        aria-label="Refresh stories"
-                        title="Refresh stories"
+                        aria-label="刷新故事"
+                        title="刷新故事"
                     >
                         <RefreshIcon />
                     </button>

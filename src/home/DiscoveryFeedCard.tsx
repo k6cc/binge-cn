@@ -104,16 +104,16 @@ export function DiscoveryFeedCard({
     const forageMenuItem: SceneCardMenuItem = {
         label:
             forageState.kind === "sending"
-                ? "Sending to forage…"
+                ? "正在发送到 forage…"
                 : forageState.kind === "sent"
-                  ? "On forage watchlist ✓"
-                  : "Send to forage",
+                  ? "已在 forage 观看列表 ✓"
+                  : "发送到 forage",
         sub:
             forageState.kind === "sent"
                 ? forageState.target === "any"
-                    ? "Watching for any release"
-                    : `Watching for a ${forageState.target} copy`
-                : "Add to your forage watchlist",
+                    ? "关注任何版本"
+                    : `关注 ${forageState.target} 版本`
+                : "加入你的 forage 观看列表",
         onClick: () => void handleSendToForage(),
     };
 
@@ -243,8 +243,8 @@ export function DiscoveryFeedCard({
                                 }
                             >
                                 {item.source === "costar"
-                                    ? "DISCOVER"
-                                    : "TRENDING"}
+                                    ? "发现"
+                                    : "热门"}
                             </span>
                             {item.releaseDate && (
                                 <> · {item.releaseDate}</>
@@ -266,19 +266,19 @@ export function DiscoveryFeedCard({
                         disabled={isBusy || isFollowed}
                         title={
                             isBusy
-                                ? "Following…"
+                                ? "关注中…"
                                 : isFollowed
-                                  ? "Followed — added to your library"
-                                  : `Follow ${item.primaryPerformer.name} — adds to your library`
+                                  ? "已关注 — 已加入你的库"
+                                  : `关注 ${item.primaryPerformer.name} — 加入你的库`
                         }
                     >
                         {isBusy
                             ? "…"
                             : isFollowed
-                              ? "Following"
+                              ? "已关注"
                               : followState.kind === "error"
-                                ? "Retry"
-                                : "+ Follow"}
+                                ? "重试"
+                                : "+ 关注"}
                     </button>
                 )}
                 <SceneCardMenu
@@ -287,8 +287,8 @@ export function DiscoveryFeedCard({
                             ? [
                                   ...(forageReady ? [forageMenuItem] : []),
                                   {
-                                      label: "View on StashDB",
-                                      sub: "Opens in a new tab",
+                                      label: "在 StashDB 上查看",
+                                      sub: "在新标签页中打开",
                                       onClick: () =>
                                           window.open(
                                               item.stashboxUrl,
@@ -299,14 +299,14 @@ export function DiscoveryFeedCard({
                               ]
                             : [
                                   {
-                                      label: "Add scene to library",
-                                      sub: "Create the scene in Stash + link to StashDB",
+                                      label: "将场景加入库",
+                                      sub: "在 Stash 中创建场景并链接到 StashDB",
                                       onClick: () => setSceneModalOpen(true),
                                   },
                                   ...(forageReady ? [forageMenuItem] : []),
                                   {
-                                      label: "View on StashDB",
-                                      sub: "Opens in a new tab",
+                                      label: "在 StashDB 上查看",
+                                      sub: "在新标签页中打开",
                                       onClick: () =>
                                           window.open(
                                               item.stashboxUrl,
@@ -327,13 +327,13 @@ export function DiscoveryFeedCard({
                     className="binge-discovery-card-cover"
                     aria-label={
                         item.title
-                            ? `Open "${item.title}" on StashDB`
-                            : "Open scene on StashDB"
+                            ? `在 StashDB 上打开“${item.title}”`
+                            : "在 StashDB 上打开场景"
                     }
                 >
                     <img
                         src={item.coverUrl}
-                        alt={item.title ?? "StashDB scene"}
+                        alt={item.title ?? "StashDB 场景"}
                         loading="lazy"
                     />
                 </a>
@@ -361,7 +361,7 @@ export function DiscoveryFeedCard({
                     return (
                         <div className="binge-discovery-card-coperformers">
                             <span className="binge-discovery-card-with">
-                                with
+                                与
                             </span>
                             {unlinked.map((cp, idx) => (
                                 <span
@@ -402,7 +402,7 @@ export function DiscoveryFeedCard({
                     rel="noopener noreferrer"
                     className="binge-discovery-card-stashdb-link"
                 >
-                    View on StashDB →
+                    在 StashDB 上查看 →
                 </a>
 
                 {followState.kind === "error" && (
@@ -413,12 +413,12 @@ export function DiscoveryFeedCard({
 
                 {forageState.kind === "sending" && (
                     <div className="binge-discovery-card-forage-status">
-                        Sending to forage…
+                        正在发送到 forage…
                     </div>
                 )}
                 {forageState.kind === "sent" && (
                     <div className="binge-discovery-card-forage-ok">
-                        On forage watchlist
+                        已在 forage 观看列表
                         {forageState.target !== "any"
                             ? ` · ${forageState.target}`
                             : ""}{" "}
@@ -496,10 +496,10 @@ function HeaderNames({ item }: { item: DiscoveryFeedItemWrapped }) {
                                 (p.favorite ? " is-favorite" : "")
                             }
                             aria-label={
-                                p.favorite ? "Favourited" : "In library"
+                                p.favorite ? "已收藏" : "在库中"
                             }
                             title={
-                                p.favorite ? "Favourited" : "In library"
+                                p.favorite ? "已收藏" : "在库中"
                             }
                         >
                             <VerifiedIcon />

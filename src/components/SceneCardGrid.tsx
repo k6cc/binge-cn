@@ -34,7 +34,7 @@ export function SceneCardGrid({
     resetKey,
     pageSize = DEFAULT_PAGE_SIZE,
     heading,
-    emptyMessage = "no scenes",
+    emptyMessage = "无场景",
 }: SceneCardGridProps) {
     const [scenes, setScenes] = useState<PerformerSceneCard[]>([]);
     const [count, setCount] = useState<number | null>(null);
@@ -106,11 +106,11 @@ export function SceneCardGrid({
             )}
             {error && (
                 <div className="binge-status binge-status-error">
-                    error: {error}
+                    错误：{error}
                 </div>
             )}
             {scenes.length === 0 && loading && (
-                <div className="binge-status">loading…</div>
+                <div className="binge-status">加载中…</div>
             )}
             {scenes.length === 0 && !loading && !error && (
                 <div className="binge-status">{emptyMessage}</div>
@@ -128,7 +128,7 @@ export function SceneCardGrid({
             )}
             <div ref={sentinelRef} aria-hidden="true" />
             {loading && scenes.length > 0 && (
-                <div className="binge-status">loading more…</div>
+                <div className="binge-status">加载中…</div>
             )}
         </div>
     );
@@ -144,7 +144,7 @@ function ExploreStyleTile({
     scene: PerformerSceneCard;
     onPick: () => void;
 }) {
-    const sceneTitle = scene.title?.trim() || `Scene ${scene.id}`;
+    const sceneTitle = scene.title?.trim() || `场景 ${scene.id}`;
     return (
         <button
             type="button"

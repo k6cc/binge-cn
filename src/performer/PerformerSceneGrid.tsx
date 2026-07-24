@@ -282,7 +282,7 @@ export function PerformerSceneGrid({
                                 !includeStashDBInProfile
                             )
                         }
-                        title="Mix StashDB scenes into this performer's grid"
+                        title="将 StashDB 场景混入此演员的网格"
                     >
                         <span className="binge-profile-stashdb-toggle-dot" />
                         StashDB
@@ -291,14 +291,14 @@ export function PerformerSceneGrid({
             </h2>
             {error && (
                 <div className="binge-status binge-status-error">
-                    error: {error}
+                    错误：{error}
                 </div>
             )}
             {scenes.length === 0 && loading && (
                 <BingeLoading minHeight="30vh" />
             )}
             {scenes.length === 0 && !loading && !error && (
-                <div className="binge-status">no scenes</div>
+                <div className="binge-status">无场景</div>
             )}
             {(scenes.length > 0 ||
                 effectiveStashDBScenes.length > 0 ||
@@ -359,7 +359,7 @@ export function PerformerSceneGrid({
             <div ref={sentinelRef} aria-hidden="true" />
             {loading && scenes.length > 0 && (
                 <div className="binge-status binge-profile-scenes-loading">
-                    loading more…
+                    加载中…
                 </div>
             )}
             {sceneModalFor && stashBoxIndex !== null && (
@@ -458,7 +458,7 @@ function StashDBTile({
                 type="button"
                 className="binge-profile-scene-card"
                 onClick={onPick}
-                title={sceneTitle || `StashDB scene ${scene.id}`}
+                title={sceneTitle || `StashDB 场景 ${scene.id}`}
             >
                 <span
                     className="binge-profile-scene-poster"
@@ -561,7 +561,7 @@ function SceneTile({
                 onMouseLeave={handleLeave}
                 onFocus={handleEnter}
                 onBlur={handleLeave}
-                title={sceneTitle || `Scene ${scene.id}`}
+                title={sceneTitle || `场景 ${scene.id}`}
             >
                 <span
                     className="binge-profile-scene-poster"
@@ -741,8 +741,9 @@ function sortStatBadge(
     }
 }
 
-// "Jun 2026" from a "YYYY-MM-DD" or ISO date; falls back to the bare
+// "2026年6月" from a "YYYY-MM-DD" or ISO date; falls back to the bare
 // year, then null when unparseable.
+// 硬约束：日期格式使用中文 YYYY年M月。
 function compactMonthYear(raw: string | null): string | null {
     if (!raw) return null;
     const m = /^(\d{4})-(\d{2})/.exec(raw);
@@ -750,12 +751,8 @@ function compactMonthYear(raw: string | null): string | null {
         const y = raw.slice(0, 4);
         return /^\d{4}$/.test(y) ? y : null;
     }
-    const months = [
-        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-    ];
     const mi = parseInt(m[2], 10);
-    return mi >= 1 && mi <= 12 ? `${months[mi - 1]} ${m[1]}` : m[1];
+    return mi >= 1 && mi <= 12 ? `${m[1]}年${mi}月` : m[1];
 }
 
 // 0–100 rating → "8.4" out of 10 (drops a trailing .0).

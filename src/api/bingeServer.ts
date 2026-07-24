@@ -365,7 +365,7 @@ export async function setBingeServerConfig(
     if (!isTrustedDaemonUrl(base)) {
         return {
             ok: false,
-            error: "Won't send credentials to an untrusted binge-server URL — use https:// or a local/tailnet address.",
+            error: "不会将凭据发送到不受信任的 binge-server URL——请使用 https:// 或本地/tailnet 地址。",
         };
     }
     try {

@@ -14,7 +14,7 @@ export function MenuPage() {
         <div className="binge-tab-scroll">
             <header className="binge-saved-header">
                 <span className="binge-saved-spacer" />
-                <h1 className="binge-saved-title">More</h1>
+                <h1 className="binge-saved-title">更多</h1>
                 <span className="binge-saved-spacer" />
             </header>
             <ul className="binge-menu-list">
@@ -29,10 +29,10 @@ export function MenuPage() {
                         </span>
                         <span className="binge-menu-row-text">
                             <span className="binge-menu-row-title">
-                                Saved
+                                已保存
                             </span>
                             <span className="binge-menu-row-desc">
-                                Custom collections of bookmarked scenes.
+                                已收藏场景的自定义合集。
                             </span>
                         </span>
                         <span
@@ -54,11 +54,10 @@ export function MenuPage() {
                         </span>
                         <span className="binge-menu-row-text">
                             <span className="binge-menu-row-title">
-                                Settings
+                                设置
                             </span>
                             <span className="binge-menu-row-desc">
-                                Stream type, lookback window, binge-server
-                                configuration, theme integration.
+                                流类型、回看窗口、binge-server 配置、主题集成。
                             </span>
                         </span>
                         <span

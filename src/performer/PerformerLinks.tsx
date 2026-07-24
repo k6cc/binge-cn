@@ -61,8 +61,8 @@ export function PerformerLinks({ urls }: PerformerLinksProps) {
                     type="button"
                     className="binge-profile-link-chip is-other"
                     onClick={() => setShowOther(true)}
-                    title={`${other.length} other link${other.length === 1 ? "" : "s"}`}
-                    aria-label="Show other links"
+                    title={`${other.length} 个其他链接`}
+                    aria-label="显示其他链接"
                 >
                     <LinkIcon />
                     <span className="binge-profile-link-chip-label">
@@ -161,15 +161,15 @@ function OtherLinksPopup({
                 className="binge-other-links-sheet"
                 onClick={(e) => e.stopPropagation()}
                 role="dialog"
-                aria-label="Other links"
+                aria-label="其他链接"
             >
                 <div className="binge-other-links-header">
-                    <span>Other links</span>
+                    <span>其他链接</span>
                     <button
                         type="button"
                         className="binge-other-links-close"
                         onClick={onClose}
-                        aria-label="Close"
+                        aria-label="关闭"
                     >
                         ×
                     </button>

@@ -61,7 +61,7 @@ export function PerformerMoreSheet({
             <div
                 className="binge-sheet binge-more-sheet"
                 role="dialog"
-                aria-label="More actions"
+                aria-label="更多操作"
             >
                 <div className="binge-sheet-handle" aria-hidden="true" />
                 <ul className="binge-more-sheet-list">
@@ -73,7 +73,7 @@ export function PerformerMoreSheet({
                                 onClick={handleWriteReview}
                             >
                                 <span className="binge-more-sheet-row-label">
-                                    Write review
+                                    撰写评论
                                 </span>
                                 <CommentIcon />
                             </button>
@@ -86,7 +86,7 @@ export function PerformerMoreSheet({
                             onClick={handleRefresh}
                         >
                             <span className="binge-more-sheet-row-label">
-                                Refresh
+                                刷新
                             </span>
                             <RefreshIcon />
                         </button>
@@ -98,7 +98,7 @@ export function PerformerMoreSheet({
                             onClick={handleOpenInStash}
                         >
                             <span className="binge-more-sheet-row-label">
-                                Open in Stash
+                                在 Stash 中打开
                             </span>
                             <ExternalLinkIcon />
                         </button>

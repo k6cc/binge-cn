@@ -62,7 +62,7 @@ export function StashDBPerformerProfile({
                 const box = await getStashDBBox();
                 if (!box) {
                     throw new Error(
-                        "StashDB isn't configured in Stash → Settings → Metadata Providers."
+                        "StashDB 未在 Stash → 设置 → 元数据提供者中配置。"
                     );
                 }
                 const [performer, scenes, ownedSceneIds] = await Promise.all([
@@ -75,7 +75,7 @@ export function StashDBPerformerProfile({
                 ]);
                 if (!alive) return;
                 if (!performer) {
-                    throw new Error("Performer not found on StashDB.");
+                    throw new Error("在 StashDB 上未找到该演员。");
                 }
                 setState({
                     kind: "ready",
@@ -119,7 +119,7 @@ export function StashDBPerformerProfile({
         <div
             className="binge-profile-root"
             role="dialog"
-            aria-label="StashDB performer profile"
+            aria-label="StashDB 演员档案"
         >
             <header
                 className={
@@ -131,7 +131,7 @@ export function StashDBPerformerProfile({
                     type="button"
                     className="binge-profile-back"
                     onClick={close}
-                    aria-label="Close profile"
+                    aria-label="关闭档案"
                 >
                     <BackIcon />
                 </button>
@@ -152,7 +152,7 @@ export function StashDBPerformerProfile({
                 {state.kind === "loading" && <BingeLoading minHeight="50vh" />}
                 {state.kind === "error" && (
                     <div className="binge-status binge-status-error">
-                        error: {state.message}
+                        错误：{state.message}
                     </div>
                 )}
                 {state.kind === "ready" && (
@@ -179,18 +179,18 @@ export function StashDBPerformerProfile({
                             <ul className="binge-profile-stats">
                                 <Stat
                                     value={state.performer.sceneCount}
-                                    label="scenes"
+                                    label="场景"
                                 />
                                 <Stat
                                     value={countOwned(
                                         state.scenes,
                                         state.ownedSceneIds
                                     )}
-                                    label="in library"
+                                    label="库中"
                                 />
                                 <Stat
                                     value={state.performer.aliases.length}
-                                    label="aliases"
+                                    label="别名"
                                 />
                             </ul>
                         </section>
@@ -203,7 +203,7 @@ export function StashDBPerformerProfile({
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="binge-profile-name-link"
-                                        title="Open on StashDB"
+                                        title="在 StashDB 打开"
                                     >
                                         {state.performer.name}
                                     </a>
@@ -211,7 +211,7 @@ export function StashDBPerformerProfile({
                             </div>
                             {state.performer.aliases.length > 0 && (
                                 <p className="binge-profile-aliases">
-                                    a.k.a.{" "}
+                                    又名{" "}
                                     {state.performer.aliases.join(", ")}
                                 </p>
                             )}
@@ -234,16 +234,16 @@ export function StashDBPerformerProfile({
                                 disabled={followed}
                                 aria-pressed={followed}
                             >
-                                {followed ? "Following" : "+ Follow"}
+                                {followed ? "已关注" : "+ 关注"}
                             </button>
                         </div>
 
                         <section className="binge-profile-scenes">
                             <h2 className="binge-profile-scenes-heading">
-                                Scenes ({state.scenes.length})
+                                场景 ({state.scenes.length})
                             </h2>
                             {state.scenes.length === 0 ? (
-                                <div className="binge-status">no scenes</div>
+                                <div className="binge-status">无场景</div>
                             ) : (
                                 <ul className="binge-profile-scene-grid">
                                     {state.scenes.map((s) => (
@@ -347,7 +347,7 @@ function BioAttrs({
         attrs.push(performer.hairColor.toLowerCase());
     }
     if (performer.eyeColor) {
-        attrs.push(`${performer.eyeColor.toLowerCase()} eyes`);
+        attrs.push(`${performer.eyeColor.toLowerCase()}色眼睛`);
     }
     if (performer.gender) attrs.push(genderLabel(performer.gender));
     if (performer.height) attrs.push(`${performer.height} cm`);
@@ -364,17 +364,17 @@ function parseBirthYear(birthDate: string): number | null {
 function genderLabel(g: string): string {
     switch (g) {
         case "FEMALE":
-            return "female";
+            return "女性";
         case "TRANSGENDER_FEMALE":
-            return "trans female";
+            return "跨性别女性";
         case "MALE":
-            return "male";
+            return "男性";
         case "TRANSGENDER_MALE":
-            return "trans male";
+            return "跨性别男性";
         case "INTERSEX":
-            return "intersex";
+            return "间性";
         case "NON_BINARY":
-            return "non-binary";
+            return "非二元";
         default:
             return g.toLowerCase();
     }
@@ -404,7 +404,7 @@ function StashDBSceneTile({
                 type="button"
                 className="binge-profile-scene-card"
                 onClick={onOpenAddModal}
-                title={scene.title ?? "StashDB scene"}
+                title={scene.title ?? "StashDB 场景"}
             >
                 <span
                     className="binge-profile-scene-poster"
@@ -422,7 +422,7 @@ function StashDBSceneTile({
                         (owned ? " is-owned" : "")
                     }
                 >
-                    {owned ? "In library" : "StashDB"}
+                    {owned ? "在库中" : "StashDB"}
                 </span>
                 <span className="binge-profile-scene-hover">
                     <span className="binge-profile-scene-hover-stats">

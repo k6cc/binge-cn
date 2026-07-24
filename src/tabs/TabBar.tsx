@@ -1,10 +1,10 @@
 import { useTab, type Tab } from "./TabContext";
 
 const TABS: { id: Tab; label: string }[] = [
-    { id: "home", label: "Home" },
-    { id: "following", label: "Following" },
-    { id: "foryou", label: "For You" },
-    { id: "explore", label: "Explore" },
+    { id: "home", label: "首页" },
+    { id: "following", label: "关注中" },
+    { id: "foryou", label: "推荐" },
+    { id: "explore", label: "发现" },
 ];
 
 // Instagram-style top nav: floating white text, no chrome. Active tab is
@@ -15,7 +15,7 @@ export function TabBar() {
     const { tab, setTab } = useTab();
 
     return (
-        <nav className="binge-tabbar" role="tablist" aria-label="Reel sections">
+        <nav className="binge-tabbar" role="tablist" aria-label="Reel 分区">
             {TABS.map((t) => (
                 <button
                     key={t.id}

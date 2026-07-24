@@ -22,12 +22,12 @@ type SortMode =
     | "last-post-asc";
 
 const SORT_OPTIONS: { value: SortMode; label: string }[] = [
-    { value: "name-asc", label: "Name A → Z" },
-    { value: "name-desc", label: "Name Z → A" },
-    { value: "scenes-desc", label: "Most scenes" },
-    { value: "scenes-asc", label: "Fewest scenes" },
-    { value: "last-post-desc", label: "Last post (newest)" },
-    { value: "last-post-asc", label: "Last post (oldest)" },
+    { value: "name-asc", label: "姓名 A → Z" },
+    { value: "name-desc", label: "姓名 Z → A" },
+    { value: "scenes-desc", label: "场景最多" },
+    { value: "scenes-asc", label: "场景最少" },
+    { value: "last-post-desc", label: "最近发布（最新）" },
+    { value: "last-post-asc", label: "最近发布（最旧）" },
 ];
 
 // Map<performerStashId, lastActivityIso> for the "last post at" sort.
@@ -155,16 +155,16 @@ export function Following() {
     return (
         <div className="binge-tab-scroll" ref={scrollRef}>
             <div className="binge-tab-inner">
-                <h1 className="binge-tab-title">Following</h1>
+                <h1 className="binge-tab-title">关注中</h1>
 
                 <div className="binge-following-controls">
                     <input
                         type="search"
                         className="binge-following-search"
-                        placeholder="Search performers"
+                        placeholder="搜索演员"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        aria-label="Search performers"
+                        aria-label="搜索演员"
                         autoCorrect="off"
                         autoCapitalize="off"
                         spellCheck={false}
@@ -173,7 +173,7 @@ export function Following() {
                         className="binge-following-sort"
                         value={sort}
                         onChange={(e) => setSort(e.target.value as SortMode)}
-                        aria-label="Sort performers"
+                        aria-label="排序演员"
                     >
                         {SORT_OPTIONS.map((opt) => (
                             <option key={opt.value} value={opt.value}>
@@ -192,23 +192,23 @@ export function Following() {
                 {state.kind === "ready" && (
                     <>
                         <Section
-                            title="Favourites"
+                            title="收藏夹"
                             count={favourites.length}
                             performers={favourites}
                             onPick={openProfile}
                             emptyHint={
                                 state.performers.some((p) => p.favorite)
-                                    ? "No matches."
-                                    : "Favourite some performers in Stash to see them here."
+                                    ? "无匹配项。"
+                                    : "在 Stash 中收藏一些演员即可在此处查看。"
                             }
                             favorite
                         />
                         <Section
-                            title="All performers"
+                            title="所有演员"
                             count={others.length}
                             performers={others}
                             onPick={openProfile}
-                            emptyHint="No matches."
+                            emptyHint="无匹配项。"
                             favorite={false}
                         />
                     </>
@@ -277,8 +277,7 @@ function Section({
                                 {typeof p.scene_count === "number" &&
                                     p.scene_count > 0 && (
                                         <span className="binge-follow-count">
-                                            {p.scene_count} scene
-                                            {p.scene_count === 1 ? "" : "s"}
+                                            {p.scene_count} 个场景
                                         </span>
                                     )}
                             </button>

@@ -16,8 +16,8 @@ export function MuteToggle({ muted, onToggle }: MuteToggleProps) {
                 e.stopPropagation();
                 onToggle();
             }}
-            title={muted ? "Unmute" : "Mute"}
-            aria-label={muted ? "Unmute" : "Mute"}
+            title={muted ? "取消静音" : "静音"}
+            aria-label={muted ? "取消静音" : "静音"}
             aria-pressed={!muted}
         >
             {muted ? <MutedIcon /> : <UnmutedIcon />}

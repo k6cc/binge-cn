@@ -56,7 +56,7 @@ export function PackDetailSheet({
             <div
                 className="binge-sheet binge-pack-sheet"
                 role="dialog"
-                aria-label={`${pack.primaryPerformer.name} — pack`}
+                aria-label={`${pack.primaryPerformer.name} — 包`}
             >
                 <div className="binge-sheet-handle" aria-hidden="true" />
                 <header className="binge-pack-sheet-header">
@@ -64,7 +64,7 @@ export function PackDetailSheet({
                         {pack.primaryPerformer.name}
                     </div>
                     <div className="binge-pack-sheet-sub">
-                        {pack.sceneCount} new scenes
+                        {pack.sceneCount} 个新场景
                     </div>
                 </header>
                 <div className="binge-pack-sheet-grid">
@@ -74,7 +74,7 @@ export function PackDetailSheet({
                             key={scene.sceneId}
                             className="binge-pack-sheet-tile"
                             onClick={() => handlePick(scene)}
-                            aria-label={scene.title ?? "Open scene"}
+                            aria-label={scene.title ?? "打开场景"}
                             style={
                                 scene.screenshot
                                     ? {

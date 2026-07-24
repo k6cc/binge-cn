@@ -1466,6 +1466,65 @@ export async function findImagesByGallery(
     return data.findImages.images;
 }
 
+// ── Performer galleries (profile "Galleries" tab) ───────────────────
+
+// Gallery card shape for the performer profile's gallery-grid layer.
+// cover.paths.thumbnail is the cover image used by both the grid cell
+// and the hover-autoplay component (which swaps in inner images on
+// hover). NOTE: Stash's Gallery type has no `image_path` field —
+// querying it returns a 400, so we only select id/title/image_count/cover.
+export interface PerformerGalleryCard {
+    id: string;
+    title: string | null;
+    image_count: number;
+    cover: { paths: { thumbnail: string | null } } | null;
+}
+
+const FIND_GALLERIES_BY_PERFORMER = /* GraphQL */ `
+    query PerformerGalleries($id: ID!, $page: Int!, $per_page: Int!) {
+        findGalleries(
+            gallery_filter: {
+                performers: { value: [$id], modifier: INCLUDES }
+            }
+            filter: {
+                page: $page
+                per_page: $per_page
+                sort: "created_at"
+                direction: DESC
+            }
+        ) {
+            count
+            galleries {
+                id
+                title
+                image_count
+                cover { paths { thumbnail } }
+            }
+        }
+    }
+`;
+
+// Paginated fetch of a performer's galleries. Powers the profile's
+// "图库" tab first layer (gallery cover grid). The inner image layer
+// reuses findImagesByGallery with a 500-image cap per load.
+export async function findGalleriesByPerformer(
+    performerId: string,
+    page: number,
+    perPage: number
+): Promise<{ count: number; galleries: PerformerGalleryCard[] }> {
+    const data = await gql<{
+        findGalleries: {
+            count: number;
+            galleries: PerformerGalleryCard[];
+        };
+    }>(FIND_GALLERIES_BY_PERFORMER, {
+        id: performerId,
+        page,
+        per_page: perPage,
+    });
+    return data.findGalleries;
+}
+
 // Fetch the Stash instance's API key. Same-origin clients have access
 // to `configuration.general.apiKey` via the user's auth cookie, so
 // binge can read it without the user copy-pasting. Used to pre-fill

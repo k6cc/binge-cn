@@ -16,8 +16,8 @@ export function PerformerStatsRow({
 }: PerformerStatsRowProps) {
     return (
         <ul className="binge-profile-stats">
-            <Stat value={sceneCount} label="scenes" />
-            <Stat value={oCounter} label="orgasms" />
+            <Stat value={sceneCount} label="场景" />
+            <Stat value={oCounter} label="高潮" />
             <RatingStat rating100={rating100} />
         </ul>
     );
@@ -38,7 +38,7 @@ function RatingStat({ rating100 }: { rating100: number | null }) {
             <span className="binge-profile-stat-value">
                 {formatRating(rating100)}
             </span>
-            <span className="binge-profile-stat-label">rating</span>
+            <span className="binge-profile-stat-label">评分</span>
         </li>
     );
 }

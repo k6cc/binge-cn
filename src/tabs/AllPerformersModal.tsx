@@ -74,15 +74,15 @@ export function AllPerformersModal({ onClose }: AllPerformersModalProps) {
                 ref={panelRef}
                 onClick={(e) => e.stopPropagation()}
                 role="dialog"
-                aria-label="All performers"
+                aria-label="所有演员"
             >
                 <header className="binge-modal-header">
-                    <h2>All performers</h2>
+                    <h2>所有演员</h2>
                     <button
                         type="button"
                         className="binge-modal-close"
                         onClick={onClose}
-                        aria-label="Close"
+                        aria-label="关闭"
                     >
                         ×
                     </button>
@@ -91,17 +91,14 @@ export function AllPerformersModal({ onClose }: AllPerformersModalProps) {
                     <input
                         type="text"
                         className="binge-modal-search"
-                        placeholder="Search performers…"
+                        placeholder="搜索演员…"
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                         autoFocus
                     />
                     {state.kind === "ready" && (
                         <span className="binge-modal-count">
-                            {filtered.length}{" "}
-                            {filtered.length === 1
-                                ? "performer"
-                                : "performers"}
+                            {filtered.length} 位演员
                         </span>
                     )}
                 </div>
@@ -111,11 +108,11 @@ export function AllPerformersModal({ onClose }: AllPerformersModalProps) {
                     )}
                     {state.kind === "error" && (
                         <div className="binge-status binge-status-error">
-                            error: {state.message}
+                            错误：{state.message}
                         </div>
                     )}
                     {state.kind === "ready" && filtered.length === 0 && (
-                        <div className="binge-status">no matches</div>
+                        <div className="binge-status">无匹配项</div>
                     )}
                     {state.kind === "ready" && filtered.length > 0 && (
                         <ul className="binge-following-grid">
@@ -153,10 +150,7 @@ export function AllPerformersModal({ onClose }: AllPerformersModalProps) {
                                         {typeof p.scene_count === "number" &&
                                             p.scene_count > 0 && (
                                                 <span className="binge-follow-count">
-                                                    {p.scene_count} scene
-                                                    {p.scene_count === 1
-                                                        ? ""
-                                                        : "s"}
+                                                    {p.scene_count} 个场景
                                                 </span>
                                             )}
                                     </button>

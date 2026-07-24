@@ -3988,7 +3988,8 @@ body,
     box-shadow: 0 4px 18px rgba(0, 0, 0, 0.3);
 }
 .binge-app.refract .binge-feed-card {
-    background: var(--glass-bg, rgba(255, 255, 255, 0.04));
+    background: var(--glass-bg, #00000080);
+    background-color: #0d0d0d;
     border-color: rgba(255, 255, 255, 0.08);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
@@ -4011,7 +4012,8 @@ body,
     flex-direction: column;
 }
 .binge-app.refract .binge-discovery-card {
-    background: var(--glass-bg, rgba(255, 255, 255, 0.04));
+    background: var(--glass-bg, #00000080);
+    background-color: #0d0d0d;
     border-color: rgba(255, 255, 255, 0.1);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
@@ -5018,7 +5020,7 @@ body,
     cursor: default;
 }
 .binge-app.refract .binge-feed-card-stack-avatar {
-    border-color: var(--glass-bg, rgba(255, 255, 255, 0.04));
+    border-color: var(--glass-bg, #00000080);
 }
 
 .binge-feed-card-name {

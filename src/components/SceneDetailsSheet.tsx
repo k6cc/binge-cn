@@ -63,7 +63,7 @@ export function SceneDetailsSheet({ scene, onClose }: SceneDetailsSheetProps) {
             <div
                 className="binge-sheet binge-details-sheet"
                 role="dialog"
-                aria-label="Scene details"
+                aria-label="场景详情"
             >
                 <div className="binge-sheet-handle" aria-hidden="true" />
                 <div className="binge-details-meta">
@@ -91,7 +91,7 @@ export function SceneDetailsSheet({ scene, onClose }: SceneDetailsSheetProps) {
                             target="_blank"
                             rel="noopener noreferrer"
                             className="binge-details-title-link"
-                            title="Open scene in Stash"
+                            title="在 Stash 中打开场景"
                         >
                             {displayTitle}
                         </a>
@@ -116,7 +116,7 @@ export function SceneDetailsSheet({ scene, onClose }: SceneDetailsSheetProps) {
                     !details &&
                     (!scene.tags || scene.tags.length === 0) && (
                         <p className="binge-details-empty">
-                            No description.
+                            无描述。
                         </p>
                     )}
             </div>
@@ -132,24 +132,24 @@ export function SceneDetailsSheet({ scene, onClose }: SceneDetailsSheetProps) {
 function TechSection({ tech }: { tech: SceneFileDetails }) {
     const rows: { label: string; value: string; mono?: boolean }[] = [];
     if (tech.path) {
-        rows.push({ label: "Path", value: tech.path, mono: true });
+        rows.push({ label: "路径", value: tech.path, mono: true });
     }
     const res = formatResolution(tech);
-    if (res) rows.push({ label: "Resolution", value: res });
+    if (res) rows.push({ label: "分辨率", value: res });
     const dur = formatDuration(tech.duration);
-    if (dur) rows.push({ label: "Duration", value: dur });
+    if (dur) rows.push({ label: "时长", value: dur });
     const size = formatSize(tech.size);
-    if (size) rows.push({ label: "Size", value: size });
-    if (tech.video_codec) rows.push({ label: "Video", value: tech.video_codec });
-    if (tech.audio_codec) rows.push({ label: "Audio", value: tech.audio_codec });
+    if (size) rows.push({ label: "大小", value: size });
+    if (tech.video_codec) rows.push({ label: "视频", value: tech.video_codec });
+    if (tech.audio_codec) rows.push({ label: "音频", value: tech.audio_codec });
     const fr = formatFrameRate(tech.frame_rate);
-    if (fr) rows.push({ label: "Frame rate", value: fr });
+    if (fr) rows.push({ label: "帧率", value: fr });
     const br = formatBitRate(tech.bit_rate);
-    if (br) rows.push({ label: "Bit rate", value: br });
+    if (br) rows.push({ label: "码率", value: br });
     if (rows.length === 0) return null;
     return (
         <div className="binge-details-tech">
-            <div className="binge-details-tech-heading">TECHNICAL</div>
+            <div className="binge-details-tech-heading">技术信息</div>
             <dl className="binge-details-tech-list">
                 {rows.map((row) => (
                     <div key={row.label} className="binge-details-tech-row">
@@ -237,26 +237,13 @@ function basenameNoExt(path: string | undefined): string {
     return lastDot > 0 ? filename.slice(0, lastDot) : filename;
 }
 
-// Stash date format "YYYY-MM-DD" → "28 February 2024" Instagram-style.
+// Stash date format "YYYY-MM-DD" → "2024年2月28日" 中文格式。
+// 硬约束：日期格式使用中文 YYYY年M月D日。
 function formatDate(raw: string | null): string {
     if (!raw) return "";
     const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
     if (!m) return "";
-    const months = [
-        "January",
-        "February",
-        "March",
-        "April",
-        "May",
-        "June",
-        "July",
-        "August",
-        "September",
-        "October",
-        "November",
-        "December",
-    ];
-    const monthIdx = Math.max(0, Math.min(11, Number(m[2]) - 1));
+    const month = Number(m[2]);
     const day = Number(m[3]);
-    return `${day} ${months[monthIdx]} ${m[1]}`;
+    return `${m[1]}年${month}月${day}日`;
 }

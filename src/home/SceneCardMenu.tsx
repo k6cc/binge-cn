@@ -99,8 +99,8 @@ export function SceneCardMenu({ items }: SceneCardMenuProps) {
                 onClick={() => setOpen((v) => !v)}
                 aria-haspopup="menu"
                 aria-expanded={open}
-                aria-label="More actions"
-                title="More"
+                aria-label="更多操作"
+                title="更多"
             >
                 <DotsIcon />
             </button>
