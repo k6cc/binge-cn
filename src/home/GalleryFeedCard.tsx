@@ -1,6 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import type { GalleryFeedItem } from "./useFeed";
 import { ImageLightbox } from "../performer/ImageLightbox";
+import { PerformerHoverCard } from "./PerformerHoverCard";
+import { VerifiedIcon } from "../performer/PerformerProfile";
 import { usePerformerProfile } from "../performer/PerformerProfileContext";
 import { timeAgo } from "./timeAgo";
 
@@ -101,37 +103,98 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
     return (
         <article className="binge-feed-card binge-feed-card-gallery">
             <header className="binge-feed-card-header">
-                <button
-                    type="button"
-                    className="binge-feed-card-author"
-                    onClick={() =>
-                        primaryPerformer && openProfile(primaryPerformer.id)
-                    }
-                    aria-label={primaryPerformer?.name ?? "演员"}
-                >
-                    <span
-                        className="binge-feed-card-avatar"
-                        style={
-                            primaryPerformer?.imagePath
-                                ? {
-                                      backgroundImage: `url(${primaryPerformer.imagePath})`,
-                                  }
-                                : undefined
-                        }
-                    >
-                        {!primaryPerformer?.imagePath && (
-                            <span className="binge-feed-card-initial">
-                                {primaryPerformer?.name
-                                    .charAt(0)
-                                    .toUpperCase() ?? "?"}
+                <div className="binge-feed-card-author">
+                    {primaryPerformer ? (
+                        <PerformerHoverCard
+                            name={primaryPerformer.name}
+                            image={primaryPerformer.imagePath ?? null}
+                            gender={null}
+                            birthDate={null}
+                            inLibrary
+                            favorite={primaryPerformer.favorite}
+                            onOpenProfile={() =>
+                                openProfile(primaryPerformer.id)
+                            }
+                        >
+                            <span
+                                className="binge-feed-card-avatar"
+                                style={
+                                    primaryPerformer.imagePath
+                                        ? {
+                                              backgroundImage: `url(${primaryPerformer.imagePath})`,
+                                          }
+                                        : undefined
+                                }
+                            >
+                                {!primaryPerformer.imagePath && (
+                                    <span className="binge-feed-card-initial">
+                                        {primaryPerformer.name
+                                            .charAt(0)
+                                            .toUpperCase()}
+                                    </span>
+                                )}
                             </span>
-                        )}
-                    </span>
-                    <span className="binge-feed-card-name">
-                        {item.performers.map((p) => p.name).join(", ") ||
-                            "图库"}
-                    </span>
-                </button>
+                        </PerformerHoverCard>
+                    ) : (
+                        <span className="binge-feed-card-avatar">
+                            <span className="binge-feed-card-initial">?</span>
+                        </span>
+                    )}
+                    {primaryPerformer ? (
+                        <PerformerHoverCard
+                            name={primaryPerformer.name}
+                            image={primaryPerformer.imagePath ?? null}
+                            gender={null}
+                            birthDate={null}
+                            inLibrary
+                            favorite={primaryPerformer.favorite}
+                            onOpenProfile={() =>
+                                openProfile(primaryPerformer.id)
+                            }
+                        >
+                            <button
+                                type="button"
+                                className="binge-feed-card-name-btn"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    openProfile(primaryPerformer.id);
+                                }}
+                                aria-label={primaryPerformer.name}
+                            >
+                                <span className="binge-feed-card-name">
+                                    {item.performers.map((p, idx) => (
+                                        <Fragment key={p.id}>
+                                            {idx > 0 && ", "}
+                                            {p.name}
+                                            <span
+                                                className={
+                                                    "binge-feed-card-verified" +
+                                                    (p.favorite
+                                                        ? " is-favorite"
+                                                        : "")
+                                                }
+                                                aria-label={
+                                                    p.favorite
+                                                        ? "已收藏"
+                                                        : "在库中"
+                                                }
+                                                title={
+                                                    p.favorite
+                                                        ? "已收藏"
+                                                        : "在库中"
+                                                }
+                                            >
+                                                <VerifiedIcon />
+                                            </span>
+                                        </Fragment>
+                                    ))}
+                                </span>
+                            </button>
+                        </PerformerHoverCard>
+                    ) : (
+                        <span className="binge-feed-card-name">图库</span>
+                    )}
+                </div>
                 <span className="binge-feed-card-time">
                     {timeAgo(item.effectiveAt)}
                 </span>

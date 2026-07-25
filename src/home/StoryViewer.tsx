@@ -48,7 +48,7 @@ export function StoryViewer() {
     const [sceneIndex, setSceneIndex] = useState(0);
     const [paused, setPaused] = useState(false);
     const [progress, setProgress] = useState(0);
-    const [muted, setMuted] = useMuteState();
+    const [muted, setMuted, setMutedSession] = useMuteState();
     // Whether the daemon can save posts to Stash (library roots set).
     const [saveConfigured, setSaveConfigured] = useState(false);
     // Per-scene save status, keyed by scene id.
@@ -199,13 +199,15 @@ export function StoryViewer() {
             video.muted = muted;
             void video.play().catch(() => {
                 // Autoplay may need muted; retry muted, then accept failure
-                // (the progress timer still advances).
+                // (the progress timer still advances). Use setMutedSession
+                // (not setMuted) so the user's persisted preference is not
+                // overwritten — switching stories won't reset their choice.
                 video.muted = true;
-                if (!muted) setMuted(true);
+                if (!muted) setMutedSession(true);
                 void video.play().catch(() => {});
             });
         }
-    }, [paused, sceneIndex, activeIndex, muted, setMuted]);
+    }, [paused, sceneIndex, activeIndex, muted, setMuted, setMutedSession]);
 
     // Keep <video>.muted in sync when the user toggles mute mid-story.
     useEffect(() => {

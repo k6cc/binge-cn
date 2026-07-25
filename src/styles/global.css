@@ -2990,7 +2990,7 @@ body,
     aspect-ratio: 1 / 1;
     background-color: #111;
     background-size: cover;
-    background-position: center;
+    background-position: right center;
     background-repeat: no-repeat;
     overflow: hidden;
     transition: filter 0.15s ease, transform 0.15s ease;
@@ -3956,19 +3956,19 @@ body,
    通过 CSS 变量 --binge-card-max 统一控制 wrapper/card/discovery
    三处的 max-width，避免分散修改。断点：
      移动端 (< 720px)  : 无 max-width 约束，width:100% 铺满
-     平板 (≥ 720px)    : 520px，两侧留白
-     桌面 (≥ 1100px)   : 560px，更宽但仍居中留空 */
+     平板 (≥ 720px)    : 780px，两侧留白
+     桌面 (≥ 1100px)   : 840px，更宽但仍居中留空 */
 .binge-feed {
     --binge-card-max: none;
 }
 @media (min-width: 720px) {
     .binge-feed {
-        --binge-card-max: 520px;
+        --binge-card-max: 780px;
     }
 }
 @media (min-width: 1100px) {
     .binge-feed {
-        --binge-card-max: 560px;
+        --binge-card-max: 840px;
     }
 }
 
@@ -5058,20 +5058,13 @@ body,
     background-size: cover;
     background-position: center top;
     background-repeat: no-repeat;
-    border: 2px solid var(--bg-1, #111);
+    border: none;
     box-sizing: border-box;
     flex: 0 0 38px;
     display: grid;
     place-items: center;
     overflow: hidden;
     color: #fff;
-}
-.binge-feed-card-initial {
-    font-size: 0.7rem;
-    font-weight: 700;
-}
-.binge-app.refract .binge-feed-card-avatar {
-    border-color: var(--glass-bg, #00000080);
 }
 
 .binge-feed-card-name {
