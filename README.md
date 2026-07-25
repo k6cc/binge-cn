@@ -1,6 +1,6 @@
 # Binge（汉化版）
 
-> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.4.8**。
+> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.4.9-RC3**。
 
 为 [Stash](https://github.com/stashapp/stash) 提供的 Instagram 风格社交与发现层：竖屏 Reel、Stories、演员档案、StashDB 驱动的发现功能——全部基于 Stash 既有的 GraphQL API。Web 插件形态。
 
@@ -20,6 +20,13 @@
 - 品牌名保持英文：Stash、StashDB、Reddit、X (Twitter)、PornHub、Cookie、forage、binge-server、HLS、MP4、WebM
 
 ### 功能修复
+
+#### v0.4.9 新增修复
+
+| # | 修复 | 说明 |
+|-|-|-|
+| 1 | StoryViewer 关闭后重开同一演员自动播放失败 | play-sync `useEffect` 依赖数组缺少 `isOpen`。关闭后重开同一演员时 `stories` 是同一引用（来自 `StoriesContext` 共享状态），`activeIndex`/`sceneIndex`/`currentScene` 引用均不变 → 若 deps 不含 `isOpen`，effect 不会重跑 → 新挂载的 `<video>` 未绑定 `canplay`/`loadeddata` 监听器，`tryPlay` 也不调用 → 自动播放失败。用户点击两次影片或切换其他演员时 `sceneIndex`/`activeIndex` 变化 → effect 重跑 → 自动播放恢复。加入 `isOpen` 后，关闭→重开时 `isOpen` 从 `false` 变 `true` → effect 重跑 → 正确驱动新 video |
+| 2 | 二层封面重叠与点击跳转修复验证 | Bug 1 的源码修复已在 v0.4.6–v0.4.8 中完成（修改 17 CSS `width:100%`+`display:block` + 修改 14 `handlePick` 顺序 + Bug 5 Reel queue 路径不清除 queue + commit f6d5410 `url()` 引号）。本次验证确认修复完整，用户若仍遇到问题请重新构建（`npm run build`）+ 浏览器硬刷新（Ctrl+Shift+R） |
 
 #### v0.4.8 新增修复
 

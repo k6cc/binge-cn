@@ -200,6 +200,16 @@ export function StoryViewer() {
     // 修复：添加 canplay / loadeddata 事件监听，在视频就绪时重试 play()。
     // 同时添加调试日志便于排查。useMuteState 的两层（persisted/effective）
     // 保证用户偏好不被覆盖。
+    //
+    // Bug 修复（需求2）：依赖数组必须包含 `isOpen`。StoryViewerContext.open
+    // 传入的 stories 来自 StoriesContext 共享状态——关闭后重开同一演员时，
+    // stories 是同一引用，setStories 不触发 re-render；activeIndex 因传入
+    // 相同 startIndex 也不变 → sceneIndex/currentScene 引用均不变 → 若 deps
+    // 不含 isOpen，effect 不会重跑，新挂载的 <video> 既未绑定 canplay/
+    // loadeddata 监听器，tryPlay("effect") 也不会被调用 → 自动播放失败。
+    // 用户点击两次影片或切换其他演员时 sceneIndex/activeIndex 变化 → effect
+    // 重跑 → 监听器重新绑定 → 自动播放恢复。加入 isOpen 后，关闭→重开同一
+    // 演员时 isOpen 从 false 变 true → effect 重跑 → 正确驱动新 video。
     useEffect(() => {
         const video = videoRef.current;
         if (!video) return;
@@ -252,7 +262,7 @@ export function StoryViewer() {
             video.removeEventListener("canplay", onCanPlay);
             video.removeEventListener("loadeddata", onLoadedData);
         };
-    }, [paused, sceneIndex, activeIndex, muted, setMutedSession, currentScene]);
+    }, [isOpen, paused, sceneIndex, activeIndex, muted, setMutedSession, currentScene]);
 
     // Keep <video>.muted in sync when the user toggles mute mid-story.
     useEffect(() => {
