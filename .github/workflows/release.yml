@@ -8,6 +8,16 @@
 #   └── index.html
 #
 # To cut a release: `git tag v0.1.0 && git push --tags`.
+#
+# 需求：发布时自动更新 plugins/main/index.yml（version / date / path /
+# sha256），让 Stash 插件源清单和 release 同步。流程：
+#   1. 构建 + 打包 zip
+#   2. 计算 sha256 + 北京时间戳 + 下载 URL
+#   3. checkout main 分支 → sed 原地更新 index.yml → commit + push
+#   4. 创建 GitHub Release（上传 zip）
+# tag 触发时 HEAD 是 detached（指向 tag commit），所以必须 fetch main
+# 并切过去再提交，否则会把 detached HEAD 的 commit push 到 main，
+# 丢掉 tag 之后 main 上新合入的提交。
 name: release
 
 on:
@@ -61,6 +71,65 @@ jobs:
           zip "../binge-v${{ steps.ver.outputs.version }}.zip" binge.yml binge.entry.js index.html
           cd ..
           ls -lh "binge-v${{ steps.ver.outputs.version }}.zip"
+
+      # 计算 zip 的 sha256 + 北京时间戳 + 下载 URL。这些值会同时用于
+      # index.yml 更新和 release 说明，保证两边一致。
+      - name: Compute release metadata
+        id: meta
+        run: |
+          ZIP="binge-v${{ steps.ver.outputs.version }}.zip"
+          SHA=$(sha256sum "$ZIP" | awk '{print $1}')
+          TS=$(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S')
+          PATH_URL="https://github.com/${{ github.repository }}/releases/download/${{ steps.ver.outputs.tag }}/${ZIP}"
+          {
+            echo "sha=$SHA"
+            echo "ts=$TS"
+            echo "path_url=$PATH_URL"
+          } >> "$GITHUB_OUTPUT"
+          echo "=== Release metadata ==="
+          echo "version : ${{ steps.ver.outputs.version }}"
+          echo "tag     : ${{ steps.ver.outputs.tag }}"
+          echo "date    : $TS (Asia/Shanghai)"
+          echo "sha256  : $SHA"
+          echo "path    : $PATH_URL"
+
+      # 更新 plugins/main/index.yml 并 push 到 main。sed 用 | 做分隔符
+      # 避免 URL 里的 / 冲突；替换值里不含 | & 等 sed 元字符，安全。
+      # 用环境变量传值而非 ${{ }} 内联，避免特殊字符被 shell 二次解析。
+      - name: Update and commit plugins/main/index.yml
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+          TAG: ${{ steps.ver.outputs.tag }}
+          DATE: ${{ steps.meta.outputs.ts }}
+          PATH_URL: ${{ steps.meta.outputs.path_url }}
+          SHA: ${{ steps.meta.outputs.sha }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # tag 触发时是 detached HEAD，必须切回 main 才能把更新叠到
+          # main 的最新提交上，否则会把 tag commit push 到 main，丢掉
+          # tag 之后 main 上新合入的提交。workflow_dispatch 通常已在
+          # main 上，checkout -B 是幂等的，不会出错。
+          git fetch origin main
+          git checkout -B main origin/main
+          # 原地替换 4 个字段。sed 匹配行首两空格缩进的字段名，避免
+          # 误伤 description 等含同名词的行。
+          sed -i \
+            -e "s|^  version: .*|  version: ${VERSION}|" \
+            -e "s|^  date: .*|  date: ${DATE}|" \
+            -e "s|^  path: .*|  path: ${PATH_URL}|" \
+            -e "s|^  sha256: .*|  sha256: ${SHA}|" \
+            plugins/main/index.yml
+          echo "=== Updated plugins/main/index.yml ==="
+          cat plugins/main/index.yml
+          git add plugins/main/index.yml
+          if git diff --cached --quiet; then
+            echo "index.yml already up to date — nothing to commit"
+          else
+            git commit -m "chore: bump plugins/main/index.yml to ${TAG}"
+            git push origin main
+            echo "Pushed index.yml update to main"
+          fi
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
