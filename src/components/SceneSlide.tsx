@@ -1,8 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { BingeScene } from "../api/queries";
 import { ActionStack } from "./ActionStack";
 import { PerformerRow } from "./PerformerRow";
-import { pickStreamUrl } from "../util/pickStream";
+import {
+    buildTranscodeSeekUrl,
+    isWebCompatible,
+    pickStreamUrl,
+} from "../util/pickStream";
 import { MuteToggle } from "./MuteToggle";
 import { SceneProgress } from "./SceneProgress";
 import { getPersistedMuted, useMuteState } from "../hooks/useMuteState";
@@ -241,6 +245,11 @@ export function SceneSlide({
     // 只在卡片进入视口时才请求并加载。不在视口的卡片仅显示 poster 封面，
     // 离开视口时由 IntersectionObserver 触发 pause()。大幅减少不可见卡片
     // 的带宽与内存占用。
+    //
+    // 需求2：记录 base stream URL（不含 ?start=）到 ref，供 seekToTime
+    // 重建带 ?start=N 的转码 seek URL。同时添加调试日志便于排查快进问题。
+    const baseStreamUrlRef = useRef<string>("");
+    const needsTranscodeSeek = !isWebCompatible(scene);
     useEffect(() => {
         const video = videoRef.current;
         if (!video) return;
@@ -251,7 +260,14 @@ export function SceneSlide({
         // poster shows (a data-URI can't play as <video>).
         if (readDemoMode()) return;
         const url = pickStreamUrl(scene, transcodeType);
+        baseStreamUrlRef.current = url;
         if (video.src !== url) {
+            console.debug(
+                "[binge-reel] set src",
+                "scene=" + scene.id,
+                "transcode=" + needsTranscodeSeek,
+                "url=" + url
+            );
             video.src = url;
             video.load();
         }
@@ -263,7 +279,66 @@ export function SceneSlide({
         if (video.paused) {
             playPreferred(video);
         }
-    }, [currentlyScrolling, scene.id, isActive, transcodeType]);
+    }, [currentlyScrolling, scene.id, isActive, transcodeType, needsTranscodeSeek]);
+
+    // 需求2 修复：转码流（avi/wmv/mkv/...）的 seek 处理。
+    // 原生 <video>.currentTime = N 依赖 HTTP Range 请求，而 Stash 的 live
+    // MP4 transcode 不稳定支持 Range → 快进会从头播放。改为"硬 seek"：
+    // 用 ?start={秒} 参数重建 src，触发 ffmpeg 从该时间点重新转码。
+    // web 兼容容器（mp4/webm/...）走直连流，原生 seek 正常，无需此路径。
+    // 同时添加调试日志便于排查。
+    const seekToTime = useCallback(
+        (time: number) => {
+            const video = videoRef.current;
+            if (!video) return;
+            if (!needsTranscodeSeek) {
+                // 原生 seek：直接设 currentTime
+                console.debug(
+                    "[binge-reel] native seek",
+                    "scene=" + scene.id,
+                    "time=" + time
+                );
+                video.currentTime = time;
+                return;
+            }
+            // 转码硬 seek：重建 src 带 ?start=N
+            const baseUrl = baseStreamUrlRef.current;
+            if (!baseUrl) {
+                console.debug(
+                    "[binge-reel] transcode seek skipped — no base url",
+                    "scene=" + scene.id
+                );
+                return;
+            }
+            const seekUrl = buildTranscodeSeekUrl(baseUrl, time);
+            console.debug(
+                "[binge-reel] transcode seek",
+                "scene=" + scene.id,
+                "time=" + time,
+                "url=" + seekUrl
+            );
+            // 先暂停当前播放，避免 seek 期间继续解码旧流
+            video.pause();
+            video.src = seekUrl;
+            video.load();
+            // canplay 事件触发后开始播放（ffmpeg 需要时间转码到该时间点）
+            const onCanPlay = () => {
+                video.removeEventListener("canplay", onCanPlay);
+                console.debug(
+                    "[binge-reel] transcode seek ready",
+                    "scene=" + scene.id,
+                    "currentTime=" + video.currentTime
+                );
+                playPreferred(video);
+            };
+            video.addEventListener("canplay", onCanPlay);
+            // 安全兜底：5 秒后若仍未 canplay，移除监听器避免泄漏
+            window.setTimeout(() => {
+                video.removeEventListener("canplay", onCanPlay);
+            }, 5000);
+        },
+        [needsTranscodeSeek, scene.id]
+    );
 
     // Explicit decoder cleanup on unmount. The browser doesn't release
     // hardware decoder slots aggressively — they linger until GC. Calling
@@ -692,7 +767,11 @@ export function SceneSlide({
                 onOpenScribe={handleOpenScribe}
                 onOpenMore={() => setMoreOpen(true)}
             />
-            <SceneProgress videoRef={videoRef} duration={stashDuration} />
+            <SceneProgress
+                videoRef={videoRef}
+                duration={stashDuration}
+                onSeekToTime={seekToTime}
+            />
         </article>
     );
 }
