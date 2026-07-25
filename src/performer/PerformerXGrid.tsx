@@ -139,6 +139,8 @@ export function PerformerXGrid({ performer }: PerformerXGridProps) {
 // 视频也能——只是之前视频 URL 被塞进 <img src>，浏览器无法解码 mp4
 // 为图片导致空白。修复：视频改用 <video preload="metadata"> + Media
 // Fragment URI (#t=0.1) 显示第一帧作为缩略图，与图片视觉一致。
+// 注：React 的 video 类型不含 referrerPolicy 属性，twimg 无防盗链故
+// 不需要 no-referrer（与 StoryViewer 用 setAttribute 不同）。
 function XCell({ media }: { media: XMedia }) {
     const isVideo = media.kind === "video";
     return (
@@ -157,7 +159,6 @@ function XCell({ media }: { media: XMedia }) {
                         preload="metadata"
                         muted
                         playsInline
-                        referrerPolicy="no-referrer"
                     />
                 ) : (
                     <img
