@@ -21,12 +21,19 @@
 
 ### 功能修复
 
-#### v0.4.9 新增修复
+#### v0.4.9-RC3 新增修复
 
 | # | 修复 | 说明 |
 |-|-|-|
-| 1 | StoryViewer 关闭后重开同一演员自动播放失败 | play-sync `useEffect` 依赖数组缺少 `isOpen`。关闭后重开同一演员时 `stories` 是同一引用（来自 `StoriesContext` 共享状态），`activeIndex`/`sceneIndex`/`currentScene` 引用均不变 → 若 deps 不含 `isOpen`，effect 不会重跑 → 新挂载的 `<video>` 未绑定 `canplay`/`loadeddata` 监听器，`tryPlay` 也不调用 → 自动播放失败。用户点击两次影片或切换其他演员时 `sceneIndex`/`activeIndex` 变化 → effect 重跑 → 自动播放恢复。加入 `isOpen` 后，关闭→重开时 `isOpen` 从 `false` 变 `true` → effect 重跑 → 正确驱动新 video |
-| 2 | 二层封面重叠与点击跳转修复验证 | Bug 1 的源码修复已在 v0.4.6–v0.4.8 中完成（修改 17 CSS `width:100%`+`display:block` + 修改 14 `handlePick` 顺序 + Bug 5 Reel queue 路径不清除 queue + commit f6d5410 `url()` 引号）。本次验证确认修复完整，用户若仍遇到问题请重新构建（`npm run build`）+ 浏览器硬刷新（Ctrl+Shift+R） |
+| 1 | AVI/WMV 转码影片快进从头播放 | Stash 的 MP4 transcode 是渐进式下载，原生 `<video>.currentTime = N` 依赖 HTTP Range，而 live transcode 不稳定支持 Range → 快进重置。修复：`pickStream` 导出 `isWebCompatible()` + `buildTranscodeSeekUrl()`；`SceneSlide` 新增 `seekToTime` 回调，转码流走"硬 seek"（重建 src 带 `?start=N` + `load()` + `canplay` 后播放），兼容容器走原生 seek；`SceneProgress` 新增 `onSeekToTime` prop + `seekOffset` 偏移量 |
+| 2 | 进度条 seek 后重置为零（竞态） | `SceneProgress` 的 `seekOffset` 变化时重新绑定 `timeupdate` 监听器，但 `video.load()` 触发的 `timeupdate` 可能在旧监听器（闭包固定 `seekOffset=0`）被移除前抢先触发 → 进度条瞬间归零。修复：用 `useRef` 镜像 `seekOffset`，监听器只绑定一次，每次从 ref 读取最新值 |
+| 3 | WMV 转码流 seek 后不自动播放 | `canplay`/`loadeddata` 事件触发时调用一次 `playPreferred`，若 `play()` 以 `AbortError` 失败（WMV 转码流常在数据未真正就绪时触发 `canplay`）不会重试 → 视频永久暂停。修复：`SceneSlide` 新增 300ms 周期重试（`retryPlay`），持续检查 `video.paused` 并调用 `playPreferred`，直到 `playing` 事件确认或 8 秒超时 |
+| 4 | StoryViewer 首次打开自动播放失败 | 首次打开时 `<video>` 刚挂载，`play()` 在视频未就绪时调用 → `AbortError`，静音重试也失败。修复：添加 `canplay`/`loadeddata` 监听器，视频就绪时重试 `play()`；`AbortError` 不再误改 mute 状态 |
+| 5 | StoryViewer 关闭后重开同一演员自动播放失败 | play-sync `useEffect` 依赖数组缺少 `isOpen`。关闭后重开同一演员时 `stories` 是同一引用（来自 `StoriesContext` 共享状态），`activeIndex`/`sceneIndex`/`currentScene` 引用均不变 → 若 deps 不含 `isOpen`，effect 不会重跑 → 新挂载的 `<video>` 未绑定监听器，`tryPlay` 也不调用 → 自动播放失败。加入 `isOpen` 后，关闭→重开时 effect 重跑 → 正确驱动新 video |
+| 6 | StoryViewer 观看完整场景跳转随机 | `handleCta` 在 `setTab` 之前调用 `setPinFirstSceneId`，而 `setTab` 内部会清空 pin → Reel 走 random 路径。修复：调整为 `setTab` 之后再调用 `setPinFirstSceneId`，利用 React 18 批处理"后写胜"语义（与 `SceneFeedCard.handleWatchFullScene`、`PackDetailSheet.handlePick` 一致） |
+| 7 | 二层封面重叠与点击跳转修复验证 | Bug 1 的源码修复已在 v0.4.6–v0.4.8 中完成（修改 17 CSS `width:100%`+`display:block` + 修改 14 `handlePick` 顺序 + Bug 5 Reel queue 路径不清除 queue + commit f6d5410 `url()` 引号）。本次验证确认修复完整，用户若仍遇到问题请重新构建（`npm run build`）+ 浏览器硬刷新（Ctrl+Shift+R） |
+
+> **调试日志**：本版本含 8 处 `console.debug` 调用（`[binge-reel]` 前缀 6 处 + `[binge-story]` 前缀 2 处），用于排查播放/seek/自动播放问题。正式版发布前需删除或用 `import.meta.env.DEV` 包裹。详见 [汉化及修复.md 修改 28](./汉化及修复.md)。
 
 #### v0.4.8 新增修复
 
