@@ -8489,6 +8489,12 @@ body,
     gap: 2px;
     overflow-y: auto;
     padding-bottom: env(safe-area-inset-bottom);
+    /* 修复：作为 .binge-pack-sheet (display:flex, flex-direction:column)
+       的子元素，需要 flex:1 + min-height:0 才能正确获得剩余高度并触发
+       overflow-y:auto 滚动。否则 flex 子项默认 min-height:auto 不会
+       缩小，grid 会撑破 sheet 的 max-height:92vh。 */
+    flex: 1;
+    min-height: 0;
 }
 .binge-pack-sheet-tile {
     appearance: none;
@@ -8504,6 +8510,14 @@ body,
     padding: 0;
     position: relative;
     overflow: hidden;
+    /* 修复：button 元素在 grid 中不会自动 stretch 填满列宽，且唯一的
+       子元素（标题 span）是 position:absolute 脱离文档流，导致按钮
+       宽度退化为 0 → aspect-ratio 算出高度也是 0 → 所有 tile 叠在
+       同一个格子里。显式 width:100% + display:block 强制撑满，
+       与 .binge-gallery-cover-btn 保持一致。 */
+    width: 100%;
+    display: block;
+    color: inherit;
 }
 .binge-pack-sheet-tile:focus-visible {
     outline: 2px solid rgba(var(--accent-rgb, 244, 114, 182), 0.8);

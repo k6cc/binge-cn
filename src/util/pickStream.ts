@@ -33,20 +33,26 @@ function isWebCompatible(scene: BingeScene): boolean {
     return WEB_COMPATIBLE_EXTS.has(getPrimaryExtension(scene));
 }
 
-// Pick the best transcode stream for an incompatible file. Prefers MP4
-// (widest <video> support), then HLS (adaptive), then WebM as a last
-// resort. Returns null if Stash didn't expose any transcode endpoint
-// for this scene — caller falls back to paths.stream in that case.
+// Pick the best transcode stream for an incompatible file. Prefers
+// HLS (segment-based, supports seeking via hls.js) over MP4 (continuous
+// stream, Stash 的 MP4 转码端点不支持 HTTP range request → 快进会
+// 从头播放). WebM 作为最后降级。
+//
+// 需求2 修复：原先优先 MP4，导致 avi/wmv 转码影片快进时浏览器发
+// range request，Stash 的 live transcode 端点无法处理 → 视频重置
+// 到开头。HLS 把视频切成 segment，快进只需请求对应 segment，天然
+// 支持随机位置访问。非 Safari 浏览器由 SceneSlide 中的 hls.js
+// 负责解码。
 function pickTranscodeStream(scene: BingeScene): string | null {
     const streams = scene.sceneStreams ?? [];
-    const mp4 = streams.find((s) =>
-        matches(s.label, s.mime_type, "mp4")
-    );
-    if (mp4) return mp4.url;
     const hls = streams.find((s) =>
         matches(s.label, s.mime_type, "hls")
     );
     if (hls) return hls.url;
+    const mp4 = streams.find((s) =>
+        matches(s.label, s.mime_type, "mp4")
+    );
+    if (mp4) return mp4.url;
     const webm = streams.find((s) =>
         matches(s.label, s.mime_type, "webm")
     );

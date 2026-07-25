@@ -117,6 +117,24 @@ export function Reel() {
         }
     }, [reelMode, filter, setReelMode, setTab]);
 
+    // 修复：queue 路径下用户点 × 清除 performer 筛选 chip 时，pinnedQueue
+    // 仍然活跃 — Reel 的 queue 路径优先级高于 filter，会继续播放包内场景，
+    // 用户看到筛选 chip 消失但内容没变。这里监听 filter 变化：当 queue 活跃
+    // 且 performers 被清空时，清除 queue 让 Reel 走 random 路径，用空 filter
+    // 重新加载场景（随机推荐）。tags/studios 同理 — 任何筛选维度被清空都
+    // 视为用户想退出包模式。不清除 pinFirstSceneId（chained 模式有自己的
+    // filter-takeover effect 处理）。
+    useEffect(() => {
+        if (!pinnedQueue) return;
+        const empty =
+            filter.performers.length === 0 &&
+            filter.tags.length === 0 &&
+            filter.studios.length === 0;
+        if (empty) {
+            setPinnedQueue(null);
+        }
+    }, [filter, pinnedQueue, setPinnedQueue]);
+
     const sceneCount = state.kind === "ready" ? state.scenes.length : 0;
     const virtualizer = useVirtualizer({
         count: sceneCount,
