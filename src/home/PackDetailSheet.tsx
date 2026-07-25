@@ -40,26 +40,17 @@ export function PackDetailSheet({
     }, [onClose]);
 
     const handlePick = (scene: SceneFeedItem) => {
-        // Same handoff pattern Home's "Watch full scene" uses —
-        // pin the tapped scene as slot N of the queued list, so
-        // the reel starts at the tap target and walks the rest
-        // of the pack in order.
-        const ids = pack.scenes.map((s) => s.sceneId);
-        const startIndex = Math.max(
-            0,
-            ids.indexOf(scene.sceneId)
-        );
+        // Bug 修复（需求1）：原先 setPinnedQueue 走 queue 路径，会按
+        // pack.scenes 顺序播放整包 26 个场景，滚动一次就到第二个 →
+        // 用户以为"错误跳转演员其他影片"。改为 setPinFirstSceneId 走
+        // random 路径，只 pin 点击的场景到第一位，后续走演员 filter
+        // 的随机推荐（与 SceneFeedCard.handleWatchFullScene 一致）。
         console.debug(
             "[binge-pack] handlePick",
             "sceneId=" + scene.sceneId,
-            "startIndex=" + startIndex,
-            "ids.length=" + ids.length,
             "performer=" + pack.primaryPerformer.name
         );
-        // 需求1：把主演作为筛选 chip 写入 FilterContext，让 FilterBar
-        // 和 FilterSheet 显示当前生效的筛选条件（头像 + 名字 + ×）。
-        // 只填 id/name/image_path —— FilterEntry 这三个字段就够渲染
-        // chip；FilterBar 会用 image_path 显示头像，找不到则降级为首字母。
+        // 把主演作为筛选 chip 写入 FilterContext，让 FilterBar 显示。
         const p = pack.primaryPerformer;
         replace({
             performers: [
@@ -72,18 +63,10 @@ export function PackDetailSheet({
             tags: [],
             studios: [],
         });
-        // Clear any stale single-scene pin — the reel consumes the
-        // queue here (startIndex starts it at the tapped scene), and
-        // a leftover pin would otherwise resurface in chained mode.
-        // Mirrors SceneFeedCard's "Watch full scene" handoff.
-        //
-        // Bug 5 修复：setTab 会清除 pin/queue，因此 setPinnedQueue
+        // Bug 5 修复：setTab 会清除 pin/queue，因此 setPinFirstSceneId
         // 必须在 setTab 之后调用，利用 React 18 批处理"后写胜"语义。
-        // 同理 replace 也必须在 setTab 之后调用 —— setTab 自身不动
-        // filter，但保持调用顺序与 handleWatchFullScene 一致更安全。
         setTab("foryou");
-        setPinFirstSceneId(null);
-        setPinnedQueue({ ids, startIndex });
+        setPinFirstSceneId(scene.sceneId);
         onClose();
     };
 

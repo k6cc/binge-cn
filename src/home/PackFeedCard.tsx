@@ -9,11 +9,11 @@ import { timeAgo } from "./timeAgo";
 import { PackDetailSheet } from "./PackDetailSheet";
 import { RepostIcon } from "../components/ActionStack";
 
-// Number of cover tiles rendered in the 3×3 mosaic. The pack may
+// Number of cover tiles rendered in the 4×2 mosaic. The pack may
 // hold dozens or hundreds of scenes; the tile grid surfaces only
-// the first 9 (newest-first) and the "+N more" badge counts the
+// the first 8 (newest-first) and the "+N more" badge counts the
 // remainder so the card stays compact.
-const MOSAIC_TILES = 9;
+const MOSAIC_TILES = 8;
 
 // Bulk-import card. Renders as a single feed entry when binge
 // detects many scenes from the same performer added in one batch

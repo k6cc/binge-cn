@@ -1,6 +1,6 @@
 # Binge（汉化版）
 
-> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.4.9-RC5**。
+> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.4.9-RC6**。
 
 为 [Stash](https://github.com/stashapp/stash) 提供的 Instagram 风格社交与发现层：竖屏 Reel、Stories、演员档案、StashDB 驱动的发现功能——全部基于 Stash 既有的 GraphQL API。Web 插件形态。
 
@@ -21,14 +21,22 @@
 
 ### 功能修复
 
+#### v0.4.9-RC6 新增修复
+
+| # | 修复 | 说明 |
+|-|-|-|
+| 1 | Bug 1 点击二层封面跳转演员其他影片 | 日志确认 queue 路径正确执行，但 queue 设计是"顺序播放整包"，滚动一次就到第二个 → 用户以为"错误跳转"。修复：handlePick 从 `setPinnedQueue` 改为 `setPinFirstSceneId`，走 random 路径，只 pin 点击的场景到第一位，后续走演员 filter 随机推荐（与 `SceneFeedCard.handleWatchFullScene` 一致） |
+| 2 | 发现页影片封面 3:4 竖版 + 2-4 列自适应 | `.binge-explore-grid` 从固定 3 列改为媒体查询控制：默认 2 列，≥560px→3 列，≥820px→4 列。`.binge-explore-tile` 从 1:1 正方形改为 3:4 竖版，加 `align-self:start` 防止 grid 行高塌缩 |
+| 3 | 一层封面 3:4 竖版（一行4个共2行） | `.binge-pack-card-mosaic` 从 1:1 正方形（3×3）改为 3:2 横版（4×2，每 tile 3:4 → 整体 3:2）。`PackFeedCard.tsx` 的 `MOSAIC_TILES` 从 9 改为 8 |
+| 4 | 二层封面 4:3 横版（一行2个） | `.binge-pack-sheet-grid` 从 3 列改 2 列。`.binge-pack-sheet-tile` 从 3:4 竖版改 4:3 横版，`background-position` 从 `right center` 改 `center center` 居中铺满 |
+| 5 | Bug 1 调试日志 | 增加 5 处调试日志（`[binge-pack]` 1 处 + `[binge-reel]` 4 处），确认 queue 路径执行情况。诊断结果：queue 路径正确，根因是行为与用户期望不符 |
+
 #### v0.4.9-RC5 新增修复
 
 | # | 修复 | 说明 |
 |-|-|-|
-| 1 | 发现页影片封面 3:4 竖版 + 自适应列数 | `.binge-explore-grid` 从固定 3 列改为 `repeat(auto-fill, minmax(180px, 1fr))`，窗口 400px→2列、600px→3列、800px+→4+列。`.binge-explore-tile` 从 1:1 正方形改为 3:4 竖版，加 `align-self:start` 防止 grid 行高塌缩 |
-| 2 | 一层封面 3:4 竖版（一行3个共3行） | `.binge-pack-card-mosaic` 从 1:1 正方形改为 3:4 竖版（3列×3行，每 tile 3:4 → 整体 3:4）。tile 加 `width:100% + height:100%` 铺满 grid 单元格 |
-| 3 | 二层封面 4:3 横版（一行2个） | `.binge-pack-sheet-grid` 从 3 列改 2 列。`.binge-pack-sheet-tile` 从 3:4 竖版改 4:3 横版，`background-position` 从 `right center` 改 `center center` 居中铺满 |
-| 4 | Bug 1 跳转随机影片 — 调试日志 | 源码分析未发现根因（handlePick 顺序正确、queue 路径逻辑正确、queue-clear effect 不会误触发）。增加 5 处调试日志（`[binge-pack]` 1 处 + `[binge-reel]` 4 处），确认实际执行路径：`handlePick → queue path → queue path resolved` 为正确路径，若出现 `random path` 或 `queue-clear effect` 则定位根因 |
+| 1 | 发现页 + 合集卡片封面布局初版 | RC5 初版实现（RC6 已调整：发现页改为媒体查询控制 2-4 列，一层封面改为 4×2） |
+| 2 | Bug 1 调试日志 | 初版日志（RC6 保留并用于诊断） |
 
 #### v0.4.9-RC4 新增修复
 
