@@ -8486,6 +8486,13 @@ body,
 .binge-pack-sheet-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
+    /* 修复：显式声明行轨迹为 max-content。grid 容器有 overflow-y:auto
+       + 固定高度时，部分浏览器引擎的 grid 行轨迹会按内容 min-content
+       高度计算，而 button+aspect-ratio 在 grid 项中不被识别为内容高度
+       → 行高塌缩到约 92px → 第二行 tile 上移与第一行重叠（实测
+       tile[0] y=164 h=499，tile[3] y=256 → 垂直重叠 407px）。
+       max-content 强制按 tile 实际渲染高度撑开行轨迹。 */
+    grid-auto-rows: max-content;
     gap: 2px;
     overflow-y: auto;
     padding-bottom: env(safe-area-inset-bottom);
@@ -8518,6 +8525,12 @@ body,
     width: 100%;
     display: block;
     color: inherit;
+    /* 修复：grid 项默认 align-self:stretch 会让 tile 高度参与行轨迹
+       的循环依赖（stretch 想让 tile 等于行高，aspect-ratio 又想用
+       宽度算高度），部分浏览器因此塌缩行高 → 第二行 tile 上移与
+       第一行重叠。align-self:start 让 tile 不参与 stretch，高度完全
+       由 aspect-ratio 按宽度计算，行轨迹按 tile 实际高度撑开。 */
+    align-self: start;
 }
 .binge-pack-sheet-tile:focus-visible {
     outline: 2px solid rgba(var(--accent-rgb, 244, 114, 182), 0.8);
