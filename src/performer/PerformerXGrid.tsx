@@ -135,7 +135,10 @@ export function PerformerXGrid({ performer }: PerformerXGridProps) {
 }
 
 // X 单元格：3:4 竖排卡片，点击在新标签页打开原推文。视频显示播放
-// 徽章。mediaUrl 由 binge-server 代理（绕开 X 的图片防盗链）。
+// 徽章。twimg.com 与 pbs.twimg.com 同源无防盗链，图片能直接加载说明
+// 视频也能——只是之前视频 URL 被塞进 <img src>，浏览器无法解码 mp4
+// 为图片导致空白。修复：视频改用 <video preload="metadata"> + Media
+// Fragment URI (#t=0.1) 显示第一帧作为缩略图，与图片视觉一致。
 function XCell({ media }: { media: XMedia }) {
     const isVideo = media.kind === "video";
     return (
@@ -147,12 +150,24 @@ function XCell({ media }: { media: XMedia }) {
                 className="binge-gallery-cover-btn binge-x-tile"
                 title={media.text || `推文 ${media.tweetId}`}
             >
-                <img
-                    src={media.mediaUrl}
-                    alt={media.text || ""}
-                    className="binge-gallery-cover"
-                    loading="lazy"
-                />
+                {isVideo ? (
+                    <video
+                        src={`${media.mediaUrl}#t=0.1`}
+                        className="binge-gallery-cover"
+                        preload="metadata"
+                        muted
+                        playsInline
+                        referrerPolicy="no-referrer"
+                    />
+                ) : (
+                    <img
+                        src={media.mediaUrl}
+                        alt={media.text || ""}
+                        className="binge-gallery-cover"
+                        loading="lazy"
+                        referrerPolicy="no-referrer"
+                    />
+                )}
                 {isVideo && (
                     <span className="binge-x-play-badge" aria-hidden="true">
                         ▶
