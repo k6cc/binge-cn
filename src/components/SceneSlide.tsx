@@ -269,12 +269,6 @@ export function SceneSlide({
         const url = pickStreamUrl(scene, transcodeType);
         baseStreamUrlRef.current = url;
         if (video.src !== url) {
-            console.debug(
-                "[binge-reel] set src",
-                "scene=" + scene.id,
-                "transcode=" + needsTranscodeSeek,
-                "url=" + url
-            );
             video.src = url;
             video.load();
             // 新基础流从头开始，清除转码 seek 偏移量。
@@ -302,30 +296,15 @@ export function SceneSlide({
             if (!video) return;
             if (!needsTranscodeSeek) {
                 // 原生 seek：直接设 currentTime
-                console.debug(
-                    "[binge-reel] native seek",
-                    "scene=" + scene.id,
-                    "time=" + time
-                );
                 video.currentTime = time;
                 return;
             }
             // 转码硬 seek：重建 src 带 ?start=N
             const baseUrl = baseStreamUrlRef.current;
             if (!baseUrl) {
-                console.debug(
-                    "[binge-reel] transcode seek skipped — no base url",
-                    "scene=" + scene.id
-                );
                 return;
             }
             const seekUrl = buildTranscodeSeekUrl(baseUrl, time);
-            console.debug(
-                "[binge-reel] transcode seek",
-                "scene=" + scene.id,
-                "time=" + time,
-                "url=" + seekUrl
-            );
             // 记录偏移量：新流 currentTime 从 0 计起，进度条需加偏移量。
             setSeekOffset(time);
             // 先清理上一轮 seek 注册的监听器，避免快速连续 seek 时堆积。
@@ -355,18 +334,10 @@ export function SceneSlide({
                 seekCleanupRef.current = null;
             };
             const onPlaying = () => {
-                console.debug(
-                    "[binge-reel] transcode seek playing",
-                    "scene=" + scene.id
-                );
                 cleanup();
             };
             const onReady = () => {
                 if (done || !video.paused) return;
-                console.debug(
-                    "[binge-reel] transcode seek ready, attempting play",
-                    "scene=" + scene.id
-                );
                 playPreferred(video);
             };
             // 周期重试：canplay 触发过早时 play() 以 AbortError 失败，

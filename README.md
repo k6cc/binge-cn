@@ -1,6 +1,6 @@
 # Binge（汉化版）
 
-> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.4.9-RC6**。
+> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.4.9**。
 
 为 [Stash](https://github.com/stashapp/stash) 提供的 Instagram 风格社交与发现层：竖屏 Reel、Stories、演员档案、StashDB 驱动的发现功能——全部基于 Stash 既有的 GraphQL API。Web 插件形态。
 
@@ -55,7 +55,19 @@
 | 5 | StoryViewer 关闭后重开同一演员自动播放失败 | play-sync `useEffect` 依赖数组缺少 `isOpen`。关闭后重开同一演员时 `stories` 是同一引用（来自 `StoriesContext` 共享状态），`activeIndex`/`sceneIndex`/`currentScene` 引用均不变 → 若 deps 不含 `isOpen`，effect 不会重跑 → 新挂载的 `<video>` 未绑定监听器，`tryPlay` 也不调用 → 自动播放失败。加入 `isOpen` 后，关闭→重开时 effect 重跑 → 正确驱动新 video |
 | 6 | StoryViewer 观看完整场景跳转随机 | `handleCta` 在 `setTab` 之前调用 `setPinFirstSceneId`，而 `setTab` 内部会清空 pin → Reel 走 random 路径。修复：调整为 `setTab` 之后再调用 `setPinFirstSceneId`，利用 React 18 批处理"后写胜"语义（与 `SceneFeedCard.handleWatchFullScene`、`PackDetailSheet.handlePick` 一致） |
 
-> **调试日志**：本版本含 13 处 `console.debug` 调用（`[binge-reel]` 前缀 9 处 + `[binge-story]` 前缀 2 处 + `[binge-pack]` 前缀 2 处），用于排查播放/seek/自动播放/跳转问题。正式版发布前需删除或用 `import.meta.env.DEV` 包裹。详见 [汉化及修复.md 修改 28 + 31](./汉化及修复.md)。
+#### v0.4.9 正式版（相对 RC7 的最终清理）
+
+| # | 修复 | 说明 |
+|-|-|-|
+| 1 | 清理调试日志 | 删除 RC3-RC6 期间为排查播放/seek/自动播放/跳转问题添加的 13 处 `console.debug` 调用（`[binge-reel]` 9 处 + `[binge-story]` 2 处 + `[binge-pack]` 2 处），同时清理 StoryViewer.tsx 中因删日志而未使用的 `sceneId` 变量 |
+| 2 | 关注页收藏夹空白占位过高 | `.binge-following-empty` 继承全局 `.binge-status` 的 `height:100vh`，导致收藏夹为空（或搜索无匹配）时占位满屏，把"所有演员"行挤到第二屏。修复：覆盖为 `height:auto + min-height:180px`（约一个演员资料卡的高度：avatar 110 + gap + name + count），保留文字垂直居中 |
+
+#### v0.4.9-RC7 新增修复
+
+| # | 修复 | 说明 |
+|-|-|-|
+| 1 | TS6133 构建错误 | RC6 的 handlePick 从 `setPinnedQueue` 改为 `setPinFirstSceneId` 后，`useTab()` 解构中的 `setPinnedQueue` 不再使用 → TypeScript 报错。移除未使用的解构变量 |
+| 2 | Fork 仓库 sync workflow 失败 | `.github/workflows/sync.yml` 尝试 clone 上游 `ordureconnoisseur/plugins` 仓库，fork 仓库无 `PLUGINS_REPO_TOKEN` 认证失败。修复：sync job 加 `if: github.repository == 'ordureconnoisseur/binge'` 条件，fork 仓库自动跳过 |
 
 #### v0.4.8 新增修复
 

@@ -45,11 +45,6 @@ export function PackDetailSheet({
         // 用户以为"错误跳转演员其他影片"。改为 setPinFirstSceneId 走
         // random 路径，只 pin 点击的场景到第一位，后续走演员 filter
         // 的随机推荐（与 SceneFeedCard.handleWatchFullScene 一致）。
-        console.debug(
-            "[binge-pack] handlePick",
-            "sceneId=" + scene.sceneId,
-            "performer=" + pack.primaryPerformer.name
-        );
         // 把主演作为筛选 chip 写入 FilterContext，让 FilterBar 显示。
         const p = pack.primaryPerformer;
         replace({

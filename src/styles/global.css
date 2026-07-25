@@ -3379,6 +3379,12 @@ body,
     opacity: 0.7;
 }
 .binge-following-empty {
+    /* 覆盖 .binge-status 的 height:100vh —— 收藏夹为空时占位过高
+       会把"所有演员"行挤到第二屏。要求：空白占位高度等于一个演员
+       资料卡的高度（avatar 110 + gap 8 + name 行高 + count 行高）。
+       用 min-height 而非固定 height，保留文字垂直居中。 */
+    height: auto;
+    min-height: 180px;
     padding: 0.5rem 0;
 }
 

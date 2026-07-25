@@ -218,27 +218,12 @@ export function StoryViewer() {
             return;
         }
         video.muted = muted;
-        const sceneId = currentScene?.id ?? "?";
         const tryPlay = (reason: string) => {
             if (video.paused) {
                 void video.play().then(
-                    () => {
-                        console.debug(
-                            "[binge-story] play ok",
-                            reason,
-                            "scene=" + sceneId,
-                            "muted=" + video.muted
-                        );
-                    },
+                    () => { /* play ok */ },
                     (err: unknown) => {
                         const name = (err as DOMException | null)?.name;
-                        console.debug(
-                            "[binge-story] play failed",
-                            reason,
-                            "scene=" + sceneId,
-                            "muted=" + video.muted,
-                            "err=" + name
-                        );
                         // AbortError: play() interrupted by load()/src swap
                         // — 不要改 mute 状态，canplay 监听器会在就绪后重试。
                         if (name === "AbortError") return;
