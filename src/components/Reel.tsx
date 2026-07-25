@@ -413,7 +413,15 @@ export function Reel() {
                 // unrelated scenes.
                 setOOverrides({});
                 scrollRef.current?.scrollTo({ top: 0, behavior: "auto" });
-                if (pin) setPinFirstSceneId(null);
+                // Bug 修复：原先在这里 setPinFirstSceneId(null) 清除 pin，
+                // 但 pinFirstSceneId 在依赖数组中 → 清除会立即触发 effect
+                // 重跑 → 第二次跑时 pin 为 null → 走 random 路径重新拉
+                // 一页随机场景覆盖掉刚放好的 pin 场景 → 用户看到随机影片
+                // 而非点击的影片。改为不清除 pin，让 pin 留在 state 里。
+                // 下次 effect 重跑（filter/tab 变化）时会读到同一个 pin
+                // 并重新 fetch — 结果一致（pin 场景仍在 index 0）。pin
+                // 最终由 setTab（用户切走时）或 chained 模式的 filter-
+                // takeover 清除。
             })
             .catch((err: Error) => {
                 if (token !== fetchTokenRef.current) return;

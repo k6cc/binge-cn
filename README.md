@@ -1,6 +1,6 @@
 # Binge（汉化版）
 
-> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.4.7**。
+> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.4.8**。
 
 为 [Stash](https://github.com/stashapp/stash) 提供的 Instagram 风格社交与发现层：竖屏 Reel、Stories、演员档案、StashDB 驱动的发现功能——全部基于 Stash 既有的 GraphQL API。Web 插件形态。
 
@@ -20,6 +20,13 @@
 - 品牌名保持英文：Stash、StashDB、Reddit、X (Twitter)、PornHub、Cookie、forage、binge-server、HLS、MP4、WebM
 
 ### 功能修复
+
+#### v0.4.8 新增修复
+
+| # | 修复 | 说明 |
+|-|-|-|
+| 1 | 演员详情页点击影片跳转到随机影片 | Reel random 路径在 fetch 完成后调用 `setPinFirstSceneId(null)` 清除 pin，但 `pinFirstSceneId` 在依赖数组中 → 清除触发 effect 重跑 → 第二次跑时 pin 为 null → 重新拉随机场景覆盖掉刚放好的 pin 场景。改为不清除 pin，让 pin 留在 state 里由 `setTab`/filter-takeover 清除 |
+| 2 | 转码机制回滚 | 移除 v0.4.7 误加的 hls.js 依赖，恢复 MP4 优先策略（Stash 转码默认输出 MP4，原生支持快进） |
 
 #### v0.4.7 新增修复
 
