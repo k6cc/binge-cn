@@ -137,10 +137,13 @@ export function PerformerXGrid({ performer }: PerformerXGridProps) {
 // X 单元格：3:4 竖排卡片，点击在新标签页打开原推文。视频显示播放
 // 徽章。twimg.com 与 pbs.twimg.com 同源无防盗链，图片能直接加载说明
 // 视频也能——只是之前视频 URL 被塞进 <img src>，浏览器无法解码 mp4
-// 为图片导致空白。修复：视频改用 <video preload="metadata"> + Media
-// Fragment URI (#t=0.1) 显示第一帧作为缩略图，与图片视觉一致。
-// 注：React 的 video 类型不含 referrerPolicy 属性，twimg 无防盗链故
-// 不需要 no-referrer（与 StoryViewer 用 setAttribute 不同）。
+// 为图片导致空白。修复：视频改用 <video>，在 onLoadedMetadata 时显式
+// 设置 currentTime 触发 range request 加载该帧作为缩略图。
+//
+// 为什么不用 #t=0.1 Media Fragment URI：preload="metadata" 只加载头部
+// 元数据，浏览器不会主动 seek 并解码 #t 指定的帧 → 黑屏。必须显式设置
+// currentTime，浏览器才会发起 range request 下载该位置数据并解码帧。
+// 取视频 10% 位置（最多 1 秒）避免开头黑屏淡入。
 function XCell({ media }: { media: XMedia }) {
     const isVideo = media.kind === "video";
     return (
@@ -154,11 +157,22 @@ function XCell({ media }: { media: XMedia }) {
             >
                 {isVideo ? (
                     <video
-                        src={`${media.mediaUrl}#t=0.1`}
+                        src={media.mediaUrl}
                         className="binge-gallery-cover"
                         preload="metadata"
                         muted
                         playsInline
+                        onLoadedMetadata={(e) => {
+                            const v = e.currentTarget;
+                            try {
+                                v.currentTime = Math.min(
+                                    1,
+                                    (v.duration || 1) * 0.1
+                                );
+                            } catch {
+                                /* 未就绪时可能抛错，忽略 */
+                            }
+                        }}
                     />
                 ) : (
                     <img
