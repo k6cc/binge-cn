@@ -145,18 +145,26 @@ export function PerformerXGrid({ performer }: PerformerXGridProps) {
 // currentTime，浏览器才会发起 range request 下载该位置数据并解码帧。
 // 取视频 10% 位置（最多 1 秒）避免开头黑屏淡入。
 //
-// 为什么用 setAttribute("referrerpolicy")：twimg 视频检查 Referrer，
-// 从 stash 页面（http://192.168.x.x:9999）加载会带 referrer 被拒绝 →
-// 黑屏。图片用 referrerPolicy="no-referrer" 属性绕过，但 React 的
-// video 类型定义不含 referrerPolicy（TS2322），浏览器实际支持该属性
-// （MDN: video element supports referrerPolicy），用 setAttribute 设置
-// 即可（与 StoryViewer 的 setVideoRef 做法一致）。诊断页 file:// 无
-// referrer 能加载，插件页面有 referrer 黑屏，根因在此。
+// 为什么用 setAttribute("referrerpolicy") + ref 回调里设 src：
+// twimg 视频检查 Referer，从 stash 页面（http://192.168.x.x:9999）加载
+// 会带 Referer 被拒绝 → 403 → 黑屏。图片用 referrerPolicy="no-referrer"
+// 属性绕过，但 React 的 video 类型定义不含 referrerPolicy（TS2322），
+// 浏览器实际支持该属性（MDN: video element supports referrerPolicy），
+// 用 setAttribute 设置即可。
+//
+// 关键：必须在 src 设置之前 setAttribute。如果 JSX 里写 src={...}，
+// React 挂载时设置 src → 浏览器立即发请求（带默认 Referer）→ ref 回调
+// 的 setAttribute 来不及生效 → 403。所以 src 也在 ref 回调里设置，
+// 保证顺序：setAttribute(referrerpolicy) → 设 src → 发请求（无 Referer）。
+// 与 StoryViewer 的 setVideoRef 做法一致。
 function XCell({ media }: { media: XMedia }) {
     const isVideo = media.kind === "video";
     const setVideoRef = (el: HTMLVideoElement | null) => {
         if (!el) return;
         el.setAttribute("referrerpolicy", "no-referrer");
+        if (media.mediaUrl && el.src !== media.mediaUrl) {
+            el.src = media.mediaUrl;
+        }
     };
     return (
         <li className="binge-gallery-cell binge-x-cell">
@@ -170,7 +178,6 @@ function XCell({ media }: { media: XMedia }) {
                 {isVideo ? (
                     <video
                         ref={setVideoRef}
-                        src={media.mediaUrl}
                         className="binge-gallery-cover"
                         preload="metadata"
                         muted
