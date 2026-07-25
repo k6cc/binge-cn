@@ -2977,11 +2977,20 @@ body,
 .binge-explore-grid {
     display: grid;
     /* 需求2：3:4 竖版封面，一行 2-4 个自适应窗口大小。
-       auto-fill + minmax 让列数随窗口宽度自动变化：
-       窗口 400px → 2 列，600px → 3 列，800px+ → 4+ 列。
-       minmax(180px, 1fr) 保证 tile 不会太窄也不会太大。 */
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+       默认 2 列（窄窗口），随窗口变宽到 3 列、4 列，最多 4 列。
+       媒体查询控制 breakpoints，避免 auto-fill 在宽屏产生 5+ 列。 */
+    grid-template-columns: repeat(2, 1fr);
     gap: 3px;
+}
+@media (min-width: 560px) {
+    .binge-explore-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+@media (min-width: 820px) {
+    .binge-explore-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
 }
 
 .binge-explore-tile {
@@ -8435,13 +8444,13 @@ body,
    count when the pack has more than 9 scenes. */
 .binge-pack-card-mosaic {
     width: 100%;
-    /* 需求3：3×3 mosaic，每个 tile 3:4 竖版，3列3行。
-       整体宽高比 = 3×tile宽 : 3×tile高 = 3×3 : 3×4 = 9:12 = 3:4。
-       所以 mosaic 容器 aspect-ratio: 3/4，与单个 tile 比例一致。 */
-    aspect-ratio: 3 / 4;
+    /* 需求3：4×2 mosaic，每个 tile 3:4 竖版，4列2行。
+       整体宽高比 = 4×tile宽 : 2×tile高 = 4×3 : 2×4 = 12:8 = 3:2。
+       所以 mosaic 容器 aspect-ratio: 3/2。 */
+    aspect-ratio: 3 / 2;
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(2, 1fr);
     gap: 2px;
     background: var(--bg-1, #111);
     cursor: pointer;
