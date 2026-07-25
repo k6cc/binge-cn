@@ -27,7 +27,7 @@ export function PackDetailSheet({
     pack: PackFeedItem;
     onClose: () => void;
 }) {
-    const { setTab, setPinFirstSceneId, setPinnedQueue } = useTab();
+    const { setTab, setPinFirstSceneId } = useTab();
     const { replace } = useFilter();
 
     // Esc dismisses on desktop — matches the rest of the sheets.
