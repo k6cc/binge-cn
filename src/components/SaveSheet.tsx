@@ -237,6 +237,25 @@ function CollectionIcon({
             </svg>
         );
     }
+    // 需求3："我的最爱 ❤️" 用心形图标，区别于"收藏夹"的书签图标。
+    if (name === "myFavourite") {
+        return (
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                width="1.4em"
+                height="1.4em"
+                fill={filled ? "currentColor" : "none"}
+                stroke="currentColor"
+                strokeWidth={filled ? 1 : 1.8}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+            >
+                <path d="M12 21s-7.5-4.6-10-9.3C0.6 8.4 2.5 5 6 5c2 0 3.4 1 4 2 0.6-1 2-2 4-2 3.5 0 5.4 3.4 4 6.7C19.5 16.4 12 21 12 21z" />
+            </svg>
+        );
+    }
     // generic folder
     return (
         <svg

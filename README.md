@@ -1,6 +1,6 @@
 # Binge（汉化版）
 
-> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.4.5**。
+> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.4.6**。
 
 为 [Stash](https://github.com/stashapp/stash) 提供的 Instagram 风格社交与发现层：竖屏 Reel、Stories、演员档案、StashDB 驱动的发现功能——全部基于 Stash 既有的 GraphQL API。Web 插件形态。
 
@@ -20,6 +20,18 @@
 - 品牌名保持英文：Stash、StashDB、Reddit、X (Twitter)、PornHub、Cookie、forage、binge-server、HLS、MP4、WebM
 
 ### 功能修复
+
+#### v0.4.6 新增修复
+
+| # | 修复 | 说明 |
+|-|-|-|
+| 1 | 演员合集卡片封面右对齐 | 一层 3×3 mosaic 截图 `background-position` 从 `center` 改为 `right center`，保留主体 |
+| 2 | 二层封面 3:4 竖屏 + 底部标题 | PackDetailSheet 二层封面比例从 9:16 改为 3:4（与图库封面一致），右对齐，底部叠加渐变标题（最多两行） |
+| 3 | 合集卡片进入 reel 显示筛选 chip | 点击二层封面进入 reel 时同步把主演写入 FilterContext，FilterBar（带头像名字×）和 FilterSheet 都能显示当前筛选条件 |
+| 4 | 自动转码 wma/avi 等格式 | pickStream 检测文件扩展名，非 web 兼容容器（.avi/.wmv/.wma/.mkv/.flv 等）在 auto / direct 模式下自动选择 MP4 转码流，激活 Stash 的转码能力 |
+| 5 | 自动创建 3 个默认合集 | 应用启动时一次性 ensure 三个默认合集（收藏夹★ / 稍后观看📁 / 我的最爱❤️）的 Stash tag 存在，首次访问"已保存"页即可看到 |
+| 6 | "我的最爱 ❤️" 心形图标 | SaveSheet 新增 myFavourite 心形图标，区别于"收藏夹"的书签图标 |
+| 7 | 默认合集禁止删除 | SavedPage 删除保护从只拦截 `★` 改为拦截所有 `isDefault` 合集（含 ❤️） |
 
 #### v0.4.5 新增修复
 

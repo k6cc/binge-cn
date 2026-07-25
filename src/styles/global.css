@@ -8440,7 +8440,10 @@ body,
 .binge-pack-card-mosaic-tile {
     background-color: #0a0a0a;
     background-size: cover;
-    background-position: center;
+    /* 需求1：一层封面右对齐，保留主体（与演员详情页场景封面、
+       图库封面、发现页封面一致）。原先 center 会把横向截图居中
+       裁切，主体常被切掉。 */
+    background-position: right center;
     position: relative;
 }
 .binge-pack-card-mosaic-overflow {
@@ -8492,10 +8495,46 @@ body,
     background: var(--bg-1, #111);
     border: none;
     cursor: pointer;
-    aspect-ratio: 9 / 16;
+    /* 需求1：二层封面调整为 3:4 竖屏（与图库封面、演员档案场景封面
+       一致），原先 9:16 过窄，竖向截图主体常被裁掉。 */
+    aspect-ratio: 3 / 4;
     background-size: cover;
-    background-position: center;
+    /* 需求1：右对齐保留主体。 */
+    background-position: right center;
     padding: 0;
+    position: relative;
+    overflow: hidden;
+}
+.binge-pack-sheet-tile:focus-visible {
+    outline: 2px solid rgba(var(--accent-rgb, 244, 114, 182), 0.8);
+    outline-offset: -2px;
+}
+/* 需求1：二层封面底部叠加标题（类似图库封面 .binge-gallery-cell-title）。
+   渐变蒙层从底部黑到顶部透明，保证文字在任意截图上都可读。文字右对齐
+   与封面右对齐保持视觉一致。最多两行，超出省略。 */
+.binge-pack-sheet-tile-title {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 18px 8px 6px;
+    background: linear-gradient(
+        to top,
+        rgba(0, 0, 0, 0.85) 0%,
+        rgba(0, 0, 0, 0.55) 60%,
+        rgba(0, 0, 0, 0) 100%
+    );
+    color: #fff;
+    font-size: 0.74rem;
+    font-weight: 600;
+    line-height: 1.22;
+    text-align: right;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+    pointer-events: none;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
 /* ── First-paint splash ───────────────────────────────────────────────

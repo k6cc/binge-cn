@@ -30,6 +30,7 @@ import {
     useShowDebug,
 } from "./home/pluginSettings";
 import { PluginProvider } from "./plugins/PluginContext";
+import { ensureDefaultCollections } from "./api/collections";
 
 // Stash exposes its API at window.PluginApi when this app is loaded as a
 // plugin asset. Inside the popup-served reel SPA it's NOT available —
@@ -116,6 +117,13 @@ function App() {
         root.classList.toggle("binge-showcase-blur", showcaseBlur);
         return () => root.classList.remove("binge-showcase-blur");
     }, [showcaseBlur]);
+
+    // 需求3：应用启动时一次性 ensure 3 个默认合集（收藏夹★ / 稍后观看📁 /
+    // 我的最爱❤️）的 Stash tag 存在。用 localStorage flag 保证只跑一次，
+    // 失败时下次启动重试。fire-and-forget — 不阻塞首屏渲染。
+    useEffect(() => {
+        void ensureDefaultCollections();
+    }, []);
 
     // Global capture hotkeys, ignored while the user is typing into an
     // input (so a stray keystroke in a search box doesn't fire them):

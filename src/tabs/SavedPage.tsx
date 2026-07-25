@@ -290,7 +290,10 @@ export function SavedPage() {
             {confirmDelete && (
                 <DeleteConfirm
                     name={confirmDelete.name}
-                    isProtected={confirmDelete.tagName.includes("★")}
+                    // 需求3：所有默认合集（收藏夹★ / 稍后观看📁 /
+                    // 我的最爱❤️）都受保护，无法长按删除。原先只
+                    // 拦截 "★"，新增的 "My Favourite ❤️" 会被放行。
+                    isProtected={confirmDelete.isDefault}
                     onConfirm={handleConfirmDelete}
                     onCancel={() => setConfirmDelete(null)}
                 />

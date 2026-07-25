@@ -27,6 +27,10 @@ import {
 export const COLLECTION_TAG_SUFFIX = " 📁";
 const FAVOURITES_TAG_NAME = "Favourite ★";
 const DEFAULT_WATCH_LATER_TAG_NAME = `Watch Later${COLLECTION_TAG_SUFFIX}`;
+// 需求3：第三个默认合集"我的最爱 ❤️"。tag name 沿用英文 + ❤️ 的
+// 命名约定（与 "Favourite ★" / "Watch Later 📁" 一致），与 ASR 无关，
+// 可以正常挂到 binge Collections 父标签下。
+const DEFAULT_MY_FAVOURITE_TAG_NAME = "My Favourite ❤️";
 // Parent under which every binge-managed collection tag is
 // nested in Stash's tag tree. Keeps the user's tag list tidy:
 // instead of N flat "<name> 📁" tags scattered alphabetically,
@@ -39,7 +43,11 @@ const DEFAULT_WATCH_LATER_TAG_NAME = `Watch Later${COLLECTION_TAG_SUFFIX}`;
 // Favourites collection. Moving it would break ASR's hierarchy.
 const COLLECTIONS_PARENT_TAG_NAME = "binge Collections";
 
-export type CollectionIconName = "favourite" | "watchLater" | "generic";
+export type CollectionIconName =
+    | "favourite"
+    | "watchLater"
+    | "myFavourite"
+    | "generic";
 
 export interface CollectionDef {
     name: string; // display label (no suffix, no star)
@@ -93,6 +101,11 @@ export function getCollections(): Promise<CollectionDef[]> {
     if (cachedCollectionsPromise) return cachedCollectionsPromise;
     cachedCollectionsPromise = (async () => {
         const userTags = await findTagsContaining(COLLECTION_TAG_SUFFIX);
+        // 需求3：第三个默认合集"我的最爱 ❤️"。tagName 是
+        // "My Favourite ❤️"（无 " 📁" 后缀），不会被上面的
+        // findTagsContaining 拉回，所以总是从 defaults 数组显式
+        // 注入。de-dup 仍按 tagName + 显示名兜底，避免用户手动
+        // 建过同名 tag 时出现两个"我的最爱"。
         const defaults: CollectionDef[] = [
             {
                 name: "收藏夹",
@@ -104,6 +117,12 @@ export function getCollections(): Promise<CollectionDef[]> {
                 name: "稍后观看",
                 tagName: DEFAULT_WATCH_LATER_TAG_NAME,
                 icon: "watchLater",
+                isDefault: true,
+            },
+            {
+                name: "我的最爱",
+                tagName: DEFAULT_MY_FAVOURITE_TAG_NAME,
+                icon: "myFavourite",
                 isDefault: true,
             },
         ];
@@ -271,11 +290,21 @@ export async function createCollection(
 // We refuse to delete the Favourites collection because it's ASR's
 // tag and the user probably doesn't want to nuke their ASR favourites
 // state. Returns true on success.
+//
+// 需求3：默认合集（收藏夹 / 稍后观看 / 我的最爱）一律不可删除 —
+// 它们是 binge 内置分类，删除后下次启动又会被 ensureDefaultCollections
+// 重建，徒增困惑。Favourite ★ 另有 ASR 共享原因。
 export async function deleteCollection(tagName: string): Promise<boolean> {
     if (tagName === FAVOURITES_TAG_NAME) {
         throw new Error(
             "收藏夹合集与 ASR 共享，无法从 binge 中删除。"
         );
+    }
+    if (
+        tagName === DEFAULT_WATCH_LATER_TAG_NAME ||
+        tagName === DEFAULT_MY_FAVOURITE_TAG_NAME
+    ) {
+        throw new Error("默认合集无法删除。");
     }
     const tagIds = await getCollectionTagIds();
     const id = tagIds.get(tagName);
@@ -285,6 +314,51 @@ export async function deleteCollection(tagName: string): Promise<boolean> {
     cachedTagIdsPromise = null;
     notifySubscribers();
     return true;
+}
+
+// 需求3：首次访问"已保存"页时，自动在 Stash 创建 3 个默认合集
+// （收藏夹★ / 稍后观看📁 / 我的最爱❤️）对应的 tag。原先默认 tag
+// 是懒创建（首次保存场景时才建），用户进入"已保存"页看到的是
+// 空列表，体验不好。现在改为应用启动时一次性 ensure。
+//
+// 用 `binge.defaultCollectionsSeeded` localStorage flag 保证只跑
+// 一次：第一次成功后写 true，后续启动直接短路。如果用户在 Stash
+// 里手动删了某个默认 tag，下次 ensure 仍会重建（因为 getCollectionTagIds
+// 的 find-or-create 逻辑会补回缺失项），但要等到 flag 被清除
+// （例如清空 localStorage）才会重新触发 ensure。这是可接受的
+// 折中：避免每次启动都打 findTagByName 三个 round-trip。
+const DEFAULT_COLLECTIONS_SEEDED_KEY = "binge.defaultCollectionsSeeded";
+
+export async function ensureDefaultCollections(): Promise<void> {
+    if (readDemoMode()) return;
+    let alreadySeeded = false;
+    try {
+        alreadySeeded =
+            localStorage.getItem(DEFAULT_COLLECTIONS_SEEDED_KEY) === "1";
+    } catch {
+        // localStorage 不可用时退化为每次都跑 ensure — 不会损坏数据，
+        // 只是多几个 round-trip。
+    }
+    if (alreadySeeded) return;
+    try {
+        // getCollectionTagIds 会 find-or-create 每个默认 tag 并挂到
+        // binge Collections 父标签下。任何一个失败都会 reject，
+        // flag 不写入，下次启动会重试。
+        await getCollectionTagIds();
+        try {
+            localStorage.setItem(DEFAULT_COLLECTIONS_SEEDED_KEY, "1");
+        } catch {
+            /* ignore quota / privacy mode errors */
+        }
+        // 通知订阅者：第一次创建后 SaveSheet / SavedPage 可以拿到
+        // 新鲜的封面/计数（虽然此时三个合集都是空的）。
+        notifySubscribers();
+    } catch (err) {
+        console.warn(
+            "[binge] ensureDefaultCollections failed — will retry next launch",
+            err
+        );
+    }
 }
 
 // Toggle a scene's membership in a collection. Caller passes the scene's
