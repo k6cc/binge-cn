@@ -16,6 +16,11 @@ on:
     tags:
       - "v*.*.*"
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. 0.4.2, without leading "v")'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -35,6 +40,17 @@ jobs:
 
       - run: npm run build
 
+      - name: Resolve version
+        id: ver
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+            echo "tag=v${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Stage plugin files
         run: |
           mkdir -p release/binge
@@ -43,13 +59,15 @@ jobs:
       - name: Pack zip
         run: |
           cd release
-          zip -r "../binge-${GITHUB_REF_NAME}.zip" binge
+          zip -r "../binge-v${{ steps.ver.outputs.version }}.zip" binge
           cd ..
-          ls -lh "binge-${GITHUB_REF_NAME}.zip"
+          ls -lh "binge-v${{ steps.ver.outputs.version }}.zip"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: binge-${{ github.ref_name }}.zip
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: ${{ steps.ver.outputs.tag }}
+          files: binge-v${{ steps.ver.outputs.version }}.zip
           generate_release_notes: true
           fail_on_unmatched_files: true
