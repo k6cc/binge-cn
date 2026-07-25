@@ -27,7 +27,7 @@
 |-|-|-|
 | 1 | 二层封面重叠 | PackDetailSheet tile 缺少 `width:100%` + `display:block`，button 在 grid 中宽度退化为 0 → 所有 tile 叠在同一格子。与 `.binge-gallery-cover-btn` 对齐 |
 | 2 | 取消筛选后内容不变 | Reel 新增 effect：queue 活跃时用户清除 performer chip → 自动清除 pinnedQueue → Reel 走 random 路径重新加载 |
-| 3 | 转码影片快进从头播放 | avi/wmv 转码改用 HLS 流（支持 segment seek），集成 hls.js 让 Chrome/Firefox/Edge 也能播放 HLS + 快进 |
+| 3 | 转码影片快进 | pickStream 对 avi/wmv 等不兼容容器在 auto/direct 模式下自动选 MP4 转码流（Stash 默认转码输出 MP4，支持快进）。无需 hls.js，由 Stash 服务端 + 浏览器原生 video 处理 |
 
 #### v0.4.6 新增修复
 

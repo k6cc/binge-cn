@@ -1,10 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-// 需求2 修复：hls.js 让非 Safari 浏览器也能播放 HLS 流并支持快进。
-// Stash 的 MP4 转码端点不支持 HTTP range request → 快进会从头播放。
-// HLS 把视频切成 segment，快进只需请求对应 segment，天然支持 seek。
-// Safari 有原生 HLS 支持，hls.js 在 Safari 上会自动跳过（isSupported
-// 返回 false 时降级到 video.src）。动态检测避免不必要的 hls.js 实例。
-import Hls from "hls.js";
 import type { BingeScene } from "../api/queries";
 import { ActionStack } from "./ActionStack";
 import { PerformerRow } from "./PerformerRow";
@@ -12,25 +6,6 @@ import { pickStreamUrl } from "../util/pickStream";
 import { MuteToggle } from "./MuteToggle";
 import { SceneProgress } from "./SceneProgress";
 import { getPersistedMuted, useMuteState } from "../hooks/useMuteState";
-
-// 判断 URL 是否为 HLS 流。Stash 的 HLS stream URL 通常以
-// /stream?type=hls 结尾，返回 master playlist (.m3u8)。
-function isHlsUrl(url: string): boolean {
-    return /\.m3u8(\?|$)/i.test(url) || /type=hls/i.test(url);
-}
-
-// 判断浏览器是否原生支持 HLS（Safari / iOS）。Chrome / Firefox / Edge
-// 不支持 — 需要 hls.js。结果缓存在模块级变量避免重复 DOM 查询。
-let cachedNativeHls: boolean | null = null;
-function browserSupportsNativeHls(): boolean {
-    if (cachedNativeHls === null) {
-        const v = document.createElement("video");
-        cachedNativeHls =
-            !!v.canPlayType("application/vnd.apple.mpegurl") ||
-            !!v.canPlayType("application/x-mpegURL");
-    }
-    return cachedNativeHls;
-}
 import {
     sceneDecrementO,
     sceneIncrementO,
@@ -138,10 +113,6 @@ export function SceneSlide({
     const transcodeType = useTranscodeType();
     const videoRef = useRef<HTMLVideoElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
-    // 需求2：hls.js 实例 + URL 跟踪。hlsUrlRef 记录当前已加载的 HLS
-    // URL，避免同一 URL 重复 loadSource（effect 重跑时不必要的重建）。
-    const hlsRef = useRef<Hls | null>(null);
-    const hlsUrlRef = useRef<string | null>(null);
     const [isActive, setIsActive] = useState(false);
     const [isPlaying, setIsPlaying] = useState(false);
     const [muted, setMuted, setMutedSession] = useMuteState();
@@ -280,45 +251,6 @@ export function SceneSlide({
         // poster shows (a data-URI can't play as <video>).
         if (readDemoMode()) return;
         const url = pickStreamUrl(scene, transcodeType);
-
-        // 需求2：HLS 流在非 Safari 浏览器上由 hls.js 接管 — 支持快进 seek。
-        // Safari 原生支持 HLS，走 video.src 直设即可。
-        const useHlsJs =
-            isHlsUrl(url) && !browserSupportsNativeHls() && Hls.isSupported();
-
-        if (useHlsJs) {
-            // 同一 URL 已加载 — 不重建 hls 实例，仅确保播放
-            if (hlsUrlRef.current === url && hlsRef.current) {
-                if (video.paused) playPreferred(video);
-                return;
-            }
-            // URL 变化或首次加载 — 清理旧实例后重建
-            if (hlsRef.current) {
-                hlsRef.current.destroy();
-                hlsRef.current = null;
-            }
-            const hls = new Hls({
-                enableWorker: true,
-                lowLatencyMode: false,
-            });
-            hlsRef.current = hls;
-            hlsUrlRef.current = url;
-            hls.loadSource(url);
-            hls.attachMedia(video);
-            // manifest 解析完成后自动播放（相当于非 HLS 路径的
-            // video.load() + playPreferred）
-            hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                if (video.paused) playPreferred(video);
-            });
-            return;
-        }
-
-        // 非 HLS 路径：如果之前在用 hls.js，清理掉（用户切换了流类型）
-        if (hlsRef.current) {
-            hlsRef.current.destroy();
-            hlsRef.current = null;
-            hlsUrlRef.current = null;
-        }
         if (video.src !== url) {
             video.src = url;
             video.load();
@@ -336,7 +268,6 @@ export function SceneSlide({
     // Explicit decoder cleanup on unmount. The browser doesn't release
     // hardware decoder slots aggressively — they linger until GC. Calling
     // pause + removeAttribute("src") + load() forces release.
-    // 需求2：同时销毁 hls.js 实例，释放 Worker + MSE buffer。
     // Empty deps: runs once on mount, cleanup fires on unmount only.
     useEffect(() => {
         const video = videoRef.current;
@@ -348,11 +279,6 @@ export function SceneSlide({
                 video.load();
             } catch {
                 /* element may already be detached; ignore */
-            }
-            if (hlsRef.current) {
-                hlsRef.current.destroy();
-                hlsRef.current = null;
-                hlsUrlRef.current = null;
             }
         };
     }, []);
