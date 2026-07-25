@@ -10,6 +10,11 @@
 #
 # Requires the PLUGINS_REPO_TOKEN secret (same PAT used by the other
 # plugin sync workflows) on this repo.
+#
+# Fork 仓库跳过：sync job 仅在原仓库 ordureconnoisseur/binge 运行。
+# Fork 仓库（如 k6cc/binge-cn）没有 PLUGINS_REPO_TOKEN，clone 上游
+# plugins 仓库会认证失败。Fork 仓库通过自己的 release.yml 发布到
+# GitHub Release + 自带的 plugins/main/index.yml，不需要同步到上游。
 name: Sync to plugins repo
 
 on:
@@ -19,6 +24,7 @@ on:
 jobs:
   sync:
     runs-on: ubuntu-latest
+    if: github.repository == 'ordureconnoisseur/binge'
     steps:
       - uses: actions/checkout@v4
 
