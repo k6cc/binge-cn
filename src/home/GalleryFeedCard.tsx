@@ -4,6 +4,8 @@ import { ImageLightbox } from "../performer/ImageLightbox";
 import { PerformerHoverCard } from "./PerformerHoverCard";
 import { VerifiedIcon } from "../performer/PerformerProfile";
 import { usePerformerProfile } from "../performer/PerformerProfileContext";
+import { useSharedStories } from "./StoriesContext";
+import { useStoryViewer } from "./StoryViewerContext";
 import { timeAgo } from "./timeAgo";
 
 interface GalleryFeedCardProps {
@@ -23,7 +25,26 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
     const [lightboxOpenAt, setLightboxOpenAt] = useState<number | null>(null);
 
     const { openProfile } = usePerformerProfile();
+    const { open: openStoryViewer } = useStoryViewer();
+    const storiesState = useSharedStories();
     const primaryPerformer = item.performers[0];
+
+    const handleAvatarTap = () => {
+        if (!primaryPerformer) return;
+        if (storiesState.state.kind !== "ready") {
+            openProfile(primaryPerformer.id);
+            return;
+        }
+        const list = storiesState.state.stories;
+        const idx = list.findIndex(
+            (s) => s.performerId === primaryPerformer.id
+        );
+        if (idx >= 0) {
+            openStoryViewer(list, idx);
+        } else {
+            openProfile(primaryPerformer.id);
+        }
+    };
 
     // Total slide count: N images + 1 "View gallery" panel. The panel
     // gets its own snap slot, so the dots indicator needs to track it
@@ -116,7 +137,14 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                                 openProfile(primaryPerformer.id)
                             }
                         >
-                            <span className="binge-feed-card-avatar-ring">
+                            <span
+                                className="binge-feed-card-avatar-ring"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleAvatarTap();
+                                }}
+                                style={{ cursor: "pointer" }}
+                            >
                                 <span
                                     className="binge-feed-card-avatar"
                                     style={

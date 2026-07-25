@@ -1,6 +1,6 @@
 # Binge（汉化版）
 
-> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.4.1**。
+> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.4.5**。
 
 为 [Stash](https://github.com/stashapp/stash) 提供的 Instagram 风格社交与发现层：竖屏 Reel、Stories、演员档案、StashDB 驱动的发现功能——全部基于 Stash 既有的 GraphQL API。Web 插件形态。
 
@@ -20,6 +20,40 @@
 - 品牌名保持英文：Stash、StashDB、Reddit、X (Twitter)、PornHub、Cookie、forage、binge-server、HLS、MP4、WebM
 
 ### 功能修复
+
+#### v0.4.5 新增修复
+
+| # | 修复 | 说明 |
+|-|-|-|
+| 1 | 悬浮卡片左对齐 | PerformerHoverCard 弹窗从居中改为左对齐名字，卡片放大后不再距离过远 |
+| 2 | 图库卡片头像点击打开 Story | 图库卡片头像点击打开 StoryViewer（与场景卡片一致），点击名字进入演员详情 |
+| 3 | 插件 zip 扁平结构 | 打包结构从 `binge/` 子目录改为 4 文件根层级，解压即用 |
+| 4 | 仓库清理 | 移除已提交的 `binge-v0.4.2.zip` 和 `release/binge/` 构建产物 |
+
+#### v0.4.4 新增修复
+
+| # | 修复 | 说明 |
+|-|-|-|
+| 1 | 图库卡片 4:3 横屏 | 轮播比例从 1:1 改为 4:3，图片铺满 |
+| 2 | 图库卡片头像彩色圆环 | 头像外层加渐变圆环，名字贴头像而非居中 |
+| 3 | 卡片断点微调 | 平板 780→680px，桌面保持 840px，加入 0.25s 平滑过渡 |
+| 4 | 推荐页翻译 | `Favourite` → 收藏、`Manage follows` → 管理关注、`Favourited` → 已收藏 |
+
+#### v0.4.3 新增修复
+
+| # | 修复 | 说明 |
+|-|-|-|
+| 1 | 宽屏卡片放大 150% | 桌面 560→840px、平板 520→780px，移动端不变 |
+| 2 | 故事查看器声音联动 | 自动播放失败时改用 `setMutedSession`（临时静音），切换故事不再重置用户偏好 |
+| 3 | 发现页封面右对齐 | `.binge-explore-tile` 的 `background-position: center` → `right center` |
+| 4 | 图库卡片 header 修复 | 头像黑环改 `border:none`、补 VerifiedIcon、白底改 div 容器、加 PerformerHoverCard 悬停弹窗 |
+
+#### v0.4.2 新增修复
+
+| # | 修复 | 说明 |
+|-|-|-|
+| 1 | release workflow 手动触发 | 新增 `workflow_dispatch` + `version` 输入参数，支持 Actions 页面手动触发发布 |
+| 2 | 版本号统一 | 新增"Resolve version"步骤，手动触发用输入值、tag 触发用 `github.ref_name` |
 
 #### v0.4.1 新增修复（11 项）
 
@@ -72,7 +106,7 @@
 
 1. 前往 [Releases 页面](https://github.com/k6cc/binge-cn/releases)
 2. 下载最新版本的 `binge-vX.Y.Z.zip`
-3. 解压到 Stash 插件目录：
+3. 解压到 Stash 插件目录（zip 内 4 个文件直接放在 binge 目录下）：
    - **Windows**: `%USERPROFILE%\.stash\plugins\binge\`
    - **Linux/macOS**: `~/.stash/plugins/binge/`
 4. Stash → 设置 → 插件 → 重新加载插件

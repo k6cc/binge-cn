@@ -1,12 +1,11 @@
 # Builds the plugin and attaches a release zip on every `v*.*.*` tag.
 #
-# Zip layout — unzips directly into ~/.stash/plugins/:
+# Zip layout — 4 files at root level, unzips directly into ~/.stash/plugins/:
 #
 #   binge-v0.1.0.zip
-#   └── binge/
-#       ├── binge.yml
-#       ├── binge.entry.js
-#       └── index.html
+#   ├── binge.yml
+#   ├── binge.entry.js
+#   └── index.html
 #
 # To cut a release: `git tag v0.1.0 && git push --tags`.
 name: release
@@ -53,13 +52,13 @@ jobs:
 
       - name: Stage plugin files
         run: |
-          mkdir -p release/binge
-          cp binge.yml dist/binge.entry.js dist/index.html release/binge/
+          mkdir -p release
+          cp binge.yml dist/binge.entry.js dist/index.html release/
 
       - name: Pack zip
         run: |
           cd release
-          zip -r "../binge-v${{ steps.ver.outputs.version }}.zip" binge
+          zip "../binge-v${{ steps.ver.outputs.version }}.zip" binge.yml binge.entry.js index.html
           cd ..
           ls -lh "binge-v${{ steps.ver.outputs.version }}.zip"
 

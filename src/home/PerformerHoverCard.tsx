@@ -139,7 +139,7 @@ export function PerformerHoverCard({
             const cardWidth = cardRef.current?.offsetWidth ?? 280;
             const cardHeight = cardRef.current?.offsetHeight ?? 180;
             const margin = 8;
-            const desiredLeft = rect.left + rect.width / 2 - cardWidth / 2;
+            const desiredLeft = rect.left;
             const clampedLeft = Math.max(
                 margin,
                 Math.min(desiredLeft, window.innerWidth - cardWidth - margin)
