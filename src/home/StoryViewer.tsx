@@ -218,7 +218,7 @@ export function StoryViewer() {
             return;
         }
         video.muted = muted;
-        const tryPlay = (reason: string) => {
+        const tryPlay = () => {
             if (video.paused) {
                 void video.play().then(
                     () => { /* play ok */ },
@@ -237,10 +237,10 @@ export function StoryViewer() {
                 );
             }
         };
-        tryPlay("effect");
+        tryPlay();
         // 视频就绪时重试 play() — 解决首次打开未自动播放的核心修复。
-        const onCanPlay = () => tryPlay("canplay");
-        const onLoadedData = () => tryPlay("loadeddata");
+        const onCanPlay = () => tryPlay();
+        const onLoadedData = () => tryPlay();
         video.addEventListener("canplay", onCanPlay);
         video.addEventListener("loadeddata", onLoadedData);
         return () => {
