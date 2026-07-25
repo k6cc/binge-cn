@@ -2976,7 +2976,11 @@ body,
 
 .binge-explore-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    /* 需求2：3:4 竖版封面，一行 2-4 个自适应窗口大小。
+       auto-fill + minmax 让列数随窗口宽度自动变化：
+       窗口 400px → 2 列，600px → 3 列，800px+ → 4+ 列。
+       minmax(180px, 1fr) 保证 tile 不会太窄也不会太大。 */
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
     gap: 3px;
 }
 
@@ -2987,13 +2991,19 @@ body,
     margin: 0;
     cursor: pointer;
     position: relative;
-    aspect-ratio: 1 / 1;
+    /* 需求2：3:4 竖版（与图库封面、演员档案场景封面一致）。 */
+    aspect-ratio: 3 / 4;
     background-color: #111;
     background-size: cover;
     background-position: right center;
     background-repeat: no-repeat;
     overflow: hidden;
     transition: filter 0.15s ease, transform 0.15s ease;
+    /* 需求2：grid 项默认 align-self:stretch 会与 aspect-ratio 产生循环依赖
+       （与 PackDetailSheet 修改 29 同类问题），显式 start 避免行高塌缩。 */
+    align-self: start;
+    width: 100%;
+    display: block;
 }
 .binge-explore-tile:hover,
 .binge-explore-tile:focus-visible {
@@ -8425,7 +8435,10 @@ body,
    count when the pack has more than 9 scenes. */
 .binge-pack-card-mosaic {
     width: 100%;
-    aspect-ratio: 1 / 1;
+    /* 需求3：3×3 mosaic，每个 tile 3:4 竖版，3列3行。
+       整体宽高比 = 3×tile宽 : 3×tile高 = 3×3 : 3×4 = 9:12 = 3:4。
+       所以 mosaic 容器 aspect-ratio: 3/4，与单个 tile 比例一致。 */
+    aspect-ratio: 3 / 4;
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     grid-template-rows: repeat(3, 1fr);
@@ -8440,11 +8453,15 @@ body,
 .binge-pack-card-mosaic-tile {
     background-color: #0a0a0a;
     background-size: cover;
-    /* 需求1：一层封面右对齐，保留主体（与演员详情页场景封面、
+    /* 需求3：一层封面右对齐，保留主体（与演员详情页场景封面、
        图库封面、发现页封面一致）。原先 center 会把横向截图居中
        裁切，主体常被切掉。 */
     background-position: right center;
     position: relative;
+    /* 需求3：tile 在 grid 单元格内铺满（width:100% + height:100%），
+       由 grid-template-rows 控制行高，不依赖 aspect-ratio。 */
+    width: 100%;
+    height: 100%;
 }
 .binge-pack-card-mosaic-overflow {
     position: absolute;
@@ -8485,7 +8502,8 @@ body,
 }
 .binge-pack-sheet-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    /* 需求3：二层封面一行 2 个（原先 3 个）。 */
+    grid-template-columns: repeat(2, 1fr);
     /* 修复：显式声明行轨迹为 max-content。grid 容器有 overflow-y:auto
        + 固定高度时，部分浏览器引擎的 grid 行轨迹会按内容 min-content
        高度计算，而 button+aspect-ratio 在 grid 项中不被识别为内容高度
@@ -8508,12 +8526,12 @@ body,
     background: var(--bg-1, #111);
     border: none;
     cursor: pointer;
-    /* 需求1：二层封面调整为 3:4 竖屏（与图库封面、演员档案场景封面
-       一致），原先 9:16 过窄，竖向截图主体常被裁掉。 */
-    aspect-ratio: 3 / 4;
+    /* 需求3：二层封面改为 4:3 横版（铺满），原先 3:4 竖版。
+       横版截图主体居中，4:3 与多数影片截图比例一致，裁切最小。 */
+    aspect-ratio: 4 / 3;
     background-size: cover;
-    /* 需求1：右对齐保留主体。 */
-    background-position: right center;
+    /* 需求3：横版居中铺满。 */
+    background-position: center center;
     padding: 0;
     position: relative;
     overflow: hidden;

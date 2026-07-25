@@ -49,6 +49,13 @@ export function PackDetailSheet({
             0,
             ids.indexOf(scene.sceneId)
         );
+        console.debug(
+            "[binge-pack] handlePick",
+            "sceneId=" + scene.sceneId,
+            "startIndex=" + startIndex,
+            "ids.length=" + ids.length,
+            "performer=" + pack.primaryPerformer.name
+        );
         // 需求1：把主演作为筛选 chip 写入 FilterContext，让 FilterBar
         // 和 FilterSheet 显示当前生效的筛选条件（头像 + 名字 + ×）。
         // 只填 id/name/image_path —— FilterEntry 这三个字段就够渲染
