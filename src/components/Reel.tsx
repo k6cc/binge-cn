@@ -131,6 +131,9 @@ export function Reel() {
             filter.tags.length === 0 &&
             filter.studios.length === 0;
         if (empty) {
+            console.debug(
+                "[binge-reel] queue-clear effect: clearing queue (filter empty)"
+            );
             setPinnedQueue(null);
         }
     }, [filter, pinnedQueue, setPinnedQueue]);
@@ -257,9 +260,21 @@ export function Reel() {
         // sequence rather than dropping into a random feed.
         if (queue) {
             chainAlgoRef.current = null;
+            console.debug(
+                "[binge-reel] queue path",
+                "ids.length=" + queue.ids.length,
+                "startIndex=" + queue.startIndex,
+                "targetId=" + queue.ids[queue.startIndex]
+            );
             findScenesByIds(queue.ids)
                 .then((scenes) => {
                     if (token !== fetchTokenRef.current) return;
+                    console.debug(
+                        "[binge-reel] queue path resolved",
+                        "scenes.length=" + scenes.length,
+                        "token=" + token,
+                        "currentToken=" + fetchTokenRef.current
+                    );
                     setState({
                         kind: "ready",
                         scenes,
@@ -378,6 +393,13 @@ export function Reel() {
         // Random path (existing behaviour). Drop any prior chained
         // algo so it gets GC'd.
         chainAlgoRef.current = null;
+        console.debug(
+            "[binge-reel] random path",
+            "pin=" + (pin ?? "null"),
+            "queue=" + (queue ? "set" : "null"),
+            "reelMode=" + reelMode,
+            "filter.performers=" + filter.performers.length
+        );
         const firstPage = findScenes({
             filter: {
                 page: 1,

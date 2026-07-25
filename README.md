@@ -1,6 +1,6 @@
 # Binge（汉化版）
 
-> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.4.9-RC4**。
+> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.4.9-RC5**。
 
 为 [Stash](https://github.com/stashapp/stash) 提供的 Instagram 风格社交与发现层：竖屏 Reel、Stories、演员档案、StashDB 驱动的发现功能——全部基于 Stash 既有的 GraphQL API。Web 插件形态。
 
@@ -21,6 +21,21 @@
 
 ### 功能修复
 
+#### v0.4.9-RC5 新增修复
+
+| # | 修复 | 说明 |
+|-|-|-|
+| 1 | 发现页影片封面 3:4 竖版 + 自适应列数 | `.binge-explore-grid` 从固定 3 列改为 `repeat(auto-fill, minmax(180px, 1fr))`，窗口 400px→2列、600px→3列、800px+→4+列。`.binge-explore-tile` 从 1:1 正方形改为 3:4 竖版，加 `align-self:start` 防止 grid 行高塌缩 |
+| 2 | 一层封面 3:4 竖版（一行3个共3行） | `.binge-pack-card-mosaic` 从 1:1 正方形改为 3:4 竖版（3列×3行，每 tile 3:4 → 整体 3:4）。tile 加 `width:100% + height:100%` 铺满 grid 单元格 |
+| 3 | 二层封面 4:3 横版（一行2个） | `.binge-pack-sheet-grid` 从 3 列改 2 列。`.binge-pack-sheet-tile` 从 3:4 竖版改 4:3 横版，`background-position` 从 `right center` 改 `center center` 居中铺满 |
+| 4 | Bug 1 跳转随机影片 — 调试日志 | 源码分析未发现根因（handlePick 顺序正确、queue 路径逻辑正确、queue-clear effect 不会误触发）。增加 5 处调试日志（`[binge-pack]` 1 处 + `[binge-reel]` 4 处），确认实际执行路径：`handlePick → queue path → queue path resolved` 为正确路径，若出现 `random path` 或 `queue-clear effect` 则定位根因 |
+
+#### v0.4.9-RC4 新增修复
+
+| # | 修复 | 说明 |
+|-|-|-|
+| 1 | 二层封面垂直重叠（grid 行轨迹塌缩） | CSS 规则正确但渲染仍垂直重叠——`tile[0] y=164 h=499`，`tile[3] y=256`（应在 y=665），重叠 409px。根因：grid 容器有 `overflow-y:auto` + 固定高度时，`align-items:stretch`（默认）与 `aspect-ratio` 产生循环依赖 → 行高塌缩到 min-content（约 92px）。修复：`.binge-pack-sheet-grid` 加 `grid-auto-rows: max-content` + `.binge-pack-sheet-tile` 加 `align-self: start`，打破循环依赖 |
+
 #### v0.4.9-RC3 新增修复
 
 | # | 修复 | 说明 |
@@ -31,9 +46,8 @@
 | 4 | StoryViewer 首次打开自动播放失败 | 首次打开时 `<video>` 刚挂载，`play()` 在视频未就绪时调用 → `AbortError`，静音重试也失败。修复：添加 `canplay`/`loadeddata` 监听器，视频就绪时重试 `play()`；`AbortError` 不再误改 mute 状态 |
 | 5 | StoryViewer 关闭后重开同一演员自动播放失败 | play-sync `useEffect` 依赖数组缺少 `isOpen`。关闭后重开同一演员时 `stories` 是同一引用（来自 `StoriesContext` 共享状态），`activeIndex`/`sceneIndex`/`currentScene` 引用均不变 → 若 deps 不含 `isOpen`，effect 不会重跑 → 新挂载的 `<video>` 未绑定监听器，`tryPlay` 也不调用 → 自动播放失败。加入 `isOpen` 后，关闭→重开时 effect 重跑 → 正确驱动新 video |
 | 6 | StoryViewer 观看完整场景跳转随机 | `handleCta` 在 `setTab` 之前调用 `setPinFirstSceneId`，而 `setTab` 内部会清空 pin → Reel 走 random 路径。修复：调整为 `setTab` 之后再调用 `setPinFirstSceneId`，利用 React 18 批处理"后写胜"语义（与 `SceneFeedCard.handleWatchFullScene`、`PackDetailSheet.handlePick` 一致） |
-| 7 | 二层封面重叠与点击跳转修复验证 | Bug 1 的源码修复已在 v0.4.6–v0.4.8 中完成（修改 17 CSS `width:100%`+`display:block` + 修改 14 `handlePick` 顺序 + Bug 5 Reel queue 路径不清除 queue + commit f6d5410 `url()` 引号）。本次验证确认修复完整，用户若仍遇到问题请重新构建（`npm run build`）+ 浏览器硬刷新（Ctrl+Shift+R） |
 
-> **调试日志**：本版本含 8 处 `console.debug` 调用（`[binge-reel]` 前缀 6 处 + `[binge-story]` 前缀 2 处），用于排查播放/seek/自动播放问题。正式版发布前需删除或用 `import.meta.env.DEV` 包裹。详见 [汉化及修复.md 修改 28](./汉化及修复.md)。
+> **调试日志**：本版本含 13 处 `console.debug` 调用（`[binge-reel]` 前缀 9 处 + `[binge-story]` 前缀 2 处 + `[binge-pack]` 前缀 2 处），用于排查播放/seek/自动播放/跳转问题。正式版发布前需删除或用 `import.meta.env.DEV` 包裹。详见 [汉化及修复.md 修改 28 + 31](./汉化及修复.md)。
 
 #### v0.4.8 新增修复
 
