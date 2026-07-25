@@ -3956,14 +3956,14 @@ body,
    通过 CSS 变量 --binge-card-max 统一控制 wrapper/card/discovery
    三处的 max-width，避免分散修改。断点：
      移动端 (< 720px)  : 无 max-width 约束，width:100% 铺满
-     平板 (≥ 720px)    : 780px，两侧留白
-     桌面 (≥ 1100px)   : 840px，更宽但仍居中留空 */
+     平板 (≥ 720px)    : 680px，两侧留白
+     桌面 (≥ 1100px)   : 840px，更宽且与平板拉开差距 */
 .binge-feed {
     --binge-card-max: none;
 }
 @media (min-width: 720px) {
     .binge-feed {
-        --binge-card-max: 780px;
+        --binge-card-max: 680px;
     }
 }
 @media (min-width: 1100px) {
@@ -3986,6 +3986,7 @@ body,
     max-width: var(--binge-card-max, none);
     padding-bottom: 1.5rem;
     box-sizing: border-box;
+    transition: max-width 0.25s ease;
 }
 
 /* Sentinel + load-more indicator at the end of the feed. Acts as the
@@ -4006,6 +4007,7 @@ body,
     border-radius: 14px;
     overflow: hidden;
     box-shadow: 0 4px 18px rgba(0, 0, 0, 0.3);
+    transition: max-width 0.25s ease;
 }
 .binge-app.refract .binge-feed-card {
     background: var(--glass-bg, #00000080);
@@ -4030,6 +4032,7 @@ body,
     box-shadow: 0 4px 18px rgba(0, 0, 0, 0.3);
     display: flex;
     flex-direction: column;
+    transition: max-width 0.25s ease;
 }
 .binge-app.refract .binge-discovery-card {
     background: var(--glass-bg, #00000080);
@@ -4910,6 +4913,10 @@ body,
     > .binge-hovercard-trigger:has(.binge-pack-card-avatar) {
     flex: 0 0 auto;
 }
+.binge-feed-card-author
+    > .binge-hovercard-trigger:has(.binge-feed-card-avatar) {
+    flex: 0 0 auto;
+}
 
 .binge-feed-card-name-btn {
     appearance: none;
@@ -5051,8 +5058,8 @@ body,
    的尺寸/圆形/背景规则，使图库卡片与场景卡片头像视觉一致。 */
 .binge-feed-card-avatar {
     appearance: none;
-    width: 38px;
-    height: 38px;
+    width: 34px;
+    height: 34px;
     border-radius: 50%;
     background-color: var(--bg-2, #222);
     background-size: cover;
@@ -5060,11 +5067,26 @@ body,
     background-repeat: no-repeat;
     border: none;
     box-sizing: border-box;
-    flex: 0 0 38px;
+    flex: 0 0 34px;
     display: grid;
     place-items: center;
     overflow: hidden;
     color: #fff;
+}
+.binge-feed-card-avatar-ring {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px;
+    border-radius: 50%;
+    background: linear-gradient(
+        45deg,
+        #f472b6 0%,
+        #a855f7 50%,
+        #6aa9ff 100%
+    );
+    box-sizing: border-box;
+    flex: 0 0 auto;
 }
 
 .binge-feed-card-name {
@@ -5280,7 +5302,7 @@ body,
 .binge-gallery-carousel {
     display: flex;
     width: 100%;
-    aspect-ratio: 1 / 1;
+    aspect-ratio: 4 / 3;
     overflow-x: auto;
     scroll-snap-type: x mandatory;
     scroll-behavior: smooth;
@@ -5306,6 +5328,7 @@ body,
     scroll-snap-align: start;
     scroll-snap-stop: always;
     cursor: pointer;
+    object-fit: cover;
 }
 .binge-gallery-slide:focus {
     outline: none;

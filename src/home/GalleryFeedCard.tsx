@@ -116,28 +116,34 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                                 openProfile(primaryPerformer.id)
                             }
                         >
-                            <span
-                                className="binge-feed-card-avatar"
-                                style={
-                                    primaryPerformer.imagePath
-                                        ? {
-                                              backgroundImage: `url(${primaryPerformer.imagePath})`,
-                                          }
-                                        : undefined
-                                }
-                            >
-                                {!primaryPerformer.imagePath && (
-                                    <span className="binge-feed-card-initial">
-                                        {primaryPerformer.name
-                                            .charAt(0)
-                                            .toUpperCase()}
-                                    </span>
-                                )}
+                            <span className="binge-feed-card-avatar-ring">
+                                <span
+                                    className="binge-feed-card-avatar"
+                                    style={
+                                        primaryPerformer.imagePath
+                                            ? {
+                                                  backgroundImage: `url(${primaryPerformer.imagePath})`,
+                                              }
+                                            : undefined
+                                    }
+                                >
+                                    {!primaryPerformer.imagePath && (
+                                        <span className="binge-feed-card-initial">
+                                            {primaryPerformer.name
+                                                .charAt(0)
+                                                .toUpperCase()}
+                                        </span>
+                                    )}
+                                </span>
                             </span>
                         </PerformerHoverCard>
                     ) : (
-                        <span className="binge-feed-card-avatar">
-                            <span className="binge-feed-card-initial">?</span>
+                        <span className="binge-feed-card-avatar-ring">
+                            <span className="binge-feed-card-avatar">
+                                <span className="binge-feed-card-initial">
+                                    ?
+                                </span>
+                            </span>
                         </span>
                     )}
                     {primaryPerformer ? (
