@@ -42,7 +42,7 @@ export function StoryViewer() {
         close,
     } = useStoryViewer();
     const { replace } = useFilter();
-    const { setTab, setPinFirstSceneId, setReelMode } = useTab();
+    const { setTab, setPinFirstSceneId } = useTab();
     const { openProfile } = usePerformerProfile();
 
     const [sceneIndex, setSceneIndex] = useState(0);
@@ -190,24 +190,69 @@ export function StoryViewer() {
     }, [isOpen, paused, capMs, activeIndex, sceneIndex, advance]);
 
     // Sync the <video> element's play state with our `paused` flag.
+    //
+    // Bug 修复（需求3）：首次打开 StoryViewer 时，<video> 元素刚挂载，src 刚
+    // 设置但浏览器还没开始加载/解码。此时调用 play() 会因视频未就绪返回
+    // AbortError 或 NotAllowedError，catch 里的静音重试也会因同样原因失败
+    // → 第一部影片大概率不会自动播放。切换下一部再切回时，video.key 变化
+    // 触发 remount，此时视频管道已"预热"且用户手势更新鲜，所以能播放。
+    //
+    // 修复：添加 canplay / loadeddata 事件监听，在视频就绪时重试 play()。
+    // 同时添加调试日志便于排查。useMuteState 的两层（persisted/effective）
+    // 保证用户偏好不被覆盖。
     useEffect(() => {
         const video = videoRef.current;
         if (!video) return;
         if (paused) {
             video.pause();
-        } else {
-            video.muted = muted;
-            void video.play().catch(() => {
-                // Autoplay may need muted; retry muted, then accept failure
-                // (the progress timer still advances). Use setMutedSession
-                // (not setMuted) so the user's persisted preference is not
-                // overwritten — switching stories won't reset their choice.
-                video.muted = true;
-                if (!muted) setMutedSession(true);
-                void video.play().catch(() => {});
-            });
+            return;
         }
-    }, [paused, sceneIndex, activeIndex, muted, setMuted, setMutedSession]);
+        video.muted = muted;
+        const sceneId = currentScene?.id ?? "?";
+        const tryPlay = (reason: string) => {
+            if (video.paused) {
+                void video.play().then(
+                    () => {
+                        console.debug(
+                            "[binge-story] play ok",
+                            reason,
+                            "scene=" + sceneId,
+                            "muted=" + video.muted
+                        );
+                    },
+                    (err: unknown) => {
+                        const name = (err as DOMException | null)?.name;
+                        console.debug(
+                            "[binge-story] play failed",
+                            reason,
+                            "scene=" + sceneId,
+                            "muted=" + video.muted,
+                            "err=" + name
+                        );
+                        // AbortError: play() interrupted by load()/src swap
+                        // — 不要改 mute 状态，canplay 监听器会在就绪后重试。
+                        if (name === "AbortError") return;
+                        // NotAllowedError 等：静音后重试，canplay 监听器兜底。
+                        video.muted = true;
+                        if (!muted) setMutedSession(true);
+                        void video.play().catch(() => {
+                            /* canplay 监听器会重试 */
+                        });
+                    }
+                );
+            }
+        };
+        tryPlay("effect");
+        // 视频就绪时重试 play() — 解决首次打开未自动播放的核心修复。
+        const onCanPlay = () => tryPlay("canplay");
+        const onLoadedData = () => tryPlay("loadeddata");
+        video.addEventListener("canplay", onCanPlay);
+        video.addEventListener("loadeddata", onLoadedData);
+        return () => {
+            video.removeEventListener("canplay", onCanPlay);
+            video.removeEventListener("loadeddata", onLoadedData);
+        };
+    }, [paused, sceneIndex, activeIndex, muted, setMutedSession, currentScene]);
 
     // Keep <video>.muted in sync when the user toggles mute mid-story.
     useEffect(() => {
@@ -262,7 +307,14 @@ export function StoryViewer() {
         // the reel via Explore earlier), the "Watch full scene" CTA
         // is a fresh, filter-driven random entry. Don't carry
         // chained state into it.
-        setReelMode("random");
+        //
+        // Bug 修复：setTab 内部会 setPinFirstSceneId(null) + setReelMode("random")，
+        // 若在 setTab 之前调用 setPinFirstSceneId / setReelMode，最终状态会被
+        // setTab 清空 → Reel 走 random 路径拉一页随机场景 → 用户看到随机影片
+        // 而非点击的影片。必须在 setTab 之后再设置 pin，利用 React 18 批处理
+        // "后写胜"语义保证最终状态正确（与 SceneFeedCard 的 handleWatchFullScene、
+        // PackDetailSheet 的 handlePick 保持一致）。reelMode 已由 setTab 重置
+        // 为 random，无需重复设置。
         replace({
             performers: [
                 {
@@ -274,8 +326,8 @@ export function StoryViewer() {
             tags: [],
             studios: [],
         });
-        setPinFirstSceneId(currentScene.id);
         setTab("foryou");
+        setPinFirstSceneId(currentScene.id);
         close();
     };
 
