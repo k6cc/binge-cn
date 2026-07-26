@@ -136,21 +136,6 @@ export function PerformerXGrid({ performer }: PerformerXGridProps) {
 
 // X 单元格：3:4 竖排卡片，点击在新标签页打开原推文。视频显示播放
 // 徽章。
-//
-// twimg 视频缩略图加载方案（经过多轮实测确认）：
-// 1. <img src>：浏览器无法解码 mp4 为图片 → 空白
-// 2. <video src> + referrerpolicy="no-referrer"：浏览器对 <video> 元素
-//    的 referrerpolicy 属性实现滞后（HTML spec 有，Chromium 对 media
-//    element 长期不实现），setAttribute 也无效 → 403
-// 3. <video src> + onLoadedMetadata 设 currentTime：因 403 拿不到
-//    metadata，黑屏
-// 4. fetch(referrerPolicy:'no-referrer') + createObjectURL + <video src>：
-//    fetch API 的 referrerPolicy 选项可靠（不同于 video 元素属性），
-//    拿到 blob 后 createObjectURL 生成 blob: URL 给 video.src，blob URL
-//    是同源本地资源不再发网络请求 → 无 referrer 问题 → 视频正常解码
-//
-// 代价：每个视频缩略图需完整下载（X 视频通常 < 5MB）。组件卸载时
-// revokeObjectURL 释放内存。
 function XCell({ media }: { media: XMedia }) {
     const isVideo = media.kind === "video";
     return (
@@ -189,9 +174,20 @@ function XCell({ media }: { media: XMedia }) {
     );
 }
 
-// 视频缩略图：fetch 拿到 blob 后用 createObjectURL 喂给 <video>，
-// 在 onLoadedMetadata 时 seek 到 10% 位置（最多 1 秒）显示该帧。
-// 加载中/失败时显示占位（保持网格布局不塌陷）。
+// 视频缩略图（悬停播放方案）：
+//
+// 加载：fetch(referrerPolicy:'no-referrer') 拿到 blob → createObjectURL
+// 生成 blob: URL 喂给 <video>.src。之所以用 fetch 而不是直接 <video src>，
+// 是因为浏览器对 <video> 元素的 referrerpolicy 属性实现滞后（Chromium
+// 对 media element 长期不实现），从 stash 页面加载 twimg 视频会带
+// Referer 被 403。fetch API 的 referrerPolicy 选项可靠，blob URL 是同源
+// 本地资源不再发网络请求，无 referrer 问题。
+//
+// 交互：默认显示 10% 位置（最多 1 秒）的静态帧作为缩略图；鼠标悬停时
+// play() 循环播放预览，离开时 pause() 并重置回静态帧位置。移动端无
+// hover 事件，保持静态帧 + 点击跳转推文的行为。
+//
+// 组件卸载时 revokeObjectURL 释放内存。
 function XVideoThumb({ media }: { media: XMedia }) {
     const [blobUrl, setBlobUrl] = useState<string | null>(null);
     const [failed, setFailed] = useState(false);
@@ -221,6 +217,28 @@ function XVideoThumb({ media }: { media: XMedia }) {
         };
     }, [media.mediaUrl]);
 
+    const seekToThumb = (v: HTMLVideoElement) => {
+        try {
+            v.currentTime = Math.min(1, (v.duration || 1) * 0.1);
+        } catch {
+            /* 未就绪时可能抛错，忽略 */
+        }
+    };
+
+    const handleEnter = () => {
+        const v = videoRef.current;
+        if (!v) return;
+        void v.play().catch(() => {
+            /* 浏览器自动播放策略拒绝时忽略 */
+        });
+    };
+    const handleLeave = () => {
+        const v = videoRef.current;
+        if (!v) return;
+        v.pause();
+        seekToThumb(v);
+    };
+
     if (failed) {
         return (
             <div className="binge-gallery-cover binge-x-thumb-placeholder">
@@ -240,15 +258,11 @@ function XVideoThumb({ media }: { media: XMedia }) {
             className="binge-gallery-cover"
             preload="metadata"
             muted
+            loop
             playsInline
-            onLoadedMetadata={(e) => {
-                const v = e.currentTarget;
-                try {
-                    v.currentTime = Math.min(1, (v.duration || 1) * 0.1);
-                } catch {
-                    /* 未就绪时可能抛错，忽略 */
-                }
-            }}
+            onMouseEnter={handleEnter}
+            onMouseLeave={handleLeave}
+            onLoadedMetadata={(e) => seekToThumb(e.currentTarget)}
         />
     );
 }
