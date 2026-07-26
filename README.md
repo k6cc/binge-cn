@@ -26,6 +26,8 @@
 | # | 修复 | 说明 |
 |-|-|-|
 | 1 | 已保存页面合集卡片显示图标 | SavedPage 的合集卡片原先只显示纯文字名称 + 数量，与 SaveSheet（场景下方"保存"菜单）的合集行视觉不一致。将 `SaveSheet` 内部的 `CollectionIcon` 函数 `export` 出来供 `SavedPage` 复用（避免代码重复），在 `CollectionTile` 的 meta 区域 name 之前插入图标（书签/时钟/心形/文件夹，对应收藏夹/稍后观看/我的最爱/用户自建），与 Stash 标签管理器 "收藏夹 🔖" 顺序对应（binge 显示 "🔖 收藏夹"）。`.binge-saved-tile-meta` 从 `justify-content: space-between` + `align-items: baseline` 改为 `align-items: center` + `gap: 0.4rem`，`.binge-saved-tile-name` 加 `flex: 1` 承接剩余空间。复用 `.binge-save-sheet-icon` 类，无需新增 CSS。`filled={false}` 保持描边样式（未选中态），与 SaveSheet 未选中行一致 |
+| 2 | 已保存页面合集封面右对齐 | `.binge-saved-tile-single` 和 `.binge-saved-tile-cell` 的 `background-position` 从 `center` 改为 `right center`，与全 app 其他封面（演员详情页影片、发现页、图库封面等）保持一致，横版封面裁切时保留右侧主体区域 |
+| 3 | 稍后观看 tagName 从 📁 改为 🕐 | `DEFAULT_WATCH_LATER_TAG_NAME` 从 `"稍后观看 📁"` 改为 `"稍后观看 🕐"`（时钟 emoji），与 binge UI 的 watchLater 图标对应。v0.4.15 创建的 `"稍后观看 📁"` tag 不会自动迁移（用户明确要求只迁移英文 → 中文），需在 Stash 标签管理器手动清理。`LEGACY_TAG_NAMES` 映射目标更新为 `"稍后观看 🕐"`，新用户和 v0.4.14 及之前的老用户都会得到 `"稍后观看 🕐"` |
 
 #### v0.4.12–v0.4.15 新增修复
 
