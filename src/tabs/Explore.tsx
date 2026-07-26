@@ -5,6 +5,8 @@ import { DiscoverPerformersBar } from "./DiscoverPerformersBar";
 import { useFilter } from "../filter/FilterContext";
 import { useTab } from "./TabContext";
 import { useAutoHideTabBar } from "../hooks/useAutoHideTabBar";
+import { useSearchHistory } from "../hooks/useSearchHistory";
+import { SearchHistoryDropdown } from "../components/SearchHistoryDropdown";
 
 interface ExploreTile {
     id: string;
@@ -66,6 +68,9 @@ export function Explore() {
     const chipScrollerRef = useRef<HTMLDivElement>(null);
     const { replace } = useFilter();
     const { setPinFirstSceneId, setReelMode } = useTab();
+    const { history: sceneSearchHistory, addEntry: addSceneSearchEntry, removeEntry: removeSceneSearchEntry } =
+        useSearchHistory("scenes");
+    const [searchFocused, setSearchFocused] = useState(false);
 
     useAutoHideTabBar(scrollRef);
 
@@ -265,11 +270,27 @@ export function Explore() {
                         placeholder="搜索场景"
                         value={searchInput}
                         onChange={(e) => setSearchInput(e.target.value)}
+                        onFocus={() => setSearchFocused(true)}
+                        onBlur={() => {
+                            addSceneSearchEntry(searchInput);
+                            setSearchFocused(false);
+                        }}
                         aria-label="搜索场景"
                         autoCorrect="off"
                         autoCapitalize="off"
                         spellCheck={false}
                     />
+                    {searchFocused && (
+                        <SearchHistoryDropdown
+                            history={sceneSearchHistory}
+                            query={searchInput}
+                            onPick={(term) => {
+                                setSearchInput(term);
+                                setSearchFocused(false);
+                            }}
+                            onRemove={removeSceneSearchEntry}
+                        />
+                    )}
                 </div>
                 <div className="binge-explore-chips-row">
                     <button

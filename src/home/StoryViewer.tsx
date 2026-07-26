@@ -17,6 +17,7 @@ import {
     getBingeServerConfig,
     type SaveToStashRequest,
 } from "../api/bingeServer";
+import { useFetchBlobUrl } from "../hooks/useFetchBlobUrl";
 import type { StoryScene } from "./useStories";
 
 type RedditStoryScene = Extract<StoryScene, { source: "reddit" }>;
@@ -737,17 +738,55 @@ function RedditCardBody({
         setVideoError(null);
     }, [scene.id]);
 
+    // X (twimg) / Reddit (v.redd.it) 视频会检查 Referer，<video> 元素的
+    // referrerpolicy 属性浏览器实现滞后（Chromium 对 media element 长期
+    // 不实现），从 stash 页面加载带 Referer 会被 403。改用 fetch +
+    // createObjectURL 生成 blob: URL 绕过。redgifs 已有 binge-server
+    // 代理（rewriteRedgifsMediaUrl），保持原样。
+    const needsBlobProxy = (() => {
+        if (scene.kind !== "video") return false;
+        const d = (scene.domain || "").toLowerCase();
+        if (d === "x.com" || d === "twitter.com") return true;
+        if (d === "v.redd.it" || d === "redditmedia.com") return true;
+        return false;
+    })();
+    const { blobUrl: fetchedBlobUrl, failed: blobFailed } =
+        useFetchBlobUrl(needsBlobProxy ? scene.mediaUrl : null);
+
+    // blob URL 就绪时赋给 <video>.src。
+    useEffect(() => {
+        if (!needsBlobProxy) return;
+        const v = videoRef.current;
+        if (!v) return;
+        if (blobFailed) {
+            setVideoError("视频加载失败（fetch blob 失败）");
+            return;
+        }
+        if (fetchedBlobUrl && v.src !== fetchedBlobUrl) {
+            v.src = fetchedBlobUrl;
+        }
+    }, [needsBlobProxy, fetchedBlobUrl, blobFailed]);
+
     // Set referrerpolicy BEFORE the src triggers a load — redgifs
     // (and similar anti-hotlink CDNs) 403 any request whose Referer
     // isn't their own origin. Browsers fire the network request as
     // soon as the element commits with src; useEffect runs too late.
     // A callback ref lets us setAttribute and src in deterministic
     // order on the same DOM node.
+    //
+    // X/Reddit 视频（needsBlobProxy）改用 fetch+blob URL 绕过 Referer
+    // 检查，不再 setAttribute("referrerpolicy")（对 <video> 无效）。
+    // blob: URL 是同源本地资源，不发网络请求，无 Referer 问题。
     const setVideoRef = (el: HTMLVideoElement | null) => {
         videoRef.current = el;
         if (!el) return;
-        el.setAttribute("referrerpolicy", "no-referrer");
         if (scene.kind === "video" && scene.mediaUrl) {
+            if (needsBlobProxy) {
+                // blob URL 由 useFetchBlobUrl hook 异步提供，上方 effect
+                // 会在 blobUrl 就绪时设置 src。
+                return;
+            }
+            el.setAttribute("referrerpolicy", "no-referrer");
             const src = rewriteRedgifsMediaUrl(scene.mediaUrl);
             if (src && el.src !== src) el.src = src;
         }

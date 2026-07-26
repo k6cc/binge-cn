@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { saveToStash, type SaveToStashRequest, type XMedia } from "../api/bingeServer";
+import { useFetchBlobUrl } from "../hooks/useFetchBlobUrl";
 
 interface XDetailModalProps {
     media: XMedia[];
@@ -27,41 +28,11 @@ export function XDetailModal({
     onIndexChange,
 }: XDetailModalProps) {
     const current = media[index];
-    const [blobUrl, setBlobUrl] = useState<string | null>(null);
-    const [failed, setFailed] = useState(false);
+    const videoUrl = current?.kind === "video" ? current.mediaUrl : null;
+    const { blobUrl, failed } = useFetchBlobUrl(videoUrl);
     const [saveState, setSaveState] = useState<
         Record<string, "saving" | "saved" | "error">
     >({});
-
-    // 加载视频 blob（与 XVideoThumb 同方案）
-    useEffect(() => {
-        if (!current || current.kind !== "video") {
-            setBlobUrl(null);
-            setFailed(false);
-            return;
-        }
-        let alive = true;
-        let createdUrl: string | null = null;
-        setBlobUrl(null);
-        setFailed(false);
-        fetch(current.mediaUrl, { referrerPolicy: "no-referrer" })
-            .then((r) => {
-                if (!r.ok) throw new Error("HTTP " + r.status);
-                return r.blob();
-            })
-            .then((b) => {
-                if (!alive || b.size === 0) return;
-                createdUrl = URL.createObjectURL(b);
-                if (alive) setBlobUrl(createdUrl);
-            })
-            .catch(() => {
-                if (alive) setFailed(true);
-            });
-        return () => {
-            alive = false;
-            if (createdUrl) URL.revokeObjectURL(createdUrl);
-        };
-    }, [current]);
 
     // 键盘导航
     useEffect(() => {

@@ -1,6 +1,6 @@
 # Binge（汉化版）
 
-> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.4.10**。
+> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.4.11**。
 
 为 [Stash](https://github.com/stashapp/stash) 提供的 Instagram 风格社交与发现层：竖屏 Reel、Stories、演员档案、StashDB 驱动的发现功能——全部基于 Stash 既有的 GraphQL API。Web 插件形态。
 
@@ -61,6 +61,19 @@
 |-|-|-|
 | 1 | 清理调试日志 | 删除 RC3-RC6 期间为排查播放/seek/自动播放/跳转问题添加的 13 处 `console.debug` 调用（`[binge-reel]` 9 处 + `[binge-story]` 2 处 + `[binge-pack]` 2 处），同时清理 StoryViewer.tsx 中因删日志而未使用的 `sceneId` 变量 |
 | 2 | 关注页收藏夹空白占位过高 | `.binge-following-empty` 继承全局 `.binge-status` 的 `height:100vh`，导致收藏夹为空（或搜索无匹配）时占位满屏，把"所有演员"行挤到第二屏。修复：覆盖为 `height:auto + min-height:180px`（约一个演员资料卡的高度：avatar 110 + gap + name + count），保留文字垂直居中 |
+
+#### v0.4.11 新增修复
+
+| # | 修复 | 说明 |
+|-|-|-|
+| 1 | X tab 视频就地播放 | 新增 `XDetailModal` 组件（portal 全屏 modal）。点击视频/图片卡片不再跳转 x.com，而是弹出 modal 就地播放/查看，支持音量/进度/全屏（原生 `controls`）、← → 翻页、Esc 关闭。`XCell` 从 `<a target="_blank">` 改为 `<button onClick>`，卡片内显示推文文本/点赞/查看数，提供"在 X 上打开"按钮。视频复用 `useFetchBlobUrl` 的 blob URL，零成本播放 |
+| 2 | X 视频保存到 Stash | `XCell` 卡片悬停右上角浮现保存按钮（⬇/⏳/✓/✕），`XDetailModal` 内也有独立保存按钮。`saveToStash` API 新增 `source:"x"` 分支，由 binge-server 守护进程下载保存。按 `tweetId:mediaUrl` 记录 saving/saved/error 状态 |
+| 3 | X 图文卡片就地查看 | X tab 点击图文卡片也弹出 `XDetailModal`，与视频一致。图片用 `<img referrerPolicy="no-referrer">`（img 元素 referrerPolicy 可靠，无需 blob 方案），同样支持保存和"在 X 上打开" |
+| 4 | X 视频下载进度条 | `useFetchBlobUrl` hook 通过 `ReadableStream` 读取 chunks + `Content-Length` 计算下载百分比。`XVideoThumb` 在视频缩略图加载期间显示底部进度条（`.binge-x-progress`）。无 `Content-Length` 时退化为无进度（仅深色占位）。TS6 的 `Uint8Array<ArrayBufferLike>` 泛型需通过 `new Uint8Array(value)` 创建副本确保 `buffer` 为 `ArrayBuffer` 类型 |
+| 5 | X modal 视频窗口高度低时上下边被裁 | `.binge-x-modal-video` 从 `max-height: 100%` 改为 `position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain`。原方案在 flex + `max-height`（非 `height`）容器中百分比高度可能不解析 → 视频按 intrinsic 高度溢出被 `overflow:hidden` 裁切。absolute 定位不依赖百分比高度解析，`object-fit: contain` 保证 letterbox 不裁切 |
+| 6 | StoryViewer 的 X 视频修复 | `RedditCardBody` 新增 `needsBlobProxy` 判断，对 X（x.com/twitter.com）视频使用 `useFetchBlobUrl` 下载为 blob URL 绕过 twimg 的 Referer 检查（`<video>` 元素的 `referrerpolicy` 属性浏览器实现滞后，Chromium 对 media element 长期不实现）。原走 `rewriteRedgifsMediaUrl` 原样返回被 403 |
+| 7 | StoryViewer 的 Reddit 视频修复 | 同样的 `needsBlobProxy` 判断覆盖 Reddit（v.redd.it/redditmedia.com）视频。v.redd.it 也有 Referer 检查问题，复用 fetch + blob URL 方案。redgifs 等已有 binge-server 代理的保持原 `rewriteRedgifsMediaUrl` + `setAttribute("referrerpolicy")` 路径 |
+| 8 | 搜索历史持久化到 localStorage | 新增 `useSearchHistory` hook + `SearchHistoryDropdown` 组件。每个 namespace 独立存储（`"scenes"` / `"performers"`，key: `binge.searchHistory.<namespace>`），去重（大小写不敏感）+ 最多 8 条 + 最短 2 字符。集成到 Explore（场景搜索）、Following（演员搜索）、AllPerformersModal（演员搜索）三个入口，输入框聚焦时显示下拉，支持点击填充和 × 删除 |
 
 #### v0.4.10 新增修复
 

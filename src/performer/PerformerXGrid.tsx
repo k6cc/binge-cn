@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { getXFeed, xHandleFromUrls, type XMedia } from "../api/bingeServer";
+import { useFetchBlobUrl } from "../hooks/useFetchBlobUrl";
 import { XDetailModal } from "./XDetailModal";
 import type { PerformerDetail } from "../api/queries";
 
@@ -259,72 +260,10 @@ function XCell({
 // play() 循环播放预览，离开时 pause() 并重置回静态帧。移动端无 hover
 // 保持静态帧 + 点击打开 modal。
 //
-// 组件卸载时 revokeObjectURL 释放内存。
+// blob 加载逻辑抽到 useFetchBlobUrl hook（与 StoryViewer 共用）。
 function XVideoThumb({ media }: { media: XMedia }) {
-    const [blobUrl, setBlobUrl] = useState<string | null>(null);
-    const [failed, setFailed] = useState(false);
-    const [progress, setProgress] = useState<number | null>(null);
+    const { blobUrl, failed, progress } = useFetchBlobUrl(media.mediaUrl);
     const videoRef = useRef<HTMLVideoElement | null>(null);
-
-    useEffect(() => {
-        let alive = true;
-        let createdUrl: string | null = null;
-        setFailed(false);
-        setBlobUrl(null);
-        setProgress(null);
-        fetch(media.mediaUrl, { referrerPolicy: "no-referrer" })
-            .then((r) => {
-                if (!r.ok) throw new Error("HTTP " + r.status);
-                const total = Number(r.headers.get("content-length"));
-                if (total > 0 && r.body) {
-                    // 有 Content-Length：读取 stream 计算进度
-                    const reader = r.body.getReader();
-                    let received = 0;
-                    const chunks: BlobPart[] = [];
-                    const pump = (): Promise<void> =>
-                        reader
-                            .read()
-                            .then(({ done, value }) => {
-                                if (!alive) return;
-                                if (done) return;
-                                if (value) {
-                                    received += value.length;
-                                    // TS 6 对 Uint8Array<ArrayBufferLike>
-                                    // 类型约束更严，用 new Uint8Array(value)
-                                    // 创建副本（buffer 为新分配的
-                                    // ArrayBuffer），可赋值给 BlobPart。
-                                    chunks.push(new Uint8Array(value));
-                                    setProgress(
-                                        Math.min(100, (received / total) * 100)
-                                    );
-                                }
-                                return pump();
-                            });
-                    return pump().then(() => {
-                        if (!alive) return;
-                        const blob = new Blob(chunks, {
-                            type: r.headers.get("content-type") || "video/mp4",
-                        });
-                        return blob;
-                    });
-                }
-                // 无 Content-Length：退化用 blob()
-                setProgress(null);
-                return r.blob();
-            })
-            .then((b) => {
-                if (!alive || !b || b.size === 0) return;
-                createdUrl = URL.createObjectURL(b);
-                if (alive) setBlobUrl(createdUrl);
-            })
-            .catch(() => {
-                if (alive) setFailed(true);
-            });
-        return () => {
-            alive = false;
-            if (createdUrl) URL.revokeObjectURL(createdUrl);
-        };
-    }, [media.mediaUrl]);
 
     const seekToThumb = (v: HTMLVideoElement) => {
         try {

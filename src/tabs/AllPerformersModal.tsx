@@ -4,6 +4,8 @@ import {
     type PerformerSummary,
 } from "../api/queries";
 import { usePerformerProfile } from "../performer/PerformerProfileContext";
+import { useSearchHistory } from "../hooks/useSearchHistory";
+import { SearchHistoryDropdown } from "../components/SearchHistoryDropdown";
 import { BingeLoading } from "../components/BingeLoading";
 
 interface AllPerformersModalProps {
@@ -22,7 +24,10 @@ type LoadState =
 export function AllPerformersModal({ onClose }: AllPerformersModalProps) {
     const [state, setState] = useState<LoadState>({ kind: "loading" });
     const [query, setQuery] = useState("");
+    const [searchFocused, setSearchFocused] = useState(false);
     const { openProfile } = usePerformerProfile();
+    const { history: performerSearchHistory, addEntry: addPerformerSearchEntry, removeEntry: removePerformerSearchEntry } =
+        useSearchHistory("performers");
     const panelRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -88,14 +93,32 @@ export function AllPerformersModal({ onClose }: AllPerformersModalProps) {
                     </button>
                 </header>
                 <div className="binge-modal-toolbar">
-                    <input
-                        type="text"
-                        className="binge-modal-search"
-                        placeholder="搜索演员…"
-                        value={query}
-                        onChange={(e) => setQuery(e.target.value)}
-                        autoFocus
-                    />
+                    <div className="binge-search-wrap">
+                        <input
+                            type="text"
+                            className="binge-modal-search"
+                            placeholder="搜索演员…"
+                            value={query}
+                            onChange={(e) => setQuery(e.target.value)}
+                            onFocus={() => setSearchFocused(true)}
+                            onBlur={() => {
+                                addPerformerSearchEntry(query);
+                                setSearchFocused(false);
+                            }}
+                            autoFocus
+                        />
+                        {searchFocused && (
+                            <SearchHistoryDropdown
+                                history={performerSearchHistory}
+                                query={query}
+                                onPick={(term) => {
+                                    setQuery(term);
+                                    setSearchFocused(false);
+                                }}
+                                onRemove={removePerformerSearchEntry}
+                            />
+                        )}
+                    </div>
                     {state.kind === "ready" && (
                         <span className="binge-modal-count">
                             {filtered.length} 位演员

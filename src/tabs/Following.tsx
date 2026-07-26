@@ -6,6 +6,8 @@ import {
 import { useSharedStories } from "../home/StoriesContext";
 import { usePerformerProfile } from "../performer/PerformerProfileContext";
 import { useAutoHideTabBar } from "../hooks/useAutoHideTabBar";
+import { useSearchHistory } from "../hooks/useSearchHistory";
+import { SearchHistoryDropdown } from "../components/SearchHistoryDropdown";
 import { BingeLoading } from "../components/BingeLoading";
 
 type LoadState =
@@ -88,7 +90,10 @@ export function Following() {
     const [state, setState] = useState<LoadState>({ kind: "loading" });
     const [search, setSearch] = useState("");
     const [sort, setSort] = useState<SortMode>("name-asc");
+    const [searchFocused, setSearchFocused] = useState(false);
     const { openProfile } = usePerformerProfile();
+    const { history: performerSearchHistory, addEntry: addPerformerSearchEntry, removeEntry: removePerformerSearchEntry } =
+        useSearchHistory("performers");
     const scrollRef = useRef<HTMLDivElement>(null);
     useAutoHideTabBar(scrollRef);
 
@@ -158,17 +163,35 @@ export function Following() {
                 <h1 className="binge-tab-title">关注中</h1>
 
                 <div className="binge-following-controls">
-                    <input
-                        type="search"
-                        className="binge-following-search"
-                        placeholder="搜索演员"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        aria-label="搜索演员"
-                        autoCorrect="off"
-                        autoCapitalize="off"
-                        spellCheck={false}
-                    />
+                    <div className="binge-search-wrap">
+                        <input
+                            type="search"
+                            className="binge-following-search"
+                            placeholder="搜索演员"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            onFocus={() => setSearchFocused(true)}
+                            onBlur={() => {
+                                addPerformerSearchEntry(search);
+                                setSearchFocused(false);
+                            }}
+                            aria-label="搜索演员"
+                            autoCorrect="off"
+                            autoCapitalize="off"
+                            spellCheck={false}
+                        />
+                        {searchFocused && (
+                            <SearchHistoryDropdown
+                                history={performerSearchHistory}
+                                query={search}
+                                onPick={(term) => {
+                                    setSearch(term);
+                                    setSearchFocused(false);
+                                }}
+                                onRemove={removePerformerSearchEntry}
+                            />
+                        )}
+                    </div>
                     <select
                         className="binge-following-sort"
                         value={sort}
