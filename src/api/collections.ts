@@ -29,23 +29,29 @@ import {
 // （"Watch Later 📁" → "稍后观看 📁"，"My Favourite ❤️" → "我的最爱 ❤️"），
 // 与界面显示名一致。旧英文 tag 通过 migrateLegacyTagNamesIfNeeded
 // 自动 rename 迁移。Favourite ★ 保持英文（ASR 共享，改名会破坏互操作）。
+// v0.4.16: "稍后观看"的 emoji 从文件夹 📁 改为时钟 🕐，与 binge UI
+// 里的时钟图标及 Stash 标签管理器的视觉一致。用户自建合集仍用 📁 后缀。
 
 export const COLLECTION_TAG_SUFFIX = " 📁";
 const FAVOURITES_TAG_NAME = "Favourite ★";
-const DEFAULT_WATCH_LATER_TAG_NAME = `稍后观看${COLLECTION_TAG_SUFFIX}`;
+// v0.4.16：稍后观看使用时钟 emoji 🕐 而非文件夹 📁，与 binge UI 的
+// watchLater 图标对应。不使用 COLLECTION_TAG_SUFFIX，因为默认合集
+// 始终从 defaults 数组注入，不依赖 findTagsContaining 发现。
+const DEFAULT_WATCH_LATER_TAG_NAME = "稍后观看 🕐";
 // 需求3：第三个默认合集"我的最爱 ❤️"。tag name 与界面显示名一致
 // （"我的最爱 ❤️"），与 ASR 无关，可以正常挂到 binge Collections
 // 父标签下。v0.4.15：tagName 从英文 "My Favourite ❤️" 改为中文，
 // 与界面显示名一致；旧 tag 通过 migrateLegacyTagNamesIfNeeded 迁移。
 const DEFAULT_MY_FAVOURITE_TAG_NAME = "我的最爱 ❤️";
-// v0.4.15 之前的旧英文 tagName → 新中文 tagName 映射。用于一次性
-// 迁移：将旧 tag rename 为新名，保留所有场景关联和 parent 关系。
-// Favourite ★ 不在此映射中——它由 ASR 插件拥有并共享，改名会破坏
-// ASR 互操作（ASR 仍会用 Favourite ★ 创建独立 tag，导致两套收藏夹
-// 互不相通）。
+// 旧 tagName → 新 tagName 映射。用于一次性迁移：将旧 tag rename 为
+// 新名，保留所有场景关联和 parent 关系。Favourite ★ 不在此映射中——
+// 它由 ASR 插件拥有并共享，改名会破坏 ASR 互操作（ASR 仍会用
+// Favourite ★ 创建独立 tag，导致两套收藏夹互不相通）。
+// v0.4.16：新增 "稍后观看 📁" → "稍后观看 🕐" 迁移项。
 const LEGACY_TAG_NAMES: Record<string, string> = {
     "Watch Later 📁": DEFAULT_WATCH_LATER_TAG_NAME,
     "My Favourite ❤️": DEFAULT_MY_FAVOURITE_TAG_NAME,
+    "稍后观看 📁": DEFAULT_WATCH_LATER_TAG_NAME,
 };
 // Parent under which every binge-managed collection tag is
 // nested in Stash's tag tree. Keeps the user's tag list tidy:
@@ -357,7 +363,7 @@ const DEFAULT_COLLECTIONS_SEEDED_KEY = "binge.defaultCollectionsSeeded";
 // 边缘情况：若旧 tag 和新 tag 同时存在（用户手动建过新名 tag，或
 // 迁移中断后重跑），不处理——保留旧 tag 残留，避免数据丢失。用户
 // 可在 Stash 标签管理器手动清理。
-const LEGACY_MIGRATION_DONE_KEY = "binge.legacyTagNamesMigrated.v0.4.15";
+const LEGACY_MIGRATION_DONE_KEY = "binge.legacyTagNamesMigrated.v0.4.16";
 
 async function migrateLegacyTagNamesIfNeeded(): Promise<void> {
     if (readDemoMode()) return;
