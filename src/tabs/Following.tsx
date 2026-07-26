@@ -91,6 +91,8 @@ export function Following() {
     const [search, setSearch] = useState("");
     const [sort, setSort] = useState<SortMode>("name-asc");
     const [searchFocused, setSearchFocused] = useState(false);
+    // 输入法合成标记：合成中不保存搜索词，避免预输入误存
+    const composingRef = useRef(false);
     const { openProfile } = usePerformerProfile();
     const { history: performerSearchHistory, addEntry: addPerformerSearchEntry, removeEntry: removePerformerSearchEntry, scheduleSave: schedulePerformerSave } =
         useSearchHistory("performers");
@@ -171,7 +173,16 @@ export function Following() {
                             value={search}
                             onChange={(e) => {
                                 setSearch(e.target.value);
-                                schedulePerformerSave(e.target.value);
+                                if (!composingRef.current) {
+                                    schedulePerformerSave(e.target.value);
+                                }
+                            }}
+                            onCompositionStart={() => {
+                                composingRef.current = true;
+                            }}
+                            onCompositionEnd={(e) => {
+                                composingRef.current = false;
+                                schedulePerformerSave(e.currentTarget.value);
                             }}
                             onFocus={() => setSearchFocused(true)}
                             onBlur={() => {

@@ -71,6 +71,9 @@ export function Explore() {
     const { history: sceneSearchHistory, addEntry: addSceneSearchEntry, removeEntry: removeSceneSearchEntry, scheduleSave: scheduleSceneSave } =
         useSearchHistory("scenes");
     const [searchFocused, setSearchFocused] = useState(false);
+    // 输入法合成标记：合成中（拼音/笔画未确认）不保存搜索词，避免把
+    // 预输入的英文字母误存为历史记录。compositionend 后再保存确认值。
+    const composingRef = useRef(false);
 
     useAutoHideTabBar(scrollRef);
 
@@ -271,7 +274,16 @@ export function Explore() {
                         value={searchInput}
                         onChange={(e) => {
                             setSearchInput(e.target.value);
-                            scheduleSceneSave(e.target.value);
+                            if (!composingRef.current) {
+                                scheduleSceneSave(e.target.value);
+                            }
+                        }}
+                        onCompositionStart={() => {
+                            composingRef.current = true;
+                        }}
+                        onCompositionEnd={(e) => {
+                            composingRef.current = false;
+                            scheduleSceneSave(e.currentTarget.value);
                         }}
                         onFocus={() => setSearchFocused(true)}
                         onBlur={() => {

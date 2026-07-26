@@ -25,6 +25,8 @@ export function AllPerformersModal({ onClose }: AllPerformersModalProps) {
     const [state, setState] = useState<LoadState>({ kind: "loading" });
     const [query, setQuery] = useState("");
     const [searchFocused, setSearchFocused] = useState(false);
+    // 输入法合成标记：合成中不保存搜索词，避免预输入误存
+    const composingRef = useRef(false);
     const { openProfile } = usePerformerProfile();
     const { history: performerSearchHistory, addEntry: addPerformerSearchEntry, removeEntry: removePerformerSearchEntry, scheduleSave: schedulePerformerSave } =
         useSearchHistory("performers");
@@ -101,7 +103,16 @@ export function AllPerformersModal({ onClose }: AllPerformersModalProps) {
                             value={query}
                             onChange={(e) => {
                                 setQuery(e.target.value);
-                                schedulePerformerSave(e.target.value);
+                                if (!composingRef.current) {
+                                    schedulePerformerSave(e.target.value);
+                                }
+                            }}
+                            onCompositionStart={() => {
+                                composingRef.current = true;
+                            }}
+                            onCompositionEnd={(e) => {
+                                composingRef.current = false;
+                                schedulePerformerSave(e.currentTarget.value);
                             }}
                             onFocus={() => setSearchFocused(true)}
                             onBlur={() => {

@@ -1,6 +1,6 @@
 # Binge（汉化版）
 
-> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.4.11**。
+> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.4.12**。
 
 为 [Stash](https://github.com/stashapp/stash) 提供的 Instagram 风格社交与发现层：竖屏 Reel、Stories、演员档案、StashDB 驱动的发现功能——全部基于 Stash 既有的 GraphQL API。Web 插件形态。
 
@@ -62,6 +62,12 @@
 | 1 | 清理调试日志 | 删除 RC3-RC6 期间为排查播放/seek/自动播放/跳转问题添加的 13 处 `console.debug` 调用（`[binge-reel]` 9 处 + `[binge-story]` 2 处 + `[binge-pack]` 2 处），同时清理 StoryViewer.tsx 中因删日志而未使用的 `sceneId` 变量 |
 | 2 | 关注页收藏夹空白占位过高 | `.binge-following-empty` 继承全局 `.binge-status` 的 `height:100vh`，导致收藏夹为空（或搜索无匹配）时占位满屏，把"所有演员"行挤到第二屏。修复：覆盖为 `height:auto + min-height:180px`（约一个演员资料卡的高度：avatar 110 + gap + name + count），保留文字垂直居中 |
 
+#### v0.4.12 新增修复
+
+| # | 修复 | 说明 |
+|-|-|-|
+| 1 | 输入法预输入误存修复 | 中文/日文等输入法合成阶段（拼音未确认）`onChange` 仍会触发，会把未确认的拼音字母误存为搜索词。三个搜索入口（Explore/Following/AllPerformersModal）加 `compositionstart`/`compositionend` 事件 + `composingRef` 标记：合成中跳过 `scheduleSave`，`compositionend` 触发后保存确认值。这是处理输入法 + React 的标准做法 |
+
 #### v0.4.11 新增修复
 
 | # | 修复 | 说明 |
@@ -73,7 +79,7 @@
 | 5 | X modal 视频窗口高度低时上下边被裁 | `.binge-x-modal-video` 从 `max-height: 100%` 改为 `position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain`。原方案在 flex + `max-height`（非 `height`）容器中百分比高度可能不解析 → 视频按 intrinsic 高度溢出被 `overflow:hidden` 裁切。absolute 定位不依赖百分比高度解析，`object-fit: contain` 保证 letterbox 不裁切 |
 | 6 | StoryViewer 的 X 视频修复 | `RedditCardBody` 新增 `needsBlobProxy` 判断，对 X（x.com/twitter.com）视频使用 `useFetchBlobUrl` 下载为 blob URL 绕过 twimg 的 Referer 检查（`<video>` 元素的 `referrerpolicy` 属性浏览器实现滞后，Chromium 对 media element 长期不实现）。原走 `rewriteRedgifsMediaUrl` 原样返回被 403 |
 | 7 | StoryViewer 的 Reddit 视频修复 | 同样的 `needsBlobProxy` 判断覆盖 Reddit（v.redd.it/redditmedia.com）视频。v.redd.it 也有 Referer 检查问题，复用 fetch + blob URL 方案。redgifs 等已有 binge-server 代理的保持原 `rewriteRedgifsMediaUrl` + `setAttribute("referrerpolicy")` 路径 |
-| 8 | 搜索历史持久化到 localStorage | 新增 `useSearchHistory` hook + `SearchHistoryDropdown` 组件。每个 namespace 独立存储（`"scenes"` / `"performers"`，key: `binge.searchHistory.<namespace>`），去重（大小写不敏感）+ 最多 12 条 + 最短 2 字符。`scheduleSave` debounce 800ms 保存（比 `onBlur` 更可靠，避免路由切换时组件卸载导致 `onBlur` 不触发）。芯片样式：圆角框横向排列自动换行，关键词最多 12 字符省略，尾部 × 删除。集成到 Explore（场景搜索）、Following（演员搜索）、AllPerformersModal（演员搜索）三个入口 |
+| 8 | 搜索历史持久化到 localStorage | 新增 `useSearchHistory` hook + `SearchHistoryDropdown` 组件。每个 namespace 独立存储（`"scenes"` / `"performers"`，key: `binge.searchHistory.<namespace>`），去重（大小写不敏感）+ 最多 12 条 + 最短 2 字符。`scheduleSave` debounce 800ms 保存（比 `onBlur` 更可靠，避免路由切换时组件卸载导致 `onBlur` 不触发）。输入法合成处理：`compositionstart`/`compositionend` + `composingRef` 标记，避免中文输入法预输入的拼音字母被误存为搜索词。芯片样式：圆角框横向排列自动换行，关键词最多 12 字符省略，尾部 × 删除。集成到 Explore（场景搜索）、Following（演员搜索）、AllPerformersModal（演员搜索）三个入口 |
 | 9 | XDetailModal 视频图片不显示修复 | `.binge-x-modal-content` 只有 `max-height:90vh` 无 `height`，flex 容器高度由内容决定，media 区域的 `flex:1` 无空间可分配，且内部 video/image 是 `position:absolute` 不参与布局 → 高度为 0。改用 `width: min(90vw,675px); height: min(90vh,900px)` 给容器明确高度。StoryViewer 不受此问题影响（已有 `height: min(88vh,880px)` + video 直接子元素） |
 
 #### v0.4.10 新增修复
