@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 // 搜索历史持久化到 localStorage。
 //
@@ -7,13 +7,19 @@ import { useCallback, useState } from "react";
 //
 // 去重（大小写不敏感）+ 最多 MAX_ITEMS 条，最近在前。
 // 组件卸载或 localStorage 不可用时不抛错，静默降级。
-const MAX_ITEMS = 8;
+//
+// 提供 scheduleSave(term) debounce 保存：用户输入过程中 800ms 无变化
+// 则保存。比 onBlur 更可靠——用户搜索后点击演员卡片会触发路由切换
+// 和组件卸载，onBlur 可能来不及触发，debounce 在输入过程中就保存了。
+const MAX_ITEMS = 20;
 const MIN_LENGTH = 2;
+const SAVE_DEBOUNCE_MS = 800;
 
 export function useSearchHistory(namespace: string): {
     history: string[];
     addEntry: (term: string) => void;
     removeEntry: (term: string) => void;
+    scheduleSave: (term: string) => void;
 } {
     const storageKey = `binge.searchHistory.${namespace}`;
     const [history, setHistory] = useState<string[]>(() => {
@@ -64,5 +70,31 @@ export function useSearchHistory(namespace: string): {
         []
     );
 
-    return { history, addEntry, removeEntry };
+    // Debounce 保存：输入过程中 800ms 无变化则保存。组件卸载时若有
+    // pending 保存立即执行（useEffect cleanup）。
+    const timerRef = useRef<number | null>(null);
+    const pendingRef = useRef<string>("");
+
+    const scheduleSave = useCallback((term: string) => {
+        pendingRef.current = term;
+        if (timerRef.current !== null) {
+            window.clearTimeout(timerRef.current);
+        }
+        timerRef.current = window.setTimeout(() => {
+            addEntry(pendingRef.current);
+            timerRef.current = null;
+        }, SAVE_DEBOUNCE_MS);
+    }, [addEntry]);
+
+    // 卸载时若有 pending 保存立即执行
+    useEffect(() => {
+        return () => {
+            if (timerRef.current !== null) {
+                window.clearTimeout(timerRef.current);
+                addEntry(pendingRef.current);
+            }
+        };
+    }, [addEntry]);
+
+    return { history, addEntry, removeEntry, scheduleSave };
 }

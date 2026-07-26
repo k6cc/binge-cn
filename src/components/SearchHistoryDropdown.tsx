@@ -7,8 +7,17 @@ interface SearchHistoryDropdownProps {
 
 // 搜索历史下拉框：输入框聚焦时显示，点击条目填充输入框。
 //
-// 用 onMouseDown + preventDefault 阻止输入框 blur，避免需要 setTimeout
-// 延迟隐藏。条目按当前输入文本过滤（大小写不敏感包含匹配）。
+// 芯片样式：每个关键词一个圆角框，横向排列自动换行。关键词最多显示
+// MAX_LABEL_CHARS 个字符（中英文数字统按 1 计），超出省略，尾部 × 删除。
+// 用 onMouseDown + preventDefault 阻止输入框 blur。
+const MAX_LABEL_CHARS = 12;
+
+function truncateLabel(s: string): string {
+    return s.length > MAX_LABEL_CHARS
+        ? s.slice(0, MAX_LABEL_CHARS) + "…"
+        : s;
+}
+
 export function SearchHistoryDropdown({
     history,
     query,
@@ -26,23 +35,20 @@ export function SearchHistoryDropdown({
                 <button
                     key={term}
                     type="button"
-                    className="binge-search-history-item"
+                    className="binge-search-history-chip"
                     role="option"
                     aria-label={`使用历史搜索 ${term}`}
+                    title={term}
                     onMouseDown={(e) => {
                         e.preventDefault();
                         onPick(term);
                     }}
                 >
-                    <span
-                        className="binge-search-history-icon"
-                        aria-hidden="true"
-                    >
-                        ⟳
+                    <span className="binge-search-history-chip-text">
+                        {truncateLabel(term)}
                     </span>
-                    <span className="binge-search-history-text">{term}</span>
                     <span
-                        className="binge-search-history-remove"
+                        className="binge-search-history-chip-remove"
                         role="button"
                         aria-label={`移除 ${term}`}
                         onMouseDown={(e) => {
