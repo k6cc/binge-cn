@@ -18,7 +18,6 @@ import {
     setIncludeStashDBInProfile,
     useIncludeStashDBInProfile,
     useIncludePornhub,
-    useDemoMode,
 } from "../home/pluginSettings";
 import {
     getPornhubFeed,
@@ -77,8 +76,7 @@ export function PerformerSceneGrid({
     // Filtered to scenes the user doesn't already own (owned ids
     // matched against `scene_id` not `id`, since Stash dedupes by
     // stash_id locally and we want to suppress duplicates).
-    const includeStashDBInProfile =
-        useIncludeStashDBInProfile() && !useDemoMode();
+    const includeStashDBInProfile = useIncludeStashDBInProfile();
     const [stashDBScenes, setStashDBScenes] = useState<StashDBScene[]>([]);
     const [stashBoxIndex, setStashBoxIndex] = useState<number | null>(null);
     const [sceneModalFor, setSceneModalFor] = useState<{
@@ -91,7 +89,7 @@ export function PerformerSceneGrid({
     // PornHub mixin — the performer's cached PornHub videos, folded into
     // the grid as tiles. Fetched once on profile open (gated on a pornhub
     // url). Tapping a tile opens the inline stream player.
-    const includePornhub = useIncludePornhub() && !useDemoMode();
+    const includePornhub = useIncludePornhub();
     const [pornhubVideos, setPornhubVideos] = useState<PornhubVideo[]>([]);
     const [pornhubPlayFor, setPornhubPlayFor] = useState<PornhubVideo | null>(
         null
@@ -513,7 +511,7 @@ function SceneTile({
     const oCount = scene.o_counter ?? 0;
     const viewCount = scene.play_count ?? 0;
     const sceneTitle = scene.title?.trim() || "";
-    const previewUrl = useDemoMode() ? null : scene.paths.preview;
+    const previewUrl = scene.paths.preview;
     // Persistent corner badge showing the stat that matches the active
     // sort (à la TikTok's view-count overlay). Hidden on hover, where the
     // full stat row takes over.

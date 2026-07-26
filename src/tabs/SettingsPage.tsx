@@ -19,7 +19,6 @@ import {
     setShowDebug,
     setShowGalleries,
     setShowcaseBlur,
-    setDemoMode,
     setTranscodeType,
     useAllowedGenders,
     useBingeServerUrl,
@@ -35,7 +34,6 @@ import {
     useShowDebug,
     useShowGalleries,
     useShowcaseBlur,
-    useDemoMode,
     useTranscodeType,
     type ForageWatchTarget,
     type Gender,
@@ -90,7 +88,6 @@ export function SettingsPage() {
                 <ForageTargetRow />
                 <RefractRow />
                 <ShowcaseRow />
-                <DemoRow />
                 <DebugRow />
             </div>
         </div>
@@ -1033,22 +1030,6 @@ function ShowcaseRow() {
                 checked={value}
                 onChange={(v) => setShowcaseBlur(v)}
                 label="Showcase blur"
-            />
-        </SettingRow>
-    );
-}
-
-function DemoRow() {
-    const value = useDemoMode();
-    return (
-        <SettingRow
-            title="Demo content"
-            description="Replace your library with fictional, SFW placeholder content (gradients + invented names) for capturing marketing footage — no real performers, scenes, or media are shown. Display-only; nothing in Stash changes."
-        >
-            <SwitchToggle
-                checked={value}
-                onChange={(v) => setDemoMode(v)}
-                label="Demo content"
             />
         </SettingRow>
     );
