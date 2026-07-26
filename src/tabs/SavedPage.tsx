@@ -16,6 +16,7 @@ import { useTab } from "./TabContext";
 import { useAutoHideTabBar } from "../hooks/useAutoHideTabBar";
 import { SceneCardGrid } from "../components/SceneCardGrid";
 import { BingeLoading } from "../components/BingeLoading";
+import { CollectionIcon } from "../components/SaveSheet";
 
 // IG-style "Saved" page. Grid of collection tiles with cover
 // thumbnails (latest scene tagged with the collection). Per-tile
@@ -396,6 +397,9 @@ function CollectionTile({
             </div>
             <div className="binge-saved-tile-meta">
                 <span className="binge-saved-tile-name">{def.name}</span>
+                <span className="binge-save-sheet-icon">
+                    <CollectionIcon name={def.icon} filled={false} />
+                </span>
                 {cover && (
                     <span className="binge-saved-tile-count">
                         {cover.count}

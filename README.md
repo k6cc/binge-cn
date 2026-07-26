@@ -1,6 +1,6 @@
 # Binge（汉化版）
 
-> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.4.15**。
+> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.4.16**。
 
 为 [Stash](https://github.com/stashapp/stash) 提供的 Instagram 风格社交与发现层：竖屏 Reel、Stories、演员档案、StashDB 驱动的发现功能——全部基于 Stash 既有的 GraphQL API。Web 插件形态。
 
@@ -20,6 +20,12 @@
 - 品牌名保持英文：Stash、StashDB、Reddit、X (Twitter)、PornHub、Cookie、forage、binge-server、HLS、MP4、WebM
 
 ### 功能修复
+
+#### v0.4.16 新增修复
+
+| # | 修复 | 说明 |
+|-|-|-|
+| 1 | 已保存页面合集卡片显示图标 | SavedPage 的合集卡片原先只显示纯文字名称 + 数量，与 SaveSheet（场景下方"保存"菜单）的合集行视觉不一致。将 `SaveSheet` 内部的 `CollectionIcon` 函数 `export` 出来供 `SavedPage` 复用（避免代码重复），在 `CollectionTile` 的 meta 区域 name 之后插入图标（书签/时钟/心形/文件夹，对应收藏夹/稍后观看/我的最爱/用户自建），紧跟 name 右侧，count 仍靠右。`.binge-saved-tile-meta` 从 `justify-content: space-between` + `align-items: baseline` 改为 `align-items: center` + `gap: 0.4rem`，`.binge-saved-tile-name` 加 `flex: 1` 承接剩余空间。复用 `.binge-save-sheet-icon` 类，无需新增 CSS。`filled={false}` 保持描边样式（未选中态），与 SaveSheet 未选中行一致 |
 
 #### v0.4.12–v0.4.15 新增修复
 

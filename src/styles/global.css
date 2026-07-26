@@ -2604,12 +2604,12 @@ body,
 }
 .binge-saved-tile-meta {
     display: flex;
-    justify-content: space-between;
-    align-items: baseline;
+    align-items: center;
     gap: 0.4rem;
     padding: 0 0.1rem;
 }
 .binge-saved-tile-name {
+    flex: 1;
     font-size: 0.95rem;
     font-weight: 600;
     color: #fff;

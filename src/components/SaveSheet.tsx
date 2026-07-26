@@ -193,7 +193,9 @@ export function SaveSheet({
     );
 }
 
-function CollectionIcon({
+// 需求：SavedPage 的合集卡片也复用同一套图标，避免视觉不一致。
+// export 出来供 SavedPage 的 CollectionTile 使用。
+export function CollectionIcon({
     name,
     filled,
 }: {
