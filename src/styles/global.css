@@ -7576,6 +7576,16 @@ body,
     text-decoration: none;
     color: inherit;
 }
+/* 视频缩略图加载中/失败的占位样式。fetch + createObjectURL 方案需要
+   先下载完整 blob 才能显示，期间用深色占位保持网格布局不塌陷。 */
+.binge-x-thumb-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #0a0a0a;
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 1.5rem;
+}
 .binge-x-cell-likes {
     position: absolute;
     left: 0.35rem;

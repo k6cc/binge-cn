@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getXFeed, xHandleFromUrls, type XMedia } from "../api/bingeServer";
 import type { PerformerDetail } from "../api/queries";
 
@@ -135,37 +135,24 @@ export function PerformerXGrid({ performer }: PerformerXGridProps) {
 }
 
 // X 单元格：3:4 竖排卡片，点击在新标签页打开原推文。视频显示播放
-// 徽章。twimg.com 与 pbs.twimg.com 同源无防盗链，图片能直接加载说明
-// 视频也能——只是之前视频 URL 被塞进 <img src>，浏览器无法解码 mp4
-// 为图片导致空白。修复：视频改用 <video>，在 onLoadedMetadata 时显式
-// 设置 currentTime 触发 range request 加载该帧作为缩略图。
+// 徽章。
 //
-// 为什么不用 #t=0.1 Media Fragment URI：preload="metadata" 只加载头部
-// 元数据，浏览器不会主动 seek 并解码 #t 指定的帧 → 黑屏。必须显式设置
-// currentTime，浏览器才会发起 range request 下载该位置数据并解码帧。
-// 取视频 10% 位置（最多 1 秒）避免开头黑屏淡入。
+// twimg 视频缩略图加载方案（经过多轮实测确认）：
+// 1. <img src>：浏览器无法解码 mp4 为图片 → 空白
+// 2. <video src> + referrerpolicy="no-referrer"：浏览器对 <video> 元素
+//    的 referrerpolicy 属性实现滞后（HTML spec 有，Chromium 对 media
+//    element 长期不实现），setAttribute 也无效 → 403
+// 3. <video src> + onLoadedMetadata 设 currentTime：因 403 拿不到
+//    metadata，黑屏
+// 4. fetch(referrerPolicy:'no-referrer') + createObjectURL + <video src>：
+//    fetch API 的 referrerPolicy 选项可靠（不同于 video 元素属性），
+//    拿到 blob 后 createObjectURL 生成 blob: URL 给 video.src，blob URL
+//    是同源本地资源不再发网络请求 → 无 referrer 问题 → 视频正常解码
 //
-// 为什么用 setAttribute("referrerpolicy") + ref 回调里设 src：
-// twimg 视频检查 Referer，从 stash 页面（http://192.168.x.x:9999）加载
-// 会带 Referer 被拒绝 → 403 → 黑屏。图片用 referrerPolicy="no-referrer"
-// 属性绕过，但 React 的 video 类型定义不含 referrerPolicy（TS2322），
-// 浏览器实际支持该属性（MDN: video element supports referrerPolicy），
-// 用 setAttribute 设置即可。
-//
-// 关键：必须在 src 设置之前 setAttribute。如果 JSX 里写 src={...}，
-// React 挂载时设置 src → 浏览器立即发请求（带默认 Referer）→ ref 回调
-// 的 setAttribute 来不及生效 → 403。所以 src 也在 ref 回调里设置，
-// 保证顺序：setAttribute(referrerpolicy) → 设 src → 发请求（无 Referer）。
-// 与 StoryViewer 的 setVideoRef 做法一致。
+// 代价：每个视频缩略图需完整下载（X 视频通常 < 5MB）。组件卸载时
+// revokeObjectURL 释放内存。
 function XCell({ media }: { media: XMedia }) {
     const isVideo = media.kind === "video";
-    const setVideoRef = (el: HTMLVideoElement | null) => {
-        if (!el) return;
-        el.setAttribute("referrerpolicy", "no-referrer");
-        if (media.mediaUrl && el.src !== media.mediaUrl) {
-            el.src = media.mediaUrl;
-        }
-    };
     return (
         <li className="binge-gallery-cell binge-x-cell">
             <a
@@ -176,24 +163,7 @@ function XCell({ media }: { media: XMedia }) {
                 title={media.text || `推文 ${media.tweetId}`}
             >
                 {isVideo ? (
-                    <video
-                        ref={setVideoRef}
-                        className="binge-gallery-cover"
-                        preload="metadata"
-                        muted
-                        playsInline
-                        onLoadedMetadata={(e) => {
-                            const v = e.currentTarget;
-                            try {
-                                v.currentTime = Math.min(
-                                    1,
-                                    (v.duration || 1) * 0.1
-                                );
-                            } catch {
-                                /* 未就绪时可能抛错，忽略 */
-                            }
-                        }}
-                    />
+                    <XVideoThumb media={media} />
                 ) : (
                     <img
                         src={media.mediaUrl}
@@ -216,6 +186,70 @@ function XCell({ media }: { media: XMedia }) {
                     )}
             </a>
         </li>
+    );
+}
+
+// 视频缩略图：fetch 拿到 blob 后用 createObjectURL 喂给 <video>，
+// 在 onLoadedMetadata 时 seek 到 10% 位置（最多 1 秒）显示该帧。
+// 加载中/失败时显示占位（保持网格布局不塌陷）。
+function XVideoThumb({ media }: { media: XMedia }) {
+    const [blobUrl, setBlobUrl] = useState<string | null>(null);
+    const [failed, setFailed] = useState(false);
+    const videoRef = useRef<HTMLVideoElement | null>(null);
+
+    useEffect(() => {
+        let alive = true;
+        let createdUrl: string | null = null;
+        setFailed(false);
+        setBlobUrl(null);
+        fetch(media.mediaUrl, { referrerPolicy: "no-referrer" })
+            .then((r) => {
+                if (!r.ok) throw new Error("HTTP " + r.status);
+                return r.blob();
+            })
+            .then((b) => {
+                if (!alive || b.size === 0) return;
+                createdUrl = URL.createObjectURL(b);
+                if (alive) setBlobUrl(createdUrl);
+            })
+            .catch(() => {
+                if (alive) setFailed(true);
+            });
+        return () => {
+            alive = false;
+            if (createdUrl) URL.revokeObjectURL(createdUrl);
+        };
+    }, [media.mediaUrl]);
+
+    if (failed) {
+        return (
+            <div className="binge-gallery-cover binge-x-thumb-placeholder">
+                ▶
+            </div>
+        );
+    }
+    if (!blobUrl) {
+        return (
+            <div className="binge-gallery-cover binge-x-thumb-placeholder" />
+        );
+    }
+    return (
+        <video
+            ref={videoRef}
+            src={blobUrl}
+            className="binge-gallery-cover"
+            preload="metadata"
+            muted
+            playsInline
+            onLoadedMetadata={(e) => {
+                const v = e.currentTarget;
+                try {
+                    v.currentTime = Math.min(1, (v.duration || 1) * 0.1);
+                } catch {
+                    /* 未就绪时可能抛错，忽略 */
+                }
+            }}
+        />
     );
 }
 
