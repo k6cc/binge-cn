@@ -29,10 +29,17 @@ import {
 // （"Watch Later 📁" → "稍后观看 📁"，"My Favourite ❤️" → "我的最爱 ❤️"），
 // 与界面显示名一致。旧英文 tag 通过 migrateLegacyTagNamesIfNeeded
 // 自动 rename 迁移。Favourite ★ 保持英文（ASR 共享，改名会破坏互操作）。
+// v0.4.16: "稍后观看"的 emoji 从文件夹 📁 改为时钟 🕐，与 binge UI
+// 里的时钟图标及 Stash 标签管理器的视觉一致。用户自建合集仍用 📁
+// 后缀。只迁移英文 → 中文（"Watch Later 📁" → "稍后观看 🕐"），
+// 不迁移 v0.4.15 创建的 "稍后观看 📁" → "稍后观看 🕐"（用户明确要求）。
 
 export const COLLECTION_TAG_SUFFIX = " 📁";
 const FAVOURITES_TAG_NAME = "Favourite ★";
-const DEFAULT_WATCH_LATER_TAG_NAME = `稍后观看${COLLECTION_TAG_SUFFIX}`;
+// v0.4.16：稍后观看使用时钟 emoji 🕐 而非文件夹 📁，与 binge UI 的
+// watchLater 图标对应。不使用 COLLECTION_TAG_SUFFIX，因为默认合集
+// 始终从 defaults 数组注入，不依赖 findTagsContaining 发现。
+const DEFAULT_WATCH_LATER_TAG_NAME = "稍后观看 🕐";
 // 需求3：第三个默认合集"我的最爱 ❤️"。tag name 与界面显示名一致
 // （"我的最爱 ❤️"），与 ASR 无关，可以正常挂到 binge Collections
 // 父标签下。v0.4.15：tagName 从英文 "My Favourite ❤️" 改为中文，
@@ -43,7 +50,9 @@ const DEFAULT_MY_FAVOURITE_TAG_NAME = "我的最爱 ❤️";
 // Favourite ★ 不在此映射中——它由 ASR 插件拥有并共享，改名会破坏
 // ASR 互操作（ASR 仍会用 Favourite ★ 创建独立 tag，导致两套收藏夹
 // 互不相通）。
-// 只迁移英文 → 中文，不迁移中文 → 中文（避免无谓的 rename）。
+// v0.4.16：迁移目标更新为 "稍后观看 🕐"（原 v0.4.15 是 "稍后观看 📁"）。
+// 只迁移英文 → 中文，不迁移中文 → 中文（避免无谓的 rename）。v0.4.15
+// 已迁移过的用户会留下 "稍后观看 📁" 孤儿 tag，需手动清理。
 const LEGACY_TAG_NAMES: Record<string, string> = {
     "Watch Later 📁": DEFAULT_WATCH_LATER_TAG_NAME,
     "My Favourite ❤️": DEFAULT_MY_FAVOURITE_TAG_NAME,
