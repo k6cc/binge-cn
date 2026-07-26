@@ -396,10 +396,10 @@ function CollectionTile({
                 )}
             </div>
             <div className="binge-saved-tile-meta">
-                <span className="binge-saved-tile-name">{def.name}</span>
                 <span className="binge-save-sheet-icon">
                     <CollectionIcon name={def.icon} filled={false} />
                 </span>
+                <span className="binge-saved-tile-name">{def.name}</span>
                 {cover && (
                     <span className="binge-saved-tile-count">
                         {cover.count}
