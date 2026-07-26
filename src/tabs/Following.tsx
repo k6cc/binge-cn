@@ -182,7 +182,12 @@ export function Following() {
                             }}
                             onCompositionEnd={(e) => {
                                 composingRef.current = false;
-                                schedulePerformerSave(e.currentTarget.value);
+                                // setTimeout(0)：compositionend 触发时 input.value
+                                // 可能还是合成前的旧值，延迟到下一个事件循环读取
+                                const target = e.currentTarget;
+                                window.setTimeout(() => {
+                                    schedulePerformerSave(target.value);
+                                }, 0);
                             }}
                             onFocus={() => setSearchFocused(true)}
                             onBlur={() => {
