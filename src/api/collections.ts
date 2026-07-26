@@ -4,6 +4,7 @@ import {
     sceneUpdate,
     tagCreate,
     tagDestroy,
+    tagRename,
     tagSetParents,
 } from "./mutations";
 
@@ -23,14 +24,29 @@ import {
 //   2. The "Watch Later" default is created on first use with the new
 //      suffix. (Was unsuffixed in the prior version of this code; that
 //      tag is harmless to leave orphaned.)
+//
+// v0.4.15: binge 自建的两个默认合集 tagName 从英文改为中文
+// （"Watch Later 📁" → "稍后观看 📁"，"My Favourite ❤️" → "我的最爱 ❤️"），
+// 与界面显示名一致。旧英文 tag 通过 migrateLegacyTagNamesIfNeeded
+// 自动 rename 迁移。Favourite ★ 保持英文（ASR 共享，改名会破坏互操作）。
 
 export const COLLECTION_TAG_SUFFIX = " 📁";
 const FAVOURITES_TAG_NAME = "Favourite ★";
-const DEFAULT_WATCH_LATER_TAG_NAME = `Watch Later${COLLECTION_TAG_SUFFIX}`;
-// 需求3：第三个默认合集"我的最爱 ❤️"。tag name 沿用英文 + ❤️ 的
-// 命名约定（与 "Favourite ★" / "Watch Later 📁" 一致），与 ASR 无关，
-// 可以正常挂到 binge Collections 父标签下。
-const DEFAULT_MY_FAVOURITE_TAG_NAME = "My Favourite ❤️";
+const DEFAULT_WATCH_LATER_TAG_NAME = `稍后观看${COLLECTION_TAG_SUFFIX}`;
+// 需求3：第三个默认合集"我的最爱 ❤️"。tag name 与界面显示名一致
+// （"我的最爱 ❤️"），与 ASR 无关，可以正常挂到 binge Collections
+// 父标签下。v0.4.15：tagName 从英文 "My Favourite ❤️" 改为中文，
+// 与界面显示名一致；旧 tag 通过 migrateLegacyTagNamesIfNeeded 迁移。
+const DEFAULT_MY_FAVOURITE_TAG_NAME = "我的最爱 ❤️";
+// v0.4.15 之前的旧英文 tagName → 新中文 tagName 映射。用于一次性
+// 迁移：将旧 tag rename 为新名，保留所有场景关联和 parent 关系。
+// Favourite ★ 不在此映射中——它由 ASR 插件拥有并共享，改名会破坏
+// ASR 互操作（ASR 仍会用 Favourite ★ 创建独立 tag，导致两套收藏夹
+// 互不相通）。
+const LEGACY_TAG_NAMES: Record<string, string> = {
+    "Watch Later 📁": DEFAULT_WATCH_LATER_TAG_NAME,
+    "My Favourite ❤️": DEFAULT_MY_FAVOURITE_TAG_NAME,
+};
 // Parent under which every binge-managed collection tag is
 // nested in Stash's tag tree. Keeps the user's tag list tidy:
 // instead of N flat "<name> 📁" tags scattered alphabetically,
@@ -41,7 +57,12 @@ const DEFAULT_MY_FAVOURITE_TAG_NAME = "My Favourite ❤️";
 // `Favourite ★` is explicitly NOT reparented — it's owned by the
 // Advanced Rating plugin and binge only borrows it for the
 // Favourites collection. Moving it would break ASR's hierarchy.
-const COLLECTIONS_PARENT_TAG_NAME = "binge Collections";
+//
+// v0.4.15：从英文 "binge Collections" 改为中文 "binge 合集"。旧父标签
+// 通过 migrateLegacyTagNamesIfNeeded 迁移。rename 不改 tag id，子标签
+// 的 parent_ids 关系自动保留。
+const COLLECTIONS_PARENT_TAG_NAME = "binge 合集";
+const LEGACY_PARENT_TAG_NAME = "binge Collections";
 
 export type CollectionIconName =
     | "favourite"
@@ -94,9 +115,10 @@ export function subscribeCollections(fn: Subscriber): () => void {
 // suffix. Default tags are find-or-created lazily on first toggle —
 // we don't want loading the menu to mutate the user's tag list.
 //
-// Bug 9：默认合集的 display name（界面显示名）翻译为中文。Stash 的
-// 实际 tag name（"Favourite ★" / "Watch Later 📁"）保持不变，因为
-// 它们是 Stash 标签库中的真实记录，且 "Favourite ★" 与 ASR 共享。
+// Bug 9：默认合集的 display name（界面显示名）翻译为中文。
+// v0.4.15：binge 自建的两个 tagName 也改为中文（"稍后观看 📁" /
+// "我的最爱 ❤️"），与界面显示名一致；Favourite ★ 仍保持英文，因为
+// 它由 ASR 插件拥有并共享，改名会破坏 ASR 互操作。
 export function getCollections(): Promise<CollectionDef[]> {
     if (cachedCollectionsPromise) return cachedCollectionsPromise;
     cachedCollectionsPromise = (async () => {
@@ -127,11 +149,10 @@ export function getCollections(): Promise<CollectionDef[]> {
             },
         ];
         // 需求6：过滤掉与默认合集重复的用户 tag。原先只按 tagName
-        // 过滤（"Watch Later 📁"），但如果用户库里有 `稍后观看 📁`
-        // 这样的中文 tag（stripSuffix 后与默认 name "稍后观看" 相同），
-        // 会导致列表出现两个"稍后观看"。现在按 stripSuffix 后的
-        // display name 与所有默认 name 比对，同时仍按 tagName 过滤
-        // 以排除 "Watch Later 📁" 本身。
+        // 过滤（"稍后观看 📁"），但如果用户库里有同名的中文 tag
+        // （stripSuffix 后与默认 name 相同），会导致列表出现两个
+        // "稍后观看"。现在按 stripSuffix 后的 display name 与所有
+        // 默认 name 比对，同时仍按 tagName 过滤以排除默认 tag 本身。
         const defaultNames = new Set(defaults.map((d) => d.name));
         const defaultTagNames = new Set(defaults.map((d) => d.tagName));
         const userCollections: CollectionDef[] = userTags
@@ -329,8 +350,71 @@ export async function deleteCollection(tagName: string): Promise<boolean> {
 // 折中：避免每次启动都打 findTagByName 三个 round-trip。
 const DEFAULT_COLLECTIONS_SEEDED_KEY = "binge.defaultCollectionsSeeded";
 
+// v0.4.15：将旧英文 tagName rename 为新中文 tagName。幂等——旧 tag
+// 不存在则跳过。用独立 localStorage flag 保证只跑一次，在 seeded
+// 短路之前执行，确保已 seeded 的老用户也能迁移。
+//
+// 边缘情况：若旧 tag 和新 tag 同时存在（用户手动建过新名 tag，或
+// 迁移中断后重跑），不处理——保留旧 tag 残留，避免数据丢失。用户
+// 可在 Stash 标签管理器手动清理。
+const LEGACY_MIGRATION_DONE_KEY = "binge.legacyTagNamesMigrated.v0.4.15";
+
+async function migrateLegacyTagNamesIfNeeded(): Promise<void> {
+    if (readDemoMode()) return;
+    let migrated = false;
+    try {
+        migrated =
+            localStorage.getItem(LEGACY_MIGRATION_DONE_KEY) === "1";
+    } catch {
+        // localStorage 不可用——退化为每次都跑迁移（幂等，安全）
+    }
+    if (migrated) return;
+    try {
+        for (const [oldName, newName] of Object.entries(LEGACY_TAG_NAMES)) {
+            const oldTag = await findTagByName(oldName);
+            if (!oldTag) continue;
+            const newTag = await findTagByName(newName);
+            if (newTag) {
+                // 新 tag 已存在——不处理，避免冲突。旧 tag 残留为
+                // 孤儿，用户可在 Stash 标签管理器手动清理。
+                console.warn(
+                    `[binge] 跳过迁移 ${oldName} → ${newName}：新 tag 已存在，请手动清理旧 tag`
+                );
+                continue;
+            }
+            await tagRename(oldTag.id, newName);
+        }
+        // 迁移父标签 "binge Collections" → "binge 合集"。rename 不改
+        // tag id，子标签的 parent_ids 关系自动保留。同样处理边缘情况。
+        const legacyParent = await findTagByName(LEGACY_PARENT_TAG_NAME);
+        if (legacyParent) {
+            const newParent = await findTagByName(COLLECTIONS_PARENT_TAG_NAME);
+            if (!newParent) {
+                await tagRename(legacyParent.id, COLLECTIONS_PARENT_TAG_NAME);
+            } else {
+                console.warn(
+                    `[binge] 跳过迁移父标签 ${LEGACY_PARENT_TAG_NAME} → ${COLLECTIONS_PARENT_TAG_NAME}：新 tag 已存在`
+                );
+            }
+        }
+        try {
+            localStorage.setItem(LEGACY_MIGRATION_DONE_KEY, "1");
+        } catch {
+            /* ignore quota / privacy mode errors */
+        }
+    } catch (err) {
+        console.warn(
+            "[binge] legacy tag migration failed — will retry next launch",
+            err
+        );
+    }
+}
+
 export async function ensureDefaultCollections(): Promise<void> {
     if (readDemoMode()) return;
+    // v0.4.15：先迁移旧英文 tagName 为中文，再走原有 ensure 逻辑。
+    // 迁移在 seeded 短路之前执行，确保已 seeded 的老用户也能迁移。
+    await migrateLegacyTagNamesIfNeeded();
     let alreadySeeded = false;
     try {
         alreadySeeded =

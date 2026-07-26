@@ -142,6 +142,18 @@ export async function tagSetParents(
     });
 }
 
+// Rename a tag in place. Reuses TAG_UPDATE with the name field —
+// Stash preserves all scene associations and parent/child links.
+// Used by the v0.4.15 legacy-tag-name migration (English → Chinese).
+export async function tagRename(
+    id: string,
+    newName: string
+): Promise<void> {
+    await gql(TAG_UPDATE, {
+        input: { id, name: newName },
+    });
+}
+
 const TAG_DESTROY = /* GraphQL */ `
     mutation TagDestroy($id: ID!) {
         tagDestroy(input: { id: $id })

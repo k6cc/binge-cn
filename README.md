@@ -1,6 +1,6 @@
 # Binge（汉化版）
 
-> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.4.14**。
+> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.4.15**。
 
 为 [Stash](https://github.com/stashapp/stash) 提供的 Instagram 风格社交与发现层：竖屏 Reel、Stories、演员档案、StashDB 驱动的发现功能——全部基于 Stash 既有的 GraphQL API。Web 插件形态。
 
@@ -61,6 +61,12 @@
 |-|-|-|
 | 1 | 清理调试日志 | 删除 RC3-RC6 期间为排查播放/seek/自动播放/跳转问题添加的 13 处 `console.debug` 调用（`[binge-reel]` 9 处 + `[binge-story]` 2 处 + `[binge-pack]` 2 处），同时清理 StoryViewer.tsx 中因删日志而未使用的 `sceneId` 变量 |
 | 2 | 关注页收藏夹空白占位过高 | `.binge-following-empty` 继承全局 `.binge-status` 的 `height:100vh`，导致收藏夹为空（或搜索无匹配）时占位满屏，把"所有演员"行挤到第二屏。修复：覆盖为 `height:auto + min-height:180px`（约一个演员资料卡的高度：avatar 110 + gap + name + count），保留文字垂直居中 |
+
+#### v0.4.15 新增修复
+
+| # | 修复 | 说明 |
+|-|-|-|
+| 1 | 默认合集 + 父标签 tagName 中文化 | binge 自建的两个默认合集 tagName 和父标签 tagName 从英文改为中文，与界面显示名一致：`Watch Later 📁` → `稍后观看 📁`、`My Favourite ❤️` → `我的最爱 ❤️`、`binge Collections` → `binge 合集`。`Favourite ★` 保持英文不变（由 ASR 插件拥有并共享，改名会破坏 ASR 互操作）。父标签 rename 不改 tag id，子标签的 `parent_ids` 关系自动保留。新增 `tagRename` mutation（复用 `TAG_UPDATE` 的 `name` 字段）。新增 `migrateLegacyTagNamesIfNeeded` 迁移函数：检测旧英文 tag 是否存在，若存在且新中文 tag 不存在则 rename，保留所有场景关联和 parent 关系。用独立 localStorage flag `binge.legacyTagNamesMigrated.v0.4.15` 保证只跑一次，在 `ensureDefaultCollections` 的 seeded 短路之前执行，确保已 seeded 的老用户也能迁移。幂等可安全重试；边缘情况（旧新 tag 同时存在）不处理，保留旧 tag 残留避免数据丢失 |
 
 #### v0.4.14 新增修复
 
