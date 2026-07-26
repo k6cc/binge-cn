@@ -74,6 +74,11 @@ export function Explore() {
     // 输入法合成标记：合成中（拼音/笔画未确认）不保存搜索词，避免把
     // 预输入的英文字母误存为历史记录。compositionend 后再保存确认值。
     const composingRef = useRef(false);
+    // input 元素 ref：onCompositionEnd 中需要延迟读取 value（兼容 Firefox：
+    // compositionend 触发时 value 可能还是旧值，input 事件后才更新为确认值）。
+    // 用 ref 代替 e.currentTarget，避免 React 合成事件 currentTarget 在
+    // 事件处理后失效导致 setTimeout 中读到 null。
+    const searchInputRef = useRef<HTMLInputElement>(null);
 
     useAutoHideTabBar(scrollRef);
 
@@ -268,6 +273,7 @@ export function Explore() {
                         <SearchIcon />
                     </span>
                     <input
+                        ref={searchInputRef}
                         type="search"
                         className="binge-explore-search"
                         placeholder="搜索场景"
@@ -281,15 +287,18 @@ export function Explore() {
                         onCompositionStart={() => {
                             composingRef.current = true;
                         }}
-                        onCompositionEnd={(e) => {
+                        onCompositionEnd={() => {
                             composingRef.current = false;
                             // setTimeout(0)：compositionend 触发时 input.value
-                            // 可能还是合成前的旧值，浏览器要在随后的 input 事件
-                            // 中才更新为确认值。延迟到下一个事件循环读取，确保
-                            // 拿到最终确认的中文文本。
-                            const target = e.currentTarget;
+                            // 可能还是合成前的旧值（Firefox），延迟到下一个事件
+                            // 循环读取，确保拿到最终确认的中文文本。用 ref 代替
+                            // e.currentTarget，避免 React 合成事件 currentTarget
+                            // 在事件处理后失效。
                             window.setTimeout(() => {
-                                scheduleSceneSave(target.value);
+                                const value = searchInputRef.current?.value ?? "";
+                                if (value) {
+                                    scheduleSceneSave(value);
+                                }
                             }, 0);
                         }}
                         onFocus={() => setSearchFocused(true)}

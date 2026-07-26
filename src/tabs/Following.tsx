@@ -93,6 +93,9 @@ export function Following() {
     const [searchFocused, setSearchFocused] = useState(false);
     // 输入法合成标记：合成中不保存搜索词，避免预输入误存
     const composingRef = useRef(false);
+    // input ref：onCompositionEnd 中延迟读取 value，避免 React 合成事件
+    // currentTarget 在事件处理后失效。
+    const searchInputRef = useRef<HTMLInputElement>(null);
     const { openProfile } = usePerformerProfile();
     const { history: performerSearchHistory, addEntry: addPerformerSearchEntry, removeEntry: removePerformerSearchEntry, scheduleSave: schedulePerformerSave } =
         useSearchHistory("performers");
@@ -167,6 +170,7 @@ export function Following() {
                 <div className="binge-following-controls">
                     <div className="binge-search-wrap">
                         <input
+                            ref={searchInputRef}
                             type="search"
                             className="binge-following-search"
                             placeholder="搜索演员"
@@ -180,13 +184,17 @@ export function Following() {
                             onCompositionStart={() => {
                                 composingRef.current = true;
                             }}
-                            onCompositionEnd={(e) => {
+                            onCompositionEnd={() => {
                                 composingRef.current = false;
                                 // setTimeout(0)：compositionend 触发时 input.value
-                                // 可能还是合成前的旧值，延迟到下一个事件循环读取
-                                const target = e.currentTarget;
+                                // 可能还是合成前的旧值（Firefox），延迟到下一个事件
+                                // 循环读取。用 ref 代替 e.currentTarget，避免 React
+                                // 合成事件 currentTarget 在事件处理后失效。
                                 window.setTimeout(() => {
-                                    schedulePerformerSave(target.value);
+                                    const value = searchInputRef.current?.value ?? "";
+                                    if (value) {
+                                        schedulePerformerSave(value);
+                                    }
                                 }, 0);
                             }}
                             onFocus={() => setSearchFocused(true)}
