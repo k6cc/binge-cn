@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { getXFeed, xHandleFromUrls, type XMedia } from "../api/bingeServer";
+import { XDetailModal } from "./XDetailModal";
 import type { PerformerDetail } from "../api/queries";
 
 interface PerformerXGridProps {
@@ -12,10 +13,9 @@ interface PerformerXGridProps {
 // urls[] 含 twitter.com / x.com 链接时，PerformerProfile 会渲染一个
 // 额外的"X"标签。本组件即该 tab 的内容：调用 binge-server 守护进程
 // 拉取该演员最近的 X 媒体（图片 + 视频），以 3:4 竖排网格展示。
-// 点击任意单元格在新标签页中打开原推文。
 //
-// 复用 .binge-gallery-grid 的 3:4 网格样式（与图库封面一致），
-// 通过 .binge-x-tile 类叠加 X 专属样式（视频播放徽章、计数）。
+// 点击卡片弹出 XDetailModal（就地播放/查看 + 保存到 Stash + 在 X 打开）。
+// 卡片悬停时右上角浮现保存按钮，无需打开 modal 也能快速保存。
 //
 // 守护进程不可达 / 无 cookies / 无 handle 时显示空状态而非崩溃
 // （与首页故事栏 X 集成的优雅降级契约一致）。
@@ -24,6 +24,7 @@ export function PerformerXGrid({ performer }: PerformerXGridProps) {
     const [handle, setHandle] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [modalIndex, setModalIndex] = useState<number | null>(null);
 
     useEffect(() => {
         setMedia([]);
@@ -126,24 +127,71 @@ export function PerformerXGrid({ performer }: PerformerXGridProps) {
                 </span>
             </div>
             <ul className="binge-gallery-grid binge-x-grid">
-                {media.map((m) => (
-                    <XCell key={`${m.tweetId}:${m.mediaUrl}`} media={m} />
+                {media.map((m, i) => (
+                    <XCell
+                        key={`${m.tweetId}:${m.mediaUrl}`}
+                        media={m}
+                        performerStashId={performer.id}
+                        onOpen={() => setModalIndex(i)}
+                    />
                 ))}
             </ul>
+            {modalIndex !== null && (
+                <XDetailModal
+                    media={media}
+                    index={modalIndex}
+                    performerStashId={performer.id}
+                    onClose={() => setModalIndex(null)}
+                    onIndexChange={setModalIndex}
+                />
+            )}
         </section>
     );
 }
 
-// X 单元格：3:4 竖排卡片，点击在新标签页打开原推文。视频显示播放
-// 徽章。
-function XCell({ media }: { media: XMedia }) {
+// X 单元格：3:4 竖排卡片。点击打开 XDetailModal，悬停显示保存按钮。
+function XCell({
+    media,
+    performerStashId,
+    onOpen,
+}: {
+    media: XMedia;
+    performerStashId: string;
+    onOpen: () => void;
+}) {
     const isVideo = media.kind === "video";
+    const [saveState, setSaveState] = useState<
+        "idle" | "saving" | "saved" | "error"
+    >("idle");
+
+    const handleSave = async (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (saveState === "saving" || saveState === "saved") return;
+        setSaveState("saving");
+        const { saveToStash } = await import("../api/bingeServer");
+        const xm = media.tweetUrl.match(
+            /x\.com\/([A-Za-z0-9_]+)\/status\/(\d+)/i
+        );
+        const res = await saveToStash({
+            performerStashId,
+            source: "x",
+            handle: xm?.[1] ?? media.authorHandle,
+            id: xm?.[2] ?? media.tweetId,
+            mediaUrl: media.mediaUrl,
+            kind: media.kind,
+            sourceUrl: media.tweetUrl,
+            text: media.text,
+            createdUtc: media.createdUtc,
+        });
+        setSaveState(res.ok ? "saved" : "error");
+    };
+
     return (
         <li className="binge-gallery-cell binge-x-cell">
-            <a
-                href={media.tweetUrl}
-                target="_blank"
-                rel="noopener noreferrer"
+            <button
+                type="button"
+                onClick={onOpen}
                 className="binge-gallery-cover-btn binge-x-tile"
                 title={media.text || `推文 ${media.tweetId}`}
             >
@@ -169,28 +217,53 @@ function XCell({ media }: { media: XMedia }) {
                             ♥ {compactCount(media.favoriteCount)}
                         </span>
                     )}
-            </a>
+                {/* 悬停浮现的保存按钮 */}
+                <span
+                    className="binge-x-cell-save"
+                    onClick={handleSave}
+                    role="button"
+                    aria-label={
+                        saveState === "saved"
+                            ? "已保存"
+                            : saveState === "saving"
+                            ? "保存中"
+                            : "保存到 Stash"
+                    }
+                >
+                    {saveState === "saving"
+                        ? "⏳"
+                        : saveState === "saved"
+                        ? "✓"
+                        : saveState === "error"
+                        ? "✕"
+                        : "⬇"}
+                </span>
+            </button>
         </li>
     );
 }
 
-// 视频缩略图（悬停播放方案）：
+// 视频缩略图（悬停播放 + 下载进度条）：
 //
 // 加载：fetch(referrerPolicy:'no-referrer') 拿到 blob → createObjectURL
-// 生成 blob: URL 喂给 <video>.src。之所以用 fetch 而不是直接 <video src>，
-// 是因为浏览器对 <video> 元素的 referrerpolicy 属性实现滞后（Chromium
-// 对 media element 长期不实现），从 stash 页面加载 twimg 视频会带
-// Referer 被 403。fetch API 的 referrerPolicy 选项可靠，blob URL 是同源
-// 本地资源不再发网络请求，无 referrer 问题。
+// 生成 blob: URL 喂给 <video>.src。浏览器对 <video> 元素的
+// referrerpolicy 属性实现滞后（Chromium 对 media element 长期不实现），
+// 从 stash 页面加载 twimg 视频会带 Referer 被 403。fetch API 的
+// referrerPolicy 选项可靠，blob URL 是同源本地资源不再发网络请求。
 //
-// 交互：默认显示 10% 位置（最多 1 秒）的静态帧作为缩略图；鼠标悬停时
-// play() 循环播放预览，离开时 pause() 并重置回静态帧位置。移动端无
-// hover 事件，保持静态帧 + 点击跳转推文的行为。
+// 进度：fetch 时通过 ReadableStream 读取 chunks 计算已下载字节数，
+// 配合 Content-Length 显示进度条（0-100%）。无 Content-Length 时退化
+// 为 indeterminate（仅 spinner）。
+//
+// 交互：默认 onLoadedMetadata seek 到 10% 位置显示静态帧；鼠标悬停时
+// play() 循环播放预览，离开时 pause() 并重置回静态帧。移动端无 hover
+// 保持静态帧 + 点击打开 modal。
 //
 // 组件卸载时 revokeObjectURL 释放内存。
 function XVideoThumb({ media }: { media: XMedia }) {
     const [blobUrl, setBlobUrl] = useState<string | null>(null);
     const [failed, setFailed] = useState(false);
+    const [progress, setProgress] = useState<number | null>(null);
     const videoRef = useRef<HTMLVideoElement | null>(null);
 
     useEffect(() => {
@@ -198,13 +271,45 @@ function XVideoThumb({ media }: { media: XMedia }) {
         let createdUrl: string | null = null;
         setFailed(false);
         setBlobUrl(null);
+        setProgress(null);
         fetch(media.mediaUrl, { referrerPolicy: "no-referrer" })
             .then((r) => {
                 if (!r.ok) throw new Error("HTTP " + r.status);
+                const total = Number(r.headers.get("content-length"));
+                if (total > 0 && r.body) {
+                    // 有 Content-Length：读取 stream 计算进度
+                    const reader = r.body.getReader();
+                    let received = 0;
+                    const chunks: Uint8Array[] = [];
+                    const pump = (): Promise<void> =>
+                        reader
+                            .read()
+                            .then(({ done, value }) => {
+                                if (!alive) return;
+                                if (done) return;
+                                if (value) {
+                                    received += value.length;
+                                    chunks.push(value);
+                                    setProgress(
+                                        Math.min(100, (received / total) * 100)
+                                    );
+                                }
+                                return pump();
+                            });
+                    return pump().then(() => {
+                        if (!alive) return;
+                        const blob = new Blob(chunks, {
+                            type: r.headers.get("content-type") || "video/mp4",
+                        });
+                        return blob;
+                    });
+                }
+                // 无 Content-Length：退化用 blob()
+                setProgress(null);
                 return r.blob();
             })
             .then((b) => {
-                if (!alive || b.size === 0) return;
+                if (!alive || !b || b.size === 0) return;
                 createdUrl = URL.createObjectURL(b);
                 if (alive) setBlobUrl(createdUrl);
             })
@@ -248,7 +353,16 @@ function XVideoThumb({ media }: { media: XMedia }) {
     }
     if (!blobUrl) {
         return (
-            <div className="binge-gallery-cover binge-x-thumb-placeholder" />
+            <div className="binge-gallery-cover binge-x-thumb-placeholder">
+                {progress !== null ? (
+                    <div className="binge-x-progress">
+                        <div
+                            className="binge-x-progress-bar"
+                            style={{ width: `${progress}%` }}
+                        />
+                    </div>
+                ) : null}
+            </div>
         );
     }
     return (

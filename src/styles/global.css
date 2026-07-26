@@ -7586,6 +7586,224 @@ body,
     color: rgba(255, 255, 255, 0.3);
     font-size: 1.5rem;
 }
+
+/* 下载进度条：占位区域底部细条 */
+.binge-x-progress {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.1);
+}
+.binge-x-progress-bar {
+    height: 100%;
+    background: rgba(244, 114, 182, 0.8);
+    transition: width 0.2s ease;
+}
+
+/* 卡片悬停浮现的保存按钮 */
+.binge-x-cell-save {
+    position: absolute;
+    top: 0.35rem;
+    right: 0.35rem;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.65);
+    color: #fff;
+    font-size: 0.85rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    user-select: none;
+    z-index: 2;
+}
+.binge-x-tile:hover .binge-x-cell-save {
+    opacity: 1;
+    transform: translateY(0);
+}
+.binge-x-cell-save:hover {
+    background: rgba(244, 114, 182, 0.8);
+}
+
+/* ── X 详情 modal ─────────────────────────────────────────────── */
+.binge-x-modal-root {
+    position: fixed;
+    inset: 0;
+    z-index: 130;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.binge-x-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.92);
+    backdrop-filter: blur(10px);
+}
+.binge-x-modal-close {
+    position: absolute;
+    top: 1rem;
+    right: 1.25rem;
+    z-index: 3;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.08);
+    border: none;
+    color: #fff;
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    transition: background 0.15s ease, transform 0.15s ease;
+}
+.binge-x-modal-close:hover,
+.binge-x-modal-close:focus-visible {
+    background: rgba(255, 255, 255, 0.18);
+    transform: scale(1.05);
+    outline: none;
+}
+.binge-x-modal-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 3;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.08);
+    border: none;
+    color: #fff;
+    font-size: 2rem;
+    line-height: 1;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    transition: background 0.15s ease;
+}
+.binge-x-modal-nav:hover {
+    background: rgba(255, 255, 255, 0.18);
+}
+.binge-x-modal-nav-prev {
+    left: 1rem;
+}
+.binge-x-modal-nav-next {
+    right: 1rem;
+}
+.binge-x-modal-content {
+    position: relative;
+    z-index: 2;
+    max-width: 90vw;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+.binge-x-modal-media {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #000;
+    border-radius: 8px;
+    overflow: hidden;
+}
+.binge-x-modal-video {
+    max-width: 100%;
+    max-height: 80vh;
+    object-fit: contain;
+}
+.binge-x-modal-image {
+    max-width: 100%;
+    max-height: 80vh;
+    object-fit: contain;
+}
+.binge-x-modal-loading,
+.binge-x-modal-error {
+    color: rgba(255, 255, 255, 0.6);
+    padding: 3rem 1rem;
+    font-size: 0.95rem;
+}
+.binge-x-modal-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    background: rgba(20, 20, 20, 0.9);
+    border-radius: 8px;
+}
+.binge-x-modal-text {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.92);
+    font-size: 0.92rem;
+    line-height: 1.5;
+    max-height: 6rem;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+.binge-x-modal-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 0.82rem;
+}
+.binge-x-modal-likes {
+    color: rgba(244, 114, 182, 1);
+}
+.binge-x-modal-index {
+    margin-left: auto;
+}
+.binge-x-modal-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+}
+.binge-x-modal-save,
+.binge-x-modal-open-x {
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s ease;
+    border: 1px solid transparent;
+}
+.binge-x-modal-save {
+    background: rgba(244, 114, 182, 0.15);
+    color: rgba(244, 114, 182, 1);
+    border-color: rgba(244, 114, 182, 0.4);
+}
+.binge-x-modal-save:hover:not(:disabled) {
+    background: rgba(244, 114, 182, 0.25);
+}
+.binge-x-modal-save:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+.binge-x-modal-open-x {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+}
+.binge-x-modal-open-x:hover {
+    background: rgba(255, 255, 255, 0.18);
+}
 .binge-x-cell-likes {
     position: absolute;
     left: 0.35rem;
