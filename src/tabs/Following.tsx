@@ -92,7 +92,7 @@ export function Following() {
     const [sort, setSort] = useState<SortMode>("name-asc");
     const [searchFocused, setSearchFocused] = useState(false);
     const { openProfile } = usePerformerProfile();
-    const { history: performerSearchHistory, addEntry: addPerformerSearchEntry, removeEntry: removePerformerSearchEntry } =
+    const { history: performerSearchHistory, addEntry: addPerformerSearchEntry, removeEntry: removePerformerSearchEntry, scheduleSave: schedulePerformerSave } =
         useSearchHistory("performers");
     const scrollRef = useRef<HTMLDivElement>(null);
     useAutoHideTabBar(scrollRef);
@@ -169,7 +169,10 @@ export function Following() {
                             className="binge-following-search"
                             placeholder="搜索演员"
                             value={search}
-                            onChange={(e) => setSearch(e.target.value)}
+                            onChange={(e) => {
+                                setSearch(e.target.value);
+                                schedulePerformerSave(e.target.value);
+                            }}
                             onFocus={() => setSearchFocused(true)}
                             onBlur={() => {
                                 addPerformerSearchEntry(search);

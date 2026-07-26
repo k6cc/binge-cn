@@ -68,7 +68,7 @@ export function Explore() {
     const chipScrollerRef = useRef<HTMLDivElement>(null);
     const { replace } = useFilter();
     const { setPinFirstSceneId, setReelMode } = useTab();
-    const { history: sceneSearchHistory, addEntry: addSceneSearchEntry, removeEntry: removeSceneSearchEntry } =
+    const { history: sceneSearchHistory, addEntry: addSceneSearchEntry, removeEntry: removeSceneSearchEntry, scheduleSave: scheduleSceneSave } =
         useSearchHistory("scenes");
     const [searchFocused, setSearchFocused] = useState(false);
 
@@ -269,7 +269,10 @@ export function Explore() {
                         className="binge-explore-search"
                         placeholder="搜索场景"
                         value={searchInput}
-                        onChange={(e) => setSearchInput(e.target.value)}
+                        onChange={(e) => {
+                            setSearchInput(e.target.value);
+                            scheduleSceneSave(e.target.value);
+                        }}
                         onFocus={() => setSearchFocused(true)}
                         onBlur={() => {
                             addSceneSearchEntry(searchInput);

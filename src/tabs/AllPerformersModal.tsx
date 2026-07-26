@@ -26,7 +26,7 @@ export function AllPerformersModal({ onClose }: AllPerformersModalProps) {
     const [query, setQuery] = useState("");
     const [searchFocused, setSearchFocused] = useState(false);
     const { openProfile } = usePerformerProfile();
-    const { history: performerSearchHistory, addEntry: addPerformerSearchEntry, removeEntry: removePerformerSearchEntry } =
+    const { history: performerSearchHistory, addEntry: addPerformerSearchEntry, removeEntry: removePerformerSearchEntry, scheduleSave: schedulePerformerSave } =
         useSearchHistory("performers");
     const panelRef = useRef<HTMLDivElement>(null);
 
@@ -99,7 +99,10 @@ export function AllPerformersModal({ onClose }: AllPerformersModalProps) {
                             className="binge-modal-search"
                             placeholder="搜索演员…"
                             value={query}
-                            onChange={(e) => setQuery(e.target.value)}
+                            onChange={(e) => {
+                                setQuery(e.target.value);
+                                schedulePerformerSave(e.target.value);
+                            }}
                             onFocus={() => setSearchFocused(true)}
                             onBlur={() => {
                                 addPerformerSearchEntry(query);
