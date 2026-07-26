@@ -280,7 +280,7 @@ function XVideoThumb({ media }: { media: XMedia }) {
                     // 有 Content-Length：读取 stream 计算进度
                     const reader = r.body.getReader();
                     let received = 0;
-                    const chunks: Uint8Array[] = [];
+                    const chunks: BlobPart[] = [];
                     const pump = (): Promise<void> =>
                         reader
                             .read()
@@ -289,7 +289,11 @@ function XVideoThumb({ media }: { media: XMedia }) {
                                 if (done) return;
                                 if (value) {
                                     received += value.length;
-                                    chunks.push(value);
+                                    // TS 6 对 Uint8Array<ArrayBufferLike>
+                                    // 类型约束更严，用 new Uint8Array(value)
+                                    // 创建副本（buffer 为新分配的
+                                    // ArrayBuffer），可赋值给 BlobPart。
+                                    chunks.push(new Uint8Array(value));
                                     setProgress(
                                         Math.min(100, (received / total) * 100)
                                     );
