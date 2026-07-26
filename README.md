@@ -1,6 +1,6 @@
 # Binge（汉化版）
 
-> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.4.9**。
+> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.4.10**。
 
 为 [Stash](https://github.com/stashapp/stash) 提供的 Instagram 风格社交与发现层：竖屏 Reel、Stories、演员档案、StashDB 驱动的发现功能——全部基于 Stash 既有的 GraphQL API。Web 插件形态。
 
@@ -61,6 +61,13 @@
 |-|-|-|
 | 1 | 清理调试日志 | 删除 RC3-RC6 期间为排查播放/seek/自动播放/跳转问题添加的 13 处 `console.debug` 调用（`[binge-reel]` 9 处 + `[binge-story]` 2 处 + `[binge-pack]` 2 处），同时清理 StoryViewer.tsx 中因删日志而未使用的 `sceneId` 变量 |
 | 2 | 关注页收藏夹空白占位过高 | `.binge-following-empty` 继承全局 `.binge-status` 的 `height:100vh`，导致收藏夹为空（或搜索无匹配）时占位满屏，把"所有演员"行挤到第二屏。修复：覆盖为 `height:auto + min-height:180px`（约一个演员资料卡的高度：avatar 110 + gap + name + count），保留文字垂直居中 |
+
+#### v0.4.10 新增修复
+
+| # | 修复 | 说明 |
+|-|-|-|
+| 1 | X tab 视频缩略图黑屏 | 根因：twimg 视频检查 Referer，从 stash 页面加载带 Referer 被 403；且 `<video>` 元素的 `referrerpolicy` 属性浏览器实现滞后（Chromium 对 media element 长期不实现），setAttribute 无效。多轮方案对比：`<img src>` 无法解码 mp4 / `<video referrerpolicy>` 403 / `#t=0.1` Media Fragment 在 `preload=metadata` 下不主动 seek → 黑屏。最终方案：`fetch(referrerPolicy:'no-referrer')` 拿到 blob → `URL.createObjectURL` 生成 blob URL → `<video src>` 加载，blob URL 是同源本地资源不发网络请求，无 referrer 问题 |
+| 2 | X 视频悬停播放预览 | 抽出 `XVideoThumb` 组件：默认 `onLoadedMetadata` seek 到 10% 位置显示静态帧；`onMouseEnter` → `play()` 循环播放预览；`onMouseLeave` → `pause()` + 重置回静态帧。移动端无 hover 保持静态帧 + 点击跳转推文。组件卸载时 `revokeObjectURL` 释放内存 |
 
 #### v0.4.9-RC7 新增修复
 
