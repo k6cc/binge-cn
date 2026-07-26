@@ -8290,3 +8290,49 @@ body,
     width: 14rem;
     filter: drop-shadow(0 0 24px rgba(168, 85, 247, 0.45));
 }
+
+/* ── Settings: hidden-tags picker ──────────────────────────────────────
+   Selected tags render as removable chips above a search box; the result
+   list reuses the chip-menu styles from the filter bar. */
+.binge-settings-hidden-tags {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+}
+
+.binge-settings-tag-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.binge-settings-tag-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    font-size: 13px;
+    line-height: 1.2;
+}
+
+.binge-settings-tag-chip button {
+    border: 0;
+    background: none;
+    padding: 0;
+    cursor: pointer;
+    color: inherit;
+    opacity: 0.6;
+    font-size: 15px;
+    line-height: 1;
+}
+
+.binge-settings-tag-chip button:hover {
+    opacity: 1;
+}
+
+.binge-settings-hidden-tags .binge-chip-menu-results {
+    max-height: 220px;
+}
