@@ -11,7 +11,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 // 提供 scheduleSave(term) debounce 保存：用户输入过程中 800ms 无变化
 // 则保存。比 onBlur 更可靠——用户搜索后点击演员卡片会触发路由切换
 // 和组件卸载，onBlur 可能来不及触发，debounce 在输入过程中就保存了。
-const MAX_ITEMS = 20;
+const MAX_ITEMS = 12;
 const MIN_LENGTH = 2;
 const SAVE_DEBOUNCE_MS = 800;
 

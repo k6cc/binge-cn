@@ -7778,8 +7778,8 @@ body,
        明确高度，flex:1 才能吃掉 info 之外的剩余空间。 */
     position: relative;
     z-index: 2;
-    width: min(90vw, 560px);
-    height: min(90vh, 800px);
+    width: min(90vw, 675px);
+    height: min(90vh, 900px);
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
