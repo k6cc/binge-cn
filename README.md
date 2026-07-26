@@ -1,6 +1,6 @@
 # Binge（汉化版）
 
-> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.4.12**。
+> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.4.13**。
 
 为 [Stash](https://github.com/stashapp/stash) 提供的 Instagram 风格社交与发现层：竖屏 Reel、Stories、演员档案、StashDB 驱动的发现功能——全部基于 Stash 既有的 GraphQL API。Web 插件形态。
 
@@ -61,6 +61,12 @@
 |-|-|-|
 | 1 | 清理调试日志 | 删除 RC3-RC6 期间为排查播放/seek/自动播放/跳转问题添加的 13 处 `console.debug` 调用（`[binge-reel]` 9 处 + `[binge-story]` 2 处 + `[binge-pack]` 2 处），同时清理 StoryViewer.tsx 中因删日志而未使用的 `sceneId` 变量 |
 | 2 | 关注页收藏夹空白占位过高 | `.binge-following-empty` 继承全局 `.binge-status` 的 `height:100vh`，导致收藏夹为空（或搜索无匹配）时占位满屏，把"所有演员"行挤到第二屏。修复：覆盖为 `height:auto + min-height:180px`（约一个演员资料卡的高度：avatar 110 + gap + name + count），保留文字垂直居中 |
+
+#### v0.4.13 新增修复
+
+| # | 修复 | 说明 |
+|-|-|-|
+| 1 | favicon 主题自适应 | `binge-header-brand` 的白色图标在 Chrome 浅色标签页"消失"。在 inline SVG data URL 内嵌 `<style>` + `prefers-color-scheme` media query：默认深色背景下白色，`prefers-color-scheme: light` 下深色（`#1a1a1a`）。移除 `<path fill='#ffffff'>` 的 inline fill，改由 `<style>` 控制。保持 inline data URL 架构，不引入外部文件 |
 
 #### v0.4.12 新增修复
 
