@@ -21,113 +21,63 @@
 
 ### 功能修复
 
-#### v0.4.9-RC6 新增修复
+#### v0.4.12–v0.4.15 新增修复
 
 | # | 修复 | 说明 |
 |-|-|-|
-| 1 | Bug 1 点击二层封面跳转演员其他影片 | 日志确认 queue 路径正确执行，但 queue 设计是"顺序播放整包"，滚动一次就到第二个 → 用户以为"错误跳转"。修复：handlePick 从 `setPinnedQueue` 改为 `setPinFirstSceneId`，走 random 路径，只 pin 点击的场景到第一位，后续走演员 filter 随机推荐（与 `SceneFeedCard.handleWatchFullScene` 一致） |
-| 2 | 发现页影片封面 3:4 竖版 + 2-4 列自适应 | `.binge-explore-grid` 从固定 3 列改为媒体查询控制：默认 2 列，≥560px→3 列，≥820px→4 列。`.binge-explore-tile` 从 1:1 正方形改为 3:4 竖版，加 `align-self:start` 防止 grid 行高塌缩 |
-| 3 | 一层封面 3:4 竖版（一行4个共2行） | `.binge-pack-card-mosaic` 从 1:1 正方形（3×3）改为 3:2 横版（4×2，每 tile 3:4 → 整体 3:2）。`PackFeedCard.tsx` 的 `MOSAIC_TILES` 从 9 改为 8 |
-| 4 | 二层封面 4:3 横版（一行2个） | `.binge-pack-sheet-grid` 从 3 列改 2 列。`.binge-pack-sheet-tile` 从 3:4 竖版改 4:3 横版，`background-position` 从 `right center` 改 `center center` 居中铺满 |
-| 5 | Bug 1 调试日志 | 增加 5 处调试日志（`[binge-pack]` 1 处 + `[binge-reel]` 4 处），确认 queue 路径执行情况。诊断结果：queue 路径正确，根因是行为与用户期望不符 |
+| 1 | [v0.4.15] 默认合集 + 父标签 tagName 中文化 | binge 自建的两个默认合集 tagName 和父标签 tagName 从英文改为中文，与界面显示名一致：`Watch Later 📁` → `稍后观看 📁`、`My Favourite ❤️` → `我的最爱 ❤️`、`binge Collections` → `binge 合集`。`Favourite ★` 保持英文不变（由 ASR 插件拥有并共享，改名会破坏 ASR 互操作）。父标签 rename 不改 tag id，子标签的 `parent_ids` 关系自动保留。新增 `tagRename` mutation（复用 `TAG_UPDATE` 的 `name` 字段）。新增 `migrateLegacyTagNamesIfNeeded` 迁移函数：检测旧英文 tag 是否存在，若存在且新中文 tag 不存在则 rename，保留所有场景关联和 parent 关系。用独立 localStorage flag `binge.legacyTagNamesMigrated.v0.4.15` 保证只跑一次，在 `ensureDefaultCollections` 的 seeded 短路之前执行，确保已 seeded 的老用户也能迁移。幂等可安全重试；边缘情况（旧新 tag 同时存在）不处理，保留旧 tag 残留避免数据丢失 |
+| 2 | [v0.4.14] 输入法确认后不保存搜索记录 | `compositionend` 触发时 `e.currentTarget.value` 可能还是合成前的旧值（被 `MIN_LENGTH=2` 过滤）。修复：`compositionend` 里用 `setTimeout(0)` 延迟到下一个事件循环读取 value，确保拿到最终确认的中文文本。三处搜索入口（Explore/Following/AllPerformersModal）统一修复 |
+| 3 | [v0.4.13] favicon 主题自适应 | `binge-header-brand` 的白色图标在 Chrome 浅色标签页"消失"。在 inline SVG data URL 内嵌 `<style>` + `prefers-color-scheme` media query：默认深色背景下白色，`prefers-color-scheme: light` 下深色（`#1a1a1a`）。移除 `<path fill='#ffffff'>` 的 inline fill，改由 `<style>` 控制。保持 inline data URL 架构，不引入外部文件 |
+| 4 | [v0.4.12] 输入法预输入误存修复 | 中文/日文等输入法合成阶段（拼音未确认）`onChange` 仍会触发，会把未确认的拼音字母误存为搜索词。三个搜索入口（Explore/Following/AllPerformersModal）加 `compositionstart`/`compositionend` 事件 + `composingRef` 标记：合成中跳过 `scheduleSave`，`compositionend` 触发后保存确认值。这是处理输入法 + React 的标准做法 |
 
-#### v0.4.9-RC5 新增修复
-
-| # | 修复 | 说明 |
-|-|-|-|
-| 1 | 发现页 + 合集卡片封面布局初版 | RC5 初版实现（RC6 已调整：发现页改为媒体查询控制 2-4 列，一层封面改为 4×2） |
-| 2 | Bug 1 调试日志 | 初版日志（RC6 保留并用于诊断） |
-
-#### v0.4.9-RC4 新增修复
+#### v0.4.10–v0.4.11 新增修复
 
 | # | 修复 | 说明 |
 |-|-|-|
-| 1 | 二层封面垂直重叠（grid 行轨迹塌缩） | CSS 规则正确但渲染仍垂直重叠——`tile[0] y=164 h=499`，`tile[3] y=256`（应在 y=665），重叠 409px。根因：grid 容器有 `overflow-y:auto` + 固定高度时，`align-items:stretch`（默认）与 `aspect-ratio` 产生循环依赖 → 行高塌缩到 min-content（约 92px）。修复：`.binge-pack-sheet-grid` 加 `grid-auto-rows: max-content` + `.binge-pack-sheet-tile` 加 `align-self: start`，打破循环依赖 |
+| 1 | [v0.4.11] X tab 视频就地播放 | 新增 `XDetailModal` 组件（portal 全屏 modal）。点击视频/图片卡片不再跳转 x.com，而是弹出 modal 就地播放/查看，支持音量/进度/全屏（原生 `controls`）、← → 翻页、Esc 关闭。`XCell` 从 `<a target="_blank">` 改为 `<button onClick>`，卡片内显示推文文本/点赞/查看数，提供"在 X 上打开"按钮。视频复用 `useFetchBlobUrl` 的 blob URL，零成本播放 |
+| 2 | [v0.4.11] X 视频保存到 Stash | `XCell` 卡片悬停右上角浮现保存按钮（⬇/⏳/✓/✕），`XDetailModal` 内也有独立保存按钮。`saveToStash` API 新增 `source:"x"` 分支，由 binge-server 守护进程下载保存。按 `tweetId:mediaUrl` 记录 saving/saved/error 状态 |
+| 3 | [v0.4.11] X 图文卡片就地查看 | X tab 点击图文卡片也弹出 `XDetailModal`，与视频一致。图片用 `<img referrerPolicy="no-referrer">`（img 元素 referrerPolicy 可靠，无需 blob 方案），同样支持保存和"在 X 上打开" |
+| 4 | [v0.4.11] X 视频下载进度条 | `useFetchBlobUrl` hook 通过 `ReadableStream` 读取 chunks + `Content-Length` 计算下载百分比。`XVideoThumb` 在视频缩略图加载期间显示底部进度条（`.binge-x-progress`）。无 `Content-Length` 时退化为无进度（仅深色占位）。TS6 的 `Uint8Array<ArrayBufferLike>` 泛型需通过 `new Uint8Array(value)` 创建副本确保 `buffer` 为 `ArrayBuffer` 类型 |
+| 5 | [v0.4.11] X modal 视频窗口高度低时上下边被裁 | `.binge-x-modal-video` 从 `max-height: 100%` 改为 `position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain`。原方案在 flex + `max-height`（非 `height`）容器中百分比高度可能不解析 → 视频按 intrinsic 高度溢出被 `overflow:hidden` 裁切。absolute 定位不依赖百分比高度解析，`object-fit: contain` 保证 letterbox 不裁切 |
+| 6 | [v0.4.11] StoryViewer 的 X 视频修复 | `RedditCardBody` 新增 `needsBlobProxy` 判断，对 X（x.com/twitter.com）视频使用 `useFetchBlobUrl` 下载为 blob URL 绕过 twimg 的 Referer 检查（`<video>` 元素的 `referrerpolicy` 属性浏览器实现滞后，Chromium 对 media element 长期不实现）。原走 `rewriteRedgifsMediaUrl` 原样返回被 403 |
+| 7 | [v0.4.11] StoryViewer 的 Reddit 视频修复 | 同样的 `needsBlobProxy` 判断覆盖 Reddit（v.redd.it/redditmedia.com）视频。v.redd.it 也有 Referer 检查问题，复用 fetch + blob URL 方案。redgifs 等已有 binge-server 代理的保持原 `rewriteRedgifsMediaUrl` + `setAttribute("referrerpolicy")` 路径 |
+| 8 | [v0.4.11] 搜索历史持久化到 localStorage | 新增 `useSearchHistory` hook + `SearchHistoryDropdown` 组件。每个 namespace 独立存储（`"scenes"` / `"performers"`，key: `binge.searchHistory.<namespace>`），去重（大小写不敏感）+ 最多 12 条 + 最短 2 字符。`scheduleSave` debounce 800ms 保存（比 `onBlur` 更可靠，避免路由切换时组件卸载导致 `onBlur` 不触发）。输入法合成处理：`compositionstart`/`compositionend` + `composingRef` 标记，避免中文输入法预输入的拼音字母被误存为搜索词。芯片样式：圆角框横向排列自动换行，关键词最多 12 字符省略，尾部 × 删除。集成到 Explore（场景搜索）、Following（演员搜索）、AllPerformersModal（演员搜索）三个入口 |
+| 9 | [v0.4.11] XDetailModal 视频图片不显示修复 | `.binge-x-modal-content` 只有 `max-height:90vh` 无 `height`，flex 容器高度由内容决定，media 区域的 `flex:1` 无空间可分配，且内部 video/image 是 `position:absolute` 不参与布局 → 高度为 0。改用 `width: min(90vw,675px); height: min(90vh,900px)` 给容器明确高度。StoryViewer 不受此问题影响（已有 `height: min(88vh,880px)` + video 直接子元素） |
+| 10 | [v0.4.10] X tab 视频缩略图黑屏 | 根因：twimg 视频检查 Referer，从 stash 页面加载带 Referer 被 403；且 `<video>` 元素的 `referrerpolicy` 属性浏览器实现滞后（Chromium 对 media element 长期不实现），setAttribute 无效。多轮方案对比：`<img src>` 无法解码 mp4 / `<video referrerpolicy>` 403 / `#t=0.1` Media Fragment 在 `preload=metadata` 下不主动 seek → 黑屏。最终方案：`fetch(referrerPolicy:'no-referrer')` 拿到 blob → `URL.createObjectURL` 生成 blob URL → `<video src>` 加载，blob URL 是同源本地资源不发网络请求，无 referrer 问题 |
+| 11 | [v0.4.10] X 视频悬停播放预览 | 抽出 `XVideoThumb` 组件：默认 `onLoadedMetadata` seek 到 10% 位置显示静态帧；`onMouseEnter` → `play()` 循环播放预览；`onMouseLeave` → `pause()` + 重置回静态帧。移动端无 hover 保持静态帧 + 点击跳转推文。组件卸载时 `revokeObjectURL` 释放内存 |
 
-#### v0.4.9-RC3 新增修复
-
-| # | 修复 | 说明 |
-|-|-|-|
-| 1 | AVI/WMV 转码影片快进从头播放 | Stash 的 MP4 transcode 是渐进式下载，原生 `<video>.currentTime = N` 依赖 HTTP Range，而 live transcode 不稳定支持 Range → 快进重置。修复：`pickStream` 导出 `isWebCompatible()` + `buildTranscodeSeekUrl()`；`SceneSlide` 新增 `seekToTime` 回调，转码流走"硬 seek"（重建 src 带 `?start=N` + `load()` + `canplay` 后播放），兼容容器走原生 seek；`SceneProgress` 新增 `onSeekToTime` prop + `seekOffset` 偏移量 |
-| 2 | 进度条 seek 后重置为零（竞态） | `SceneProgress` 的 `seekOffset` 变化时重新绑定 `timeupdate` 监听器，但 `video.load()` 触发的 `timeupdate` 可能在旧监听器（闭包固定 `seekOffset=0`）被移除前抢先触发 → 进度条瞬间归零。修复：用 `useRef` 镜像 `seekOffset`，监听器只绑定一次，每次从 ref 读取最新值 |
-| 3 | WMV 转码流 seek 后不自动播放 | `canplay`/`loadeddata` 事件触发时调用一次 `playPreferred`，若 `play()` 以 `AbortError` 失败（WMV 转码流常在数据未真正就绪时触发 `canplay`）不会重试 → 视频永久暂停。修复：`SceneSlide` 新增 300ms 周期重试（`retryPlay`），持续检查 `video.paused` 并调用 `playPreferred`，直到 `playing` 事件确认或 8 秒超时 |
-| 4 | StoryViewer 首次打开自动播放失败 | 首次打开时 `<video>` 刚挂载，`play()` 在视频未就绪时调用 → `AbortError`，静音重试也失败。修复：添加 `canplay`/`loadeddata` 监听器，视频就绪时重试 `play()`；`AbortError` 不再误改 mute 状态 |
-| 5 | StoryViewer 关闭后重开同一演员自动播放失败 | play-sync `useEffect` 依赖数组缺少 `isOpen`。关闭后重开同一演员时 `stories` 是同一引用（来自 `StoriesContext` 共享状态），`activeIndex`/`sceneIndex`/`currentScene` 引用均不变 → 若 deps 不含 `isOpen`，effect 不会重跑 → 新挂载的 `<video>` 未绑定监听器，`tryPlay` 也不调用 → 自动播放失败。加入 `isOpen` 后，关闭→重开时 effect 重跑 → 正确驱动新 video |
-| 6 | StoryViewer 观看完整场景跳转随机 | `handleCta` 在 `setTab` 之前调用 `setPinFirstSceneId`，而 `setTab` 内部会清空 pin → Reel 走 random 路径。修复：调整为 `setTab` 之后再调用 `setPinFirstSceneId`，利用 React 18 批处理"后写胜"语义（与 `SceneFeedCard.handleWatchFullScene`、`PackDetailSheet.handlePick` 一致） |
-
-#### v0.4.9 正式版（相对 RC7 的最终清理）
-
-| # | 修复 | 说明 |
-|-|-|-|
-| 1 | 清理调试日志 | 删除 RC3-RC6 期间为排查播放/seek/自动播放/跳转问题添加的 13 处 `console.debug` 调用（`[binge-reel]` 9 处 + `[binge-story]` 2 处 + `[binge-pack]` 2 处），同时清理 StoryViewer.tsx 中因删日志而未使用的 `sceneId` 变量 |
-| 2 | 关注页收藏夹空白占位过高 | `.binge-following-empty` 继承全局 `.binge-status` 的 `height:100vh`，导致收藏夹为空（或搜索无匹配）时占位满屏，把"所有演员"行挤到第二屏。修复：覆盖为 `height:auto + min-height:180px`（约一个演员资料卡的高度：avatar 110 + gap + name + count），保留文字垂直居中 |
-
-#### v0.4.15 新增修复
+#### v0.4.9 新增修复（含 RC3–RC7 迭代）
 
 | # | 修复 | 说明 |
 |-|-|-|
-| 1 | 默认合集 + 父标签 tagName 中文化 | binge 自建的两个默认合集 tagName 和父标签 tagName 从英文改为中文，与界面显示名一致：`Watch Later 📁` → `稍后观看 📁`、`My Favourite ❤️` → `我的最爱 ❤️`、`binge Collections` → `binge 合集`。`Favourite ★` 保持英文不变（由 ASR 插件拥有并共享，改名会破坏 ASR 互操作）。父标签 rename 不改 tag id，子标签的 `parent_ids` 关系自动保留。新增 `tagRename` mutation（复用 `TAG_UPDATE` 的 `name` 字段）。新增 `migrateLegacyTagNamesIfNeeded` 迁移函数：检测旧英文 tag 是否存在，若存在且新中文 tag 不存在则 rename，保留所有场景关联和 parent 关系。用独立 localStorage flag `binge.legacyTagNamesMigrated.v0.4.15` 保证只跑一次，在 `ensureDefaultCollections` 的 seeded 短路之前执行，确保已 seeded 的老用户也能迁移。幂等可安全重试；边缘情况（旧新 tag 同时存在）不处理，保留旧 tag 残留避免数据丢失 |
+| 1 | [正式版] 清理调试日志 | 删除 RC3-RC6 期间为排查播放/seek/自动播放/跳转问题添加的 13 处 `console.debug` 调用（`[binge-reel]` 9 处 + `[binge-story]` 2 处 + `[binge-pack]` 2 处），同时清理 StoryViewer.tsx 中因删日志而未使用的 `sceneId` 变量 |
+| 2 | [正式版] 关注页收藏夹空白占位过高 | `.binge-following-empty` 继承全局 `.binge-status` 的 `height:100vh`，导致收藏夹为空（或搜索无匹配）时占位满屏，把"所有演员"行挤到第二屏。修复：覆盖为 `height:auto + min-height:180px`（约一个演员资料卡的高度：avatar 110 + gap + name + count），保留文字垂直居中 |
+| 3 | [RC7] TS6133 构建错误 | RC6 的 handlePick 从 `setPinnedQueue` 改为 `setPinFirstSceneId` 后，`useTab()` 解构中的 `setPinnedQueue` 不再使用 → TypeScript 报错。移除未使用的解构变量 |
+| 4 | [RC7] Fork 仓库 sync workflow 失败 | `.github/workflows/sync.yml` 尝试 clone 上游 `ordureconnoisseur/plugins` 仓库，fork 仓库无 `PLUGINS_REPO_TOKEN` 认证失败。修复：sync job 加 `if: github.repository == 'ordureconnoisseur/binge'` 条件，fork 仓库自动跳过 |
+| 5 | [RC6] Bug 1 点击二层封面跳转演员其他影片 | 日志确认 queue 路径正确执行，但 queue 设计是"顺序播放整包"，滚动一次就到第二个 → 用户以为"错误跳转"。修复：handlePick 从 `setPinnedQueue` 改为 `setPinFirstSceneId`，走 random 路径，只 pin 点击的场景到第一位，后续走演员 filter 随机推荐（与 `SceneFeedCard.handleWatchFullScene` 一致） |
+| 6 | [RC6] 发现页影片封面 3:4 竖版 + 2-4 列自适应 | `.binge-explore-grid` 从固定 3 列改为媒体查询控制：默认 2 列，≥560px→3 列，≥820px→4 列。`.binge-explore-tile` 从 1:1 正方形改为 3:4 竖版，加 `align-self:start` 防止 grid 行高塌缩 |
+| 7 | [RC6] 一层封面 3:4 竖版（一行4个共2行） | `.binge-pack-card-mosaic` 从 1:1 正方形（3×3）改为 3:2 横版（4×2，每 tile 3:4 → 整体 3:2）。`PackFeedCard.tsx` 的 `MOSAIC_TILES` 从 9 改为 8 |
+| 8 | [RC6] 二层封面 4:3 横版（一行2个） | `.binge-pack-sheet-grid` 从 3 列改 2 列。`.binge-pack-sheet-tile` 从 3:4 竖版改 4:3 横版，`background-position` 从 `right center` 改 `center center` 居中铺满 |
+| 9 | [RC6] Bug 1 调试日志 | 增加 5 处调试日志（`[binge-pack]` 1 处 + `[binge-reel]` 4 处），确认 queue 路径执行情况。诊断结果：queue 路径正确，根因是行为与用户期望不符 |
+| 10 | [RC5] 发现页 + 合集卡片封面布局初版 | RC5 初版实现（RC6 已调整：发现页改为媒体查询控制 2-4 列，一层封面改为 4×2） |
+| 11 | [RC5] Bug 1 调试日志 | 初版日志（RC6 保留并用于诊断） |
+| 12 | [RC4] 二层封面垂直重叠（grid 行轨迹塌缩） | CSS 规则正确但渲染仍垂直重叠——`tile[0] y=164 h=499`，`tile[3] y=256`（应在 y=665），重叠 409px。根因：grid 容器有 `overflow-y:auto` + 固定高度时，`align-items:stretch`（默认）与 `aspect-ratio` 产生循环依赖 → 行高塌缩到 min-content（约 92px）。修复：`.binge-pack-sheet-grid` 加 `grid-auto-rows: max-content` + `.binge-pack-sheet-tile` 加 `align-self: start`，打破循环依赖 |
+| 13 | [RC3] AVI/WMV 转码影片快进从头播放 | Stash 的 MP4 transcode 是渐进式下载，原生 `<video>.currentTime = N` 依赖 HTTP Range，而 live transcode 不稳定支持 Range → 快进重置。修复：`pickStream` 导出 `isWebCompatible()` + `buildTranscodeSeekUrl()`；`SceneSlide` 新增 `seekToTime` 回调，转码流走"硬 seek"（重建 src 带 `?start=N` + `load()` + `canplay` 后播放），兼容容器走原生 seek；`SceneProgress` 新增 `onSeekToTime` prop + `seekOffset` 偏移量 |
+| 14 | [RC3] 进度条 seek 后重置为零（竞态） | `SceneProgress` 的 `seekOffset` 变化时重新绑定 `timeupdate` 监听器，但 `video.load()` 触发的 `timeupdate` 可能在旧监听器（闭包固定 `seekOffset=0`）被移除前抢先触发 → 进度条瞬间归零。修复：用 `useRef` 镜像 `seekOffset`，监听器只绑定一次，每次从 ref 读取最新值 |
+| 15 | [RC3] WMV 转码流 seek 后不自动播放 | `canplay`/`loadeddata` 事件触发时调用一次 `playPreferred`，若 `play()` 以 `AbortError` 失败（WMV 转码流常在数据未真正就绪时触发 `canplay`）不会重试 → 视频永久暂停。修复：`SceneSlide` 新增 300ms 周期重试（`retryPlay`），持续检查 `video.paused` 并调用 `playPreferred`，直到 `playing` 事件确认或 8 秒超时 |
+| 16 | [RC3] StoryViewer 首次打开自动播放失败 | 首次打开时 `<video>` 刚挂载，`play()` 在视频未就绪时调用 → `AbortError`，静音重试也失败。修复：添加 `canplay`/`loadeddata` 监听器，视频就绪时重试 `play()`；`AbortError` 不再误改 mute 状态 |
+| 17 | [RC3] StoryViewer 关闭后重开同一演员自动播放失败 | play-sync `useEffect` 依赖数组缺少 `isOpen`。关闭后重开同一演员时 `stories` 是同一引用（来自 `StoriesContext` 共享状态），`activeIndex`/`sceneIndex`/`currentScene` 引用均不变 → 若 deps 不含 `isOpen`，effect 不会重跑 → 新挂载的 `<video>` 未绑定监听器，`tryPlay` 也不调用 → 自动播放失败。加入 `isOpen` 后，关闭→重开时 effect 重跑 → 正确驱动新 video |
+| 18 | [RC3] StoryViewer 观看完整场景跳转随机 | `handleCta` 在 `setTab` 之前调用 `setPinFirstSceneId`，而 `setTab` 内部会清空 pin → Reel 走 random 路径。修复：调整为 `setTab` 之后再调用 `setPinFirstSceneId`，利用 React 18 批处理"后写胜"语义（与 `SceneFeedCard.handleWatchFullScene`、`PackDetailSheet.handlePick` 一致） |
 
-#### v0.4.14 新增修复
-
-| # | 修复 | 说明 |
-|-|-|-|
-| 1 | 输入法确认后不保存搜索记录 | `compositionend` 触发时 `e.currentTarget.value` 可能还是合成前的旧值（被 `MIN_LENGTH=2` 过滤）。修复：`compositionend` 里用 `setTimeout(0)` 延迟到下一个事件循环读取 value，确保拿到最终确认的中文文本。三处搜索入口（Explore/Following/AllPerformersModal）统一修复 |
-
-#### v0.4.13 新增修复
-
-| # | 修复 | 说明 |
-|-|-|-|
-| 1 | favicon 主题自适应 | `binge-header-brand` 的白色图标在 Chrome 浅色标签页"消失"。在 inline SVG data URL 内嵌 `<style>` + `prefers-color-scheme` media query：默认深色背景下白色，`prefers-color-scheme: light` 下深色（`#1a1a1a`）。移除 `<path fill='#ffffff'>` 的 inline fill，改由 `<style>` 控制。保持 inline data URL 架构，不引入外部文件 |
-
-#### v0.4.12 新增修复
-
-| # | 修复 | 说明 |
-|-|-|-|
-| 1 | 输入法预输入误存修复 | 中文/日文等输入法合成阶段（拼音未确认）`onChange` 仍会触发，会把未确认的拼音字母误存为搜索词。三个搜索入口（Explore/Following/AllPerformersModal）加 `compositionstart`/`compositionend` 事件 + `composingRef` 标记：合成中跳过 `scheduleSave`，`compositionend` 触发后保存确认值。这是处理输入法 + React 的标准做法 |
-
-#### v0.4.11 新增修复
-
-| # | 修复 | 说明 |
-|-|-|-|
-| 1 | X tab 视频就地播放 | 新增 `XDetailModal` 组件（portal 全屏 modal）。点击视频/图片卡片不再跳转 x.com，而是弹出 modal 就地播放/查看，支持音量/进度/全屏（原生 `controls`）、← → 翻页、Esc 关闭。`XCell` 从 `<a target="_blank">` 改为 `<button onClick>`，卡片内显示推文文本/点赞/查看数，提供"在 X 上打开"按钮。视频复用 `useFetchBlobUrl` 的 blob URL，零成本播放 |
-| 2 | X 视频保存到 Stash | `XCell` 卡片悬停右上角浮现保存按钮（⬇/⏳/✓/✕），`XDetailModal` 内也有独立保存按钮。`saveToStash` API 新增 `source:"x"` 分支，由 binge-server 守护进程下载保存。按 `tweetId:mediaUrl` 记录 saving/saved/error 状态 |
-| 3 | X 图文卡片就地查看 | X tab 点击图文卡片也弹出 `XDetailModal`，与视频一致。图片用 `<img referrerPolicy="no-referrer">`（img 元素 referrerPolicy 可靠，无需 blob 方案），同样支持保存和"在 X 上打开" |
-| 4 | X 视频下载进度条 | `useFetchBlobUrl` hook 通过 `ReadableStream` 读取 chunks + `Content-Length` 计算下载百分比。`XVideoThumb` 在视频缩略图加载期间显示底部进度条（`.binge-x-progress`）。无 `Content-Length` 时退化为无进度（仅深色占位）。TS6 的 `Uint8Array<ArrayBufferLike>` 泛型需通过 `new Uint8Array(value)` 创建副本确保 `buffer` 为 `ArrayBuffer` 类型 |
-| 5 | X modal 视频窗口高度低时上下边被裁 | `.binge-x-modal-video` 从 `max-height: 100%` 改为 `position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain`。原方案在 flex + `max-height`（非 `height`）容器中百分比高度可能不解析 → 视频按 intrinsic 高度溢出被 `overflow:hidden` 裁切。absolute 定位不依赖百分比高度解析，`object-fit: contain` 保证 letterbox 不裁切 |
-| 6 | StoryViewer 的 X 视频修复 | `RedditCardBody` 新增 `needsBlobProxy` 判断，对 X（x.com/twitter.com）视频使用 `useFetchBlobUrl` 下载为 blob URL 绕过 twimg 的 Referer 检查（`<video>` 元素的 `referrerpolicy` 属性浏览器实现滞后，Chromium 对 media element 长期不实现）。原走 `rewriteRedgifsMediaUrl` 原样返回被 403 |
-| 7 | StoryViewer 的 Reddit 视频修复 | 同样的 `needsBlobProxy` 判断覆盖 Reddit（v.redd.it/redditmedia.com）视频。v.redd.it 也有 Referer 检查问题，复用 fetch + blob URL 方案。redgifs 等已有 binge-server 代理的保持原 `rewriteRedgifsMediaUrl` + `setAttribute("referrerpolicy")` 路径 |
-| 8 | 搜索历史持久化到 localStorage | 新增 `useSearchHistory` hook + `SearchHistoryDropdown` 组件。每个 namespace 独立存储（`"scenes"` / `"performers"`，key: `binge.searchHistory.<namespace>`），去重（大小写不敏感）+ 最多 12 条 + 最短 2 字符。`scheduleSave` debounce 800ms 保存（比 `onBlur` 更可靠，避免路由切换时组件卸载导致 `onBlur` 不触发）。输入法合成处理：`compositionstart`/`compositionend` + `composingRef` 标记，避免中文输入法预输入的拼音字母被误存为搜索词。芯片样式：圆角框横向排列自动换行，关键词最多 12 字符省略，尾部 × 删除。集成到 Explore（场景搜索）、Following（演员搜索）、AllPerformersModal（演员搜索）三个入口 |
-| 9 | XDetailModal 视频图片不显示修复 | `.binge-x-modal-content` 只有 `max-height:90vh` 无 `height`，flex 容器高度由内容决定，media 区域的 `flex:1` 无空间可分配，且内部 video/image 是 `position:absolute` 不参与布局 → 高度为 0。改用 `width: min(90vw,675px); height: min(90vh,900px)` 给容器明确高度。StoryViewer 不受此问题影响（已有 `height: min(88vh,880px)` + video 直接子元素） |
-
-#### v0.4.10 新增修复
+#### v0.4.7–v0.4.8 新增修复
 
 | # | 修复 | 说明 |
 |-|-|-|
-| 1 | X tab 视频缩略图黑屏 | 根因：twimg 视频检查 Referer，从 stash 页面加载带 Referer 被 403；且 `<video>` 元素的 `referrerpolicy` 属性浏览器实现滞后（Chromium 对 media element 长期不实现），setAttribute 无效。多轮方案对比：`<img src>` 无法解码 mp4 / `<video referrerpolicy>` 403 / `#t=0.1` Media Fragment 在 `preload=metadata` 下不主动 seek → 黑屏。最终方案：`fetch(referrerPolicy:'no-referrer')` 拿到 blob → `URL.createObjectURL` 生成 blob URL → `<video src>` 加载，blob URL 是同源本地资源不发网络请求，无 referrer 问题 |
-| 2 | X 视频悬停播放预览 | 抽出 `XVideoThumb` 组件：默认 `onLoadedMetadata` seek 到 10% 位置显示静态帧；`onMouseEnter` → `play()` 循环播放预览；`onMouseLeave` → `pause()` + 重置回静态帧。移动端无 hover 保持静态帧 + 点击跳转推文。组件卸载时 `revokeObjectURL` 释放内存 |
-
-#### v0.4.9-RC7 新增修复
-
-| # | 修复 | 说明 |
-|-|-|-|
-| 1 | TS6133 构建错误 | RC6 的 handlePick 从 `setPinnedQueue` 改为 `setPinFirstSceneId` 后，`useTab()` 解构中的 `setPinnedQueue` 不再使用 → TypeScript 报错。移除未使用的解构变量 |
-| 2 | Fork 仓库 sync workflow 失败 | `.github/workflows/sync.yml` 尝试 clone 上游 `ordureconnoisseur/plugins` 仓库，fork 仓库无 `PLUGINS_REPO_TOKEN` 认证失败。修复：sync job 加 `if: github.repository == 'ordureconnoisseur/binge'` 条件，fork 仓库自动跳过 |
-
-#### v0.4.8 新增修复
-
-| # | 修复 | 说明 |
-|-|-|-|
-| 1 | 演员详情页点击影片跳转到随机影片 | Reel random 路径在 fetch 完成后调用 `setPinFirstSceneId(null)` 清除 pin，但 `pinFirstSceneId` 在依赖数组中 → 清除触发 effect 重跑 → 第二次跑时 pin 为 null → 重新拉随机场景覆盖掉刚放好的 pin 场景。改为不清除 pin，让 pin 留在 state 里由 `setTab`/filter-takeover 清除 |
-| 2 | 转码机制回滚 | 移除 v0.4.7 误加的 hls.js 依赖，恢复 MP4 优先策略（Stash 转码默认输出 MP4，原生支持快进） |
-
-#### v0.4.7 新增修复
-
-| # | 修复 | 说明 |
-|-|-|-|
-| 1 | 二层封面重叠 | PackDetailSheet tile 缺少 `width:100%` + `display:block`，button 在 grid 中宽度退化为 0 → 所有 tile 叠在同一格子。与 `.binge-gallery-cover-btn` 对齐 |
-| 2 | 取消筛选后内容不变 | Reel 新增 effect：queue 活跃时用户清除 performer chip → 自动清除 pinnedQueue → Reel 走 random 路径重新加载 |
-| 3 | 转码影片快进 | pickStream 对 avi/wmv 等不兼容容器在 auto/direct 模式下自动选 MP4 转码流（Stash 默认转码输出 MP4，支持快进）。无需 hls.js，由 Stash 服务端 + 浏览器原生 video 处理 |
+| 1 | [v0.4.8] 演员详情页点击影片跳转到随机影片 | Reel random 路径在 fetch 完成后调用 `setPinFirstSceneId(null)` 清除 pin，但 `pinFirstSceneId` 在依赖数组中 → 清除触发 effect 重跑 → 第二次跑时 pin 为 null → 重新拉随机场景覆盖掉刚放好的 pin 场景。改为不清除 pin，让 pin 留在 state 里由 `setTab`/filter-takeover 清除 |
+| 2 | [v0.4.8] 转码机制回滚 | 移除 v0.4.7 误加的 hls.js 依赖，恢复 MP4 优先策略（Stash 转码默认输出 MP4，原生支持快进） |
+| 3 | [v0.4.7] 二层封面重叠 | PackDetailSheet tile 缺少 `width:100%` + `display:block`，button 在 grid 中宽度退化为 0 → 所有 tile 叠在同一格子。与 `.binge-gallery-cover-btn` 对齐 |
+| 4 | [v0.4.7] 取消筛选后内容不变 | Reel 新增 effect：queue 活跃时用户清除 performer chip → 自动清除 pinnedQueue → Reel 走 random 路径重新加载 |
+| 5 | [v0.4.7] 转码影片快进 | pickStream 对 avi/wmv 等不兼容容器在 auto/direct 模式下自动选 MP4 转码流（Stash 默认转码输出 MP4，支持快进）。无需 hls.js，由 Stash 服务端 + 浏览器原生 video 处理 |
 
 #### v0.4.6 新增修复
 
@@ -159,21 +109,16 @@
 | 3 | 卡片断点微调 | 平板 780→680px，桌面保持 840px，加入 0.25s 平滑过渡 |
 | 4 | 推荐页翻译 | `Favourite` → 收藏、`Manage follows` → 管理关注、`Favourited` → 已收藏 |
 
-#### v0.4.3 新增修复
+#### v0.4.2–v0.4.3 新增修复
 
 | # | 修复 | 说明 |
 |-|-|-|
-| 1 | 宽屏卡片放大 150% | 桌面 560→840px、平板 520→780px，移动端不变 |
-| 2 | 故事查看器声音联动 | 自动播放失败时改用 `setMutedSession`（临时静音），切换故事不再重置用户偏好 |
-| 3 | 发现页封面右对齐 | `.binge-explore-tile` 的 `background-position: center` → `right center` |
-| 4 | 图库卡片 header 修复 | 头像黑环改 `border:none`、补 VerifiedIcon、白底改 div 容器、加 PerformerHoverCard 悬停弹窗 |
-
-#### v0.4.2 新增修复
-
-| # | 修复 | 说明 |
-|-|-|-|
-| 1 | release workflow 手动触发 | 新增 `workflow_dispatch` + `version` 输入参数，支持 Actions 页面手动触发发布 |
-| 2 | 版本号统一 | 新增"Resolve version"步骤，手动触发用输入值、tag 触发用 `github.ref_name` |
+| 1 | [v0.4.3] 宽屏卡片放大 150% | 桌面 560→840px、平板 520→780px，移动端不变 |
+| 2 | [v0.4.3] 故事查看器声音联动 | 自动播放失败时改用 `setMutedSession`（临时静音），切换故事不再重置用户偏好 |
+| 3 | [v0.4.3] 发现页封面右对齐 | `.binge-explore-tile` 的 `background-position: center` → `right center` |
+| 4 | [v0.4.3] 图库卡片 header 修复 | 头像黑环改 `border:none`、补 VerifiedIcon、白底改 div 容器、加 PerformerHoverCard 悬停弹窗 |
+| 5 | [v0.4.2] release workflow 手动触发 | 新增 `workflow_dispatch` + `version` 输入参数，支持 Actions 页面手动触发发布 |
+| 6 | [v0.4.2] 版本号统一 | 新增"Resolve version"步骤，手动触发用输入值、tag 触发用 `github.ref_name` |
 
 #### v0.4.1 新增修复（11 项）
 
