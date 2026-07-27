@@ -1,4 +1,5 @@
 import {
+    ensureForageUrlSeeded,
     readForageUrl,
     readForageWatchTarget,
     type ForageWatchTarget,
@@ -64,6 +65,9 @@ export interface ForageHealth {
 // Returns null on any failure (unreachable, mixed-content block, CORS,
 // timeout). Never throws — the Settings dot just shows "unreachable".
 export async function getForageHealth(): Promise<ForageHealth | null> {
+    // Pick up a server-side configured URL before resolving it (no-op
+    // once seeded, and when the user has set their own).
+    await ensureForageUrlSeeded();
     const base = readForageUrl();
     if (!base) return null;
     if (mixedContentBlocked(base)) return null;
@@ -88,16 +92,25 @@ let probeUrl: string | null = null;
 let probePromise: Promise<boolean> | null = null;
 
 export function forageAvailable(): Promise<boolean> {
-    const url = readForageUrl();
-    if (url !== probeUrl) {
-        probeUrl = url;
-        probePromise = null; // URL changed — re-probe
-    }
-    if (!url) return Promise.resolve(false);
+    // Can't read the URL synchronously any more — it may still be
+    // arriving from Stash's plugin config. Seed first, then probe.
     if (!probePromise) {
-        probePromise = getForageHealth()
-            .then((h) => !!(h && h.ok))
+        probePromise = ensureForageUrlSeeded()
+            .then(() => {
+                const url = readForageUrl();
+                probeUrl = url;
+                if (!url) return false;
+                return getForageHealth().then((h) => !!(h && h.ok));
+            })
             .catch(() => false);
+    } else if (readForageUrl() !== probeUrl) {
+        // User changed it in Settings — re-probe against the new host.
+        probeUrl = readForageUrl();
+        probePromise = probeUrl
+            ? getForageHealth()
+                  .then((h) => !!(h && h.ok))
+                  .catch(() => false)
+            : Promise.resolve(false);
     }
     return probePromise;
 }
@@ -126,6 +139,7 @@ export type ForageWatchResult =
 export async function addForageWatch(
     req: ForageWatchRequest
 ): Promise<ForageWatchResult> {
+    await ensureForageUrlSeeded();
     const base = readForageUrl();
     if (!base) {
         return {

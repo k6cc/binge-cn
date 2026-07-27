@@ -923,7 +923,7 @@ function ForageUrlRow() {
     return (
         <SettingRow
             title="forage server URL"
-            description='Base URL of your forage daemon (e.g. https://forage.tailf01ca.ts.net). "Send to forage" appears on discovery scenes once this daemon is reachable. Authentication is automatic — binge presents your Stash API key, which forage already trusts; nothing to paste. Status dot pings /healthz.'
+            description='Optional. Base URL of your forage daemon, if you run one. "Send to forage" appears on discovery scenes once this daemon is reachable, and stays hidden while this is blank. Authentication is automatic — binge presents your Stash API key, which forage already trusts; nothing to paste. Status dot pings /healthz. Use https if Stash is served over https, or the browser blocks it as mixed content.'
         >
             <div className="binge-settings-url-row">
                 <input
