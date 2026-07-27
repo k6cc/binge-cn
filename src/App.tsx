@@ -107,7 +107,8 @@ function App() {
     const refractActive = refractEnabled && refractTheme !== null;
     const activeTheme = refractActive ? refractTheme : null;
 
-    // Showcase mode — blur all media app-wide for safe screen-capture.
+    // Privacy blur — blurs all media app-wide so binge can be shown on a
+    // shared screen (or screenshotted) without exposing the library.
     // Toggling a class on <html> lets a single CSS rule (global.css) blur
     // every image / video / avatar while the UI chrome stays sharp.
     const showcaseBlur = useShowcaseBlur();
@@ -117,10 +118,10 @@ function App() {
         return () => root.classList.remove("binge-showcase-blur");
     }, [showcaseBlur]);
 
-    // Global capture hotkeys, ignored while the user is typing into an
+    // Global hotkeys, ignored while the user is typing into an
     // input (so a stray keystroke in a search box doesn't fire them):
     //   \        → toggle the debug overlay
-    //   | (⇧\)   → toggle showcase blur (for grabbing clean screenshots)
+    //   | (⇧\)   → toggle the privacy blur (someone walked in)
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
             if (e.key !== "\\" && e.key !== "|") return;

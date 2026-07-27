@@ -49,10 +49,16 @@ type GridCell =
 
 const STASHDB_ENDPOINT = "https://stashdb.org/graphql";
 
-const PAGE_SIZE = 24;
-// Distance from grid bottom that triggers the next page load. Matches the
-// Reel's PAGINATE_TRIGGER_DISTANCE feel — load before the user hits the floor.
-const NEAR_BOTTOM_PX = 600;
+// 24 was one flick of the wrist on a wide grid (5-6 columns = 4 rows), so
+// the loader showed up constantly. 60 is ~10 rows even at desktop width
+// while staying a comfortable single query. "recent" ignores this and
+// fetches everything (see findScenesByPerformer) because its sort can't
+// be expressed server-side.
+const PAGE_SIZE = 60;
+// Distance from grid bottom that triggers the next page load. Deliberately
+// more than a screen's worth so the next page is usually already in place
+// by the time the user reaches the end and they never watch a spinner.
+const NEAR_BOTTOM_PX = 1400;
 
 // Paginated grid of poster cards. Tapping a card closes the profile and
 // replaces the active filter with `{performers:[this], tags:[], studios:[]}`,

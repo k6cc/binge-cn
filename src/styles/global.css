@@ -39,12 +39,13 @@ body,
     overflow: hidden;
 }
 
-/* ── Showcase mode: blur all media for safe screen-capture ─────────────
+/* ── Privacy blur: blur all media for shared screens ───────────────────
    Toggled by the `binge-showcase-blur` class on <html> (App.tsx, driven
    by the binge.showcaseBlur setting / the ⇧\ hotkey). Blurs all media so
-   the UI can be captured/streamed without exposing library content (and
-   keeps README screenshots within GitHub's content policy) while leaving
-   text + UI chrome legible.
+   binge can be screen-shared, screenshotted, or used in public without
+   exposing library content, while leaving text + UI chrome legible.
+   (Class + setting keys keep their original names so existing installs
+   don't lose the toggle.)
 
    The blur is a plain ELEMENT-level `filter` — it composites with the
    element's existing layer and paints immediately on first render. Two

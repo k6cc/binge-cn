@@ -1031,13 +1031,13 @@ function ShowcaseRow() {
     const value = useShowcaseBlur();
     return (
         <SettingRow
-            title="Showcase mode (blur all media)"
-            description="Blurs every image, video, and avatar across binge while leaving the interface sharp — for screenshots, demo recordings, or screen-sharing without exposing library content. Nothing is uploaded or changed; it's a display-only filter applied in your browser. Hotkey: | (Shift + \\)"
+            title="Privacy blur"
+            description="Blurs every image, video, and avatar while leaving the interface sharp — so you can screen-share, take a screenshot, or use binge somewhere public without putting your library on display. Nothing is uploaded or changed; it's a display-only filter in your browser. Toggle it fast with | (Shift + \\)."
         >
             <SwitchToggle
                 checked={value}
                 onChange={(v) => setShowcaseBlur(v)}
-                label="Showcase blur"
+                label="Privacy blur"
             />
         </SettingRow>
     );
