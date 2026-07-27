@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
     findPerformersForPicker,
     findStudiosForPicker,
@@ -11,15 +12,16 @@ interface AddChipMenuProps {
     onClose: () => void;
 }
 
-const TABS: { id: FilterCategory; label: string }[] = [
-    { id: "performers", label: "演员" },
-    { id: "tags", label: "标签" },
-    { id: "studios", label: "制片厂" },
+const TABS_KEYS: { id: FilterCategory; labelKey: string; fallback: string }[] = [
+    { id: "performers", labelKey: "nav.performers", fallback: "演员" },
+    { id: "tags", labelKey: "nav.tags", fallback: "标签" },
+    { id: "studios", labelKey: "nav.studios", fallback: "制片厂" },
 ];
 
 // Search-and-add picker. One tab per filter category. Type to search; each
 // hit is clickable. Debounces input so we don't fire 6 queries per keystroke.
 export function AddChipMenu({ onClose }: AddChipMenuProps) {
+    const { t } = useTranslation();
     const [tab, setTab] = useState<FilterCategory>("performers");
     const [q, setQ] = useState("");
     const [results, setResults] = useState<PickerResult[]>([]);
@@ -106,19 +108,19 @@ export function AddChipMenu({ onClose }: AddChipMenuProps) {
     return (
         <div className="binge-chip-menu" ref={panelRef} role="dialog">
             <div className="binge-chip-menu-tabs" role="tablist">
-                {TABS.map((t) => (
+                {TABS_KEYS.map((tItem) => (
                     <button
-                        key={t.id}
+                        key={tItem.id}
                         type="button"
                         role="tab"
-                        aria-selected={tab === t.id}
+                        aria-selected={tab === tItem.id}
                         className={
                             "binge-chip-menu-tab" +
-                            (tab === t.id ? " is-active" : "")
+                            (tab === tItem.id ? " is-active" : "")
                         }
-                        onClick={() => setTab(t.id)}
+                        onClick={() => setTab(tItem.id)}
                     >
-                        {t.label}
+                        {t(tItem.labelKey, tItem.fallback)}
                     </button>
                 ))}
             </div>
@@ -126,16 +128,16 @@ export function AddChipMenu({ onClose }: AddChipMenuProps) {
                 ref={inputRef}
                 type="text"
                 className="binge-chip-menu-input"
-                placeholder={`搜索${TABS.find((t) => t.id === tab)?.label ?? tab}…`}
+                placeholder={t("action.search_tab", "搜索{{tab}}…", { tab: t(TABS_KEYS.find((tItem) => tItem.id === tab)?.labelKey || "", TABS_KEYS.find((tItem) => tItem.id === tab)?.fallback || tab) })}
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
             />
             <ul className="binge-chip-menu-results">
                 {loading && (
-                    <li className="binge-chip-menu-status">搜索中…</li>
+                    <li className="binge-chip-menu-status">{t("status.searching", "搜索中…")}</li>
                 )}
                 {!loading && results.length === 0 && (
-                    <li className="binge-chip-menu-status">无结果</li>
+                    <li className="binge-chip-menu-status">{t("status.no_results", "无结果")}</li>
                 )}
                 {results.map((r) => {
                     const isSelected = alreadySelected.has(r.id);

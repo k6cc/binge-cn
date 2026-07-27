@@ -44,6 +44,7 @@ interface ActionStackProps {
     // it without touching ActionStack.
     onOpenMore: () => void;
 }
+import { useTranslation } from "react-i18next";
 
 // Heart hold-to-unlike duration. Mirrors common mobile long-press
 // thresholds; 1500 chosen for "long enough to never trigger by accident".
@@ -81,9 +82,10 @@ export function ActionStack({
     const hasAdvancedRating = useHasAdvancedRating();
     const [rateStripOpen, setRateStripOpen] = useState(false);
     const useAdvancedRating = hasAdvancedRating && !!onOpenAdvancedRating;
+    const { t } = useTranslation();
 
     return (
-        <aside className="binge-actions" aria-label="场景操作">
+        <aside className="binge-actions" aria-label={t("action.scene_actions", "场景操作")}>
             <HeartButton
                 oCount={oCount}
                 oError={oError}
@@ -131,8 +133,8 @@ export function ActionStack({
                     e.stopPropagation();
                     onOpenMore();
                 }}
-                aria-label="更多操作"
-                title="更多"
+                aria-label={t("action.more_actions", "更多操作")}
+                            title={t("action.more", "更多")}
             >
                 <MoreIcon />
             </button>
@@ -153,6 +155,7 @@ function HeartButton({
     onLike: () => void;
     onUnlike: () => void;
 }) {
+    const { t } = useTranslation();
     const [holding, setHolding] = useState(false);
     const holdTimerRef = useRef<number | null>(null);
     const heldDownRef = useRef(false);
@@ -221,8 +224,8 @@ function HeartButton({
             onPointerLeave={handlePointerLeave}
             onPointerCancel={handlePointerLeave}
             onContextMenu={suppressContextMenu}
-            aria-label={`O 计数 ${oCount}。点击喜欢，长按取消喜欢。`}
-            title="点击喜欢 · 长按取消喜欢"
+            aria-label={t("action.like_unlike_desc", "O 计数 {{count}}。点击喜欢，长按取消喜欢。", { count: oCount })}
+            title={t("action.like_unlike", "点击喜欢 · 长按取消喜欢")}
         >
             <HeartIcon filled={oCount > 0} />
             {oCount > 0 && (
@@ -249,6 +252,7 @@ function RateButton({
     onSetRating: (stars: number | null) => void;
     onDismiss: () => void;
 }) {
+    const { t } = useTranslation();
     const rated = (ratingStars ?? 0) > 0;
     return (
         <div className="binge-action-rate-wrap">
@@ -272,12 +276,12 @@ function RateButton({
                 }}
                 aria-label={
                     ratingStars
-                        ? `已评 ${ratingStars} 颗星。点击修改。`
+                        ? t("action.rated_stars", "已评 {{count}} 颗星。点击修改。", { count: ratingStars })
                         : advanced
-                          ? "为场景评分（高级）"
-                          : "为场景评分"
+                          ? t("action.rate_advanced", "为场景评分（高级）")
+                          : t("action.rate_scene", "为场景评分")
                 }
-                title={advanced ? "评分（高级）" : "评分"}
+                title={advanced ? t("action.rate_advanced", "评分（高级）") : t("action.rate", "评分")}
             >
                 <StarIcon filled={rated} />
                 {rated && (
@@ -297,6 +301,7 @@ function RateStrip({
     onPick: (stars: number | null) => void;
     onDismiss: () => void;
 }) {
+    const { t } = useTranslation();
     // Tap outside dismisses. The strip's stopPropagation prevents
     // clicks within it from bubbling to this listener.
     useEffect(() => {
@@ -317,7 +322,7 @@ function RateStrip({
             className="binge-rate-strip"
             onClick={(e) => e.stopPropagation()}
             role="radiogroup"
-            aria-label="为场景评分"
+            aria-label={t("action.rate_scene", "为场景评分")}
         >
             {[1, 2, 3, 4, 5].map((n) => (
                 <button
@@ -330,9 +335,9 @@ function RateStrip({
                         e.stopPropagation();
                         // Tapping the current rating clears it (toggle).
                         onPick(n === current ? null : n);
-                    }}
-                    aria-label={`${n} 颗星`}
-                    role="radio"
+                }}
+                aria-label={t("action.rate_stars_count", "{{count}} 颗星", { count: n })}
+                role="radio"
                     aria-checked={n === current}
                 >
                     <StarIcon filled={n <= current} />
@@ -353,6 +358,7 @@ function MultiviewButton({
     onTap: () => void;
     onHold: () => void;
 }) {
+    const { t } = useTranslation();
     const holdTimerRef = useRef<number | null>(null);
     const heldRef = useRef(false);
 
@@ -400,10 +406,10 @@ function MultiviewButton({
             onPointerCancel={onPointerLeave}
             aria-label={
                 inQueue
-                    ? "从多视图队列移除。长按打开播放器。"
-                    : "加入多视图队列。长按打开播放器。"
+                    ? t("multiview.remove_from_queue", "从多视图队列移除。长按打开播放器。")
+                    : t("multiview.add_to_queue", "加入多视图队列。长按打开播放器。")
             }
-            title="点击加入队列 · 长按打开多视图"
+            title={t("multiview.queue_and_open_player", "点击加入队列 · 长按打开多视图")}
         >
             <GridIcon filled={inQueue} />
         </button>
@@ -413,6 +419,7 @@ function MultiviewButton({
 // ── Scribe ───────────────────────────────────────────────────────────
 
 function ScribeButton({ onTap }: { onTap: () => void }) {
+    const { t } = useTranslation();
     return (
         <button
             type="button"
@@ -421,8 +428,8 @@ function ScribeButton({ onTap }: { onTap: () => void }) {
                 e.stopPropagation();
                 onTap();
             }}
-            aria-label="用 Scribe 写评价"
-            title="写评价"
+            aria-label={t("action.write_scribe_review", "用 Scribe 写评价")}
+            title={t("action.write_review", "写评价")}
         >
             <PencilIcon />
         </button>
@@ -438,6 +445,7 @@ function BookmarkButton({
     inCollections: Record<string, boolean>;
     onToggleCollection: (tagName: string) => void;
 }) {
+    const { t } = useTranslation();
     const [sheetOpen, setSheetOpen] = useState(false);
     // Filled when in ANY collection — single visual signal that the
     // scene is "saved" without committing to which folder.
@@ -455,11 +463,11 @@ function BookmarkButton({
                     setSheetOpen(true);
                 }}
                 aria-label={
-                    savedSomewhere ? "管理保存位置" : "保存场景"
+                    savedSomewhere ? t("action.manage_saves", "管理保存位置") : t("action.save_scene", "保存场景")
                 }
                 aria-haspopup="dialog"
                 aria-expanded={sheetOpen}
-                title="保存到…"
+                title={t("action.save_to", "保存到…")}
             >
                 <BookmarkIcon filled={savedSomewhere} />
             </button>

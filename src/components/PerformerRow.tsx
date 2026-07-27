@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { BingeScene } from "../api/queries";
 import { PerformerSheet } from "./PerformerSheet";
 import { usePerformerProfile } from "../performer/PerformerProfileContext";
+import { useTranslation } from "react-i18next";
 
 interface PerformerRowProps {
     performers: BingeScene["performers"];
@@ -21,6 +22,7 @@ export function PerformerRow({ performers }: PerformerRowProps) {
         primary?.favorite ?? false
     );
     const [sheetOpen, setSheetOpen] = useState(false);
+    const { t } = useTranslation();
 
     useEffect(() => {
         setPrimaryFav(primary?.favorite ?? false);
@@ -108,11 +110,11 @@ export function PerformerRow({ performers }: PerformerRowProps) {
                     "binge-follow-btn" + (primaryFav ? " is-following" : "")
                 }
                 onClick={() => setSheetOpen(true)}
-                title="管理关注"
+                title={t("action.manage_follows", "管理关注")}
                 aria-haspopup="dialog"
                 aria-expanded={sheetOpen}
             >
-                {primaryFav ? "已收藏" : "收藏"}
+                {primaryFav ? t("status.favorite", "已收藏") : t("action.favorite", "收藏")}
             </button>
             {sheetOpen && (
                 <PerformerSheet

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
 import { findPerformer, type PerformerDetail } from "../api/queries";
 import { setPerformerFavorite } from "../api/mutations";
 import { useHasAdvancedRating } from "../plugins/PluginContext";
@@ -95,6 +96,7 @@ function LocalPerformerProfile({
     localId: string;
     initialTab?: string;
 }) {
+    const { t } = useTranslation();
     const currentId = localId;
     const { close } = usePerformerProfile();
     const [state, setState] = useState<LoadState>({ kind: "idle" });
@@ -285,7 +287,7 @@ function LocalPerformerProfile({
     };
 
     return createPortal(
-        <div className="binge-profile-root" role="dialog" aria-label="演员档案">
+        <div className="binge-profile-root" role="dialog" aria-label={t("performer.profile_aria_label", "演员档案")}>
             <header
                 className={
                     "binge-profile-topbar" +
@@ -296,7 +298,7 @@ function LocalPerformerProfile({
                     type="button"
                     className="binge-profile-back"
                     onClick={close}
-                    aria-label="关闭档案"
+                    aria-label={t("performer.close_profile", "关闭档案")}
                 >
                     <BackIcon />
                 </button>
@@ -309,9 +311,9 @@ function LocalPerformerProfile({
                                 (favorite ? " is-favorite" : "")
                             }
                             aria-label={
-                                favorite ? "已收藏" : "在库中"
+                                favorite ? t("performer.favorited", "已收藏") : t("performer.in_library", "在库中")
                             }
-                            title={favorite ? "已收藏" : "在库中"}
+                            title={favorite ? t("performer.favorited", "已收藏") : t("performer.in_library", "在库中")}
                         >
                             <VerifiedIcon />
                         </span>
@@ -320,8 +322,8 @@ function LocalPerformerProfile({
                 <button
                     type="button"
                     className="binge-profile-more"
-                    aria-label="更多操作"
-                    title="更多"
+                    aria-label={t("performer.more_actions", "更多操作")}
+                    title={t("action.more", "更多")}
                     onClick={() => setMoreOpen(true)}
                 >
                     <MoreIcon />
@@ -331,7 +333,7 @@ function LocalPerformerProfile({
                 {state.kind === "loading" && <BingeLoading minHeight="50vh" />}
                 {state.kind === "error" && (
                     <div className="binge-status binge-status-error">
-                        错误：{state.message}
+                        {t("status.error_message", "错误：{{message}}", { message: state.message })}
                     </div>
                 )}
                 {state.kind === "ready" && (
@@ -357,8 +359,8 @@ function LocalPerformerProfile({
                                         type="button"
                                         className="binge-profile-rate"
                                         onClick={() => setRatingOpen(true)}
-                                        aria-label="评分"
-                                        title="评分（高级）"
+                                        aria-label={t("performer.rate", "评分")}
+                                        title={t("performer.rate_advanced", "评分（高级）")}
                                     >
                                         ★
                                     </button>
@@ -375,8 +377,10 @@ function LocalPerformerProfile({
                                 onClick={handleFollow}
                                 disabled={busy}
                                 aria-pressed={favorite}
+                                title={t("action.manage_follows", "管理关注")}
+                                aria-label={favorite ? t("performer.unfollow", "取消关注") : t("performer.follow", "关注")}
                             >
-                                {favorite ? "已收藏" : "收藏"}
+                                {favorite ? t("performer.favorited", "已收藏") : t("performer.follow", "收藏")}
                             </button>
                         </div>
                         {ratingOpen && state.kind === "ready" && (
@@ -400,7 +404,7 @@ function LocalPerformerProfile({
                         <div
                             className="binge-profile-tabs"
                             role="tablist"
-                            aria-label="档案内容"
+                            aria-label={t("nav.profile_content", "档案内容")}
                         >
                             <button
                                 type="button"
@@ -412,7 +416,7 @@ function LocalPerformerProfile({
                                 }
                                 onClick={() => setTab("scenes")}
                             >
-                                场景
+                                {t("nav.scenes", "场景")}
                             </button>
                             <button
                                 type="button"
@@ -424,10 +428,9 @@ function LocalPerformerProfile({
                                 }
                                 onClick={() => setTab("galleries")}
                             >
-                                图库
+                                {t("nav.gallery", "图库")}
                             </button>
-                            {/* Bug 11：X (Twitter) tab — 仅在设置开启且演员
-                                有 X 链接时渲染。 */}
+                            {/* Bug 11: X (Twitter) tab — Renders only when settings are enabled and the performer has X links. */}
                             {includeX &&
                                 xHandleFromUrls(state.performer.urls) && (
                                     <button
@@ -440,7 +443,7 @@ function LocalPerformerProfile({
                                         }
                                         onClick={() => setTab("x")}
                                     >
-                                        X
+                                        {t("nav.x_tab", "X")}
                                     </button>
                                 )}
                         </div>
@@ -477,6 +480,7 @@ function ProfileAvatar({
     hasStory: boolean;
     onOpenStory: () => void;
 }) {
+    const { t } = useTranslation();
     const inner = (
         <span
             className="binge-profile-avatar"
@@ -499,8 +503,8 @@ function ProfileAvatar({
             type="button"
             className="binge-profile-avatar-ring"
             onClick={onOpenStory}
-            aria-label={`查看 ${name} 的故事`}
-            title="查看故事"
+            aria-label={t("performer.view_story_for", "查看 {{name}} 的故事", { name })}
+            title={t("performer.view_story", "查看故事")}
         >
             {inner}
         </button>

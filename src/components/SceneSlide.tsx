@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { BingeScene } from "../api/queries";
 import { ActionStack } from "./ActionStack";
 import { PerformerRow } from "./PerformerRow";
@@ -110,6 +111,7 @@ export function SceneSlide({
     currentlyScrolling = false,
     onAutoAdvance,
 }: SceneSlideProps) {
+    const { t } = useTranslation();
     const autoScroll = useAutoScroll();
     // Reactive — re-points mounted <video> src when the user changes
     // the stream type in Settings (the old getTranscodeType() read was
@@ -653,7 +655,7 @@ export function SceneSlide({
         () =>
             scene.title ||
             scene.performers.map((p) => p.name).join(", ") ||
-            `场景 ${scene.id}`,
+            t("scene.scene_id", "场景 {{id}}", { id: scene.id }),
         [scene.id, scene.title, scene.performers]
     );
     const detailsLine = scene.details?.trim() || "";
@@ -694,7 +696,7 @@ export function SceneSlide({
                 type="button"
                 className="binge-tap-target"
                 onClick={handleTap}
-                aria-label={isPlaying ? "暂停" : "播放"}
+                aria-label={isPlaying ? t("action.pause", "暂停") : t("action.play", "播放")}
                 tabIndex={-1}
             />
             {bursts.length > 0 && (
@@ -729,7 +731,7 @@ export function SceneSlide({
                     type="button"
                     className="binge-caption"
                     onClick={() => setDetailsOpen(true)}
-                    aria-label="查看详情"
+                    aria-label={t("action.view_details", "查看详情")}
                 >
                     <span className="binge-caption-line">
                         <span className="binge-caption-title">

@@ -7,6 +7,7 @@ import { DiscoveryFeedCard } from "./DiscoveryFeedCard";
 import { invalidateStashDBCache } from "../api/stashdb";
 import { BingeLoading } from "../components/BingeLoading";
 import { PackFeedCard } from "./PackFeedCard";
+import { useTranslation } from "react-i18next";
 import {
     useHiddenFeedCategories,
     type FeedCategory,
@@ -46,6 +47,7 @@ export function Feed({ scrollContainerRef }: FeedProps) {
     const hidden = useHiddenFeedCategories();
     const feedRef = useRef<HTMLElement>(null);
     const [scrollMargin, setScrollMargin] = useState(0);
+    const { t } = useTranslation();
 
     const rawItems = state.kind === "ready" ? state.items : [];
     const items = useMemo(
@@ -110,7 +112,7 @@ export function Feed({ scrollContainerRef }: FeedProps) {
         return (
             <section className="binge-feed">
                 <div className="binge-feed-empty binge-status-error">
-                    无法加载动态：{state.message}
+                    {t("status.feed_load_failed", "无法加载动态：{{message}}", { message: state.message })}
                 </div>
             </section>
         );
@@ -120,8 +122,8 @@ export function Feed({ scrollContainerRef }: FeedProps) {
             <section className="binge-feed">
                 <div className="binge-feed-empty">
                     {rawItems.length > 0
-                        ? "所有内容被筛选掉了 — 调整筛选条件。"
-                        : "近期窗口内没有新内容。"}
+                        ? t("status.all_filtered_out", "所有内容被筛选掉了 — 调整筛选条件。")
+                        : t("status.no_new_content", "近期窗口内没有新内容。")}
                 </div>
             </section>
         );
@@ -130,7 +132,7 @@ export function Feed({ scrollContainerRef }: FeedProps) {
     return (
         <section
             className="binge-feed"
-            aria-label="新场景和图库"
+            aria-label={t("nav.new_scenes_and_galleries", "新场景和图库")}
             ref={feedRef}
             style={{
                 position: "relative",
@@ -191,7 +193,7 @@ export function Feed({ scrollContainerRef }: FeedProps) {
                 }}
             >
                 <div className="binge-feed-empty">
-                    已到底 · 共 {items.length} 项
+                    {t("status.reached_bottom_count", "已到底 · 共 {{count}} 项", { count: items.length })}
                 </div>
             </div>
         </section>

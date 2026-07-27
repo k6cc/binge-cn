@@ -8,6 +8,7 @@ import {
 } from "../api/mutations";
 import type { StashDBSceneDetail } from "../api/stashdb";
 import { useSheetClose } from "../hooks/useSheetClose";
+import { useTranslation } from "react-i18next";
 
 interface AddSceneModalProps {
     stashDBSceneId: string;
@@ -54,6 +55,7 @@ export function AddSceneModal({
     const { isExiting, beginClose } = useSheetClose(onClose);
     const [state, setState] = useState<ModalState>({ kind: "loading" });
     const [imageIndex, setImageIndex] = useState(0);
+    const { t } = useTranslation();
 
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
@@ -152,15 +154,15 @@ export function AddSceneModal({
             <div
                 className="binge-sheet binge-follow-modal"
                 role="dialog"
-                aria-label="将场景加入库"
+                aria-label={t("action.add_scene_to_library", "将场景加入库")}
             >
                 <header className="binge-follow-modal-header">
-                    <h2>将场景加入库</h2>
+                    <h2>{t("action.add_scene_to_library", "将场景加入库")}</h2>
                     <button
                         type="button"
                         className="binge-follow-modal-close"
                         onClick={beginClose}
-                        aria-label="关闭"
+                        aria-label={t("action.close", "关闭")}
                     >
                         ×
                     </button>
@@ -168,7 +170,7 @@ export function AddSceneModal({
 
                 {state.kind === "loading" && (
                     <div className="binge-follow-modal-loading">
-                        正在从 StashDB 获取场景元数据…
+                        {t("status.fetching_stashdb", "正在从 StashDB 获取场景元数据…")}
                     </div>
                 )}
 
@@ -188,7 +190,7 @@ export function AddSceneModal({
                                 >
                                     {!currentImage && (
                                         <span className="binge-follow-modal-hero-empty">
-                                            无图片
+                                            {t("status.no_image", "无图片")}
                                         </span>
                                     )}
                                 </div>
@@ -205,7 +207,7 @@ export function AddSceneModal({
                                                         images.length
                                                 )
                                             }
-                                            aria-label="上一张照片"
+                                            aria-label={t("action.previous_photo", "上一张照片")}
                                         >
                                             <ChevronLeft />
                                         </button>
@@ -218,7 +220,7 @@ export function AddSceneModal({
                                                         images.length
                                                 )
                                             }
-                                            aria-label="下一张照片"
+                                            aria-label={t("action.next_photo", "下一张照片")}
                                         >
                                             <ChevronRight />
                                         </button>
@@ -231,24 +233,22 @@ export function AddSceneModal({
                             <div className="binge-follow-modal-hero-meta">
                                 {detail?.studio && (
                                     <div className="binge-follow-modal-stats">
-                                        制片厂：{" "}
+                                        {t("performer.studio", "制片厂：")}{" "}
                                         <strong>{detail.studio.name}</strong>
                                         {!form.studioId && (
                                             <span className="binge-follow-modal-not-in-library">
-                                                （不在库中）
+                                                {t("performer.not_in_library", "（不在库中）")}
                                             </span>
                                         )}
                                     </div>
                                 )}
                                 {detail && (
                                     <div className="binge-follow-modal-stats">
-                                        StashDB 上有 {detail.performers.length}{" "}
-                                        位演员
+                                        {t("scene.stashdb_performers", "StashDB 上有 {{count}} 位演员", { count: detail.performers.length })}
                                         {form.performerIds.length <
                                             detail.performers.length && (
                                             <span className="binge-follow-modal-not-in-library">
-                                                （{form.performerIds.length}{" "}
-                                                位在库中）
+                                                {t("scene.performers_in_library", "（{{count}} 位在库中）", { count: form.performerIds.length })}
                                             </span>
                                         )}
                                     </div>
@@ -259,44 +259,44 @@ export function AddSceneModal({
                                     rel="noopener noreferrer"
                                     className="binge-follow-modal-stashdb-link"
                                 >
-                                    在 StashDB 上查看 →
+                                    {t("action.view_on_stashdb", "在 StashDB 上查看")} →
                                 </a>
                             </div>
                         </div>
 
                         <div className="binge-follow-modal-grid">
                             <Field
-                                label="标题"
+                                label={t("form.title", "标题")}
                                 value={form.title}
                                 onChange={(v) => updateField("title", v)}
                                 fullWidth
                             />
                             <Field
-                                label="日期"
+                                label={t("form.date", "日期")}
                                 value={form.date}
                                 type="date"
                                 onChange={(v) => updateField("date", v)}
                             />
                             <Field
-                                label="代码"
+                                label={t("form.code", "代码")}
                                 value={form.code}
                                 onChange={(v) => updateField("code", v)}
                             />
                             <Field
-                                label="导演"
+                                label={t("form.director", "导演")}
                                 value={form.director}
                                 onChange={(v) => updateField("director", v)}
                                 fullWidth
                             />
                             <TextareaField
-                                label="URL（每行一个）"
+                                label={t("form.urls", "URL（每行一个）")}
                                 value={form.urls}
                                 onChange={(v) => updateField("urls", v)}
                                 fullWidth
                                 rows={3}
                             />
                             <TextareaField
-                                label="详情"
+                                label={t("form.details", "详情")}
                                 value={form.details}
                                 onChange={(v) => updateField("details", v)}
                                 rows={5}
@@ -307,7 +307,7 @@ export function AddSceneModal({
                         {detail && detail.performers.length > 0 && (
                             <div className="binge-follow-modal-coperformers">
                                 <span className="binge-follow-modal-coperformers-label">
-                                    演员：
+                                    {t("performer.performers", "演员：")}
                                 </span>
                                 {detail.performers.map((p) => (
                                     // We don't have a per-performer
@@ -341,7 +341,7 @@ export function AddSceneModal({
                         onClick={beginClose}
                         disabled={isSubmitting}
                     >
-                        取消
+                        {t("action.cancel", "取消")}
                     </button>
                     <button
                         type="button"
@@ -350,10 +350,10 @@ export function AddSceneModal({
                         disabled={state.kind !== "ready"}
                     >
                         {isSubmitting
-                            ? "加入中…"
+                            ? t("status.adding", "加入中…")
                             : state.kind === "error"
-                              ? "重试"
-                              : "加入库"}
+                              ? t("action.retry", "重试")
+                              : t("action.add_to_library", "加入库")}
                     </button>
                 </footer>
             </div>

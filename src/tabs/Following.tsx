@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
     findAllPerformers,
     type PerformerSummary,
@@ -23,20 +24,7 @@ type SortMode =
     | "last-post-desc"
     | "last-post-asc";
 
-const SORT_OPTIONS: { value: SortMode; label: string }[] = [
-    { value: "name-asc", label: "姓名 A → Z" },
-    { value: "name-desc", label: "姓名 Z → A" },
-    { value: "scenes-desc", label: "场景最多" },
-    { value: "scenes-asc", label: "场景最少" },
-    { value: "last-post-desc", label: "最近发布（最新）" },
-    { value: "last-post-asc", label: "最近发布（最旧）" },
-];
-
-// Map<performerStashId, lastActivityIso> for the "last post at" sort.
-// Derived from useStories() — the same merged view that powers Home's
-// stories row: library scene.date, library created_at, StashDB
-// release date, AND Reddit created_utc, all collapsed into one
-// per-performer max. Performers with no recent activity are absent.
+//
 type LastPostMap = Map<string, string>;
 
 function sortPerformers(
@@ -98,6 +86,15 @@ export function Following() {
         useSearchHistory("performers");
     const scrollRef = useRef<HTMLDivElement>(null);
     useAutoHideTabBar(scrollRef);
+    const { t } = useTranslation();
+    const SORT_OPTIONS: { value: SortMode; label: string }[] = useMemo(() => [
+        { value: "name-asc", label: t("sort.name_asc", "姓名 A → Z") },
+        { value: "name-desc", label: t("sort.name_desc", "姓名 Z → A") },
+        { value: "scenes-desc", label: t("sort.scenes_desc", "场景最多") },
+        { value: "scenes-asc", label: t("sort.scenes_asc", "场景最少") },
+        { value: "last-post-desc", label: t("sort.last_post_desc", "最近发布（最新）") },
+        { value: "last-post-asc", label: t("sort.last_post_asc", "最近发布（最旧）") },
+    ], [t]);
 
     // Re-use the same useStories() data Home renders — already merged
     // (library + StashDB + Reddit) and cached. The per-performer
@@ -162,14 +159,14 @@ export function Following() {
     return (
         <div className="binge-tab-scroll" ref={scrollRef}>
             <div className="binge-tab-inner">
-                <h1 className="binge-tab-title">关注中</h1>
+                <h1 className="binge-tab-title">{t("nav.following", "关注中")}</h1>
 
                 <div className="binge-following-controls">
                     <div className="binge-search-wrap">
                         <input
                             type="search"
                             className="binge-following-search"
-                            placeholder="搜索演员"
+                            placeholder={t("nav.search_performers", "搜索演员")}
                             value={search}
                             onChange={(e) => {
                                 setSearch(e.target.value);
@@ -194,7 +191,7 @@ export function Following() {
                                 addPerformerSearchEntry(search);
                                 setSearchFocused(false);
                             }}
-                            aria-label="搜索演员"
+                            aria-label={t("nav.search_performers", "搜索演员")}
                             autoCorrect="off"
                             autoCapitalize="off"
                             spellCheck={false}
@@ -215,7 +212,7 @@ export function Following() {
                         className="binge-following-sort"
                         value={sort}
                         onChange={(e) => setSort(e.target.value as SortMode)}
-                        aria-label="排序演员"
+                        aria-label={t("nav.sort_performers", "排序演员")}
                     >
                         {SORT_OPTIONS.map((opt) => (
                             <option key={opt.value} value={opt.value}>
@@ -228,29 +225,29 @@ export function Following() {
                 {state.kind === "loading" && <BingeLoading minHeight="60vh" />}
                 {state.kind === "error" && (
                     <div className="binge-status binge-status-error">
-                        error: {state.message}
+                        {t("status.error_message", "错误：{{message}}", { message: state.message })}
                     </div>
                 )}
                 {state.kind === "ready" && (
                     <>
                         <Section
-                            title="收藏夹"
+                            title={t("nav.favorites", "收藏夹")}
                             count={favourites.length}
                             performers={favourites}
                             onPick={openProfile}
                             emptyHint={
                                 state.performers.some((p) => p.favorite)
-                                    ? "无匹配项。"
-                                    : "在 Stash 中收藏一些演员即可在此处查看。"
+                                    ? t("status.no_match", "无匹配项。")
+                                    : t("status.no_favorites", "在 Stash 中收藏一些演员即可在此处查看。")
                             }
                             favorite
                         />
                         <Section
-                            title="所有演员"
+                            title={t("nav.all_performers", "所有演员")}
                             count={others.length}
                             performers={others}
                             onPick={openProfile}
-                            emptyHint="无匹配项。"
+                            emptyHint={t("status.no_match", "无匹配项。")}
                             favorite={false}
                         />
                     </>
@@ -275,6 +272,7 @@ function Section({
     emptyHint: string;
     favorite: boolean;
 }) {
+    const { t } = useTranslation();
     return (
         <section className="binge-following-section">
             <header className="binge-following-section-head">
@@ -319,7 +317,7 @@ function Section({
                                 {typeof p.scene_count === "number" &&
                                     p.scene_count > 0 && (
                                         <span className="binge-follow-count">
-                                            {p.scene_count} 个场景
+                                            {t("status.performer_scenes", "{{count}} 个场景", { count: p.scene_count })}
                                         </span>
                                     )}
                             </button>

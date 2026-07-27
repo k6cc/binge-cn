@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { BingeLoadingIcon } from "./BingeLoadingIcon";
 
 // In-context loading indicator — animated stroked-infinity glyph
@@ -19,11 +20,12 @@ export function BingeLoading({
     /// or "200px"; omit for natural height.
     minHeight?: string;
 }) {
+    const { t } = useTranslation();
     return (
         <div
             className={"binge-loading" + (compact ? " is-compact" : "")}
             style={minHeight ? { minHeight } : undefined}
-            aria-label="加载中"
+            aria-label={t("status.loading", "加载中")}
             role="status"
         >
             <BingeLoadingIcon className="binge-loading-icon" />

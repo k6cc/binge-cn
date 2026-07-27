@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { PackFeedItem } from "./useFeed";
 import { VerifiedIcon } from "../performer/PerformerProfile";
 import { usePerformerProfile } from "../performer/PerformerProfileContext";
@@ -26,6 +27,7 @@ const MOSAIC_TILES = 8;
 // activity) + hover card + relative time.
 export function PackFeedCard({ item }: { item: PackFeedItem }) {
     const [sheetOpen, setSheetOpen] = useState(false);
+    const { t } = useTranslation();
     const { openProfile } = usePerformerProfile();
     const { open: openStoryViewer } = useStoryViewer();
     const storiesState = useSharedStories();
@@ -102,7 +104,7 @@ export function PackFeedCard({ item }: { item: PackFeedItem }) {
                                 {item.isRepost && (
                                     <span
                                         className="binge-pack-card-repost-badge"
-                                        aria-label="转发了"
+                                        aria-label={t("status.reposted", "转发了")}
                                     >
                                         <RepostIcon />
                                     </span>
@@ -138,8 +140,8 @@ export function PackFeedCard({ item }: { item: PackFeedItem }) {
                                         }
                                         aria-label={
                                             primary.favorite
-                                                ? "已收藏"
-                                                : "在库中"
+                                                ? t("status.favorite", "已收藏")
+                                                : t("status.in_library", "在库中")
                                         }
                                     >
                                         <VerifiedIcon />
@@ -147,8 +149,8 @@ export function PackFeedCard({ item }: { item: PackFeedItem }) {
                                 </span>
                                 <span className="binge-pack-card-sub">
                                     {item.isRepost
-                                        ? `转发了 ${item.sceneCount} 个场景`
-                                        : `添加了 ${item.sceneCount} 个新场景`}
+                                        ? t("status.reposted_count", { count: item.sceneCount })
+                                        : t("status.added_count", { count: item.sceneCount })}
                                 </span>
                             </button>
                         </PerformerHoverCard>
@@ -161,7 +163,7 @@ export function PackFeedCard({ item }: { item: PackFeedItem }) {
                     className="binge-pack-card-mosaic"
                     role="button"
                     tabIndex={0}
-                    aria-label={`打开包 — ${item.sceneCount} 个场景`}
+                    aria-label={t("action.open_pack_aria", { count: item.sceneCount })}
                     onClick={() => setSheetOpen(true)}
                     onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === " ") {

@@ -5,6 +5,7 @@ import {
     type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
 
 export interface SceneCardMenuItem {
     label: string;
@@ -33,6 +34,7 @@ export function SceneCardMenu({ items }: SceneCardMenuProps) {
     const [pos, setPos] = useState<{ top: number; left: number } | null>(
         null
     );
+    const { t } = useTranslation();
 
     useEffect(() => {
         if (!open) return;
@@ -99,8 +101,8 @@ export function SceneCardMenu({ items }: SceneCardMenuProps) {
                 onClick={() => setOpen((v) => !v)}
                 aria-haspopup="menu"
                 aria-expanded={open}
-                aria-label="更多操作"
-                title="更多"
+                aria-label={t("action.more_actions", "更多操作")}
+                title={t("action.more", "更多")}
             >
                 <DotsIcon />
             </button>

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { findScenes, findRecentlyLikedTags } from "../api/queries";
 import { getTopInteractedTags, type TagScore } from "../api/interactedTags";
+import { useTranslation } from "react-i18next";
 import { DiscoverPerformersBar } from "./DiscoverPerformersBar";
 import { useFilter } from "../filter/FilterContext";
 import { useTab } from "./TabContext";
@@ -28,6 +29,7 @@ const MAX_CHIPS = 25;
 const SEARCH_DEBOUNCE_MS = 280;
 
 export function Explore() {
+    const { t } = useTranslation();
     const sortSeed = useMemo(
         () => `random_${Math.floor(Math.random() * 1e9)}`,
         []
@@ -270,7 +272,7 @@ export function Explore() {
                     <input
                         type="search"
                         className="binge-explore-search"
-                        placeholder="搜索场景"
+                        placeholder={t("nav.search_scenes", "搜索场景")}
                         value={searchInput}
                         onChange={(e) => {
                             setSearchInput(e.target.value);
@@ -297,7 +299,7 @@ export function Explore() {
                             addSceneSearchEntry(searchInput);
                             setSearchFocused(false);
                         }}
-                        aria-label="搜索场景"
+                        aria-label={t("nav.search_scenes", "搜索场景")}
                         autoCorrect="off"
                         autoCapitalize="off"
                         spellCheck={false}
@@ -322,7 +324,7 @@ export function Explore() {
                             (canScrollLeft ? "" : " is-hidden")
                         }
                         onClick={() => scrollChips(-280)}
-                        aria-label="标签向左滚动"
+                        aria-label={t("nav.scroll_tags_left", "标签向左滚动")}
                         tabIndex={canScrollLeft ? 0 : -1}
                     >
                         <ChevronLeft />
@@ -339,7 +341,7 @@ export function Explore() {
                             }
                             onClick={() => setActiveTag(null)}
                         >
-                            推荐
+                            {t("nav.foryou", "推荐")}
                         </button>
                         {chipsToRender.map((t) => (
                             <button
@@ -365,7 +367,7 @@ export function Explore() {
                             (canScrollRight ? "" : " is-hidden")
                         }
                         onClick={() => scrollChips(280)}
-                        aria-label="标签向右滚动"
+                        aria-label={t("nav.scroll_tags_right", "标签向右滚动")}
                         tabIndex={canScrollRight ? 0 : -1}
                     >
                         <ChevronRight />
@@ -388,7 +390,7 @@ export function Explore() {
                                       }
                                     : undefined
                             }
-                            aria-label="打开场景"
+                            aria-label={t("action.open_scene")}
                         >
                             <span
                                 className="binge-explore-tile-play"
@@ -402,14 +404,14 @@ export function Explore() {
 
                 {error && (
                     <div className="binge-feed-empty binge-status-error">
-                        无法加载发现页：{error}
+                        {t("status.load_failed", "无法加载：{{message}}", { message: error })}
                     </div>
                 )}
                 {tiles.length === 0 && !isLoading && !error && (
                     <div className="binge-feed-empty">
                         {searchQuery || activeTag
-                            ? "没有场景匹配此筛选。"
-                            : "您的库中没有场景。"}
+                            ? t("status.no_scenes_matched", "没有匹配的场景。（是否有保存的筛选条件或筛选标签生效？）")
+                            : t("status.no_scenes_in_library", "您的库中没有场景。")}
                     </div>
                 )}
 
@@ -419,12 +421,12 @@ export function Explore() {
                         className="binge-feed-sentinel"
                         aria-hidden="true"
                     >
-                        {isLoading ? "加载中…" : ""}
+                        {isLoading ? t("status.loading", "加载中…") : ""}
                     </div>
                 )}
                 {!hasMore && tiles.length > 0 && (
                     <div className="binge-feed-empty">
-                        已到达底部 · {tiles.length} 个场景
+                        {t("status.reached_bottom_scenes", "已到达底部 · {{count}} 个场景", { count: tiles.length })}
                     </div>
                 )}
             </div>

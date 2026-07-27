@@ -1,10 +1,12 @@
 import { useFilter, type FilterCategory, type FilterEntry } from "./FilterContext";
+import { useTranslation } from "react-i18next";
 
 // Slim active-filters strip. Renders nothing when no chips are set; when
 // there are chips, displays them inline (no add/presets/clear chrome) so
 // they sit alongside the TabBar inside the shared top header gradient.
 // Each chip is removable via its trailing × (or by clicking the chip body).
 export function FilterBar() {
+    const { t } = useTranslation();
     const { filter, remove, isEmpty, activeSavedFilter, clearSavedFilter } =
         useFilter();
 
@@ -18,8 +20,8 @@ export function FilterBar() {
                         type="button"
                         className="binge-filter-chip binge-filter-chip-saved"
                         onClick={() => clearSavedFilter()}
-                        title={`清除“${activeSavedFilter.name}”筛选条件`}
-                        aria-label={`清除 ${activeSavedFilter.name} 筛选条件`}
+                        title={t("action.clear_saved_filter", "清除“{{name}}”筛选条件", { name: activeSavedFilter.name })}
+                        aria-label={t("action.clear_saved_filter", "清除“{{name}}”筛选条件", { name: activeSavedFilter.name })}
                     >
                         <span className="binge-filter-chip-label">
                             {activeSavedFilter.name}
@@ -54,8 +56,8 @@ export function FilterBar() {
                             type="button"
                             className={`binge-filter-chip binge-filter-chip-${category}`}
                             onClick={() => remove(category, e.id)}
-                            title={`移除 ${e.name}`}
-                            aria-label={`从筛选条件中移除 ${e.name}`}
+                            title={t("action.remove_item", "移除 {{name}}", { name: e.name })}
+                            aria-label={t("action.remove_filter_item", "从筛选条件中移除 {{name}}", { name: e.name })}
                         >
                             {category === "performers" && (
                                 <span

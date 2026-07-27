@@ -1,4 +1,5 @@
 import type { Story as StoryData } from "./useStories";
+import { useTranslation } from "react-i18next";
 
 interface StoryProps {
     story: StoryData;
@@ -10,6 +11,7 @@ interface StoryProps {
 // in the list has new content by construction); a "viewed" muted variant
 // is a future addition.
 export function Story({ story, onClick }: StoryProps) {
+    const { t } = useTranslation();
     const { performerName, performerImagePath } = story;
     const newCount = story.scenes.length;
     return (
@@ -20,8 +22,8 @@ export function Story({ story, onClick }: StoryProps) {
                 (story.performerFavorite ? " is-favorite" : "")
             }
             onClick={() => onClick(story)}
-            title={`${performerName} — ${newCount} 个新`}
-            aria-label={`${performerName}，${newCount} 个新场景`}
+            title={t("story.new_scenes_title", "{{name}} — {{count}} 个新场景", { name: performerName, count: newCount })}
+            aria-label={t("story.new_scenes_aria", "{{name}}，{{count}} 个新场景", { name: performerName, count: newCount })}
         >
             <span className="binge-story-ring">
                 <span

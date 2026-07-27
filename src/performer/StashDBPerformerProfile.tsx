@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
 import {
     getStashDBBox,
     getOwnedStashDBSceneIds,
@@ -41,6 +42,7 @@ export function StashDBPerformerProfile({
 }: {
     stashDBPerformerId: string;
 }) {
+    const { t } = useTranslation();
     const { close } = usePerformerProfile();
     const [state, setState] = useState<State>({ kind: "loading" });
     const [followOpen, setFollowOpen] = useState(false);
@@ -62,7 +64,7 @@ export function StashDBPerformerProfile({
                 const box = await getStashDBBox();
                 if (!box) {
                     throw new Error(
-                        "StashDB 未在 Stash → 设置 → 元数据提供者中配置。"
+                        t("performer.stashdb_config_error", "StashDB 未在 Stash → 设置 → 元数据提供者中配置。")
                     );
                 }
                 const [performer, scenes, ownedSceneIds] = await Promise.all([
@@ -75,7 +77,7 @@ export function StashDBPerformerProfile({
                 ]);
                 if (!alive) return;
                 if (!performer) {
-                    throw new Error("在 StashDB 上未找到该演员。");
+                    throw new Error(t("performer.stashdb_not_found", "在 StashDB 上未找到该演员。"));
                 }
                 setState({
                     kind: "ready",
@@ -119,7 +121,7 @@ export function StashDBPerformerProfile({
         <div
             className="binge-profile-root"
             role="dialog"
-            aria-label="StashDB 演员档案"
+            aria-label={t("performer.stashdb_profile_aria_label", "StashDB 演员档案")}
         >
             <header
                 className={
@@ -131,7 +133,7 @@ export function StashDBPerformerProfile({
                     type="button"
                     className="binge-profile-back"
                     onClick={close}
-                    aria-label="关闭档案"
+                    aria-label={t("performer.close_profile", "关闭档案")}
                 >
                     <BackIcon />
                 </button>
@@ -139,10 +141,10 @@ export function StashDBPerformerProfile({
                     {state.kind === "ready" ? state.performer.name : ""}
                     <span
                         className="binge-profile-stashdb-pill"
-                        aria-label="StashDB"
-                        title="StashDB"
+                        aria-label={t("common.stashdb", "StashDB")}
+                        title={t("common.stashdb", "StashDB")}
                     >
-                        StashDB
+                        {t("common.stashdb", "StashDB")}
                     </span>
                 </span>
                 <span className="binge-profile-more" aria-hidden="true" />
@@ -152,7 +154,7 @@ export function StashDBPerformerProfile({
                 {state.kind === "loading" && <BingeLoading minHeight="50vh" />}
                 {state.kind === "error" && (
                     <div className="binge-status binge-status-error">
-                        错误：{state.message}
+                        {t("status.error_message", "错误：{{message}}", { message: state.message })}
                     </div>
                 )}
                 {state.kind === "ready" && (
@@ -179,18 +181,18 @@ export function StashDBPerformerProfile({
                             <ul className="binge-profile-stats">
                                 <Stat
                                     value={state.performer.sceneCount}
-                                    label="场景"
+                                    label={t("performer.stat_scenes", "场景")}
                                 />
                                 <Stat
                                     value={countOwned(
                                         state.scenes,
                                         state.ownedSceneIds
                                     )}
-                                    label="库中"
+                                    label={t("performer.stat_in_library", "库中")}
                                 />
                                 <Stat
                                     value={state.performer.aliases.length}
-                                    label="别名"
+                                    label={t("performer.stat_aliases", "别名")}
                                 />
                             </ul>
                         </section>
@@ -203,7 +205,7 @@ export function StashDBPerformerProfile({
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="binge-profile-name-link"
-                                        title="在 StashDB 打开"
+                                        title={t("performer.open_stashdb", "在 StashDB 打开")}
                                     >
                                         {state.performer.name}
                                     </a>
@@ -211,7 +213,7 @@ export function StashDBPerformerProfile({
                             </div>
                             {state.performer.aliases.length > 0 && (
                                 <p className="binge-profile-aliases">
-                                    又名{" "}
+                                    {t("performer.aka", "又名")}{" "}
                                     {state.performer.aliases.join(", ")}
                                 </p>
                             )}
@@ -233,17 +235,19 @@ export function StashDBPerformerProfile({
                                 }
                                 disabled={followed}
                                 aria-pressed={followed}
+                                title={followed ? t("performer.unfollow", "取消关注") : t("action.follow", "关注")}
+                                aria-label={followed ? t("performer.unfollow", "取消关注") : t("action.follow", "关注")}
                             >
-                                {followed ? "已关注" : "+ 关注"}
+                                {followed ? t("performer.followed", "已关注") : t("performer.follow", "+ 关注")}
                             </button>
                         </div>
 
                         <section className="binge-profile-scenes">
                             <h2 className="binge-profile-scenes-heading">
-                                场景 ({state.scenes.length})
+                                {t("performer.scenes", "场景")} ({state.scenes.length})
                             </h2>
                             {state.scenes.length === 0 ? (
-                                <div className="binge-status">无场景</div>
+                                <div className="binge-status">{t("status.no_scenes", "无场景")}</div>
                             ) : (
                                 <ul className="binge-profile-scene-grid">
                                     {state.scenes.map((s) => (
@@ -337,6 +341,7 @@ function BioAttrs({
 }: {
     performer: StashDBPerformerDetail;
 }) {
+    const { t } = useTranslation();
     const attrs: string[] = [];
     if (performer.country) attrs.push(performer.country);
     const birthYear = performer.birthDate
@@ -344,12 +349,12 @@ function BioAttrs({
         : null;
     if (birthYear) attrs.push(String(birthYear));
     if (performer.hairColor) {
-        attrs.push(performer.hairColor.toLowerCase());
+        attrs.push(t(`color.${performer.hairColor.toLowerCase()}`, performer.hairColor.toLowerCase()));
     }
     if (performer.eyeColor) {
-        attrs.push(`${performer.eyeColor.toLowerCase()}色眼睛`);
+        attrs.push(t(`color.${performer.eyeColor.toLowerCase()}_eyes`, `${performer.eyeColor.toLowerCase()}色眼睛`));
     }
-    if (performer.gender) attrs.push(genderLabel(performer.gender));
+    if (performer.gender) attrs.push(genderLabel(performer.gender, t));
     if (performer.height) attrs.push(`${performer.height} cm`);
     if (performer.measurements) attrs.push(performer.measurements);
     if (attrs.length === 0) return null;
@@ -361,20 +366,20 @@ function parseBirthYear(birthDate: string): number | null {
     return m ? Number(m[1]) : null;
 }
 
-function genderLabel(g: string): string {
+function genderLabel(g: string, t: any): string {
     switch (g) {
         case "FEMALE":
-            return "女性";
+            return t("gender.female", "女性");
         case "TRANSGENDER_FEMALE":
-            return "跨性别女性";
+            return t("gender.trans_female", "跨性别女性");
         case "MALE":
-            return "男性";
+            return t("gender.male", "男性");
         case "TRANSGENDER_MALE":
-            return "跨性别男性";
+            return t("gender.trans_male", "跨性别男性");
         case "INTERSEX":
-            return "间性";
+            return t("gender.intersex", "间性");
         case "NON_BINARY":
-            return "非二元";
+            return t("gender.non_binary", "非二元");
         default:
             return g.toLowerCase();
     }
@@ -398,13 +403,14 @@ function StashDBSceneTile({
     owned: boolean;
     onOpenAddModal: () => void;
 }) {
+    const { t } = useTranslation();
     return (
         <li className="binge-profile-scene-cell is-landscape-thumb">
             <button
                 type="button"
                 className="binge-profile-scene-card"
                 onClick={onOpenAddModal}
-                title={scene.title ?? "StashDB 场景"}
+                title={scene.title ?? t("performer.stashdb_scene", "StashDB 场景")}
             >
                 <span
                     className="binge-profile-scene-poster"
@@ -422,7 +428,7 @@ function StashDBSceneTile({
                         (owned ? " is-owned" : "")
                     }
                 >
-                    {owned ? "在库中" : "StashDB"}
+                    {owned ? t("performer.in_library", "在库中") : t("common.stashdb", "StashDB")}
                 </span>
                 <span className="binge-profile-scene-hover">
                     <span className="binge-profile-scene-hover-stats">

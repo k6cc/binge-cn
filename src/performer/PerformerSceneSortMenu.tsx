@@ -1,30 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import {
     PERFORMER_SCENE_SORTS,
     type PerformerSceneSort,
 } from "../api/queries";
 
-// Sort-key → 中文 label. The shared `PERFORMER_SCENE_SORTS` constant in
-// `api/queries.ts` is also consumed by other surfaces (e.g. the API
-// layer's stashSort mapping), so we keep the English source strings
-// there and override only the display text here.
-const SORT_LABELS: Record<PerformerSceneSort, string> = {
-    recent: "最近",
-    views: "最多播放",
-    orgasms: "最多高潮",
-    rating: "最高评分",
-    added: "最近添加",
-};
 
-function sortLabel(key: PerformerSceneSort): string {
-    return SORT_LABELS[key] ?? PERFORMER_SCENE_SORTS.find((s) => s.key === key)?.label ?? key;
-}
 
-// Subtle sort control for the performer scene grid. Renders as a small
-// muted label ("Recent ⌄") that opens a popover of the sort options —
-// deliberately understated so it sits quietly in the SCENES heading next
-// to the StashDB toggle. Single-select; the active option carries a check.
-// Outside-click / Escape close it (same pattern as FeedFilterMenu).
 export function PerformerSceneSortMenu({
     value,
     onChange,
@@ -32,8 +14,29 @@ export function PerformerSceneSortMenu({
     value: PerformerSceneSort;
     onChange: (next: PerformerSceneSort) => void;
 }) {
+    const { t } = useTranslation();
     const [open, setOpen] = useState(false);
     const rootRef = useRef<HTMLDivElement>(null);
+
+    const SORT_LABELS_LOCAL: Record<PerformerSceneSort, string> = useMemo(() => ({
+        recent: t("sort.recent", "最近"),
+        views: t("sort.views", "最多播放"),
+        orgasms: t("sort.orgasms", "最多高潮"),
+        rating: t("sort.rating", "最高评分"),
+        added: t("sort.added", "最近添加"),
+    }), [t]);
+
+    function sortLabel(key: PerformerSceneSort): string {
+        const fallback = SORT_LABELS_LOCAL[key] ?? PERFORMER_SCENE_SORTS.find((s) => s.key === key)?.label ?? key;
+        switch (key) {
+            case "recent": return t("sort.recent", fallback);
+            case "views": return t("sort.views", fallback);
+            case "orgasms": return t("sort.orgasms", fallback);
+            case "rating": return t("sort.rating", fallback);
+            case "added": return t("sort.added", fallback);
+            default: return fallback;
+        }
+    }
 
     useEffect(() => {
         if (!open) return;
@@ -70,7 +73,7 @@ export function PerformerSceneSortMenu({
                 onClick={() => setOpen((o) => !o)}
                 aria-haspopup="menu"
                 aria-expanded={open}
-                title="场景排序"
+                title={t("action.sort_scenes", "场景排序")}
             >
                 {sortLabel(current.key)}
                 <ChevronIcon />

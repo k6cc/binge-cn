@@ -15,6 +15,8 @@ import { createChainAlgo, type ChainAlgo } from "../reel/chainAlgo";
 import { useAutoHideTabBar } from "../hooks/useAutoHideTabBar";
 import { BingeLoading } from "./BingeLoading";
 
+import { useTranslation } from "react-i18next";
+
 type LoadState =
     | { kind: "loading" }
     | {
@@ -237,12 +239,13 @@ export function Reel() {
     // Random mode (the default — current behaviour): fetch a random
     // page 1 plus the pinned scene if one is set; hoist the pinned
     // scene to position 0.
-    //
+    // 
     // Chained mode (set by an Explore tile tap): fetch ONLY the pinned
     // scene. Build a fresh ChainAlgo seeded with that scene id in the
     // `visited` set so the algo never picks it again. Subsequent
     // scenes are produced by algoRef.nextBatch() in the pagination
     // effect below.
+    const { t } = useTranslation();
     useEffect(() => {
         const token = ++fetchTokenRef.current;
         setState({ kind: "loading" });
@@ -330,7 +333,7 @@ export function Reel() {
                     if (!pinnedScene) {
                         setState({
                             kind: "error",
-                            message: "找不到置顶场景",
+                            message: t("status.pinned_scene_not_found", "找不到置顶场景"),
                         });
                         return;
                     }
@@ -560,9 +563,9 @@ export function Reel() {
     const scenes = state.kind === "ready" ? state.scenes : [];
     const errorOrEmpty =
         state.kind === "error"
-            ? `错误：${state.message}`
+            ? t("status.error_message", "错误：{{message}}", { message: state.message })
             : state.kind === "ready" && state.scenes.length === 0
-              ? "没有匹配的场景。（是否有保存的筛选条件或筛选标签生效？）"
+              ? t("status.no_scenes_matched", "没有匹配的场景。（是否有保存的筛选条件或筛选标签生效？）")
               : null;
     return (
         <div className="binge-reel" ref={scrollRef}>

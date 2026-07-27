@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
 import {
     pornhubStreamUrl,
     saveToStash,
@@ -21,6 +22,7 @@ export function PornhubPlayer({
     const [saveState, setSaveState] = useState<
         "idle" | "saving" | "saved" | "error"
     >("idle");
+    const { t } = useTranslation();
 
     const handleSave = async () => {
         if (saveState === "saving" || saveState === "saved") return;
@@ -43,7 +45,7 @@ export function PornhubPlayer({
         <div
             className="binge-ph-player-root"
             role="dialog"
-            aria-label="PornHub 视频"
+            aria-label={t("status.pornhub_video")}
             onClick={onClose}
         >
             <div
@@ -67,23 +69,23 @@ export function PornhubPlayer({
                         }
                         title={
                             saveState === "error"
-                                ? "保存失败 — 点击重试"
-                                : "下载到 Stash"
+                                ? t("action.save_failed_retry")
+                                : t("action.download_to_stash")
                         }
                     >
                         {saveState === "saved"
-                            ? "✓ 已保存"
+                            ? t("status.saved_with_check")
                             : saveState === "saving"
-                              ? "保存中…"
+                              ? t("action.saving")
                               : saveState === "error"
-                                ? "重试"
-                                : "保存到 Stash"}
+                                ? t("action.retry")
+                                : t("action.save_to_stash")}
                     </button>
                     <button
                         type="button"
                         className="binge-ph-player-close"
                         onClick={onClose}
-                        aria-label="关闭"
+                        aria-label={t("action.close")}
                     >
                         ✕
                     </button>

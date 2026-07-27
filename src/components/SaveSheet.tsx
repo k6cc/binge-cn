@@ -7,6 +7,7 @@ import {
     type CollectionDef,
     type CollectionIconName,
 } from "../api/collections";
+import { useTranslation } from "react-i18next";
 
 interface SaveSheetProps {
     inCollections: Record<string, boolean>;
@@ -31,6 +32,7 @@ export function SaveSheet({
     const [newName, setNewName] = useState("");
     const [submitBusy, setSubmitBusy] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
+    const { t } = useTranslation();
 
     // Initial + on-change reload of the collections list. The
     // subscription fires after a successful createCollection().
@@ -85,11 +87,11 @@ export function SaveSheet({
             <div
                 className="binge-sheet binge-save-sheet"
                 role="dialog"
-                aria-label="保存场景到合集"
+                aria-label={t("action.save_to_collection", "保存场景到合集")}
             >
                 <div className="binge-sheet-handle" aria-hidden="true" />
                 <div className="binge-save-sheet-header">
-                    <h2 className="binge-save-sheet-title">保存到…</h2>
+                    <h2 className="binge-save-sheet-title">{t("action.save_to", "保存到…")}</h2>
                 </div>
 
                 <ul className="binge-save-sheet-list" role="list">
@@ -145,7 +147,7 @@ export function SaveSheet({
                             <input
                                 type="text"
                                 className="binge-save-sheet-input"
-                                placeholder="合集名称"
+                                placeholder={t("settings.collection_name", "合集名称")}
                                 value={newName}
                                 onChange={(e) => setNewName(e.target.value)}
                                 autoFocus
@@ -157,7 +159,7 @@ export function SaveSheet({
                                 className="binge-save-sheet-create-confirm"
                                 disabled={submitBusy || !newName.trim()}
                             >
-                                创建
+                                {t("action.create", "创建")}
                             </button>
                             <button
                                 type="button"
@@ -169,7 +171,7 @@ export function SaveSheet({
                                 }}
                                 disabled={submitBusy}
                             >
-                                取消
+                                {t("action.cancel", "取消")}
                             </button>
                         </form>
                     ) : (
@@ -178,7 +180,7 @@ export function SaveSheet({
                             className="binge-save-sheet-create-btn"
                             onClick={() => setCreating(true)}
                         >
-                            + 新建合集
+                            {t("action.new_collection", "+ 新建合集")}
                         </button>
                     )}
                     {submitError && (
@@ -193,8 +195,8 @@ export function SaveSheet({
     );
 }
 
-// 需求：SavedPage 的合集卡片也复用同一套图标，避免视觉不一致。
-// export 出来供 SavedPage 的 CollectionTile 使用。
+// Requirement: SavedPage's collection cards also reuse the same set of icons to avoid visual inconsistency.
+// Exported for use by SavedPage's CollectionTile.
 export function CollectionIcon({
     name,
     filled,
@@ -239,7 +241,7 @@ export function CollectionIcon({
             </svg>
         );
     }
-    // 需求3："我的最爱 ❤️" 用心形图标，区别于"收藏夹"的书签图标。
+    // Requirement 3: "My Favorites ❤️" uses a heart icon, distinguishing it from the "Favorites" bookmark icon.
     if (name === "myFavourite") {
         return (
             <svg

@@ -31,6 +31,7 @@ import {
 } from "./home/pluginSettings";
 import { PluginProvider } from "./plugins/PluginContext";
 import { ensureDefaultCollections } from "./api/collections";
+import { useTranslation } from "react-i18next";
 
 // Stash exposes its API at window.PluginApi when this app is loaded as a
 // plugin asset. Inside the popup-served reel SPA it's NOT available —
@@ -319,6 +320,7 @@ function ForYouFilterBtn() {
 function HomeBurger() {
     const { setTab } = useTab();
     const [open, setOpen] = useState(false);
+    const { t } = useTranslation();
     useEffect(() => {
         if (!open) return;
         const onClick = () => setOpen(false);
@@ -392,7 +394,7 @@ function HomeBurger() {
                                 <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z" />
                             </svg>
                         </span>
-                        <span className="binge-home-menu-label">已保存</span>
+                        <span className="binge-home-menu-label">{t("status.saved", "已保存")}</span>
                     </button>
                     <button
                         type="button"
@@ -421,7 +423,7 @@ function HomeBurger() {
                             </svg>
                         </span>
                         <span className="binge-home-menu-label">
-                            设置
+                            {t("nav.settings", "设置")}
                         </span>
                     </button>
                 </div>

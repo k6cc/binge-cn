@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 interface PerformerStatsRowProps {
     sceneCount: number | null;
     oCounter: number | null;
@@ -14,10 +16,11 @@ export function PerformerStatsRow({
     oCounter,
     rating100,
 }: PerformerStatsRowProps) {
+    const { t } = useTranslation();
     return (
         <ul className="binge-profile-stats">
-            <Stat value={sceneCount} label="场景" />
-            <Stat value={oCounter} label="高潮" />
+            <Stat value={sceneCount} label={t("performer.stat_scenes", "场景")} />
+            <Stat value={oCounter} label={t("performer.stat_orgasms", "高潮")} />
             <RatingStat rating100={rating100} />
         </ul>
     );
@@ -33,12 +36,13 @@ function Stat({ value, label }: { value: number | null; label: string }) {
 }
 
 function RatingStat({ rating100 }: { rating100: number | null }) {
+    const { t } = useTranslation();
     return (
         <li className="binge-profile-stat">
             <span className="binge-profile-stat-value">
                 {formatRating(rating100)}
             </span>
-            <span className="binge-profile-stat-label">评分</span>
+            <span className="binge-profile-stat-label">{t("performer.stat_rating", "评分")}</span>
         </li>
     );
 }

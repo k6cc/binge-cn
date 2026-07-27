@@ -245,7 +245,7 @@ function assemblePacks(
 // "View gallery →" panel and open in the existing ImageLightbox.
 // Bug 7 修复：原值 10 导致 13 张图库只显示 10 张。提升到 500（与
 // PerformerImageGrid 的上限一致），实际显示数量受图库真实图片数限制。
-const MAX_GALLERY_IMAGES = 500;
+export const MAX_GALLERY_IMAGES = 20;
 
 // Path patterns that identify auto-generated / non-photo-set galleries
 // the user doesn't want surfaced in the Home feed. The `screen[^/]*`

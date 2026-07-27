@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
     findAllPerformers,
     type PerformerSummary,
@@ -22,6 +23,7 @@ type LoadState =
 // Click a performer → set filter + switch to For You + close modal.
 // Esc or backdrop click closes without picking.
 export function AllPerformersModal({ onClose }: AllPerformersModalProps) {
+    const { t } = useTranslation();
     const [state, setState] = useState<LoadState>({ kind: "loading" });
     const [query, setQuery] = useState("");
     const [searchFocused, setSearchFocused] = useState(false);
@@ -81,15 +83,15 @@ export function AllPerformersModal({ onClose }: AllPerformersModalProps) {
                 ref={panelRef}
                 onClick={(e) => e.stopPropagation()}
                 role="dialog"
-                aria-label="所有演员"
+                aria-label={t("nav.all_performers", "所有演员")}
             >
                 <header className="binge-modal-header">
-                    <h2>所有演员</h2>
+                    <h2>{t("nav.all_performers", "所有演员")}</h2>
                     <button
                         type="button"
                         className="binge-modal-close"
                         onClick={onClose}
-                        aria-label="关闭"
+                        aria-label={t("action.close", "关闭")}
                     >
                         ×
                     </button>
@@ -99,7 +101,7 @@ export function AllPerformersModal({ onClose }: AllPerformersModalProps) {
                         <input
                             type="text"
                             className="binge-modal-search"
-                            placeholder="搜索演员…"
+                            placeholder={t("nav.search_performers", "搜索演员…")}
                             value={query}
                             onChange={(e) => {
                                 setQuery(e.target.value);
@@ -140,7 +142,7 @@ export function AllPerformersModal({ onClose }: AllPerformersModalProps) {
                     </div>
                     {state.kind === "ready" && (
                         <span className="binge-modal-count">
-                            {filtered.length} 位演员
+                            {t("status.performer_count", "{{count}} 位演员", { count: filtered.length })}
                         </span>
                     )}
                 </div>
@@ -150,11 +152,11 @@ export function AllPerformersModal({ onClose }: AllPerformersModalProps) {
                     )}
                     {state.kind === "error" && (
                         <div className="binge-status binge-status-error">
-                            错误：{state.message}
+                            {t("status.error_message", "错误：{{message}}", { message: state.message })}
                         </div>
                     )}
                     {state.kind === "ready" && filtered.length === 0 && (
-                        <div className="binge-status">无匹配项</div>
+                        <div className="binge-status">{t("status.no_match", "无匹配项")}</div>
                     )}
                     {state.kind === "ready" && filtered.length > 0 && (
                         <ul className="binge-following-grid">
@@ -192,7 +194,7 @@ export function AllPerformersModal({ onClose }: AllPerformersModalProps) {
                                         {typeof p.scene_count === "number" &&
                                             p.scene_count > 0 && (
                                                 <span className="binge-follow-count">
-                                                    {p.scene_count} 个场景
+                                                    {t("status.performer_scenes", "{{count}} 个场景", { count: p.scene_count })}
                                                 </span>
                                             )}
                                     </button>

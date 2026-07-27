@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 interface SearchHistoryDropdownProps {
     history: string[];
     query: string;
@@ -24,6 +26,7 @@ export function SearchHistoryDropdown({
     onPick,
     onRemove,
 }: SearchHistoryDropdownProps) {
+    const { t } = useTranslation();
     const q = query.trim().toLowerCase();
     const items = q
         ? history.filter((s) => s.toLowerCase().includes(q))
@@ -37,7 +40,7 @@ export function SearchHistoryDropdown({
                     type="button"
                     className="binge-search-history-chip"
                     role="option"
-                    aria-label={`使用历史搜索 ${term}`}
+                    aria-label={t("action.use_history_search", "使用历史搜索 {{term}}", { term })}
                     title={term}
                     onMouseDown={(e) => {
                         e.preventDefault();
@@ -50,7 +53,7 @@ export function SearchHistoryDropdown({
                     <span
                         className="binge-search-history-chip-remove"
                         role="button"
-                        aria-label={`移除 ${term}`}
+                        aria-label={t("action.remove_term", "移除 {{term}}", { term })}
                         onMouseDown={(e) => {
                             e.preventDefault();
                             e.stopPropagation();

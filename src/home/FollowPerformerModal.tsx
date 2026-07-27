@@ -8,6 +8,7 @@ import {
 } from "../api/mutations";
 import { useSheetClose } from "../hooks/useSheetClose";
 import type { StashDBPerformerDetail } from "../api/stashdb";
+import { useTranslation } from "react-i18next";
 
 interface FollowPerformerModalProps {
     stashDBPerformerId: string;
@@ -58,10 +59,8 @@ export function FollowPerformerModal({
 }: FollowPerformerModalProps) {
     const { isExiting, beginClose } = useSheetClose(onClose);
     const [state, setState] = useState<ModalState>({ kind: "scraping" });
-    // Currently-displayed image in the hero carousel. Resets to 0
-    // whenever the detail load completes; user advances with the
-    // prev/next arrows.
     const [imageIndex, setImageIndex] = useState(0);
+    const { t } = useTranslation();
 
     // Esc closes (matches MoreSheet and other binge sheets).
     useEffect(() => {
@@ -174,15 +173,15 @@ export function FollowPerformerModal({
             <div
                 className="binge-sheet binge-follow-modal"
                 role="dialog"
-                aria-label="将演员加入库"
+                aria-label={t("action.add_performer_to_library", "将演员加入库")}
             >
                 <header className="binge-follow-modal-header">
-                    <h2>加入库</h2>
+                    <h2>{t("action.add_to_library", "加入库")}</h2>
                     <button
                         type="button"
                         className="binge-follow-modal-close"
                         onClick={beginClose}
-                        aria-label="关闭"
+                        aria-label={t("action.close", "关闭")}
                     >
                         ×
                     </button>
@@ -190,7 +189,7 @@ export function FollowPerformerModal({
 
                 {state.kind === "scraping" && (
                     <div className="binge-follow-modal-loading">
-                        正在从 StashDB 获取元数据…
+                        {t("status.fetching_stashdb", "正在从 StashDB 获取元数据…")}
                     </div>
                 )}
 
@@ -210,7 +209,7 @@ export function FollowPerformerModal({
                                 >
                                     {!currentImage && (
                                         <span className="binge-follow-modal-hero-empty">
-                                            无图片
+                                            {t("status.no_image", "无图片")}
                                         </span>
                                     )}
                                 </div>
@@ -227,7 +226,7 @@ export function FollowPerformerModal({
                                                         images.length
                                                 )
                                             }
-                                            aria-label="上一张照片"
+                                            aria-label={t("action.previous_photo", "上一张照片")}
                                         >
                                             <ChevronLeft />
                                         </button>
@@ -240,7 +239,7 @@ export function FollowPerformerModal({
                                                         images.length
                                                 )
                                             }
-                                            aria-label="下一张照片"
+                                            aria-label={t("action.next_photo", "下一张照片")}
                                         >
                                             <ChevronRight />
                                         </button>
@@ -258,14 +257,12 @@ export function FollowPerformerModal({
                                                     onClick={() =>
                                                         setImageIndex(i)
                                                     }
-                                                    aria-label={`第 ${
-                                                        i + 1
-                                                    } 张，共 ${images.length} 张`}
+                                                    aria-label={t("action.photo_count", "第 {{current}} 张，共 {{total}} 张", { current: i + 1, total: images.length })}
                                                 />
                                             ))}
                                         </div>
                                         <div className="binge-follow-modal-hero-counter">
-                                            {imageIndex + 1} / {images.length}
+                                            {t("status.current_total_image", "{{current}} / {{total}}", { current: imageIndex + 1, total: images.length })}
                                         </div>
                                     </>
                                 )}
@@ -273,9 +270,7 @@ export function FollowPerformerModal({
                             <div className="binge-follow-modal-hero-meta">
                                 {detail && (
                                     <div className="binge-follow-modal-stats">
-                                        StashDB 上有{" "}
-                                        <strong>{detail.sceneCount}</strong>{" "}
-                                        个场景
+                                        {t("status.stashdb_scenes_count", "StashDB 上有 {{count}} 个场景", { count: detail.sceneCount })}
                                     </div>
                                 )}
                                 {stashboxUrl && (
@@ -285,11 +280,11 @@ export function FollowPerformerModal({
                                         rel="noopener noreferrer"
                                         className="binge-follow-modal-stashdb-link"
                                     >
-                                        在 StashDB 上查看 →
+                                        {t("action.view_on_stashdb", "在 StashDB 上查看")} →
                                     </a>
                                 )}
                                 <label className="binge-follow-modal-label">
-                                    图片 URL
+                                    {t("performer.image_url", "图片 URL")}
                                     <input
                                         type="url"
                                         className="binge-follow-modal-input"
@@ -305,20 +300,20 @@ export function FollowPerformerModal({
 
                         <div className="binge-follow-modal-grid">
                             <Field
-                                label="姓名"
+                                label={t("performer.name", "姓名")}
                                 value={form.name}
                                 required
                                 onChange={(v) => updateField("name", v)}
                             />
                             <Field
-                                label="消歧义"
+                                label={t("performer.disambiguation", "消歧义")}
                                 value={form.disambiguation}
                                 onChange={(v) =>
                                     updateField("disambiguation", v)
                                 }
                             />
                             <Field
-                                label="别名（逗号分隔）"
+                                label={t("performer.alias_list", "别名（逗号分隔）")}
                                 value={form.alias_list}
                                 onChange={(v) =>
                                     updateField("alias_list", v)
@@ -326,27 +321,27 @@ export function FollowPerformerModal({
                                 fullWidth
                             />
                             <SelectField
-                                label="性别"
+                                label={t("performer.gender", "性别")}
                                 value={form.gender}
                                 options={[
                                     ["", "—"],
-                                    ["FEMALE", "女性"],
-                                    ["TRANSGENDER_FEMALE", "跨性别女性"],
-                                    ["MALE", "男性"],
-                                    ["TRANSGENDER_MALE", "跨性别男性"],
-                                    ["INTERSEX", "间性"],
-                                    ["NON_BINARY", "非二元"],
+                                    ["FEMALE", t("settings.gender.female", "女性")],
+                                    ["TRANSGENDER_FEMALE", t("settings.gender.trans_female", "跨性别女性")],
+                                    ["MALE", t("settings.gender.male", "男性")],
+                                    ["TRANSGENDER_MALE", t("settings.gender.trans_male", "跨性别男性")],
+                                    ["INTERSEX", t("settings.gender.intersex", "间性")],
+                                    ["NON_BINARY", t("settings.gender.non_binary", "非二元")],
                                 ]}
                                 onChange={(v) => updateField("gender", v)}
                             />
                             <Field
-                                label="出生日期"
+                                label={t("performer.birthdate", "出生日期")}
                                 value={form.birthdate}
                                 type="date"
                                 onChange={(v) => updateField("birthdate", v)}
                             />
                             <Field
-                                label="去世日期"
+                                label={t("performer.death_date", "去世日期")}
                                 value={form.death_date}
                                 type="date"
                                 onChange={(v) =>
@@ -354,53 +349,53 @@ export function FollowPerformerModal({
                                 }
                             />
                             <Field
-                                label="国家"
+                                label={t("performer.country", "国家")}
                                 value={form.country}
                                 onChange={(v) => updateField("country", v)}
                             />
                             <Field
-                                label="种族"
+                                label={t("performer.ethnicity", "种族")}
                                 value={form.ethnicity}
                                 onChange={(v) => updateField("ethnicity", v)}
                             />
                             <Field
-                                label="发色"
+                                label={t("performer.hair_color", "发色")}
                                 value={form.hair_color}
                                 onChange={(v) => updateField("hair_color", v)}
                             />
                             <Field
-                                label="瞳色"
+                                label={t("performer.eye_color", "瞳色")}
                                 value={form.eye_color}
                                 onChange={(v) => updateField("eye_color", v)}
                             />
                             <Field
-                                label="身高（厘米）"
+                                label={t("performer.height", "身高（厘米）")}
                                 value={form.height_cm}
                                 type="number"
                                 onChange={(v) => updateField("height_cm", v)}
                             />
                             <Field
-                                label="体重（公斤）"
+                                label={t("performer.weight", "体重（公斤）")}
                                 value={form.weight}
                                 type="number"
                                 onChange={(v) => updateField("weight", v)}
                             />
                             <Field
-                                label="三围"
+                                label={t("performer.measurements", "三围")}
                                 value={form.measurements}
                                 onChange={(v) =>
                                     updateField("measurements", v)
                                 }
                             />
                             <Field
-                                label="隆胸"
+                                label={t("performer.fake_tits", "隆胸")}
                                 value={form.fake_tits}
                                 onChange={(v) =>
                                     updateField("fake_tits", v)
                                 }
                             />
                             <Field
-                                label="阴茎长度（厘米）"
+                                label={t("performer.penis_length", "阴茎长度（厘米）")}
                                 value={form.penis_length}
                                 type="number"
                                 onChange={(v) =>
@@ -408,19 +403,19 @@ export function FollowPerformerModal({
                                 }
                             />
                             <SelectField
-                                label="割礼"
+                                label={t("performer.circumcised", "割礼")}
                                 value={form.circumcised}
                                 options={[
                                     ["", "—"],
-                                    ["CUT", "已割"],
-                                    ["UNCUT", "未割"],
+                                    ["CUT", t("performer.cut", "已割")],
+                                    ["UNCUT", t("performer.uncut", "未割")],
                                 ]}
                                 onChange={(v) =>
                                     updateField("circumcised", v)
                                 }
                             />
                             <Field
-                                label="职业生涯开始"
+                                label={t("performer.career_start", "职业生涯开始")}
                                 value={form.career_start}
                                 type="date"
                                 onChange={(v) =>
@@ -428,7 +423,7 @@ export function FollowPerformerModal({
                                 }
                             />
                             <Field
-                                label="职业生涯结束"
+                                label={t("performer.career_end", "职业生涯结束")}
                                 value={form.career_end}
                                 type="date"
                                 onChange={(v) =>
@@ -436,24 +431,24 @@ export function FollowPerformerModal({
                                 }
                             />
                             <TextareaField
-                                label="纹身"
+                                label={t("performer.tattoos", "纹身")}
                                 value={form.tattoos}
                                 onChange={(v) => updateField("tattoos", v)}
                             />
                             <TextareaField
-                                label="穿孔"
+                                label={t("performer.piercings", "穿孔")}
                                 value={form.piercings}
                                 onChange={(v) => updateField("piercings", v)}
                             />
                             <TextareaField
-                                label="URL（每行一个）"
+                                label={t("performer.urls", "URL（每行一个）")}
                                 value={form.urls}
                                 onChange={(v) => updateField("urls", v)}
                                 fullWidth
                                 rows={3}
                             />
                             <TextareaField
-                                label="详情"
+                                label={t("performer.details", "详情")}
                                 value={form.details}
                                 onChange={(v) => updateField("details", v)}
                                 rows={4}
@@ -475,7 +470,7 @@ export function FollowPerformerModal({
                                         )
                                     }
                                 />
-                                忽略自动标签
+                                {t("performer.ignore_auto_tag", "忽略自动标签")}
                             </label>
                         </div>
 
@@ -494,7 +489,7 @@ export function FollowPerformerModal({
                         onClick={beginClose}
                         disabled={isSubmitting}
                     >
-                        取消
+                        {t("action.cancel", "取消")}
                     </button>
                     <button
                         type="button"
@@ -505,10 +500,10 @@ export function FollowPerformerModal({
                         }
                     >
                         {isSubmitting
-                            ? "加入中…"
+                            ? t("status.adding", "加入中…")
                             : state.kind === "error"
-                              ? "重试"
-                              : "加入库"}
+                              ? t("action.retry", "重试")
+                              : t("action.add_to_library", "加入库")}
                     </button>
                 </footer>
             </div>

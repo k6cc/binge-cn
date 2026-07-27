@@ -1490,10 +1490,6 @@ body,
 }
 
 /* ── Active filter chips (inside TopHeader, alongside TabBar) ──────── */
-.binge-filter-bar {
-    /* No fixed positioning, no gradient — inherits both from the parent
-       .binge-top-header so we don't double-paint the top scrim. */
-}
 .binge-filter-chips {
     display: flex;
     flex-wrap: wrap;
@@ -2570,9 +2566,7 @@ body,
     color: rgba(255, 255, 255, 0.4);
     font-size: 0.82rem;
 }
-.binge-saved-tile-cover.is-single {
-    /* full cover-image rendered by the inner .binge-saved-tile-single */
-}
+/* full cover-image rendered by the inner .binge-saved-tile-single */
 .binge-saved-tile-cover.is-mosaic {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -4290,6 +4284,7 @@ body,
     /* Two-line clamp — long StashDB titles look messy past that. */
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
@@ -5435,8 +5430,6 @@ body,
 /* End-of-carousel "View gallery →" panel. Visually distinct from image
    slides — solid background + centered CTA. */
 .binge-gallery-end {
-    background-color: rgba(var(--accent-rgb, 244, 114, 182), 0.18);
-    background-image: none;
     display: grid;
     place-items: center;
     cursor: pointer;
@@ -5479,7 +5472,8 @@ body,
     border-radius: 999px;
     font-size: 0.75rem;
     font-weight: 600;
-    pointer-events: none;
+    pointer-events: auto;
+    cursor: pointer;
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
 }
@@ -6395,6 +6389,7 @@ body,
     text-overflow: ellipsis;
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
 }
 .binge-discover-bar-chevron {
@@ -8908,6 +8903,7 @@ body,
     pointer-events: none;
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
@@ -8943,4 +8939,41 @@ body,
 .binge-splash-icon {
     width: 14rem;
     filter: drop-shadow(0 0 24px rgba(168, 85, 247, 0.45));
+}
+
+.binge-gallery-end {
+    position: relative;
+    overflow: hidden;
+    background-color: #111;
+    isolation: isolate;
+}
+
+.binge-gallery-end-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+    background-position: center;
+    filter: blur(10px);
+    transform: scale(1.05);
+    z-index: 1;
+}
+
+.binge-gallery-end-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 2;
+}
+
+.binge-gallery-end-inner {
+    position: relative;
+    z-index: 3;
+    color: white;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
 }

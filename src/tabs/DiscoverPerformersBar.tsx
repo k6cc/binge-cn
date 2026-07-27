@@ -8,6 +8,7 @@ import {
 import { usePerformerProfile } from "../performer/PerformerProfileContext";
 import { PerformerHoverCard } from "../home/PerformerHoverCard";
 import { useAllowedGenders, orderedGenders } from "../home/pluginSettings";
+import { useTranslation } from "react-i18next";
 
 // Horizontal scroll-snap row of StashDB performer bubbles, mirroring
 // the homepage stories row. Mounts at the top of Explore. Data comes
@@ -31,6 +32,7 @@ export function DiscoverPerformersBar() {
     const scrollerRef = useRef<HTMLDivElement>(null);
     const [canScrollLeft, setCanScrollLeft] = useState(false);
     const [canScrollRight, setCanScrollRight] = useState(false);
+    const { t } = useTranslation();
 
     // Stable cache key so flipping a gender toggle re-runs the
     // effect (the Set reference changes on every render).
@@ -103,7 +105,7 @@ export function DiscoverPerformersBar() {
     if (state.kind === "error") return null; // graceful no-op
     return (
         <section className="binge-discover-bar">
-            <h2 className="binge-discover-bar-title">发现演员</h2>
+            <h2 className="binge-discover-bar-title">{t("nav.discover_performers", "发现演员")}</h2>
             <div className="binge-discover-bar-row">
                 <button
                     type="button"
@@ -112,7 +114,7 @@ export function DiscoverPerformersBar() {
                         (canScrollLeft ? "" : " is-hidden")
                     }
                     onClick={() => scrollBy(-300)}
-                    aria-label="向左滚动"
+                    aria-label={t("nav.scroll_left", "向左滚动")}
                     tabIndex={canScrollLeft ? 0 : -1}
                 >
                     <ChevronLeft />
@@ -148,7 +150,7 @@ export function DiscoverPerformersBar() {
                         (canScrollRight ? "" : " is-hidden")
                     }
                     onClick={() => scrollBy(300)}
-                    aria-label="向右滚动"
+                    aria-label={t("nav.scroll_right", "向右滚动")}
                     tabIndex={canScrollRight ? 0 : -1}
                 >
                     <ChevronRight />

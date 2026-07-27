@@ -7,6 +7,7 @@ import {
 import { createPortal } from "react-dom";
 import { FollowPerformerModal } from "./FollowPerformerModal";
 import { VerifiedIcon } from "../performer/PerformerProfile";
+import { useTranslation } from "react-i18next";
 
 export type FollowState =
     | { kind: "idle" }
@@ -91,6 +92,7 @@ export function PerformerHoverCard({
     });
     const followState = controlledFollow?.state ?? internalFollow;
     const [modalOpen, setModalOpen] = useState(false);
+    const { t } = useTranslation();
 
     // Tap Follow → open the confirm modal. The modal owns the
     // actual performerCreate call so the user can edit the scraped
@@ -220,12 +222,12 @@ export function PerformerHoverCard({
     const followError =
         followState.kind === "error" ? followState.message : null;
     const followLabel = followBusy
-        ? "关注中…"
+        ? t("status.following", "关注中…")
         : followedAlready
-          ? "已关注"
+          ? t("status.followed", "已关注")
           : followError
-            ? `重试 · 关注 ${name}`
-            : `关注 ${name}`;
+            ? t("action.retry_follow_name", "重试 · 关注 {{name}}", { name })
+            : t("action.follow_performer_name", "关注 {{name}}", { name });
 
     return (
         <>
@@ -293,13 +295,13 @@ export function PerformerHoverCard({
                                             }
                                             aria-label={
                                                 favorite
-                                                    ? "已收藏"
-                                                    : "在库中"
+                                                    ? t("status.favorite", "已收藏")
+                                                    : t("status.in_library", "在库中")
                                             }
                                             title={
                                                 favorite
-                                                    ? "已收藏"
-                                                    : "在库中"
+                                                    ? t("status.favorite", "已收藏")
+                                                    : t("status.in_library", "在库中")
                                             }
                                         >
                                             <VerifiedIcon />
@@ -308,11 +310,11 @@ export function PerformerHoverCard({
                                 </span>
                                 <span className="binge-performer-hovercard-meta">
                                     {[
-                                        formatGender(gender),
+                                        formatGender(gender, t),
                                         age !== null ? `${age}` : null,
                                     ]
                                         .filter(Boolean)
-                                        .join(" · ") || "演员"}
+                                        .join(" · ") || t("performer.performer", "演员")}
                                 </span>
                                 <span
                                     className={
@@ -322,7 +324,7 @@ export function PerformerHoverCard({
                                             : " is-stashdb")
                                     }
                                 >
-                                    {inLibrary ? "在库中" : "StashDB"}
+                                    {inLibrary ? t("status.in_library", "在库中") : "StashDB"}
                                 </span>
                             </div>
                         </div>
@@ -335,7 +337,7 @@ export function PerformerHoverCard({
                                     setOpen(false);
                                 }}
                             >
-                                打开主页
+                                {t("action.open_profile", "打开主页")}
                             </button>
                         )}
                         {!inLibrary && (
@@ -393,21 +395,21 @@ function computeAge(birthDate: string): number {
     return age;
 }
 
-function formatGender(g: string | null): string | null {
+function formatGender(g: string | null, t: any): string | null {
     if (!g) return null;
     switch (g) {
         case "FEMALE":
-            return "女性";
+            return t("settings.gender.female", "女性");
         case "TRANSGENDER_FEMALE":
-            return "跨性别女性";
+            return t("settings.gender.trans_female", "跨性别女性");
         case "MALE":
-            return "男性";
+            return t("settings.gender.male", "男性");
         case "TRANSGENDER_MALE":
-            return "跨性别男性";
+            return t("settings.gender.trans_male", "跨性别男性");
         case "INTERSEX":
-            return "间性";
+            return t("settings.gender.intersex", "间性");
         case "NON_BINARY":
-            return "非二元";
+            return t("settings.gender.non_binary", "非二元");
         default:
             return g
                 .replace(/_/g, " ")

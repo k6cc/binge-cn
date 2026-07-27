@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useRef, useState } from "react";
-import type { GalleryFeedItem } from "./useFeed";
+import { MAX_GALLERY_IMAGES, type GalleryFeedItem } from "./useFeed";
 import { ImageLightbox } from "../performer/ImageLightbox";
 import { PerformerHoverCard } from "./PerformerHoverCard";
 import { VerifiedIcon } from "../performer/PerformerProfile";
@@ -7,6 +7,7 @@ import { usePerformerProfile } from "../performer/PerformerProfileContext";
 import { useSharedStories } from "./StoriesContext";
 import { useStoryViewer } from "./StoryViewerContext";
 import { timeAgo } from "./timeAgo";
+import { useTranslation } from "react-i18next";
 
 interface GalleryFeedCardProps {
     item: GalleryFeedItem;
@@ -28,6 +29,7 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
     const { open: openStoryViewer } = useStoryViewer();
     const storiesState = useSharedStories();
     const primaryPerformer = item.performers[0];
+    const { t } = useTranslation();
 
     const handleAvatarTap = () => {
         if (!primaryPerformer) return;
@@ -46,10 +48,14 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
         }
     };
 
+    const images = item.images.slice(0, MAX_GALLERY_IMAGES);
+
     // Total slide count: N images + 1 "View gallery" panel. The panel
     // gets its own snap slot, so the dots indicator needs to track it
     // too (last dot = the end panel).
-    const slideCount = item.images.length + 1;
+    const slideCount = images.length + 1;
+
+    const firstImageUrl = images.length > 0 ? (images[0].paths.thumbnail || images[0].paths.image) : item.coverPath;
 
     // Update activeIndex as the carousel scrolls. Uses scroll position
     // / clientWidth math — robust against snap timing differences
@@ -88,7 +94,7 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
     useEffect(() => {
         const el = carouselRef.current;
         if (!el) return;
-        if (item.images.length <= 1) return;
+        if (images.length <= 1) return;
         let intervalId: number | null = null;
         const observer = new IntersectionObserver(
             (entries) => {
@@ -98,7 +104,7 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                         intervalId = window.setInterval(() => {
                             const cur = el.scrollLeft / el.clientWidth;
                             const n = Math.round(cur);
-                            const c = item.images.length + 1;
+                            const c = slideCount;
                             el.scrollTo({
                                 left: ((n + 1) % c) * el.clientWidth,
                                 behavior: "smooth",
@@ -150,7 +156,7 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                                     style={
                                         primaryPerformer.imagePath
                                             ? {
-                                                  backgroundImage: `url(${primaryPerformer.imagePath})`,
+                                                  backgroundImage: `url("${primaryPerformer.imagePath}")`,
                                               }
                                             : undefined
                                     }
@@ -209,13 +215,13 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                                                 }
                                                 aria-label={
                                                     p.favorite
-                                                        ? "已收藏"
-                                                        : "在库中"
+                                                        ? t("status.favorite", "已收藏")
+                                                        : t("status.in_library", "在库中")
                                                 }
                                                 title={
                                                     p.favorite
-                                                        ? "已收藏"
-                                                        : "在库中"
+                                                        ? t("status.favorite", "已收藏")
+                                                        : t("status.in_library", "在库中")
                                                 }
                                             >
                                                 <VerifiedIcon />
@@ -226,7 +232,7 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                             </button>
                         </PerformerHoverCard>
                     ) : (
-                        <span className="binge-feed-card-name">图库</span>
+                        <span className="binge-feed-card-name">{t("gallery.gallery", "图库")}</span>
                     )}
                 </div>
                 <span className="binge-feed-card-time">
@@ -240,9 +246,9 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                     ref={carouselRef}
                     role="region"
                     aria-roledescription="carousel"
-                    aria-label={item.title ?? "图库图片"}
+                    aria-label={item.title ?? t("gallery.gallery_image", "图库图片")}
                 >
-                    {item.images.length === 0 ? (
+                    {images.length === 0 ? (
                         // Empty image list — typically means the gallery
                         // exists but no images have been ingested yet.
                         // Show the cover thumbnail as a single slide.
@@ -252,15 +258,15 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                             style={
                                 item.coverPath
                                     ? {
-                                          backgroundImage: `url(${item.coverPath})`,
+                                          backgroundImage: `url("${item.coverPath}")`,
                                       }
                                     : undefined
                             }
                             onClick={() => setLightboxOpenAt(0)}
-                            aria-label={`打开 ${item.title ?? "图库"}`}
+                            aria-label={t("gallery.open_gallery_title", "打开 {{title}}", { title: item.title ?? t("gallery.gallery", "图库") })}
                         />
                     ) : (
-                        item.images.map((img, idx) => {
+                        images.map((img, idx) => {
                             const src =
                                 img.paths.thumbnail || img.paths.image || "";
                             return (
@@ -270,13 +276,11 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                                     className="binge-gallery-slide"
                                     style={
                                         src
-                                            ? { backgroundImage: `url(${src})` }
+                                            ? { backgroundImage: `url("${src}")` }
                                             : undefined
                                     }
                                     onClick={() => setLightboxOpenAt(idx)}
-                                    aria-label={`第 ${idx + 1} 张，共 ${
-                                        item.imageCount
-                                    } 张`}
+                                    aria-label={t("gallery.slide_position", "第 {{current}} 张，共 {{total}} 张", { current: idx + 1, total: item.imageCount })}
                                 />
                             );
                         })
@@ -285,7 +289,8 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                     {/* End panel — always rendered so the carousel has
                         a "more →" outro slot even on small galleries.
                         Bug 8：点击纯色图直接跳转到演员档案的图库 tab，
-                        而非打开灯箱。 */}
+                        而非打开灯箱。
+                        */}
                     <button
                         type="button"
                         className="binge-gallery-slide binge-gallery-end"
@@ -296,14 +301,23 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                                 setLightboxOpenAt(0);
                             }
                         }}
-                        aria-label="查看完整图库"
+                        aria-label={t("gallery.view_full_gallery", "查看完整图库")}
                     >
+                        {firstImageUrl && (
+                            <div
+                                className="binge-gallery-end-bg"
+                                style={{
+                                    backgroundImage: `url("${firstImageUrl}")`,
+                                }}
+                            />
+                        )}
+                        <div className="binge-gallery-end-overlay" />
                         <span className="binge-gallery-end-inner">
                             <span className="binge-gallery-end-label">
-                                查看图库
+                                {t("gallery.view_gallery", "查看图库")}
                             </span>
                             <span className="binge-gallery-end-sub">
-                                {item.imageCount} 张照片
+                                {t("gallery.image_count", "{{count}} 张图片", { count: item.imageCount })}
                             </span>
                             <ChevronRight />
                         </span>
@@ -311,7 +325,19 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                 </div>
 
                 {/* Image count badge (top-right of media). */}
-                <div className="binge-gallery-count-badge" aria-hidden="true">
+                <div
+                    className="binge-gallery-count-badge"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => {
+                        if (primaryPerformer) {
+                            openProfile(primaryPerformer.id, "galleries");
+                        } else {
+                            setLightboxOpenAt(0);
+                        }
+                    }}
+                    aria-hidden="true"
+                >
                     <StackIcon />
                     <span>{item.imageCount}</span>
                 </div>
@@ -322,7 +348,7 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                 <div
                     className="binge-gallery-dots"
                     role="tablist"
-                    aria-label="图库位置"
+                    aria-label={t("nav.gallery_position", "图库位置")}
                 >
                     {Array.from({ length: slideCount }).map((_, i) => (
                         <button
@@ -336,7 +362,7 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                             }
                             onClick={() => scrollToSlide(i)}
                             tabIndex={-1}
-                            aria-label={`跳转到第 ${i + 1} 张`}
+                            aria-label={t("gallery.jump_to_slide", "跳转到第 {{current}} 张", { current: i + 1 })}
                         />
                     ))}
                 </div>

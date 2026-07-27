@@ -15,6 +15,7 @@ import {
 } from "./prompts";
 import { clearSession, loadSession, saveSession } from "./session";
 import { loadSubject, type LoadedSubject, type SubjectRef } from "./subject";
+import { useTranslation } from "react-i18next";
 
 // "intro" — choice screen when there's no existing review + no
 //          resumable session. User picks LLM-interview or manual.
@@ -65,6 +66,7 @@ export function ScribeModal({
     subject: SubjectRef;
     onClose: () => void;
 }) {
+    const { t } = useTranslation();
     const [phase, setPhase] = useState<Phase>("loading");
     const [loaded, setLoaded] = useState<LoadedState | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -132,7 +134,7 @@ export function ScribeModal({
                 }
             } catch (e) {
                 if (!alive) return;
-                setError(friendlyError(e));
+                setError(friendlyError(e, t));
                 setPhase("error");
             }
         })();
@@ -171,7 +173,7 @@ export function ScribeModal({
         async (sys: LLMMessage) => {
             if (!loaded) return;
             setBusy(true);
-            setBusyMsg("Starting interview…");
+            setBusyMsg(t("scribe.starting_interview", "Starting interview…"));
             setError(null);
             try {
                 const reply = await callLLM(
@@ -179,8 +181,7 @@ export function ScribeModal({
                         sys,
                         {
                             role: "user",
-                            content:
-                                "Begin the interview with your first question.",
+                            content: t("scribe.begin_interview_question", "Begin the interview with your first question."),
                         },
                     ],
                     loaded.config
@@ -195,7 +196,7 @@ export function ScribeModal({
                     generated: null,
                 });
             } catch (e) {
-                setError(friendlyError(e));
+                setError(friendlyError(e, t));
             } finally {
                 setBusy(false);
                 setBusyMsg("");
@@ -229,7 +230,7 @@ export function ScribeModal({
         setUserInput("");
         persist(next, null);
         setBusy(true);
-        setBusyMsg("Talking to the LLM…");
+        setBusyMsg(t("scribe.talking_to_llm", "Talking to the LLM…"));
         try {
             const reply = await callLLM(next, loaded.config);
             const after: LLMMessage[] = [
@@ -239,8 +240,8 @@ export function ScribeModal({
             setMessages(after);
             persist(after, null);
         } catch (e) {
-            setError(friendlyError(e));
-        } finally {
+                setError(friendlyError(e, t));
+            } finally {
             setBusy(false);
             setBusyMsg("");
         }
@@ -249,14 +250,14 @@ export function ScribeModal({
     const generate = useCallback(async () => {
         if (!loaded || busy || !canGenerate) return;
         setBusy(true);
-        setBusyMsg("Writing the review…");
+        setBusyMsg(t("scribe.writing_review", "Writing the review…"));
         setError(null);
         try {
             const criteriaList =
                 loaded.subject.criteria.length > 0
-                    ? "Criteria to score (give an integer 0–5 for each):\n" +
+                    ? t("scribe.criteria_to_score", "Criteria to score (give an integer 0–5 for each):\n") +
                       loaded.subject.criteria.map((c) => `- ${c.name}`).join("\n")
-                    : "No rating criteria configured — output the REVIEW section only and skip SCORES.";
+                    : t("scribe.no_rating_criteria_configured", "No rating criteria configured — output the REVIEW section only and skip SCORES.");
             const genMessages: LLMMessage[] = [
                 ...messages,
                 {
@@ -266,7 +267,7 @@ export function ScribeModal({
                         "\n\n" +
                         criteriaList,
                 },
-                { role: "user", content: "Generate the review now." },
+                { role: "user", content: t("scribe.generate_review_now", "Generate the review now.") },
             ];
             const reply = await callLLM(genMessages, loaded.config);
             const parsed = parseGenerated(reply, loaded.subject.criteria);
@@ -278,7 +279,7 @@ export function ScribeModal({
             });
             setPhase("result");
         } catch (e) {
-            setError(friendlyError(e));
+            setError(friendlyError(e, t));
         } finally {
             setBusy(false);
             setBusyMsg("");
@@ -290,7 +291,7 @@ export function ScribeModal({
         if (editMode) {
             if (
                 !confirm(
-                    "Discard this edit and start a fresh interview? The currently saved review stays on the scene until you save a new one."
+                    t("scribe.confirm_discard_edit_and_start_fresh", "Discard this edit and start a fresh interview? The currently saved review stays on the scene until you save a new one.")
                 )
             )
                 return;
@@ -312,7 +313,7 @@ export function ScribeModal({
         if (!loaded) return;
         if (
             !confirm(
-                "Discard this interview/draft? Saved reviews on the scene are not touched."
+                t("scribe.confirm_discard_interview_draft", "Discard this interview/draft? Saved reviews on the scene are not touched.")
             )
         )
             return;
@@ -330,7 +331,7 @@ export function ScribeModal({
         async (withScores: boolean) => {
             if (!loaded || busy) return;
             setBusy(true);
-            setBusyMsg("Saving…");
+            setBusyMsg(t("status.saving", "Saving…"));
             setError(null);
             try {
                 await loaded.subject.save({
@@ -339,10 +340,10 @@ export function ScribeModal({
                     autoCreate: loaded.config.autoCreateTags,
                 });
                 clearSession(loaded.subject.sessionKey);
-                setBusyMsg("Saved.");
+                setBusyMsg(t("status.saved", "Saved."));
                 setTimeout(() => onClose(), 600);
             } catch (e) {
-                setError(friendlyError(e));
+                setError(friendlyError(e, t));
                 setBusy(false);
                 setBusyMsg("");
             }
@@ -356,11 +357,11 @@ export function ScribeModal({
             <div
                 className="binge-sheet binge-scribe-modal"
                 role="dialog"
-                aria-label="Stash Scribe"
+                aria-label={t("scribe.stash_scribe", "Stash Scribe")}
             >
                 <div className="binge-scribe-header">
                     <div className="binge-scribe-title-row">
-                        <h2 className="binge-scribe-title">Stash Scribe</h2>
+                        <h2 className="binge-scribe-title">{t("scribe.stash_scribe", "Stash Scribe")}</h2>
                         {loaded?.subject.contextStrip && (
                             <span className="binge-scribe-strip">
                                 {loaded.subject.contextStrip}
@@ -398,7 +399,7 @@ export function ScribeModal({
                             type="button"
                             className="binge-scribe-close"
                             onClick={onClose}
-                            aria-label="Close"
+                            aria-label={t("action.close", "Close")}
                         >
                             ×
                         </button>
@@ -412,7 +413,7 @@ export function ScribeModal({
                 )}
 
                 {phase === "loading" && (
-                    <div className="binge-scribe-status">Loading scene…</div>
+                    <div className="binge-scribe-status">{t("status.loading_scene", "Loading scene…")}</div>
                 )}
 
                 {phase === "error" && !loaded && (
@@ -422,15 +423,14 @@ export function ScribeModal({
                 {phase === "intro" && loaded && (
                     <div className="binge-scribe-intro">
                         <p className="binge-scribe-intro-lead">
-                            No review yet for this scene. Pick how you
-                            want to write it.
+                            {t("scribe.no_review_yet", "No review yet for this scene. Pick how you want to write it.")}
                         </p>
                         <div className="binge-scribe-intro-tone">
                             <label
                                 htmlFor="scribe-intro-tone"
                                 className="binge-scribe-intro-tone-label"
                             >
-                                Voice
+                                {t("scribe.voice", "Voice")}
                             </label>
                             <select
                                 id="scribe-intro-tone"
@@ -439,7 +439,7 @@ export function ScribeModal({
                                 onChange={(e) =>
                                     setTone(e.target.value as VoiceMode)
                                 }
-                                title="Voice tone for the LLM interview (ignored for manual writing)"
+                                title={t("scribe.voice_tone_llm_ignored", "Voice tone for the LLM interview (ignored for manual writing)")}
                             >
                                 {VOICE_MODES.map((v) => (
                                     <option key={v} value={v}>
@@ -454,7 +454,7 @@ export function ScribeModal({
                                 className="binge-scribe-save"
                                 onClick={startManual}
                             >
-                                Write manually
+                                {t("scribe.write_manually", "Write manually")}
                             </button>
                             <button
                                 type="button"
@@ -462,14 +462,11 @@ export function ScribeModal({
                                 onClick={startLLMInterview}
                                 disabled={busy}
                             >
-                                Start LLM interview
+                                {t("scribe.start_llm_interview", "Start LLM interview")}
                             </button>
                         </div>
                         <p className="binge-scribe-intro-note">
-                            LLM mode runs an interview via the Stash
-                            Scribe plugin → Ollama. If Ollama is
-                            offline, use Write manually — same save
-                            target, just no LLM assist.
+                            {t("scribe.llm_mode_note", "LLM mode runs an interview via the Stash Scribe plugin → Ollama. If Ollama is offline, use Write manually — same save target, just no LLM assist.")}
                         </p>
                     </div>
                 )}
@@ -503,7 +500,7 @@ export function ScribeModal({
                                 className="binge-scribe-input"
                                 value={userInput}
                                 onChange={(e) => setUserInput(e.target.value)}
-                                placeholder="Type your answer…"
+                                placeholder={t("scribe.type_your_answer", "Type your answer…")}
                                 rows={3}
                                 disabled={busy}
                                 onKeyDown={(e) => {
@@ -523,7 +520,7 @@ export function ScribeModal({
                                     onClick={sendMessage}
                                     disabled={busy || !userInput.trim()}
                                 >
-                                    Send
+                                    {t("action.send", "Send")}
                                 </button>
                                 <button
                                     type="button"
@@ -532,11 +529,11 @@ export function ScribeModal({
                                     disabled={!canGenerate}
                                     title={
                                         canGenerate
-                                            ? "Generate the review based on the conversation so far"
-                                            : "Answer at least one question first"
+                                            ? t("scribe.generate_review_desc", "Generate the review based on the conversation so far")
+                                            : t("scribe.answer_one_question_first", "Answer at least one question first")
                                     }
                                 >
-                                    Generate
+                                    {t("action.generate", "Generate")}
                                 </button>
                             </div>
                         </div>
@@ -549,13 +546,13 @@ export function ScribeModal({
                             className="binge-scribe-review-text"
                             value={reviewText}
                             onChange={(e) => setReviewText(e.target.value)}
-                            placeholder="Review text"
+                            placeholder={t("scribe.review_text", "Review text")}
                             rows={12}
                         />
                         {loaded.subject.criteria.length > 0 && (
                             <div className="binge-scribe-scores">
                                 <div className="binge-scribe-scores-heading">
-                                    Scores (Advanced Rating)
+                                    {t("scribe.scores_advanced_rating", "Scores (Advanced Rating)")}
                                 </div>
                                 {loaded.subject.criteria.map((c) => (
                                     <ScoreRow
@@ -571,6 +568,7 @@ export function ScribeModal({
                                                 return next;
                                             })
                                         }
+                                        t={t}
                                     />
                                 ))}
                             </div>
@@ -583,7 +581,7 @@ export function ScribeModal({
                                     onClick={backToInterview}
                                     disabled={busy}
                                 >
-                                    Back to interview
+                                    {t("scribe.back_to_interview", "Back to interview")}
                                 </button>
                             )}
                             <span style={{ flex: 1 }} />
@@ -598,7 +596,7 @@ export function ScribeModal({
                                 onClick={() => save(false)}
                                 disabled={busy || !reviewText.trim()}
                             >
-                                Save review only
+                                {t("scribe.save_review_only", "Save review only")}
                             </button>
                             <button
                                 type="button"
@@ -606,7 +604,7 @@ export function ScribeModal({
                                 onClick={() => save(true)}
                                 disabled={busy || !reviewText.trim()}
                             >
-                                Save review + scores
+                                {t("scribe.save_review_and_scores", "Save review + scores")}
                             </button>
                         </div>
                     </>
@@ -620,17 +618,14 @@ export function ScribeModal({
 // Surface a clearer hint for the most common failure mode (Ollama
 // not running). Everything else falls through unchanged. Used in
 // the error banner above the modal phases.
-function friendlyError(e: unknown): string {
+function friendlyError(e: unknown, t: any): string {
     const msg = (e as Error)?.message ?? String(e);
     if (
         /connection refused|ECONNREFUSED|connect.*refused|failed to (?:fetch|connect)|connection error/i.test(
             msg
         )
     ) {
-        return (
-            "Couldn't reach Ollama. Start it on the host machine to generate new reviews — " +
-            "existing reviews can still be edited and saved without it."
-        );
+        return t("scribe.ollama_connection_error", "Couldn't reach Ollama. Start it on the host machine to generate new reviews — existing reviews can still be edited and saved without it.");
     }
     return msg;
 }
@@ -639,10 +634,12 @@ function ScoreRow({
     criterion,
     value,
     onChange,
+    t,
 }: {
     criterion: Criterion;
     value: number | null;
     onChange: (v: number | null) => void;
+    t: any;
 }) {
     return (
         <div className="binge-scribe-score-row">
@@ -665,8 +662,8 @@ function ScoreRow({
                 type="button"
                 className="binge-scribe-score-clear"
                 onClick={() => onChange(null)}
-                aria-label="Clear this score"
-                title="Don't write this score"
+                aria-label={t("action.clear_this_score", "Clear this score")}
+                title={t("action.dont_write_this_score", "Don't write this score")}
             >
                 ×
             </button>

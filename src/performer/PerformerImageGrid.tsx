@@ -7,6 +7,7 @@ import {
     type PerformerImageCard,
 } from "../api/queries";
 import { ImageLightbox } from "./ImageLightbox";
+import { useTranslation } from "react-i18next";
 
 interface PerformerImageGridProps {
     performer: PerformerDetail;
@@ -27,6 +28,7 @@ const HOVER_CYCLE_INTERVAL_MS = 1000;
 //            图片来自 findImagesByGallery（ta 查询），最多 500 张。
 // 点击图片打开 ImageLightbox 灯箱。无图库时显示"无图库"。
 export function PerformerImageGrid({ performer }: PerformerImageGridProps) {
+    const { t } = useTranslation();
     const [galleries, setGalleries] = useState<PerformerGalleryCard[]>([]);
     const [count, setCount] = useState<number | null>(null);
     const [page, setPage] = useState(1);
@@ -134,7 +136,7 @@ export function PerformerImageGrid({ performer }: PerformerImageGridProps) {
                     className="binge-gallery-back"
                     onClick={() => setOpenGallery(null)}
                 >
-                    ← 返回
+                    ← {t("nav.back", "返回")}
                 </button>
                 {openGallery.title && (
                     <div className="binge-gallery-title">
@@ -143,16 +145,16 @@ export function PerformerImageGrid({ performer }: PerformerImageGridProps) {
                 )}
                 {galleryError && (
                     <div className="binge-status binge-status-error">
-                        错误：{galleryError}
+                        {t("status.error_message", "错误：{{message}}", { message: galleryError })}
                     </div>
                 )}
                 {galleryImages.length === 0 && galleryLoading && (
-                    <div className="binge-status">加载中…</div>
+                    <div className="binge-status">{t("status.loading", "加载中…")}</div>
                 )}
                 {galleryImages.length === 0 &&
                     !galleryLoading &&
                     !galleryError && (
-                        <div className="binge-status">无图片</div>
+                        <div className="binge-status">{t("status.no_image", "无图片")}</div>
                     )}
                 {galleryImages.length > 0 && (
                     <ul className="binge-profile-photo-grid">
@@ -165,7 +167,7 @@ export function PerformerImageGrid({ performer }: PerformerImageGridProps) {
                                     type="button"
                                     className="binge-profile-photo-card"
                                     onClick={() => setLightboxIndex(i)}
-                                    title={img.title || `图片 ${img.id}`}
+                                    title={img.title || t("gallery.image_id", "图片 {{id}}", { id: img.id })}
                                 >
                                     <img
                                         src={
@@ -183,10 +185,10 @@ export function PerformerImageGrid({ performer }: PerformerImageGridProps) {
                     </ul>
                 )}
                 {galleryLoading && galleryImages.length > 0 && (
-                    <div className="binge-status binge-profile-scenes-loading">
-                        加载中…
-                    </div>
-                )}
+                <div className="binge-status binge-profile-scenes-loading">
+                    {t("status.loading", "加载中…")}
+                </div>
+            )}
                 {lightboxIndex != null && galleryImages.length > 0 && (
                     <ImageLightbox
                         images={galleryImages}
@@ -203,14 +205,14 @@ export function PerformerImageGrid({ performer }: PerformerImageGridProps) {
         <section className="binge-profile-photos">
             {error && (
                 <div className="binge-status binge-status-error">
-                    错误：{error}
+                    {t("status.error_message", "错误：{{message}}", { message: error })}
                 </div>
             )}
             {galleries.length === 0 && loading && (
-                <div className="binge-status">加载中…</div>
+                <div className="binge-status">{t("status.loading", "加载中…")}</div>
             )}
             {galleries.length === 0 && !loading && !error && (
-                <div className="binge-status">无图库</div>
+                <div className="binge-status">{t("status.no_gallery", "无图库")}</div>
             )}
             {galleries.length > 0 && (
                 <ul className="binge-gallery-grid">
@@ -226,7 +228,7 @@ export function PerformerImageGrid({ performer }: PerformerImageGridProps) {
             <div ref={sentinelRef} aria-hidden="true" />
             {loading && galleries.length > 0 && (
                 <div className="binge-status binge-profile-scenes-loading">
-                    加载中…
+                    {t("status.loading", "加载中…")}
                 </div>
             )}
         </section>
@@ -244,6 +246,7 @@ function GalleryCoverCell({
     gallery: PerformerGalleryCard;
     onOpen: () => void;
 }) {
+    const { t } = useTranslation();
     const imgRef = useRef<HTMLImageElement>(null);
     const indexRef = useRef(0);
     const imagesCacheRef = useRef<PerformerImageCard[] | null>(null);
@@ -315,7 +318,7 @@ function GalleryCoverCell({
                 type="button"
                 className="binge-gallery-cover-btn"
                 onClick={onOpen}
-                aria-label={`查看图库 ${gallery.title ?? gallery.id}`}
+                aria-label={t("action.view_gallery", "查看图库 {{title}}", { title: gallery.title ?? gallery.id })}
                 onMouseEnter={() => {
                     hoverGuardRef.current = true;
                     fetchTimerRef.current = window.setTimeout(
@@ -340,10 +343,10 @@ function GalleryCoverCell({
                     loading="lazy"
                 />
                 <span className="binge-gallery-cell-title">
-                    {gallery.title || `图库 ${gallery.id}`}
+                    {gallery.title || t("gallery.gallery_id", "图库 {{id}}", { id: gallery.id })}
                 </span>
                 <span className="binge-gallery-cell-count">
-                    {gallery.image_count} 张
+                    {t("gallery.image_count", "{{count}} 张", { count: gallery.image_count })}
                 </span>
             </button>
         </li>

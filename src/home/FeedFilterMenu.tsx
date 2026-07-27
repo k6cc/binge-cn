@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
     ALL_FEED_CATEGORIES,
     setHiddenFeedCategories,
@@ -10,17 +11,20 @@ import {
 // per-category visibility toggles for the Home feed. State is stored
 // in localStorage (binge.feedHidden) so it persists and the Feed
 // reacts live via useHiddenFeedCategories.
-const LABELS: Record<FeedCategory, string> = {
-    discover: "发现",
-    trending: "热门",
-    posts: "帖子",
-    reposts: "转发",
-};
+
 
 export function FeedFilterMenu() {
     const hidden = useHiddenFeedCategories();
     const [open, setOpen] = useState(false);
     const rootRef = useRef<HTMLDivElement>(null);
+    const { t } = useTranslation();
+
+    const LABELS: Record<FeedCategory, string> = {
+        discover: t("feed.category.discover", "发现"),
+        trending: t("feed.category.trending", "热门"),
+        posts: t("feed.category.posts", "帖子"),
+        reposts: t("feed.category.reposts", "转发"),
+    };
 
     useEffect(() => {
         if (!open) return;
@@ -60,10 +64,10 @@ export function FeedFilterMenu() {
                     "binge-feed-filter-btn" +
                     (anyHidden ? " is-active" : "")
                 }
-                onClick={() => setOpen((o) => !o)}
-                aria-label="筛选动态"
+                onClick={() => setOpen((o: boolean) => !o)}
+                aria-label={t("action.filter_feed", "筛选动态")}
                 aria-expanded={open}
-                title="筛选动态"
+                title={t("action.filter_feed", "筛选动态")}
             >
                 <FilterIcon />
                 {anyHidden && (
@@ -76,7 +80,7 @@ export function FeedFilterMenu() {
             {open && (
                 <div className="binge-feed-filter-menu" role="menu">
                     <div className="binge-feed-filter-heading">
-                        动态中显示
+                        {t("feed.show_in_feed", "动态中显示")}
                     </div>
                     {ALL_FEED_CATEGORIES.map((cat) => {
                         const shown = !hidden.has(cat);

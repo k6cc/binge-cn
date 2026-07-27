@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
+import { useTranslation } from "react-i18next";
 
 interface SceneProgressProps {
     videoRef: RefObject<HTMLVideoElement | null>;
@@ -28,6 +29,7 @@ export function SceneProgress({
     onSeekToTime,
     seekOffset = 0,
 }: SceneProgressProps) {
+    const { t } = useTranslation();
     const [progress, setProgress] = useState(0);
     const [hovering, setHovering] = useState(false);
     // 用 ref 镜像 seekOffset：事件监听器只绑定一次，每次触发时从 ref
@@ -96,7 +98,7 @@ export function SceneProgress({
             aria-valuemin={0}
             aria-valuemax={1}
             aria-valuenow={progress}
-            aria-label="场景进度"
+            aria-label={t("scene.progress", "场景进度")}
         >
             <div
                 className="binge-progress-fill"

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useTab, type Tab } from "../tabs/TabContext";
 
 // 4-slot fixed bottom nav for mobile viewports (≤720px). Mirrors the
@@ -6,16 +7,18 @@ import { useTab, type Tab } from "../tabs/TabContext";
 // on Saved + Settings since those tabs have their own back-chevron
 // header and a bottom nav over the top would be redundant.
 
-const SLOTS: { id: Tab; label: string }[] = [
-    { id: "home", label: "首页" },
-    { id: "foryou", label: "推荐" },
-    { id: "explore", label: "发现" },
-    { id: "following", label: "关注中" },
-    { id: "menu", label: "菜单" },
-];
-
 export function BottomNav() {
     const { tab, setTab, tabBarVisible } = useTab();
+    const { t } = useTranslation();
+
+    const SLOTS: { id: Tab; label: string }[] = [
+        { id: "home", label: t("nav.home", "首页") },
+        { id: "foryou", label: t("nav.foryou", "推荐") },
+        { id: "explore", label: t("nav.explore", "发现") },
+        { id: "following", label: t("nav.following", "关注中") },
+        { id: "menu", label: t("nav.menu", "菜单") },
+    ];
+
     if (tab === "saved" || tab === "settings") return null;
 
     return (
@@ -24,7 +27,7 @@ export function BottomNav() {
                 "binge-bottom-nav" + (tabBarVisible ? "" : " is-hidden")
             }
             role="tablist"
-            aria-label="分区"
+            aria-label={t("nav.sections", "分区")}
         >
             {SLOTS.map((slot) => {
                 const active = tab === slot.id;

@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import type { PackFeedItem, SceneFeedItem } from "./useFeed";
 import { useTab } from "../tabs/TabContext";
 import { useFilter } from "../filter/FilterContext";
+import { useTranslation } from "react-i18next";
 
 // Fullscreen sheet shown when the user taps a Pack feed card.
 // Lists every scene in the pack as a 3-column grid; tapping a
@@ -29,6 +30,7 @@ export function PackDetailSheet({
 }) {
     const { setTab, setPinFirstSceneId } = useTab();
     const { replace } = useFilter();
+    const { t } = useTranslation();
 
     // Esc dismisses on desktop — matches the rest of the sheets.
     useEffect(() => {
@@ -71,7 +73,7 @@ export function PackDetailSheet({
             <div
                 className="binge-sheet binge-pack-sheet"
                 role="dialog"
-                aria-label={`${pack.primaryPerformer.name} — 包`}
+                aria-label={t("action.pack_aria_label", "{{name}} — 包", { name: pack.primaryPerformer.name })}
             >
                 <div className="binge-sheet-handle" aria-hidden="true" />
                 <header className="binge-pack-sheet-header">
@@ -79,7 +81,7 @@ export function PackDetailSheet({
                         {pack.primaryPerformer.name}
                     </div>
                     <div className="binge-pack-sheet-sub">
-                        {pack.sceneCount} 个新场景
+                        {t("story.new_scenes_count", "{{count}} 个新场景", { count: pack.sceneCount })}
                     </div>
                 </header>
                 <div className="binge-pack-sheet-grid">
@@ -89,7 +91,7 @@ export function PackDetailSheet({
                             key={scene.sceneId}
                             className="binge-pack-sheet-tile"
                             onClick={() => handlePick(scene)}
-                            aria-label={scene.title ?? "打开场景"}
+                            aria-label={scene.title ?? t("action.open_scene", "打开场景")}
                             style={
                                 scene.screenshot
                                     ? {
@@ -105,7 +107,7 @@ export function PackDetailSheet({
                                 标题右对齐，与封面右对齐保持一致。空标题降级为
                                 "未命名" 以保证视觉占位。 */}
                             <span className="binge-pack-sheet-tile-title">
-                                {scene.title?.trim() || "未命名"}
+                                {scene.title?.trim() || t("nav.untitled", "未命名")}
                             </span>
                         </button>
                     ))}

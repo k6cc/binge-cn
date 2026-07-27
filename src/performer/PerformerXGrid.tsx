@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
 import { getXFeed, xHandleFromUrls, type XMedia } from "../api/bingeServer";
 import { useFetchBlobUrl } from "../hooks/useFetchBlobUrl";
@@ -21,6 +22,7 @@ interface PerformerXGridProps {
 // 守护进程不可达 / 无 cookies / 无 handle 时显示空状态而非崩溃
 // （与首页故事栏 X 集成的优雅降级契约一致）。
 export function PerformerXGrid({ performer }: PerformerXGridProps) {
+    const { t } = useTranslation();
     const [media, setMedia] = useState<XMedia[]>([]);
     const [handle, setHandle] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
@@ -44,7 +46,7 @@ export function PerformerXGrid({ performer }: PerformerXGridProps) {
         let alive = true;
         const stashId = Number(performer.id);
         if (!Number.isFinite(stashId) || stashId <= 0) {
-            setError("无效的演员 ID");
+            setError(t("error.invalid_performer_id", "无效的演员 ID"));
             setLoading(false);
             return;
         }
@@ -76,7 +78,7 @@ export function PerformerXGrid({ performer }: PerformerXGridProps) {
     if (loading) {
         return (
             <section className="binge-profile-photos">
-                <div className="binge-status">加载 X 媒体中…</div>
+                <div className="binge-status">{t("status.loading_x_media", "加载 X 媒体中…")}</div>
             </section>
         );
     }
@@ -85,7 +87,7 @@ export function PerformerXGrid({ performer }: PerformerXGridProps) {
         return (
             <section className="binge-profile-photos">
                 <div className="binge-status binge-status-error">
-                    错误：{error}
+                    {t("status.error_message", "错误：{{message}}", { message: error })}
                 </div>
             </section>
         );
@@ -95,7 +97,7 @@ export function PerformerXGrid({ performer }: PerformerXGridProps) {
         return (
             <section className="binge-profile-photos">
                 <div className="binge-status">
-                    该演员没有 X (Twitter) 链接。
+                    {t("status.no_x_links", "该演员没有 X (Twitter) 链接。")}
                 </div>
             </section>
         );
@@ -105,8 +107,7 @@ export function PerformerXGrid({ performer }: PerformerXGridProps) {
         return (
             <section className="binge-profile-photos">
                 <div className="binge-status">
-                    未获取到 X 媒体。守护进程可能未配置 X cookies，或
-                    @{handle} 近期没有发布带媒体的内容。
+                    {t("status.no_x_media_found", "未获取到 X 媒体。守护进程可能未配置 X cookies，或 @{{handle}} 近期没有发布带媒体的内容。", { handle })}
                 </div>
             </section>
         );
@@ -124,7 +125,7 @@ export function PerformerXGrid({ performer }: PerformerXGridProps) {
                     @{handle}
                 </a>
                 <span className="binge-x-grid-count">
-                    {media.length} 条媒体
+                    {t("x_grid.media_count", "{{count}} 条媒体", { count: media.length })}
                 </span>
             </div>
             <ul className="binge-gallery-grid binge-x-grid">
@@ -134,6 +135,7 @@ export function PerformerXGrid({ performer }: PerformerXGridProps) {
                         media={m}
                         performerStashId={performer.id}
                         onOpen={() => setModalIndex(i)}
+                        t={t}
                     />
                 ))}
             </ul>
@@ -155,10 +157,12 @@ function XCell({
     media,
     performerStashId,
     onOpen,
+    t,
 }: {
     media: XMedia;
     performerStashId: string;
     onOpen: () => void;
+    t: any;
 }) {
     const isVideo = media.kind === "video";
     const [saveState, setSaveState] = useState<
@@ -194,7 +198,7 @@ function XCell({
                 type="button"
                 onClick={onOpen}
                 className="binge-gallery-cover-btn binge-x-tile"
-                title={media.text || `推文 ${media.tweetId}`}
+                title={media.text || t("x_grid.tweet", "推文 {{tweetId}}", { tweetId: media.tweetId })}
             >
                 {isVideo ? (
                     <XVideoThumb media={media} />
@@ -225,10 +229,10 @@ function XCell({
                     role="button"
                     aria-label={
                         saveState === "saved"
-                            ? "已保存"
+                            ? t("status.saved", "已保存")
                             : saveState === "saving"
-                            ? "保存中"
-                            : "保存到 Stash"
+                            ? t("status.saving", "保存中")
+                            : t("action.save_to_stash", "保存到 Stash")
                     }
                 >
                     {saveState === "saving"

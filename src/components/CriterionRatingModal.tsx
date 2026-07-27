@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 import { useEffect, useState } from "react";
 
 // 0-5 stars per criterion. Module-scoped so it isn't allocated per row.
@@ -59,6 +61,7 @@ export function CriterionRatingModal({
     onClose,
     onRatingChange,
 }: Props) {
+    const { t } = useTranslation();
     const domain = target.kind;
     const [state, setState] = useState<LoadState>({ kind: "loading" });
     const [pendingCriterionId, setPendingCriterionId] = useState<
@@ -129,7 +132,7 @@ export function CriterionRatingModal({
                     // the parent-tag hierarchy.
                     const name = scoreTagName(criterion, newScore);
                     setMissingTagWarning(
-                        `评分标签 "${name}" 尚不存在。请在 Stash 中打开 Advanced Rating 插件的设置面板一次 — 它会在正确的父级下创建标签层级。然后再在此处重试。`
+                        t("rating.missing_tag_warning", `评分标签 “{{name}}” 尚不存在。请在 Stash 中打开 Advanced Rating 插件的设置面板一次 — 它会在正确的父级下创建标签层级。然后再在此处重试。`, { name })
                     );
                     return;
                 }
@@ -189,8 +192,8 @@ export function CriterionRatingModal({
                 role="dialog"
                 aria-label={
                     target.kind === "scene"
-                        ? "场景评分"
-                        : "演员评分"
+                        ? t("rating.scene_rating", "场景评分")
+                        : t("rating.performer_rating", "演员评分")
                 }
             >
                 <div className="binge-sheet-handle" aria-hidden="true" />
@@ -218,13 +221,14 @@ function Header({
     state: LoadState;
     target: RatingTarget;
 }) {
+    const { t } = useTranslation();
     if (state.kind !== "ready") {
         return (
             <header className="binge-rating-modal-header">
                 <h2>
                     {target.kind === "scene"
-                        ? "场景评分"
-                        : "演员评分"}
+                        ? t("rating.scene_rating", "场景评分")
+                        : t("rating.performer_rating", "演员评分")}
                 </h2>
             </header>
         );
@@ -235,18 +239,18 @@ function Header({
     );
     const rating100 = state.rating100;
     const ratingDisplay =
-        rating100 !== null ? Math.round(rating100) + " / 100" : "未评分";
+        rating100 !== null ? `${Math.round(rating100)} / 100` : t("rating.unrated", "未评分");
     return (
         <header className="binge-rating-modal-header">
             <h2>
-                {target.kind === "scene" ? "场景评分" : "演员评分"}
+                {target.kind === "scene" ? t("rating.scene_rating", "场景评分") : t("rating.performer_rating", "演员评分")}
             </h2>
             <div className="binge-rating-modal-summary">
                 <span className="binge-rating-modal-rating">
                     {ratingDisplay}
                 </span>
                 <span className="binge-rating-modal-progress">
-                    {rated}/{total} 已评分
+                    {t("rating.rated_progress", "{{rated}}/{{total}} 已评分", { rated, total })}
                 </span>
             </div>
         </header>
@@ -262,13 +266,14 @@ function Body({
     pendingCriterionId: string | null;
     onScore: (criterion: Criterion, newScore: number | null) => void;
 }) {
+    const { t } = useTranslation();
     if (state.kind === "loading") {
-        return <div className="binge-rating-modal-empty">加载中…</div>;
+        return <div className="binge-rating-modal-empty">{t("status.loading", "加载中…")}</div>;
     }
     if (state.kind === "error") {
         return (
             <div className="binge-rating-modal-empty binge-status-error">
-                无法加载评分配置：{state.message}
+                {t("rating.config_load_failed", "无法加载评分配置：{{message}}", { message: state.message })}
             </div>
         );
     }
@@ -310,9 +315,9 @@ function Body({
             })}
             {previewRating !== null && (
                 <footer className="binge-rating-modal-footer">
-                    预览 · {Math.round(previewRating)} / 100
+                    {t("rating.preview_score", "预览 · {{score}} / 100", { score: Math.round(previewRating) })}
                     <small>
-                        Stash 的插件钩子将锁定此值。
+                        {t("rating.stash_plugin_hook_lock", "Stash 的插件钩子将锁定此值。")}
                     </small>
                 </footer>
             )}
@@ -333,6 +338,7 @@ function CriterionRow({
     pending: boolean;
     onScore: (newScore: number | null) => void;
 }) {
+    const { t } = useTranslation();
     const [hover, setHover] = useState<number | null>(null);
     const filledThrough = hover ?? score ?? 0;
     return (
@@ -369,7 +375,7 @@ function CriterionRow({
                         }
                         onMouseEnter={() => setHover(s)}
                         onClick={() => onScore(s)}
-                        aria-label={`${criterion.name}：${s} / 5`}
+                        aria-label={t("rating.criterion_score", "{{name}}：{{score}} / 5", { name: criterion.name, score: s })}
                     >
                         ★
                     </button>
@@ -379,8 +385,8 @@ function CriterionRow({
                     className="binge-rating-modal-clear"
                     disabled={disabled || score === null}
                     onClick={() => onScore(null)}
-                    aria-label={`清除 ${criterion.name} 评分`}
-                    title="清除"
+                    aria-label={t("rating.clear_criterion_score", "清除 {{name}} 评分", { name: criterion.name })}
+                    title={t("action.clear", "清除")}
                 >
                     ×
                 </button>

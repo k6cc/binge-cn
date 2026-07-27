@@ -2,11 +2,13 @@ interface MuteToggleProps {
     muted: boolean;
     onToggle: () => void;
 }
+import { useTranslation } from "react-i18next";
 
 // Top-right mute pill. Instagram-style: speaker-with-waves when audio is
 // playing, speaker-X (or slash) when muted. Click toggles globally —
 // see [useMuteState] — so all subsequent slides honor the choice.
 export function MuteToggle({ muted, onToggle }: MuteToggleProps) {
+    const { t } = useTranslation();
     return (
         <button
             type="button"
@@ -16,8 +18,8 @@ export function MuteToggle({ muted, onToggle }: MuteToggleProps) {
                 e.stopPropagation();
                 onToggle();
             }}
-            title={muted ? "取消静音" : "静音"}
-            aria-label={muted ? "取消静音" : "静音"}
+            title={muted ? t("action.unmute", "取消静音") : t("action.mute", "静音")}
+            aria-label={muted ? t("action.unmute", "取消静音") : t("action.mute", "静音")}
             aria-pressed={!muted}
         >
             {muted ? <MutedIcon /> : <UnmutedIcon />}

@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useSheetClose } from "../hooks/useSheetClose";
 import { setAutoScroll, useAutoScroll } from "../home/pluginSettings";
+import { useTranslation } from "react-i18next";
 
 interface MoreSheetProps {
     sceneId: string;
@@ -14,6 +15,7 @@ interface MoreSheetProps {
 export function MoreSheet({ sceneId, onClose }: MoreSheetProps) {
     const { isExiting, beginClose } = useSheetClose(onClose);
     const autoScroll = useAutoScroll();
+    const { t } = useTranslation();
 
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
@@ -38,7 +40,7 @@ export function MoreSheet({ sceneId, onClose }: MoreSheetProps) {
             <div
                 className="binge-sheet binge-more-sheet"
                 role="dialog"
-                aria-label="更多操作"
+                aria-label={t("action.more_actions", "更多操作")}
             >
                 <div className="binge-sheet-handle" aria-hidden="true" />
                 <ul className="binge-more-sheet-list">
@@ -50,9 +52,9 @@ export function MoreSheet({ sceneId, onClose }: MoreSheetProps) {
                             aria-pressed={autoScroll}
                         >
                             <span className="binge-more-sheet-row-label">
-                                <span>自动滚动</span>
+                                <span>{t("action.auto_scroll", "自动滚动")}</span>
                                 <small className="binge-more-sheet-row-sub">
-                                    当前场景结束时自动切换到下一个场景
+                                    {t("action.auto_scroll_desc", "当前场景结束时自动切换到下一个场景")}
                                 </small>
                             </span>
                             <span
@@ -73,7 +75,7 @@ export function MoreSheet({ sceneId, onClose }: MoreSheetProps) {
                             onClick={handleOpenInStash}
                         >
                             <span className="binge-more-sheet-row-label">
-                                在 Stash 中打开
+                                {t("action.open_in_stash", "在 Stash 中打开")}
                             </span>
                             <ExternalLinkIcon />
                         </button>

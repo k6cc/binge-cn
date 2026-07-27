@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+
 import { useFilter } from "./FilterContext";
 import {
     findSavedFiltersForScenes,
     type StashSavedFilter,
 } from "../api/queries";
+import { useTranslation } from "react-i18next";
 
 interface FilterSheetProps {
     onClose: () => void;
@@ -38,6 +40,7 @@ export function FilterSheet({ onClose }: FilterSheetProps) {
         | { kind: "ready"; filters: StashSavedFilter[] }
         | { kind: "error"; message: string }
     >({ kind: "loading" });
+    const { t } = useTranslation();
 
     useEffect(() => {
         let alive = true;
@@ -74,24 +77,24 @@ export function FilterSheet({ onClose }: FilterSheetProps) {
             <div
                 className="binge-sheet binge-filter-sheet"
                 role="dialog"
-                aria-label="筛选条件"
+                aria-label={t("filter.filter_criteria", "筛选条件")}
             >
                 <div className="binge-sheet-handle" aria-hidden="true" />
                 <div className="binge-filter-sheet-header">
-                    <h2 className="binge-filter-sheet-title">筛选条件</h2>
+                    <h2 className="binge-filter-sheet-title">{t("filter.filter_criteria", "筛选条件")}</h2>
                 </div>
 
                 {/* Active state */}
                 <section className="binge-filter-sheet-section">
                     <header className="binge-filter-sheet-section-head">
-                        <h3>当前生效</h3>
+                        <h3>{t("filter.current_active", "当前生效")}</h3>
                         {(!isEmpty || activeSavedFilter) && (
                             <button
                                 type="button"
                                 className="binge-filter-sheet-clear"
                                 onClick={() => clear()}
                             >
-                                全部清除
+                                {t("action.clear_all", "全部清除")}
                             </button>
                         )}
                     </header>
@@ -101,7 +104,7 @@ export function FilterSheet({ onClose }: FilterSheetProps) {
                                 type="button"
                                 className="binge-filter-sheet-chip binge-filter-sheet-chip-saved"
                                 onClick={() => clearSavedFilter()}
-                                title={`清除“${activeSavedFilter.name}”`}
+                                title={t("action.clear_saved_filter", "清除“{{name}}”", { name: activeSavedFilter.name })}
                             >
                                 <span>{activeSavedFilter.name}</span>
                                 <span
@@ -114,7 +117,7 @@ export function FilterSheet({ onClose }: FilterSheetProps) {
                         </div>
                     ) : isEmpty ? (
                         <div className="binge-filter-sheet-empty">
-                            没有生效的筛选条件 — 显示全部内容。
+                            {t("filter.no_active_filters", "没有生效的筛选条件 — 显示全部内容。")}
                         </div>
                     ) : (
                         <div className="binge-filter-sheet-chips">
@@ -151,22 +154,21 @@ export function FilterSheet({ onClose }: FilterSheetProps) {
                 {/* Stash saved filters */}
                 <section className="binge-filter-sheet-section">
                     <header className="binge-filter-sheet-section-head">
-                        <h3>Stash 保存的筛选条件</h3>
+                        <h3>{t("filter.stash_saved_filters", "Stash 保存的筛选条件")}</h3>
                     </header>
                     {state.kind === "loading" && (
                         <div className="binge-filter-sheet-empty">
-                            加载中…
+                            {t("status.loading", "加载中…")}
                         </div>
                     )}
                     {state.kind === "error" && (
                         <div className="binge-filter-sheet-empty">
-                            无法加载：{state.message}
+                            {t("status.load_failed", "无法加载：{{message}}", { message: state.message })}
                         </div>
                     )}
                     {state.kind === "ready" && state.filters.length === 0 && (
                         <div className="binge-filter-sheet-empty">
-                            没有场景的已保存筛选条件。请在 Stash
-                            的主场景浏览器中创建 — 创建后会自动出现在这里。
+                            {t("filter.no_saved_filters", "没有场景的已保存筛选条件。请在 Stash 的主场景浏览器中创建 — 创建后会自动出现在这里。")}
                         </div>
                     )}
                     {state.kind === "ready" && state.filters.length > 0 && (
@@ -200,6 +202,7 @@ function FilterChip({
     tone: "performers" | "tags" | "studios";
     onRemove: () => void;
 }) {
+    const { t } = useTranslation();
     return (
         <button
             type="button"
@@ -207,7 +210,7 @@ function FilterChip({
                 "binge-filter-sheet-chip binge-filter-sheet-chip-" + tone
             }
             onClick={onRemove}
-            title={`移除 ${label}`}
+            title={t("action.remove_item", "移除 {{item}}", { item: label })}
         >
             <span>{label}</span>
             <span className="binge-filter-sheet-chip-x" aria-hidden="true">
@@ -226,11 +229,12 @@ function SavedFilterRow({
     active: boolean;
     onApply: () => void;
 }) {
+    const { t } = useTranslation();
     // Summarise the saved filter's criteria for the row's secondary line.
     const criteria = Object.keys(sf.object_filter ?? {});
     const summary =
         criteria.length === 0
-            ? "无筛选条件"
+            ? t("filter.no_filters", "无筛选条件")
             : criteria.slice(0, 4).join(" · ") +
               (criteria.length > 4 ? ` · +${criteria.length - 4}` : "");
     const sort = sf.find_filter?.sort ?? "";
@@ -251,7 +255,7 @@ function SavedFilterRow({
                 </span>
                 <span className="binge-filter-sheet-preset-meta">
                     {summary}
-                    {sort && ` · 排序：${sort}`}
+                    {sort && t("filter.sort_by", " · 排序：{{sort}}", { sort })}
                 </span>
             </button>
         </li>

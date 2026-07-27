@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
     findScenesByPerformer,
     type PerformerDetail,
@@ -64,6 +65,7 @@ export function PerformerSceneGrid({
     performer,
     onClose,
 }: PerformerSceneGridProps) {
+    const { t } = useTranslation();
     const [scenes, setScenes] = useState<PerformerSceneCard[]>([]);
     const [count, setCount] = useState<number | null>(null);
     const [page, setPage] = useState(1);
@@ -254,8 +256,7 @@ export function PerformerSceneGrid({
         // Tell the Reel to open with this exact scene as slide 0;
         // remaining slides come from the normal random filter feed.
         //
-        // Bug 5 修复：setTab 会清除 pin，因此 setPinFirstSceneId 必须在
-        // setTab 之后调用，利用 React 18 批处理"后写胜"语义。
+        // {t("performer.bug_5_fix_desc", "Bug 5 修复：setTab 会清除 pin，因此 setPinFirstSceneId 必须在 setTab 之后调用，利用 React 18 批处理"后写胜"语义。")}
         setTab("foryou");
         setPinFirstSceneId(sceneId);
         onClose();
@@ -285,7 +286,7 @@ export function PerformerSceneGrid({
                                 !includeStashDBInProfile
                             )
                         }
-                        title="将 StashDB 场景混入此演员的网格"
+                        title={t("performer.stashdb_mixin_title", "将 StashDB 场景混入此演员的网格")}
                     >
                         <span className="binge-profile-stashdb-toggle-dot" />
                         StashDB
@@ -294,14 +295,14 @@ export function PerformerSceneGrid({
             </h2>
             {error && (
                 <div className="binge-status binge-status-error">
-                    错误：{error}
+                    {t("status.error_message", "错误：{{message}}", { message: error })}
                 </div>
             )}
             {scenes.length === 0 && loading && (
                 <BingeLoading minHeight="30vh" />
             )}
-            {scenes.length === 0 && !loading && !error && (
-                <div className="binge-status">无场景</div>
+                {scenes.length === 0 && !loading && !error && (
+                <div className="binge-status">{t("status.no_scenes", "无场景")}</div>
             )}
             {(scenes.length > 0 ||
                 effectiveStashDBScenes.length > 0 ||
@@ -362,7 +363,7 @@ export function PerformerSceneGrid({
             <div ref={sentinelRef} aria-hidden="true" />
             {loading && scenes.length > 0 && (
                 <div className="binge-status binge-profile-scenes-loading">
-                    加载中…
+                    {t("status.loading", "加载中…")}
                 </div>
             )}
             {sceneModalFor && stashBoxIndex !== null && (
@@ -454,6 +455,7 @@ function StashDBTile({
     scene: StashDBScene;
     onPick: () => void;
 }) {
+    const { t } = useTranslation();
     const sceneTitle = scene.title?.trim() || "";
     return (
         <li className="binge-profile-scene-cell is-landscape-thumb">
@@ -461,7 +463,7 @@ function StashDBTile({
                 type="button"
                 className="binge-profile-scene-card"
                 onClick={onPick}
-                title={sceneTitle || `StashDB 场景 ${scene.id}`}
+                title={sceneTitle || t("performer.stashdb_scene_id", "StashDB 场景 {{id}}", { id: scene.id })}
             >
                 <span
                     className="binge-profile-scene-poster"
@@ -474,7 +476,7 @@ function StashDBTile({
                     }
                 />
                 <span className="binge-profile-scene-stashdb-badge">
-                    StashDB
+                    {t("common.stashdb", "StashDB")}
                 </span>
                 <span className="binge-profile-scene-hover">
                     <span className="binge-profile-scene-hover-stats">
@@ -509,6 +511,7 @@ function SceneTile({
     sort: PerformerSceneSort;
     onPick: () => void;
 }) {
+    const { t, i18n } = useTranslation();
     const file = scene.files?.[0];
     const duration = file?.duration ?? null;
     const isLandscapeThumb =
@@ -520,7 +523,7 @@ function SceneTile({
     // Persistent corner badge showing the stat that matches the active
     // sort (à la TikTok's view-count overlay). Hidden on hover, where the
     // full stat row takes over.
-    const badge = sortStatBadge(scene, sort, oCount, viewCount);
+    const badge = sortStatBadge(scene, sort, oCount, viewCount, i18n);
 
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const srcArmedRef = useRef(false);
@@ -564,7 +567,7 @@ function SceneTile({
                 onMouseLeave={handleLeave}
                 onFocus={handleEnter}
                 onBlur={handleLeave}
-                title={sceneTitle || `场景 ${scene.id}`}
+                title={sceneTitle || t("performer.scene_id", "场景 {{id}}", { id: scene.id })}
             >
                 <span
                     className="binge-profile-scene-poster"
@@ -712,7 +715,8 @@ function sortStatBadge(
     scene: PerformerSceneCard,
     sort: PerformerSceneSort,
     oCount: number,
-    viewCount: number
+    viewCount: number,
+    i18n: any
 ): { icon: React.ReactNode; text: string; like?: boolean } | null {
     switch (sort) {
         case "views":
@@ -733,12 +737,12 @@ function sortStatBadge(
                   }
                 : null;
         case "added": {
-            const t = compactMonthYear(scene.created_at);
+            const t = compactMonthYear(scene.created_at, i18n);
             return t ? { icon: <CalendarIcon />, text: t } : null;
         }
         case "recent":
         default: {
-            const t = compactMonthYear(scene.date || scene.created_at);
+            const t = compactMonthYear(scene.date || scene.created_at, i18n);
             return t ? { icon: <CalendarIcon />, text: t } : null;
         }
     }
@@ -746,16 +750,38 @@ function sortStatBadge(
 
 // "2026年6月" from a "YYYY-MM-DD" or ISO date; falls back to the bare
 // year, then null when unparseable.
-// 硬约束：日期格式使用中文 YYYY年M月。
-function compactMonthYear(raw: string | null): string | null {
+function compactMonthYear(raw: string | null, i18n: any): string | null {
     if (!raw) return null;
     const m = /^(\d{4})-(\d{2})/.exec(raw);
     if (!m) {
         const y = raw.slice(0, 4);
         return /^\d{4}$/.test(y) ? y : null;
     }
-    const mi = parseInt(m[2], 10);
-    return mi >= 1 && mi <= 12 ? `${m[1]}年${mi}月` : m[1];
+
+    if (i18n.language === "en") {
+        const months = [
+            "Jan",
+            "Feb",
+            "Mar",
+            "Apr",
+            "May",
+            "Jun",
+            "Jul",
+            "Aug",
+            "Sep",
+            "Oct",
+            "Nov",
+            "Dec",
+        ];
+        const mi = parseInt(m[2], 10);
+        return mi >= 1 && mi <= 12 ? `${months[mi - 1]} ${m[1]}` : m[1];
+    } else {
+        const t = i18n.t;
+        const mi = parseInt(m[2], 10);
+        return mi >= 1 && mi <= 12
+            ? `${m[1]}${t("time.year", "年")}${mi}${t("time.month", "月")}`
+            : m[1];
+    }
 }
 
 // 0–100 rating → "8.4" out of 10 (drops a trailing .0).

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useTab } from "./TabContext";
 
 // "More" page reached via the bottom-nav burger slot on mobile. Just
@@ -10,11 +11,12 @@ import { useTab } from "./TabContext";
 // route — direct-linking `#/menu` still works.
 export function MenuPage() {
     const { setTab } = useTab();
+    const { t } = useTranslation();
     return (
         <div className="binge-tab-scroll">
             <header className="binge-saved-header">
                 <span className="binge-saved-spacer" />
-                <h1 className="binge-saved-title">更多</h1>
+                <h1 className="binge-saved-title">{t("nav.menu", "菜单")}</h1>
                 <span className="binge-saved-spacer" />
             </header>
             <ul className="binge-menu-list">
@@ -29,10 +31,10 @@ export function MenuPage() {
                         </span>
                         <span className="binge-menu-row-text">
                             <span className="binge-menu-row-title">
-                                已保存
+                                {t("nav.saved", "已保存")}
                             </span>
                             <span className="binge-menu-row-desc">
-                                已收藏场景的自定义合集。
+                                {t("desc_saved", "已收藏场景的自定义合集。")}
                             </span>
                         </span>
                         <span
@@ -54,10 +56,10 @@ export function MenuPage() {
                         </span>
                         <span className="binge-menu-row-text">
                             <span className="binge-menu-row-title">
-                                设置
+                                {t("nav.settings", "设置")}
                             </span>
                             <span className="binge-menu-row-desc">
-                                流类型、回看窗口、binge-server 配置、主题集成。
+                                {t("desc_settings", "流类型、回看窗口、binge-server 配置、主题集成。")}
                             </span>
                         </span>
                         <span

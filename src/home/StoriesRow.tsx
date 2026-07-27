@@ -3,6 +3,7 @@ import { type Story as StoryData, type StoriesResult } from "./useStories";
 import { Story } from "./Story";
 import { useStoryViewer } from "./StoryViewerContext";
 import { BingeLoading } from "../components/BingeLoading";
+import { useTranslation } from "react-i18next";
 
 // Horizontal scroller of performers in your library with new scenes.
 // Tap → opens the IG-style StoryViewer at that performer; the viewer's
@@ -16,6 +17,7 @@ export function StoriesRow({ stories }: { stories: StoriesResult }) {
     const scrollerRef = useRef<HTMLDivElement>(null);
     const [canScrollLeft, setCanScrollLeft] = useState(false);
     const [canScrollRight, setCanScrollRight] = useState(false);
+    const { t } = useTranslation();
 
     // Track scroll position so we know which chevrons to show. Update
     // on scroll + on content/size changes (new stories arriving,
@@ -61,7 +63,7 @@ export function StoriesRow({ stories }: { stories: StoriesResult }) {
         return (
             <section className="binge-stories-row">
                 <div className="binge-stories-empty binge-status-error">
-                    无法加载故事：{state.message}
+                    {t("status.story_load_failed")}：{state.message}
                 </div>
             </section>
         );
@@ -72,11 +74,11 @@ export function StoriesRow({ stories }: { stories: StoriesResult }) {
     return (
         <section
             className="binge-stories-row"
-            aria-label="有新场景的演员"
+            aria-label={t("nav.performers_with_new_scenes", "有新场景的演员")}
         >
             {list.length === 0 ? (
                 <div className="binge-stories-empty">
-                    过去 30 天内你的收藏没有新场景。
+                    {t("status.no_new_scenes_last_30_days", "过去 30 天内你的收藏没有新场景。")}
                 </div>
             ) : (
                 <>
@@ -85,7 +87,7 @@ export function StoriesRow({ stories }: { stories: StoriesResult }) {
                             type="button"
                             className="binge-stories-chevron binge-stories-chevron-left"
                             onClick={() => scrollByAmount(-280)}
-                            aria-label="向左滚动"
+                            aria-label={t("nav.scroll_left", "向左滚动")}
                         >
                             <ChevronLeft />
                         </button>
@@ -107,7 +109,7 @@ export function StoriesRow({ stories }: { stories: StoriesResult }) {
                             type="button"
                             className="binge-stories-chevron binge-stories-chevron-right"
                             onClick={() => scrollByAmount(280)}
-                            aria-label="向右滚动"
+                            aria-label={t("nav.scroll_right", "向右滚动")}
                         >
                             <ChevronRight />
                         </button>

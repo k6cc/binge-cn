@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { useSheetClose } from "../hooks/useSheetClose";
 import { useHasScribe } from "../plugins/PluginContext";
 import { useScribeModal } from "../scribe/ScribeContext";
+import { useTranslation } from "react-i18next";
 
 interface PerformerMoreSheetProps {
     performerId: string;
@@ -21,6 +22,7 @@ export function PerformerMoreSheet({
     onClose,
 }: PerformerMoreSheetProps) {
     const { isExiting, beginClose } = useSheetClose(onClose);
+    const { t } = useTranslation();
 
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
@@ -61,7 +63,7 @@ export function PerformerMoreSheet({
             <div
                 className="binge-sheet binge-more-sheet"
                 role="dialog"
-                aria-label="更多操作"
+                aria-label={t("action.more_actions", "更多操作")}
             >
                 <div className="binge-sheet-handle" aria-hidden="true" />
                 <ul className="binge-more-sheet-list">
@@ -73,7 +75,7 @@ export function PerformerMoreSheet({
                                 onClick={handleWriteReview}
                             >
                                 <span className="binge-more-sheet-row-label">
-                                    撰写评论
+                                    {t("action.write_review", "撰写评论")}
                                 </span>
                                 <CommentIcon />
                             </button>
@@ -86,7 +88,7 @@ export function PerformerMoreSheet({
                             onClick={handleRefresh}
                         >
                             <span className="binge-more-sheet-row-label">
-                                刷新
+                                {t("action.refresh", "刷新")}
                             </span>
                             <RefreshIcon />
                         </button>
@@ -98,7 +100,7 @@ export function PerformerMoreSheet({
                             onClick={handleOpenInStash}
                         >
                             <span className="binge-more-sheet-row-label">
-                                在 Stash 中打开
+                                {t("action.open_in_stash", "在 Stash 中打开")}
                             </span>
                             <ExternalLinkIcon />
                         </button>

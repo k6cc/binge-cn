@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { PerformerSceneCard } from "../api/queries";
+import { useTranslation } from "react-i18next";
 
 // Generic paginated 3-column scene grid. The performer profile and the
 // saved-collection detail view both use this — they only differ in
@@ -34,8 +35,10 @@ export function SceneCardGrid({
     resetKey,
     pageSize = DEFAULT_PAGE_SIZE,
     heading,
-    emptyMessage = "无场景",
+    emptyMessage,
 }: SceneCardGridProps) {
+    const { t } = useTranslation();
+    const finalEmptyMessage = emptyMessage || t("status.no_scenes", "无场景");
     const [scenes, setScenes] = useState<PerformerSceneCard[]>([]);
     const [count, setCount] = useState<number | null>(null);
     const [page, setPage] = useState(1);
@@ -106,14 +109,14 @@ export function SceneCardGrid({
             )}
             {error && (
                 <div className="binge-status binge-status-error">
-                    错误：{error}
+                    {t("status.error_message", "错误：{{message}}", { message: error })}
                 </div>
             )}
             {scenes.length === 0 && loading && (
-                <div className="binge-status">加载中…</div>
+                <div className="binge-status">{t("status.loading", "加载中…")}</div>
             )}
             {scenes.length === 0 && !loading && !error && (
-                <div className="binge-status">{emptyMessage}</div>
+                <div className="binge-status">{finalEmptyMessage}</div>
             )}
             {scenes.length > 0 && (
                 <div className="binge-explore-grid">
@@ -128,7 +131,7 @@ export function SceneCardGrid({
             )}
             <div ref={sentinelRef} aria-hidden="true" />
             {loading && scenes.length > 0 && (
-                <div className="binge-status">加载中…</div>
+                <div className="binge-status">{t("status.loading", "加载中…")}</div>
             )}
         </div>
     );
@@ -144,7 +147,8 @@ function ExploreStyleTile({
     scene: PerformerSceneCard;
     onPick: () => void;
 }) {
-    const sceneTitle = scene.title?.trim() || `场景 ${scene.id}`;
+    const { t } = useTranslation();
+    const sceneTitle = scene.title?.trim() || t("scene.scene_id", "场景 {{id}}", { id: scene.id });
     return (
         <button
             type="button"

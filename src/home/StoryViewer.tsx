@@ -19,6 +19,7 @@ import {
 } from "../api/bingeServer";
 import { useFetchBlobUrl } from "../hooks/useFetchBlobUrl";
 import type { StoryScene } from "./useStories";
+import { useTranslation } from "react-i18next";
 
 type RedditStoryScene = Extract<StoryScene, { source: "reddit" }>;
 
@@ -45,6 +46,7 @@ export function StoryViewer() {
     const { replace } = useFilter();
     const { setTab, setPinFirstSceneId } = useTab();
     const { openProfile } = usePerformerProfile();
+    const { t } = useTranslation();
 
     const [sceneIndex, setSceneIndex] = useState(0);
     const [paused, setPaused] = useState(false);
@@ -340,18 +342,18 @@ export function StoryViewer() {
         <div
             className="binge-story-viewer-root"
             role="dialog"
-            aria-label="故事查看器"
+            aria-label={t("nav.story_viewer", "故事查看器")}
         >
             <div
                 className="binge-story-viewer-backdrop"
                 onClick={close}
-                aria-hidden="true"
+                aria-label={t("action.close", "关闭")}
             />
             <button
                 type="button"
                 className="binge-story-viewer-close"
                 onClick={close}
-                aria-label="关闭"
+                aria-label={t("action.close", "关闭")}
             >
                 ×
             </button>
@@ -363,7 +365,7 @@ export function StoryViewer() {
                 type="button"
                 className="binge-story-viewer-chevron binge-story-viewer-chevron-prev"
                 onClick={goPrev}
-                aria-label="上一个"
+                aria-label={t("action.previous", "上一个")}
                 disabled={activeIndex === 0 && sceneIndex === 0}
             >
                 <ChevronLeft />
@@ -372,7 +374,7 @@ export function StoryViewer() {
                 type="button"
                 className="binge-story-viewer-chevron binge-story-viewer-chevron-next"
                 onClick={advance}
-                aria-label="下一个"
+                aria-label={t("action.next", "下一个")}
             >
                 <ChevronRight />
             </button>
@@ -419,7 +421,7 @@ export function StoryViewer() {
                             className="binge-story-viewer-image"
                             key={currentScene.id}
                             src={currentScene.cover ?? undefined}
-                            alt={currentScene.title ?? "StashDB 场景"}
+                            alt={currentScene.title ?? t("scene.stashdb_scene")}
                         />
                     )}
                     {currentScene.source === "reddit" && (
@@ -446,8 +448,8 @@ export function StoryViewer() {
                                     openProfile(activeStory.performerId);
                                     close();
                                 }}
-                                aria-label={`打开 ${activeStory.performerName} 的主页`}
-                                title="打开主页"
+                                aria-label={t("action.open_profile_name", "打开 {{name}} 的主页", { name: activeStory.performerName })}
+                                title={t("action.open_profile", "打开主页")}
                             >
                                 <span
                                     className="binge-story-viewer-avatar"
@@ -471,13 +473,13 @@ export function StoryViewer() {
                                         }
                                         aria-label={
                                             activeStory.performerFavorite
-                                                ? "已收藏"
-                                                : "在库中"
+                                                ? t("status.favorite", "已收藏")
+                                                : t("status.in_library", "在库中")
                                         }
                                         title={
                                             activeStory.performerFavorite
-                                                ? "已收藏"
-                                                : "在库中"
+                                                ? t("status.favorite", "已收藏")
+                                                : t("status.in_library", "在库中")
                                         }
                                     >
                                         <VerifiedIcon />
@@ -490,7 +492,7 @@ export function StoryViewer() {
                             {currentScene.source === "stashdb" && (
                                 <span
                                     className="binge-story-viewer-source-badge"
-                                    title="来自 StashDB — 不在你的库中"
+                                    title={t("status.from_stashdb_not_in_library")}
                                 >
                                     StashDB
                                 </span>
@@ -504,7 +506,7 @@ export function StoryViewer() {
                                         currentScene.permalink
                                     }
                                 >
-                                    {redditBadgeLabel(currentScene)}
+                                    {redditBadgeLabel(currentScene, t)}
                                 </span>
                             )}
                             <button
@@ -514,8 +516,8 @@ export function StoryViewer() {
                                     e.stopPropagation();
                                     setMuted(!muted);
                                 }}
-                                aria-label={muted ? "取消静音" : "静音"}
-                                title={muted ? "取消静音" : "静音"}
+                                aria-label={muted ? t("action.unmute", "取消静音") : t("action.mute", "静音")}
+                                title={muted ? t("action.unmute", "取消静音") : t("action.mute", "静音")}
                             >
                                 {muted ? <MutedIcon /> : <UnmutedIcon />}
                             </button>
@@ -541,17 +543,17 @@ export function StoryViewer() {
                                     }
                                     title={
                                         saveState[savableKey] === "error"
-                                            ? "保存失败 — 点击重试"
-                                            : "保存到 Stash"
+                                            ? t("action.save_failed_retry", "保存失败 — 点击重试")
+                                            : t("action.save_to_stash", "保存到 Stash")
                                     }
                                 >
                                     {saveState[savableKey] === "saved"
-                                        ? "✓ 已保存"
+                                        ? t("status.saved_with_check", "✓ 已保存")
                                         : saveState[savableKey] === "saving"
-                                          ? "保存中…"
+                                          ? t("status.saving", "保存中…")
                                           : saveState[savableKey] === "error"
-                                            ? "重试"
-                                            : "保存"}
+                                            ? t("action.retry", "重试")
+                                            : t("action.save", "保存")}
                                 </button>
                             )}
                         </div>
@@ -564,21 +566,21 @@ export function StoryViewer() {
                         type="button"
                         className="binge-story-viewer-tap binge-story-viewer-tap-left"
                         onClick={goPrev}
-                        aria-label="上一个"
+                        aria-label={t("action.previous", "上一个")}
                         tabIndex={-1}
                     />
                     <button
                         type="button"
                         className="binge-story-viewer-tap binge-story-viewer-tap-center"
                         onClick={() => setPaused((p) => !p)}
-                        aria-label={paused ? "继续" : "暂停"}
+                        aria-label={paused ? t("action.continue", "继续") : t("action.pause", "暂停")}
                         tabIndex={-1}
                     />
                     <button
                         type="button"
                         className="binge-story-viewer-tap binge-story-viewer-tap-right"
                         onClick={advance}
-                        aria-label="下一个"
+                        aria-label={t("action.next", "下一个")}
                         tabIndex={-1}
                     />
 
@@ -594,15 +596,15 @@ export function StoryViewer() {
                             onClick={handleCta}
                         >
                             {currentScene.source === "stashdb"
-                                ? "在 StashDB 上查看 →"
+                                ? t("action.view_on_stashdb_arrow", "在 StashDB 上查看 →")
                                 : currentScene.source === "reddit"
                                   ? currentScene.domain === "x.com" ||
                                     currentScene.domain === "twitter.com"
-                                      ? "在 X 上打开 →"
+                                      ? t("action.open_on_x_arrow", "在 X 上打开 →")
                                       : currentScene.domain === "pornhub.com"
-                                        ? "在 PornHub 上打开 →"
-                                        : "在 Reddit 上打开 →"
-                                  : "观看完整场景 →"}
+                                        ? t("action.open_on_pornhub_arrow", "在 PornHub 上打开 →")
+                                        : t("action.open_on_reddit_arrow", "在 Reddit 上打开 →")
+                                  : t("action.watch_full_scene_arrow", "观看完整场景 →")}
                         </button>
                     </div>
                 </div>
@@ -698,7 +700,7 @@ function buildSaveRequest(
     };
 }
 
-function redditBadgeLabel(scene: RedditStoryScene): string {
+function redditBadgeLabel(scene: RedditStoryScene, t: (key: string) => string): string {
     const d = (scene.domain ?? "").toLowerCase();
     // X and PornHub media are folded onto the reddit scene shape (same
     // image/video render path) with their own domain — label accordingly.
@@ -706,15 +708,15 @@ function redditBadgeLabel(scene: RedditStoryScene): string {
     if (d === "pornhub.com") return "PornHub";
     if (scene.kind === "video") {
         if (d.includes("redgifs")) return "redgifs";
-        if (d === "v.redd.it") return "reddit 视频";
-        return d || "视频";
+        if (d === "v.redd.it") return t("status.reddit_video");
+        return d || t("status.video");
     }
     if (scene.kind === "image") {
-        if (d === "i.redd.it") return "reddit 图片";
-        return d || "图片";
+        if (d === "i.redd.it") return t("status.reddit_image");
+        return d || t("status.image");
     }
-    if (scene.kind === "text") return "reddit 文字";
-    return d || "reddit 链接";
+    if (scene.kind === "text") return t("status.reddit_text");
+    return d || t("status.reddit_link");
 }
 
 // Reddit card body: switches on `kind` to render image / video / text /
@@ -732,6 +734,7 @@ function RedditCardBody({
     onEnded: () => void;
 }) {
     const [videoError, setVideoError] = useState<string | null>(null);
+    const { t } = useTranslation();
 
     // Reset error when scene id changes (next slide).
     useEffect(() => {
@@ -759,7 +762,7 @@ function RedditCardBody({
         const v = videoRef.current;
         if (!v) return;
         if (blobFailed) {
-            setVideoError("视频加载失败（fetch blob 失败）");
+            setVideoError(t("status.video_load_failed", "视频加载失败（fetch blob 失败）"));
             return;
         }
         if (fetchedBlobUrl && v.src !== fetchedBlobUrl) {
@@ -804,7 +807,7 @@ function RedditCardBody({
                 key={scene.id}
                 src={imgSrc}
                 referrerPolicy="no-referrer"
-                alt={scene.title ?? "Reddit 图片"}
+                alt={scene.title ?? t("status.reddit_image", "Reddit 图片")}
             />
         );
     }
@@ -824,14 +827,14 @@ function RedditCardBody({
                         const err = v.error;
                         setVideoError(
                             err
-                                ? `MediaError ${err.code} (${err.message || "无消息"})`
-                                : "未知视频错误"
+                                ? `MediaError ${err.code} (${err.message || t("status.no_message", "无消息")})`
+                                : t("status.unknown_video_error", "未知视频错误")
                         );
                     }}
                 />
                 {videoError && (
                     <div className="binge-story-viewer-video-error">
-                        <div>视频播放失败</div>
+                        <div>{t("status.video_play_failed", "视频播放失败")}</div>
                         <code>{videoError}</code>
                         <code style={{ wordBreak: "break-all" }}>
                             {scene.mediaUrl}
@@ -846,7 +849,7 @@ function RedditCardBody({
             <div
                 className="binge-story-viewer-text"
                 key={scene.id}
-                aria-label={scene.title ?? "Reddit 文字帖子"}
+                aria-label={scene.title ?? t("status.reddit_text_post", "Reddit 文字帖子")}
             >
                 {scene.title && (
                     <h2 className="binge-story-viewer-text-title">
@@ -872,6 +875,7 @@ function RedditCardBody({
                     ? { backgroundImage: `url(${linkThumb})` }
                     : undefined
             }
+            aria-label={scene.title ?? t("status.reddit_link_post", "Reddit 链接帖子")}
         >
             <div className="binge-story-viewer-link-overlay">
                 {scene.domain && (
@@ -906,12 +910,13 @@ function Peek({
     onClick: () => void;
 }) {
     const latest = story.scenes[0];
+    const { t } = useTranslation();
     return (
         <button
             type="button"
             className={`binge-story-viewer-peek is-distance-${distance}`}
             onClick={onClick}
-            aria-label={`查看 ${story.performerName} 的故事`}
+            aria-label={t("action.view_story_name", "查看 {{name}} 的故事", { name: story.performerName })}
             style={(() => {
                 if (!latest) return undefined;
                 // Library scenes have `screenshot`; StashDB scenes have
