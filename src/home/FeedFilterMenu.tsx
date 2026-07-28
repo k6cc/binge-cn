@@ -20,10 +20,10 @@ export function FeedFilterMenu() {
     const { t } = useTranslation();
 
     const LABELS: Record<FeedCategory, string> = {
-        discover: t("feed.category.discover", "发现"),
-        trending: t("feed.category.trending", "热门"),
-        posts: t("feed.category.posts", "帖子"),
-        reposts: t("feed.category.reposts", "转发"),
+        discover: t("feed.category.discover"),
+        trending: t("feed.category.trending"),
+        posts: t("feed.category.posts"),
+        reposts: t("feed.category.reposts"),
     };
 
     useEffect(() => {
@@ -65,9 +65,9 @@ export function FeedFilterMenu() {
                     (anyHidden ? " is-active" : "")
                 }
                 onClick={() => setOpen((o: boolean) => !o)}
-                aria-label={t("action.filter_feed", "筛选动态")}
+                aria-label={t("action.filter_feed")}
                 aria-expanded={open}
-                title={t("action.filter_feed", "筛选动态")}
+                title={t("action.filter_feed")}
             >
                 <FilterIcon />
                 {anyHidden && (
@@ -80,7 +80,7 @@ export function FeedFilterMenu() {
             {open && (
                 <div className="binge-feed-filter-menu" role="menu">
                     <div className="binge-feed-filter-heading">
-                        {t("feed.show_in_feed", "动态中显示")}
+                        {t("feed.show_in_feed")}
                     </div>
                     {ALL_FEED_CATEGORIES.map((cat) => {
                         const shown = !hidden.has(cat);

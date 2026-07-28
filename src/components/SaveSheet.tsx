@@ -87,11 +87,11 @@ export function SaveSheet({
             <div
                 className="binge-sheet binge-save-sheet"
                 role="dialog"
-                aria-label={t("action.save_to_collection", "保存场景到合集")}
+                aria-label={t("action.save_to_collection")}
             >
                 <div className="binge-sheet-handle" aria-hidden="true" />
                 <div className="binge-save-sheet-header">
-                    <h2 className="binge-save-sheet-title">{t("action.save_to", "保存到…")}</h2>
+                    <h2 className="binge-save-sheet-title">{t("action.save_to")}</h2>
                 </div>
 
                 <ul className="binge-save-sheet-list" role="list">
@@ -147,7 +147,7 @@ export function SaveSheet({
                             <input
                                 type="text"
                                 className="binge-save-sheet-input"
-                                placeholder={t("settings.collection_name", "合集名称")}
+                                placeholder={t("settings.collection_name")}
                                 value={newName}
                                 onChange={(e) => setNewName(e.target.value)}
                                 autoFocus
@@ -159,7 +159,7 @@ export function SaveSheet({
                                 className="binge-save-sheet-create-confirm"
                                 disabled={submitBusy || !newName.trim()}
                             >
-                                {t("action.create", "创建")}
+                                {t("action.create")}
                             </button>
                             <button
                                 type="button"
@@ -171,7 +171,7 @@ export function SaveSheet({
                                 }}
                                 disabled={submitBusy}
                             >
-                                {t("action.cancel", "取消")}
+                                {t("action.cancel")}
                             </button>
                         </form>
                     ) : (
@@ -180,7 +180,7 @@ export function SaveSheet({
                             className="binge-save-sheet-create-btn"
                             onClick={() => setCreating(true)}
                         >
-                            {t("action.new_collection", "+ 新建合集")}
+                            {t("action.new_collection")}
                         </button>
                     )}
                     {submitError && (

@@ -98,7 +98,7 @@ export function SceneProgress({
             aria-valuemin={0}
             aria-valuemax={1}
             aria-valuenow={progress}
-            aria-label={t("scene.progress", "场景进度")}
+            aria-label={t("scene.progress")}
         >
             <div
                 className="binge-progress-fill"

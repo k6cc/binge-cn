@@ -19,11 +19,11 @@ export function PerformerSceneSortMenu({
     const rootRef = useRef<HTMLDivElement>(null);
 
     const SORT_LABELS_LOCAL: Record<PerformerSceneSort, string> = useMemo(() => ({
-        recent: t("sort.recent", "最近"),
-        views: t("sort.views", "最多播放"),
-        orgasms: t("sort.orgasms", "最多高潮"),
-        rating: t("sort.rating", "最高评分"),
-        added: t("sort.added", "最近添加"),
+        recent: t("sort.recent"),
+        views: t("sort.views"),
+        orgasms: t("sort.orgasms"),
+        rating: t("sort.rating"),
+        added: t("sort.added"),
     }), [t]);
 
     function sortLabel(key: PerformerSceneSort): string {
@@ -73,7 +73,7 @@ export function PerformerSceneSortMenu({
                 onClick={() => setOpen((o) => !o)}
                 aria-haspopup="menu"
                 aria-expanded={open}
-                title={t("action.sort_scenes", "场景排序")}
+                title={t("action.sort_scenes")}
             >
                 {sortLabel(current.key)}
                 <ChevronIcon />

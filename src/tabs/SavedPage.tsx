@@ -181,8 +181,8 @@ export function SavedPage() {
                         type="button"
                         className="binge-saved-back"
                         onClick={() => setOpenCollection(null)}
-                        aria-label={t("nav.back_to_saved", "返回收藏")}
-                        title={t("nav.back", "返回")}
+                        aria-label={t("nav.back_to_saved")}
+                        title={t("nav.back")}
                     >
                         <ChevronLeft />
                     </button>
@@ -203,7 +203,7 @@ export function SavedPage() {
                                 scene.id
                             )
                         }
-                        emptyMessage={t("status.no_scenes_in_collection", "此合集尚未保存场景。")}
+                        emptyMessage={t("status.no_scenes_in_collection")}
                     />
                 ) : (
                     <BingeLoading minHeight="60vh" />
@@ -219,18 +219,18 @@ export function SavedPage() {
                     type="button"
                     className="binge-saved-back"
                     onClick={() => setTab("home")}
-                    aria-label={t("nav.back_to_home", "返回首页")}
-                        title={t("nav.back", "返回")}
+                    aria-label={t("nav.back_to_home")}
+                        title={t("nav.back")}
                     >
                     <ChevronLeft />
                 </button>
-                <h1 className="binge-saved-title">{t("nav.saved", "已保存")}</h1>
+                <h1 className="binge-saved-title">{t("nav.saved")}</h1>
                 <button
                     type="button"
                     className="binge-saved-add"
                     onClick={() => setCreating((v) => !v)}
-                    aria-label={t("action.new_collection", "新建合集")}
-                    title={t("action.new_collection", "新建合集")}
+                    aria-label={t("action.new_collection")}
+                    title={t("action.new_collection")}
                 >
                     <PlusIcon />
                 </button>
@@ -247,7 +247,7 @@ export function SavedPage() {
                     <input
                         type="text"
                         className="binge-saved-create-input"
-                        placeholder={t("settings.collection_name", "合集名称")}
+                        placeholder={t("settings.collection_name")}
                         value={newName}
                         onChange={(e) => setNewName(e.target.value)}
                         autoFocus
@@ -259,7 +259,7 @@ export function SavedPage() {
                         className="binge-saved-create-confirm"
                         disabled={submitBusy || !newName.trim()}
                     >
-                        {t("action.create", "创建")}
+                        {t("action.create")}
                     </button>
                     <button
                         type="button"
@@ -271,7 +271,7 @@ export function SavedPage() {
                         }}
                         disabled={submitBusy}
                     >
-                        {t("action.cancel", "取消")}
+                        {t("action.cancel")}
                     </button>
                 </form>
             )}
@@ -351,8 +351,8 @@ function CollectionTile({
             onPointerUp={onPointerUp}
             onPointerLeave={onPointerLeave}
             onPointerCancel={onPointerLeave}
-            aria-label={t("action.open_collection", "打开 {{name}}", { name: def.name })}
-            title={t("action.click_open_long_press_delete", "点击打开 · 长按删除")}
+            aria-label={t("action.open_collection", { name: def.name })}
+            title={t("action.click_open_long_press_delete")}
         >
             <div
                 className={
@@ -365,7 +365,7 @@ function CollectionTile({
                 }
             >
                 {scenes.length === 0 ? (
-                    <span className="binge-saved-tile-empty">{t("status.empty", "空")}</span>
+                    <span className="binge-saved-tile-empty">{t("status.empty")}</span>
                 ) : scenes.length === 1 ? (
                     <div
                         className="binge-saved-tile-single"
@@ -441,12 +441,12 @@ function DeleteConfirm({
             />
             <div className="binge-saved-confirm-card" role="dialog">
                 <h3 className="binge-saved-confirm-title">
-                    {t("action.delete_collection_confirm", "删除「{{name}}」？", { name })}
+                    {t("action.delete_collection_confirm", { name })}
                 </h3>
                 <p className="binge-saved-confirm-body">
                     {isProtected
-                        ? t("status.collection_protected_warning", "此合集与 ASR 共享，无法从 binge 中删除。如确实需要移除，请使用 Stash 的标签管理器。")
-                        : t("status.collection_delete_warning", "该合集的 Stash 标签将被删除。其中的场景仍保留在您的库中；仅移除标签关联。")}
+                        ? t("status.collection_protected_warning")
+                        : t("status.collection_delete_warning")}
                 </p>
                 <div className="binge-saved-confirm-actions">
                     <button
@@ -454,7 +454,7 @@ function DeleteConfirm({
                         className="binge-saved-confirm-cancel"
                         onClick={onCancel}
                     >
-                        {t("action.cancel", "取消")}
+                        {t("action.cancel")}
                     </button>
                     <button
                         type="button"
@@ -462,7 +462,7 @@ function DeleteConfirm({
                         onClick={onConfirm}
                         disabled={isProtected}
                     >
-                        {t("action.delete", "删除")}
+                        {t("action.delete")}
                     </button>
                 </div>
             </div>

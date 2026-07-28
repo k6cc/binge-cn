@@ -222,12 +222,12 @@ export function PerformerHoverCard({
     const followError =
         followState.kind === "error" ? followState.message : null;
     const followLabel = followBusy
-        ? t("status.following", "关注中…")
+        ? t("status.following")
         : followedAlready
-          ? t("status.followed", "已关注")
+          ? t("status.followed")
           : followError
-            ? t("action.retry_follow_name", "重试 · 关注 {{name}}", { name })
-            : t("action.follow_performer_name", "关注 {{name}}", { name });
+            ? t("action.retry_follow_name", { name })
+            : t("action.follow_performer_name", { name });
 
     return (
         <>
@@ -295,13 +295,13 @@ export function PerformerHoverCard({
                                             }
                                             aria-label={
                                                 favorite
-                                                    ? t("status.favorite", "已收藏")
-                                                    : t("status.in_library", "在库中")
+                                                    ? t("status.favorite")
+                                                    : t("status.in_library")
                                             }
                                             title={
                                                 favorite
-                                                    ? t("status.favorite", "已收藏")
-                                                    : t("status.in_library", "在库中")
+                                                    ? t("status.favorite")
+                                                    : t("status.in_library")
                                             }
                                         >
                                             <VerifiedIcon />
@@ -314,7 +314,7 @@ export function PerformerHoverCard({
                                         age !== null ? `${age}` : null,
                                     ]
                                         .filter(Boolean)
-                                        .join(" · ") || t("performer.performer", "演员")}
+                                        .join(" · ") || t("performer.performer")}
                                 </span>
                                 <span
                                     className={
@@ -324,7 +324,7 @@ export function PerformerHoverCard({
                                             : " is-stashdb")
                                     }
                                 >
-                                    {inLibrary ? t("status.in_library", "在库中") : "StashDB"}
+                                    {inLibrary ? t("status.in_library") : "StashDB"}
                                 </span>
                             </div>
                         </div>
@@ -337,7 +337,7 @@ export function PerformerHoverCard({
                                     setOpen(false);
                                 }}
                             >
-                                {t("action.open_profile", "打开主页")}
+                                {t("action.open_profile")}
                             </button>
                         )}
                         {!inLibrary && (
@@ -399,17 +399,17 @@ function formatGender(g: string | null, t: any): string | null {
     if (!g) return null;
     switch (g) {
         case "FEMALE":
-            return t("settings.gender.female", "女性");
+            return t("settings.gender.female");
         case "TRANSGENDER_FEMALE":
-            return t("settings.gender.trans_female", "跨性别女性");
+            return t("settings.gender.trans_female");
         case "MALE":
-            return t("settings.gender.male", "男性");
+            return t("settings.gender.male");
         case "TRANSGENDER_MALE":
-            return t("settings.gender.trans_male", "跨性别男性");
+            return t("settings.gender.trans_male");
         case "INTERSEX":
-            return t("settings.gender.intersex", "间性");
+            return t("settings.gender.intersex");
         case "NON_BINARY":
-            return t("settings.gender.non_binary", "非二元");
+            return t("settings.gender.non_binary");
         default:
             return g
                 .replace(/_/g, " ")

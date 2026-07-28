@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import i18n from "../i18n/config";
+import { getTagLanguage, syncTagLanguage } from "../api/collections";
 import { useTab } from "./TabContext";
 import { useAutoHideTabBar } from "../hooks/useAutoHideTabBar";
 import {
@@ -68,12 +69,12 @@ export function SettingsPage() {
                     type="button"
                     className="binge-saved-back"
                     onClick={() => setTab("home")}
-                    aria-label={t("nav.back_to_home", "返回首页")}
-                    title={t("nav.back", "返回")}
+                    aria-label={t("nav.back_to_home")}
+                    title={t("nav.back")}
                 >
                     <ChevronLeft />
                 </button>
-                <h1 className="binge-saved-title">{t("nav.settings", "设置")}</h1>
+                <h1 className="binge-saved-title">{t("nav.settings")}</h1>
                 <span className="binge-saved-spacer" />
             </header>
 
@@ -105,20 +106,51 @@ export function SettingsPage() {
 
 function LanguageRow() {
     const { t, i18n } = useTranslation();
+    const [tagLang, setTagLang] = useState(getTagLanguage());
+    const [syncing, setSyncing] = useState(false);
+
+    const needsSync = i18n.language !== tagLang;
+
+    const handleSync = async () => {
+        setSyncing(true);
+        try {
+            await syncTagLanguage(i18n.language);
+            setTagLang(i18n.language);
+        } catch (err) {
+            console.warn("[binge] tag sync failed", err);
+        } finally {
+            setSyncing(false);
+        }
+    };
+
     return (
-        <SettingRow
-            title={t("language")}
-            description={t("language_desc", "选择界面显示语言。")}
-        >
-            <select
-                className="binge-settings-select"
-                value={i18n.language}
-                onChange={(e) => i18n.changeLanguage(e.target.value)}
+        <>
+            <SettingRow
+                title={t("language")}
+                description={t("language_desc")}
             >
-                <option value="zh">{t("zh", "中文")}</option>
-                <option value="en">{t("en", "English")}</option>
-            </select>
-        </SettingRow>
+                <select
+                    className="binge-settings-select"
+                    value={i18n.language}
+                    onChange={(e) => i18n.changeLanguage(e.target.value)}
+                >
+                    <option value="zh">{t("zh")}</option>
+                    <option value="en">{t("en")}</option>
+                </select>
+            </SettingRow>
+            {needsSync && (
+                <button
+                    type="button"
+                    className="binge-settings-sync-tags-btn"
+                    onClick={handleSync}
+                    disabled={syncing}
+                >
+                    {syncing
+                        ? t("status.saving")
+                        : t("settings.sync_tags", { lang: t(i18n.language) })}
+                </button>
+            )}
+        </>
     );
 }
 
@@ -127,8 +159,8 @@ function TranscodeRow() {
     const { t } = useTranslation();
     return (
         <SettingRow
-            title={t("settings.transcode.title", "流媒体类型")}
-            description={t("settings.transcode.desc", "视频如何传输到 binge reel。自动跟随 Stash 的转码规则。直连跳过转码（最适合已兼容的格式）。MP4/WebM 强制转码输出。HLS 使用分块流式传输。")}
+            title={t("settings.transcode.title")}
+            description={t("settings.transcode.desc")}
         >
             <select
                 className="binge-settings-select"
@@ -139,11 +171,11 @@ function TranscodeRow() {
                     )
                 }
             >
-                <option value="auto">{t("settings.transcode.auto", "自动（Stash 决定）")}</option>
-                <option value="direct">{t("settings.transcode.direct", "直连（无转码）")}</option>
-                <option value="mp4">{t("settings.transcode.mp4", "转码 MP4")}</option>
-                <option value="webm">{t("settings.transcode.webm", "转码 WebM")}</option>
-                <option value="hls">{t("settings.transcode.hls", "HLS 流式传输")}</option>
+                <option value="auto">{t("settings.transcode.auto")}</option>
+                <option value="direct">{t("settings.transcode.direct")}</option>
+                <option value="mp4">{t("settings.transcode.mp4")}</option>
+                <option value="webm">{t("settings.transcode.webm")}</option>
+                <option value="hls">{t("settings.transcode.hls")}</option>
             </select>
         </SettingRow>
     );
@@ -160,13 +192,13 @@ function GenderRow() {
     };
     return (
         <SettingRow
-            title={t("settings.gender.title", "显示的性别")}
-            description={t("settings.gender.desc", "这些性别的演员会出现在首页发现动态和探索的“发现演员”行中。默认为女性 + 跨性别女性；切换其他以扩大范围。")}
+            title={t("settings.gender.title")}
+            description={t("settings.gender.desc")}
         >
             <div
                 className="binge-settings-gender-row"
                 role="group"
-                aria-label={t("settings.gender.title", "显示的性别")}
+                aria-label={t("settings.gender.title")}
             >
                 {GENDER_OPTIONS.map(({ value, labelKey, defaultLabel }) => {
                     const active = allowed.has(value);
@@ -277,13 +309,13 @@ function GalleriesRow() {
     const { t } = useTranslation();
     return (
         <SettingRow
-            title={t("settings.galleries.title", "在动态中显示图库")}
-            description={t("settings.galleries.desc", "将图库帖子（图集）混入首页动态中与场景一起展示。关闭则只看场景。")}
+            title={t("settings.galleries.title")}
+            description={t("settings.galleries.desc")}
         >
             <SwitchToggle
                 checked={value}
                 onChange={(v) => setShowGalleries(v)}
-                label={t("settings.galleries.label", "显示图库")}
+                label={t("settings.galleries.label")}
             />
         </SettingRow>
     );
@@ -294,8 +326,8 @@ function LookbackRow() {
     const { t } = useTranslation();
     return (
         <SettingRow
-            title={t("settings.lookback.title", "近期窗口")}
-            description={t("settings.lookback.desc", "首页“新”内容的回溯范围。同时影响故事栏和初始动态加载。窗口越短越紧凑；窗口越长展示更多内容，但库较大时首屏加载会变慢。")}
+            title={t("settings.lookback.title")}
+            description={t("settings.lookback.desc")}
         >
             <select
                 className="binge-settings-select"
@@ -304,7 +336,7 @@ function LookbackRow() {
             >
                 {ALLOWED_LOOKBACK_DAYS.map((days) => (
                     <option key={days} value={String(days)}>
-                        {days} {t("settings.lookback.days", "天")}
+                        {days} {t("settings.lookback.days")}
                     </option>
                 ))}
             </select>
@@ -317,8 +349,8 @@ function StashDBRow() {
     const { t } = useTranslation();
     return (
         <SettingRow
-            title={t("settings.stashdb.title", "在故事中包含 StashDB 新发布")}
-            description={t("settings.stashdb.desc", "故事栏也会展示你库中演员在 StashDB 上的新发布（你尚未拥有的内容）。需要在 Stash → 设置 → 元数据提供商 → StashBox 中配置 StashDB API 密钥。结果缓存 12 小时。")}
+            title={t("settings.stashdb.title")}
+            description={t("settings.stashdb.desc")}
         >
             <SwitchToggle
                 checked={value}
@@ -334,13 +366,13 @@ function StashDBProfileRow() {
     const { t } = useTranslation();
     return (
         <SettingRow
-            title={t("settings.stashdb_profile.title", "将 StashDB 场景混入演员档案")}
-            description={t("settings.stashdb_profile.desc", "查看库中演员档案时，也展示其 StashDB 目录中你尚未拥有的场景——按日期与库中场景交错排列。点击仅存在于 StashDB 的场景会打开与发现动态相同的加入库弹窗。")}
+            title={t("settings.stashdb_profile.title")}
+            description={t("settings.stashdb_profile.desc")}
         >
             <SwitchToggle
                 checked={value}
                 onChange={(v) => setIncludeStashDBInProfile(v)}
-                label={t("settings.stashdb_profile.label", "档案中的 StashDB")}
+                label={t("settings.stashdb_profile.label")}
             />
         </SettingRow>
     );
@@ -351,8 +383,8 @@ function RedditRow() {
     const { t } = useTranslation();
     return (
         <SettingRow
-            title={t("settings.reddit.title", "在故事中包含 Reddit 帖子")}
-            description={t("settings.reddit.desc", "故事栏展示个人资料含 reddit.com 链接的演员在 Reddit 上的新提交。需要 binge-server 运行（在下方设置 URL）并在 reddit.com 上配置一个 script-app。关闭守护进程则自动跳过。")}
+            title={t("settings.reddit.title")}
+            description={t("settings.reddit.desc")}
         >
             <SwitchToggle
                 checked={value}
@@ -368,8 +400,8 @@ function XRow() {
     const { t } = useTranslation();
     return (
         <SettingRow
-            title={t("settings.x.title", "在档案中包含 X (Twitter) 媒体")}
-            description={t("settings.x.desc", "为个人资料含 twitter.com / x.com 链接的演员档案添加一个 X 标签页，按需获取。需要 binge-server 运行（在下方设置 URL）并配置 X cookies。关闭守护进程或无 cookies 则自动跳过。")}
+            title={t("settings.x.title")}
+            description={t("settings.x.desc")}
         >
             <SwitchToggle
                 checked={value}
@@ -385,8 +417,8 @@ function PornhubRow() {
     const { t } = useTranslation();
     return (
         <SettingRow
-            title={t("settings.pornhub.title", "包含 PornHub 视频")}
-            description={t("settings.pornhub.desc", "将演员的 PornHub 视频折叠进其场景网格（新上传加入故事栏），适用于个人资料含 pornhub.com pornstar/model 链接的演员。悬停播放预览；点击流式播放；保存则下载到 Stash。需要 binge-server。关闭守护进程则自动跳过。")}
+            title={t("settings.pornhub.title")}
+            description={t("settings.pornhub.desc")}
         >
             <SwitchToggle
                 checked={value}
@@ -410,8 +442,8 @@ function BingeServerRow() {
 
     return (
         <SettingRow
-            title={t("settings.server_url.title", "binge-server URL")}
-            description={t("settings.server_url.desc", "binge-server 守护进程的 HTTP 地址。默认为 http://localhost:7878——如果你在其他主机或端口上运行 binge-server，请更改此项。状态点会 ping /healthz。")}
+            title={t("settings.server_url.title")}
+            description={t("settings.server_url.desc")}
         >
             <div className="binge-settings-url-row">
                 <input
@@ -457,10 +489,10 @@ function BingeServerHealthDot({ url }: { url: string }) {
 
     const label =
         state === "ok"
-            ? t("settings.server_health.ok", "binge-server 可达")
+            ? t("settings.server_health.ok")
             : state === "down"
-              ? t("settings.server_health.down", "binge-server 不可达")
-              : t("settings.server_health.pending", "正在检查 binge-server");
+              ? t("settings.server_health.down")
+              : t("settings.server_health.pending");
     return (
         <span
             className={`binge-settings-status-dot is-${state}`}
@@ -629,11 +661,11 @@ function BingeServerConfigCard() {
             <div className="binge-settings-card">
                 <div className="binge-settings-card-header">
                     <h3 className="binge-settings-card-title">
-                        {t("settings.server_config.title", "binge-server 配置")}
+                        {t("settings.server_config.title")}
                     </h3>
                     <span className="binge-settings-card-status">
                         <span className="binge-settings-status-dot is-pending" />
-                        {t("status.checking", "检查中…")}
+                        {t("status.checking")}
                     </span>
                 </div>
             </div>
@@ -645,15 +677,15 @@ function BingeServerConfigCard() {
             <div className="binge-settings-card is-disconnected">
                 <div className="binge-settings-card-header">
                     <h3 className="binge-settings-card-title">
-                        {t("settings.server_config.title", "binge-server 配置")}
+                        {t("settings.server_config.title")}
                     </h3>
                     <span className="binge-settings-card-status">
                         <span className="binge-settings-status-dot is-down" />
-                        {t("settings.server_health.down", "不可达")}
+                        {t("settings.server_health.down")}
                     </span>
                 </div>
                 <p className="binge-settings-card-description">
-                    {t("settings.server_config.unreachable_desc", "在 {{url}} 上无法连接到守护进程。在它运行之前，Reddit 故事会被静默跳过。", { url })}
+                    {t("settings.server_config.unreachable_desc", { url })}
                     {" "}
                     <a
                         href="https://github.com/ordureconnoisseur/binge-server"
@@ -661,7 +693,7 @@ function BingeServerConfigCard() {
                         rel="noreferrer noopener"
                         className="binge-settings-card-link"
                     >
-                        {t("settings.server_config.setup_link", "设置 binge-server →")}
+                        {t("settings.server_config.setup_link")}
                     </a>
                 </p>
             </div>
@@ -670,8 +702,8 @@ function BingeServerConfigCard() {
 
     // Daemon is reachable — render the full config card.
     const stashKeyState = config?.stashApiKeySet
-        ? t("settings.server_config.auto_detected", "✓ 已自动检测")
-        : t("settings.server_config.configuring", "配置中…");
+        ? t("settings.server_config.auto_detected")
+        : t("settings.server_config.configuring");
     const cookieIsSet = !!config?.redditCookieSet;
     const xCookiesSet = !!config?.xCookiesSet;
 
@@ -679,14 +711,14 @@ function BingeServerConfigCard() {
         <div className="binge-settings-card">
             <div className="binge-settings-card-header">
                 <h3 className="binge-settings-card-title">
-                    {t("settings.server_config.title", "binge-server 配置")}
+                    {t("settings.server_config.title")}
                 </h3>
                 <span className="binge-settings-card-status">
                     <span className="binge-settings-status-dot is-ok" />
-                    {t("status.connected", "已连接")}
+                    {t("status.connected")}
                     {health.lastPoll && (
                         <span className="binge-settings-card-status-meta">
-                            {t("settings.server_config.poll_meta", "· {{count}} 名演员 · 上次轮询 {{time}}", {
+                            {t("settings.server_config.poll_meta", {
                                 count: health.performerCount,
                                 time: formatRelative(health.lastPoll)
                             })}
@@ -695,12 +727,12 @@ function BingeServerConfigCard() {
                 </span>
             </div>
             <p className="binge-settings-card-description">
-                {t("settings.server_config.desc", "守护进程代表你轮询 Reddit 所使用的凭据。Stash API 密钥会自动填入；Reddit 会话 Cookie 需要你手动粘贴（它保存在你的浏览器中，不在 Stash 中）。")}
+                {t("settings.server_config.desc")}
             </p>
 
             <div className="binge-settings-card-field">
                 <span className="binge-settings-card-field-label">
-                    {t("settings.server_config.stash_api_key", "Stash API 密钥")}
+                    {t("settings.server_config.stash_api_key")}
                 </span>
                 <span className="binge-settings-card-field-value">
                     {stashKeyState}
@@ -709,7 +741,7 @@ function BingeServerConfigCard() {
 
             <div className="binge-settings-card-field is-stacked">
                 <span className="binge-settings-card-field-label">
-                    {t("settings.server_config.reddit_cookie", "Reddit 会话 Cookie")}
+                    {t("settings.server_config.reddit_cookie")}
                 </span>
                 <div className="binge-server-config-cookie-row">
                     <input
@@ -723,8 +755,8 @@ function BingeServerConfigCard() {
                         }}
                         placeholder={
                             cookieIsSet
-                                ? t("settings.server_config.cookie_set", "✓ 已设置 · 粘贴新值以轮换")
-                                : t("settings.server_config.cookie_placeholder", "粘贴你的 reddit_session 值")
+                                ? t("settings.server_config.cookie_set")
+                                : t("settings.server_config.cookie_placeholder")
                         }
                         spellCheck={false}
                         autoCapitalize="off"
@@ -737,7 +769,7 @@ function BingeServerConfigCard() {
                         onClick={() => void handleSaveCookie()}
                         disabled={cookieBusy || !cookieInput.trim()}
                     >
-                        {cookieBusy ? t("action.saving", "保存中…") : t("action.save", "保存")}
+                        {cookieBusy ? t("action.saving") : t("action.save")}
                     </button>
                 </div>
                 {cookieError && (
@@ -746,28 +778,28 @@ function BingeServerConfigCard() {
                     </p>
                 )}
                 {cookieSaved && (
-                    <p className="binge-server-config-ok">{t("status.saved", "已保存 ✓")}</p>
+                    <p className="binge-server-config-ok">{t("status.saved")}</p>
                 )}
                 <button
                     type="button"
                     className="binge-server-config-help-toggle"
                     onClick={() => setShowHelp((v) => !v)}
                 >
-                    {showHelp ? "▾" : "▸"} {t("settings.server_config.how_to_reddit", "如何找到你的 Reddit cookie")}
+                    {showHelp ? "▾" : "▸"} {t("settings.server_config.how_to_reddit")}
                 </button>
                 {showHelp && (
                     <ol className="binge-server-config-help">
                         <li>
-                            {t("settings.server_config.help_reddit_1", "在普通浏览器标签页中登录 reddit.com。")}
+                            {t("settings.server_config.help_reddit_1")}
                         </li>
                         <li>
-                            {t("settings.server_config.help_reddit_2", "打开开发者工具（F12）→ Application → Cookies → https://www.reddit.com")}
+                            {t("settings.server_config.help_reddit_2")}
                         </li>
                         <li>
-                            {t("settings.server_config.help_reddit_3", "找到名为 reddit_session 的行，复制其 Value 列（一长串类似 JWT 的字符串），粘贴到上方。")}
+                            {t("settings.server_config.help_reddit_3")}
                         </li>
                         <li>
-                            {t("settings.server_config.help_reddit_4", "Cookie 每几个月过期。当故事停止更新时，重复步骤 1–3。")}
+                            {t("settings.server_config.help_reddit_4")}
                         </li>
                     </ol>
                 )}
@@ -775,7 +807,7 @@ function BingeServerConfigCard() {
 
             <div className="binge-settings-card-field is-stacked">
                 <span className="binge-settings-card-field-label">
-                    {t("settings.server_config.x_cookies", "X (Twitter) cookies")}
+                    {t("settings.server_config.x_cookies")}
                 </span>
                 <div className="binge-server-config-cookie-row">
                     <input
@@ -789,7 +821,7 @@ function BingeServerConfigCard() {
                         }}
                         placeholder={
                             xCookiesSet
-                                ? t("settings.server_config.x_auth_set", "✓ 已设置 · 粘贴 auth_token 以轮换")
+                                ? t("settings.server_config.x_auth_set")
                                 : "auth_token"
                         }
                         spellCheck={false}
@@ -820,31 +852,31 @@ function BingeServerConfigCard() {
                             xBusy || !xAuthInput.trim() || !xCt0Input.trim()
                         }
                     >
-                        {xBusy ? t("action.saving", "保存中…") : t("action.save", "保存")}
+                        {xBusy ? t("action.saving") : t("action.save")}
                     </button>
                 </div>
                 {xError && (
                     <p className="binge-server-config-error">{xError}</p>
                 )}
-                {xSaved && <p className="binge-server-config-ok">{t("status.saved", "已保存 ✓")}</p>}
+                {xSaved && <p className="binge-server-config-ok">{t("status.saved")}</p>}
                 <button
                     type="button"
                     className="binge-server-config-help-toggle"
                     onClick={() => setShowXHelp((v) => !v)}
                 >
-                    {showXHelp ? "▾" : "▸"} {t("settings.server_config.how_to_x", "如何找到你的 X cookies")}
+                    {showXHelp ? "▾" : "▸"} {t("settings.server_config.how_to_x")}
                 </button>
                 {showXHelp && (
                     <ol className="binge-server-config-help">
-                        <li>{t("settings.server_config.help_x_1", "在普通浏览器标签页中登录 x.com。")}</li>
+                        <li>{t("settings.server_config.help_x_1")}</li>
                         <li>
-                            {t("settings.server_config.help_x_2", "打开开发者工具（F12）→ Application → Cookies → https://x.com")}
+                            {t("settings.server_config.help_x_2")}
                         </li>
                         <li>
-                            {t("settings.server_config.help_x_3", "复制 auth_token 和 ct0 的 Value 到上方字段，然后保存。")}
+                            {t("settings.server_config.help_x_3")}
                         </li>
                         <li>
-                            {t("settings.server_config.help_x_4", "如有可能，建议使用副 X 账号——自动化访问违反 X 的条款。Cookie 会定期过期；当 X 媒体停止加载时请重新粘贴。")}
+                            {t("settings.server_config.help_x_4")}
                         </li>
                     </ol>
                 )}
@@ -852,11 +884,11 @@ function BingeServerConfigCard() {
 
             <div className="binge-settings-card-field is-stacked">
                 <span className="binge-settings-card-field-label">
-                    {t("settings.server_config.social_save_path", "保存到 Stash 的库路径")}{" "}
+                    {t("settings.server_config.social_save_path")}{" "}
                     {config?.socialSaveConfigured ? "✓" : ""}
                 </span>
                 <p className="binge-settings-card-description">
-                    {t("settings.server_config.social_save_desc", "保存的 X/Reddit/Redgifs 帖子写入位置。两个路径是因为守护进程和 Stash 可能在不同主机上：第一个是 binge-server 写入的位置；第二个是 Stash 看到的同一文件夹（一个 Stash 库路径）。当它们是同一台机器时，两者相同。")}
+                    {t("settings.server_config.social_save_desc")}
                 </p>
                 <input
                     type="text"
@@ -867,7 +899,7 @@ function BingeServerConfigCard() {
                         setSocSaved(false);
                         setSocError(null);
                     }}
-                    placeholder={t("settings.server_config.daemon_write_path", "守护进程写入路径，例如 /library/social")}
+                    placeholder={t("settings.server_config.daemon_write_path")}
                     spellCheck={false}
                     autoCapitalize="off"
                     autoCorrect="off"
@@ -883,7 +915,7 @@ function BingeServerConfigCard() {
                             setSocSaved(false);
                             setSocError(null);
                         }}
-                        placeholder={t("settings.server_config.stash_path", "Stash 路径，例如 Z:\\Media\\social")}
+                        placeholder={t("settings.server_config.stash_path")}
                         spellCheck={false}
                         autoCapitalize="off"
                         autoCorrect="off"
@@ -895,14 +927,14 @@ function BingeServerConfigCard() {
                         onClick={() => void handleSaveSocialPaths()}
                         disabled={socBusy}
                     >
-                        {socBusy ? t("action.saving", "保存中…") : t("action.save", "保存")}
+                        {socBusy ? t("action.saving") : t("action.save")}
                     </button>
                 </div>
                 {socError && (
                     <p className="binge-server-config-error">{socError}</p>
                 )}
                 {socSaved && (
-                    <p className="binge-server-config-ok">{t("status.saved", "已保存 ✓")}</p>
+                    <p className="binge-server-config-ok">{t("status.saved")}</p>
                 )}
             </div>
         </div>
@@ -942,8 +974,8 @@ function ForageUrlRow() {
 
     return (
         <SettingRow
-            title={t("settings.forage_url.title", "forage 服务器 URL")}
-            description={t("settings.forage_url.desc", "你的 forage 守护进程的基础 URL（例如 https://forage.tailf01ca.ts.net）。当此守护进程可达时，发现场景上会出现“发送到 forage”。认证是自动的——binge 出示你的 Stash API 密钥，forage 已信任它；无需粘贴任何内容。状态点会 ping /healthz。")}
+            title={t("settings.forage_url.title")}
+            description={t("settings.forage_url.desc")}
         >
             <div className="binge-settings-url-row">
                 <input
@@ -994,10 +1026,10 @@ function ForageHealthDot({ url }: { url: string }) {
     if (state === "idle") return null;
     const label =
         state === "ok"
-            ? t("settings.forage_health.ok", "forage 可达")
+            ? t("settings.forage_health.ok")
             : state === "down"
-              ? t("settings.forage_health.down", "forage 不可达")
-              : t("status.checking", "检查中…");
+              ? t("settings.forage_health.down")
+              : t("status.checking");
     return (
         <span
             className={`binge-settings-status-dot is-${state}`}
@@ -1013,8 +1045,8 @@ function ForageTargetRow() {
     const { t } = useTranslation();
     return (
         <SettingRow
-            title={t("settings.forage_target.title", "forage 监看质量")}
-            description={t("settings.forage_target.desc", "当你发送场景到 forage 时，这是它在标记发布可抓取前等待的质量。“任意”会在任意分辨率的第一个发布出现时即展示。")}
+            title={t("settings.forage_target.title")}
+            description={t("settings.forage_target.desc")}
         >
             <select
                 className="binge-settings-select"
@@ -1025,7 +1057,7 @@ function ForageTargetRow() {
             >
                 {ALLOWED_FORAGE_TARGETS.map((targetOption) => (
                     <option key={targetOption} value={targetOption}>
-                        {targetOption === "any" ? t("settings.forage_target.any", "任意发布") : targetOption}
+                        {targetOption === "any" ? t("settings.forage_target.any") : targetOption}
                     </option>
                 ))}
             </select>
@@ -1038,13 +1070,13 @@ function RefractRow() {
     const { t } = useTranslation();
     return (
         <SettingRow
-            title={t("settings.refract.title", "跟随 refract 强调色")}
-            description={t("settings.refract.desc", "如果你也使用 refract 主题，binge 的强调色将匹配你在 Stash 设置中选择的 refract 强调色（橙色 / 青色 / 粉色 / 黄色 / 紫色 / 绿色 / 蓝绿色）。故事环始终保留 Instagram 标志性的渐变。")}
+            title={t("settings.refract.title")}
+            description={t("settings.refract.desc")}
         >
             <SwitchToggle
                 checked={value}
                 onChange={(v) => setRefractIntegration(v)}
-                label={t("settings.refract.label", "跟随 refract 强调色")}
+                label={t("settings.refract.label")}
             />
         </SettingRow>
     );
@@ -1055,13 +1087,13 @@ function ShowcaseRow() {
     const { t } = useTranslation();
     return (
         <SettingRow
-            title={t("settings.showcase.title", "展示模式（模糊所有媒体）")}
-            description={t("settings.showcase.desc", "模糊 binge 中所有图片、视频和头像，同时保持界面清晰——用于截图、演示录制或屏幕共享而不暴露库内容。不会上传或修改任何内容；仅为浏览器内的显示滤镜。快捷键：|（Shift + \\）")}
+            title={t("settings.showcase.title")}
+            description={t("settings.showcase.desc")}
         >
             <SwitchToggle
                 checked={value}
                 onChange={(v) => setShowcaseBlur(v)}
-                label={t("settings.showcase.label", "展示模糊")}
+                label={t("settings.showcase.label")}
             />
         </SettingRow>
     );
@@ -1072,13 +1104,13 @@ function DemoRow() {
     const { t } = useTranslation();
     return (
         <SettingRow
-            title={t("settings.demo.title", "演示内容")}
-            description={t("settings.demo.desc", "用虚构的、SFW 占位内容（渐变 + 虚构名字）替换你的库，用于录制营销素材——不显示真实的演员、场景或媒体。仅显示用；Stash 中无任何变化。")}
+            title={t("settings.demo.title")}
+            description={t("settings.demo.desc")}
         >
             <SwitchToggle
                 checked={value}
                 onChange={(v) => setDemoMode(v)}
-                label={t("settings.demo.label", "演示内容")}
+                label={t("settings.demo.label")}
             />
         </SettingRow>
     );
@@ -1089,13 +1121,13 @@ function DebugRow() {
     const { t } = useTranslation();
     return (
         <SettingRow
-            title={t("settings.debug.title", "显示调试覆盖层")}
-            description={t("settings.debug.desc", "固定一个小型诊断面板，显示已挂载的视频数量、JS 堆、滚动/标签页状态以及最近的 GraphQL 响应时间。快捷键：\\")}
+            title={t("settings.debug.title")}
+            description={t("settings.debug.desc")}
         >
             <SwitchToggle
                 checked={value}
                 onChange={(v) => setShowDebug(v)}
-                label={t("settings.debug.label", "调试覆盖层")}
+                label={t("settings.debug.label")}
             />
         </SettingRow>
     );

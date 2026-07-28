@@ -22,8 +22,8 @@ export function Story({ story, onClick }: StoryProps) {
                 (story.performerFavorite ? " is-favorite" : "")
             }
             onClick={() => onClick(story)}
-            title={t("story.new_scenes_title", "{{name}} — {{count}} 个新场景", { name: performerName, count: newCount })}
-            aria-label={t("story.new_scenes_aria", "{{name}}，{{count}} 个新场景", { name: performerName, count: newCount })}
+            title={t("story.new_scenes_title", { name: performerName, count: newCount })}
+            aria-label={t("story.new_scenes_aria", { name: performerName, count: newCount })}
         >
             <span className="binge-story-ring">
                 <span

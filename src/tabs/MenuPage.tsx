@@ -16,7 +16,7 @@ export function MenuPage() {
         <div className="binge-tab-scroll">
             <header className="binge-saved-header">
                 <span className="binge-saved-spacer" />
-                <h1 className="binge-saved-title">{t("nav.menu", "菜单")}</h1>
+                <h1 className="binge-saved-title">{t("nav.menu")}</h1>
                 <span className="binge-saved-spacer" />
             </header>
             <ul className="binge-menu-list">
@@ -31,10 +31,10 @@ export function MenuPage() {
                         </span>
                         <span className="binge-menu-row-text">
                             <span className="binge-menu-row-title">
-                                {t("nav.saved", "已保存")}
+                                {t("nav.saved")}
                             </span>
                             <span className="binge-menu-row-desc">
-                                {t("desc_saved", "已收藏场景的自定义合集。")}
+                                {t("desc_saved")}
                             </span>
                         </span>
                         <span
@@ -56,10 +56,10 @@ export function MenuPage() {
                         </span>
                         <span className="binge-menu-row-text">
                             <span className="binge-menu-row-title">
-                                {t("nav.settings", "设置")}
+                                {t("nav.settings")}
                             </span>
                             <span className="binge-menu-row-desc">
-                                {t("desc_settings", "流类型、回看窗口、binge-server 配置、主题集成。")}
+                                {t("desc_settings")}
                             </span>
                         </span>
                         <span

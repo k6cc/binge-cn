@@ -67,7 +67,7 @@ export function SceneDetailsSheet({ scene, onClose }: SceneDetailsSheetProps) {
             <div
                 className="binge-sheet binge-details-sheet"
                 role="dialog"
-                aria-label={t("nav.scene_details", "场景详情")}
+                aria-label={t("nav.scene_details")}
             >
                 <div className="binge-sheet-handle" aria-hidden="true" />
                 <div className="binge-details-meta">
@@ -95,7 +95,7 @@ export function SceneDetailsSheet({ scene, onClose }: SceneDetailsSheetProps) {
                             target="_blank"
                             rel="noopener noreferrer"
                             className="binge-details-title-link"
-                            title={t("action.open_in_stash", "在 Stash 中打开")}
+                            title={t("action.open_in_stash")}
                         >
                             {displayTitle}
                         </a>
@@ -120,7 +120,7 @@ export function SceneDetailsSheet({ scene, onClose }: SceneDetailsSheetProps) {
                     !details &&
                     (!scene.tags || scene.tags.length === 0) && (
                         <p className="binge-details-empty">
-                            {t("status.no_description", "无描述。")}
+                            {t("status.no_description")}
                         </p>
                     )}
             </div>
@@ -137,7 +137,7 @@ function TechSection({ tech }: { tech: SceneFileDetails }) {
     const { t } = useTranslation();
     const rows: { label: string; value: string; mono?: boolean }[] = [];
     if (tech.path) {
-        rows.push({ label: t("scene.path", "路径"), value: tech.path, mono: true });
+        rows.push({ label: t("scene.path"), value: tech.path, mono: true });
     }
     // Inlined helper functions for TechSection
     const formatResolution = (t: SceneFileDetails): string | null => {
@@ -169,21 +169,21 @@ function TechSection({ tech }: { tech: SceneFileDetails }) {
     };
 
     const res = formatResolution(tech);
-    if (res) rows.push({ label: t("scene.resolution", "分辨率"), value: res });
+    if (res) rows.push({ label: t("scene.resolution"), value: res });
     const dur = formatDuration(tech.duration);
-    if (dur) rows.push({ label: t("scene.duration", "时长"), value: dur });
+    if (dur) rows.push({ label: t("scene.duration"), value: dur });
     const size = formatSize(tech.size);
-    if (size) rows.push({ label: t("scene.size", "大小"), value: size });
-    if (tech.video_codec) rows.push({ label: t("scene.video", "视频"), value: tech.video_codec });
-    if (tech.audio_codec) rows.push({ label: t("scene.audio", "音频"), value: tech.audio_codec });
+    if (size) rows.push({ label: t("scene.size"), value: size });
+    if (tech.video_codec) rows.push({ label: t("scene.video"), value: tech.video_codec });
+    if (tech.audio_codec) rows.push({ label: t("scene.audio"), value: tech.audio_codec });
     const fr = formatFrameRate(tech.frame_rate);
-    if (fr) rows.push({ label: t("scene.frame_rate", "帧率"), value: fr });
+    if (fr) rows.push({ label: t("scene.frame_rate"), value: fr });
     const br = formatBitRate(tech.bit_rate);
-    if (br) rows.push({ label: t("scene.bit_rate", "码率"), value: br });
+    if (br) rows.push({ label: t("scene.bit_rate"), value: br });
     if (rows.length === 0) return null;
     return (
         <div className="binge-details-tech">
-            <div className="binge-details-tech-heading">{t("scene.technical_info", "技术信息")}</div>
+            <div className="binge-details-tech-heading">{t("scene.technical_info")}</div>
             <dl className="binge-details-tech-list">
                 {rows.map((row) => (
                     <div key={row.label} className="binge-details-tech-row">

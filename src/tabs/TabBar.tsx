@@ -10,14 +10,14 @@ export function TabBar() {
     const { t } = useTranslation();
 
     const TABS: { id: Tab; label: string }[] = [
-        { id: "home", label: t("nav.home", "首页") },
-        { id: "following", label: t("nav.following", "关注中") },
-        { id: "foryou", label: t("nav.foryou", "推荐") },
-        { id: "explore", label: t("nav.explore", "发现") },
+        { id: "home", label: t("nav.home") },
+        { id: "following", label: t("nav.following") },
+        { id: "foryou", label: t("nav.foryou") },
+        { id: "explore", label: t("nav.explore") },
     ];
 
     return (
-        <nav className="binge-tabbar" role="tablist" aria-label={t("nav.sections", "Reel 分区")}>
+        <nav className="binge-tabbar" role="tablist" aria-label={t("nav.sections")}>
             {TABS.map((t) => (
                 <button
                     key={t.id}

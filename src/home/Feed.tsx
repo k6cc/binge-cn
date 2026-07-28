@@ -112,7 +112,7 @@ export function Feed({ scrollContainerRef }: FeedProps) {
         return (
             <section className="binge-feed">
                 <div className="binge-feed-empty binge-status-error">
-                    {t("status.feed_load_failed", "无法加载动态：{{message}}", { message: state.message })}
+                    {t("status.feed_load_failed", { message: state.message })}
                 </div>
             </section>
         );
@@ -122,8 +122,8 @@ export function Feed({ scrollContainerRef }: FeedProps) {
             <section className="binge-feed">
                 <div className="binge-feed-empty">
                     {rawItems.length > 0
-                        ? t("status.all_filtered_out", "所有内容被筛选掉了 — 调整筛选条件。")
-                        : t("status.no_new_content", "近期窗口内没有新内容。")}
+                        ? t("status.all_filtered_out")
+                        : t("status.no_new_content")}
                 </div>
             </section>
         );
@@ -132,7 +132,7 @@ export function Feed({ scrollContainerRef }: FeedProps) {
     return (
         <section
             className="binge-feed"
-            aria-label={t("nav.new_scenes_and_galleries", "新场景和图库")}
+            aria-label={t("nav.new_scenes_and_galleries")}
             ref={feedRef}
             style={{
                 position: "relative",
@@ -193,7 +193,7 @@ export function Feed({ scrollContainerRef }: FeedProps) {
                 }}
             >
                 <div className="binge-feed-empty">
-                    {t("status.reached_bottom_count", "已到底 · 共 {{count}} 项", { count: items.length })}
+                    {t("status.reached_bottom_count", { count: items.length })}
                 </div>
             </div>
         </section>

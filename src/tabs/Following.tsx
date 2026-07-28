@@ -88,12 +88,12 @@ export function Following() {
     useAutoHideTabBar(scrollRef);
     const { t } = useTranslation();
     const SORT_OPTIONS: { value: SortMode; label: string }[] = useMemo(() => [
-        { value: "name-asc", label: t("sort.name_asc", "姓名 A → Z") },
-        { value: "name-desc", label: t("sort.name_desc", "姓名 Z → A") },
-        { value: "scenes-desc", label: t("sort.scenes_desc", "场景最多") },
-        { value: "scenes-asc", label: t("sort.scenes_asc", "场景最少") },
-        { value: "last-post-desc", label: t("sort.last_post_desc", "最近发布（最新）") },
-        { value: "last-post-asc", label: t("sort.last_post_asc", "最近发布（最旧）") },
+        { value: "name-asc", label: t("sort.name_asc") },
+        { value: "name-desc", label: t("sort.name_desc") },
+        { value: "scenes-desc", label: t("sort.scenes_desc") },
+        { value: "scenes-asc", label: t("sort.scenes_asc") },
+        { value: "last-post-desc", label: t("sort.last_post_desc") },
+        { value: "last-post-asc", label: t("sort.last_post_asc") },
     ], [t]);
 
     // Re-use the same useStories() data Home renders — already merged
@@ -159,14 +159,14 @@ export function Following() {
     return (
         <div className="binge-tab-scroll" ref={scrollRef}>
             <div className="binge-tab-inner">
-                <h1 className="binge-tab-title">{t("nav.following", "关注中")}</h1>
+                <h1 className="binge-tab-title">{t("nav.following")}</h1>
 
                 <div className="binge-following-controls">
                     <div className="binge-search-wrap">
                         <input
                             type="search"
                             className="binge-following-search"
-                            placeholder={t("nav.search_performers", "搜索演员")}
+                            placeholder={t("nav.search_performers")}
                             value={search}
                             onChange={(e) => {
                                 setSearch(e.target.value);
@@ -191,7 +191,7 @@ export function Following() {
                                 addPerformerSearchEntry(search);
                                 setSearchFocused(false);
                             }}
-                            aria-label={t("nav.search_performers", "搜索演员")}
+                            aria-label={t("nav.search_performers")}
                             autoCorrect="off"
                             autoCapitalize="off"
                             spellCheck={false}
@@ -212,7 +212,7 @@ export function Following() {
                         className="binge-following-sort"
                         value={sort}
                         onChange={(e) => setSort(e.target.value as SortMode)}
-                        aria-label={t("nav.sort_performers", "排序演员")}
+                        aria-label={t("nav.sort_performers")}
                     >
                         {SORT_OPTIONS.map((opt) => (
                             <option key={opt.value} value={opt.value}>
@@ -225,29 +225,29 @@ export function Following() {
                 {state.kind === "loading" && <BingeLoading minHeight="60vh" />}
                 {state.kind === "error" && (
                     <div className="binge-status binge-status-error">
-                        {t("status.error_message", "错误：{{message}}", { message: state.message })}
+                        {t("status.error_message", { message: state.message })}
                     </div>
                 )}
                 {state.kind === "ready" && (
                     <>
                         <Section
-                            title={t("nav.favorites", "收藏夹")}
+                            title={t("nav.favorites")}
                             count={favourites.length}
                             performers={favourites}
                             onPick={openProfile}
                             emptyHint={
                                 state.performers.some((p) => p.favorite)
-                                    ? t("status.no_match", "无匹配项。")
-                                    : t("status.no_favorites", "在 Stash 中收藏一些演员即可在此处查看。")
+                                    ? t("status.no_match")
+                                    : t("status.no_favorites")
                             }
                             favorite
                         />
                         <Section
-                            title={t("nav.all_performers", "所有演员")}
+                            title={t("nav.all_performers")}
                             count={others.length}
                             performers={others}
                             onPick={openProfile}
-                            emptyHint={t("status.no_match", "无匹配项。")}
+                            emptyHint={t("status.no_match")}
                             favorite={false}
                         />
                     </>
@@ -317,7 +317,7 @@ function Section({
                                 {typeof p.scene_count === "number" &&
                                     p.scene_count > 0 && (
                                         <span className="binge-follow-count">
-                                            {t("status.performer_scenes", "{{count}} 个场景", { count: p.scene_count })}
+                                            {t("status.performer_scenes", { count: p.scene_count })}
                                         </span>
                                     )}
                             </button>

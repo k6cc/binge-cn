@@ -439,7 +439,8 @@ export default {
                 title: "显示调试覆盖层",
                 desc: "固定一个小型诊断面板，显示已挂载的视频数量、JS 堆、滚动/标签页状态以及最近的 GraphQL 响应时间。快捷键：\\",
                 label: "调试覆盖层"
-            }
+            },
+            sync_tags: "同步 Stash 标签为{{lang}}"
         },
 
         // 5.5 时间

@@ -272,7 +272,7 @@ export function Explore() {
                     <input
                         type="search"
                         className="binge-explore-search"
-                        placeholder={t("nav.search_scenes", "搜索场景")}
+                        placeholder={t("nav.search_scenes")}
                         value={searchInput}
                         onChange={(e) => {
                             setSearchInput(e.target.value);
@@ -299,7 +299,7 @@ export function Explore() {
                             addSceneSearchEntry(searchInput);
                             setSearchFocused(false);
                         }}
-                        aria-label={t("nav.search_scenes", "搜索场景")}
+                        aria-label={t("nav.search_scenes")}
                         autoCorrect="off"
                         autoCapitalize="off"
                         spellCheck={false}
@@ -324,7 +324,7 @@ export function Explore() {
                             (canScrollLeft ? "" : " is-hidden")
                         }
                         onClick={() => scrollChips(-280)}
-                        aria-label={t("nav.scroll_tags_left", "标签向左滚动")}
+                        aria-label={t("nav.scroll_tags_left")}
                         tabIndex={canScrollLeft ? 0 : -1}
                     >
                         <ChevronLeft />
@@ -341,7 +341,7 @@ export function Explore() {
                             }
                             onClick={() => setActiveTag(null)}
                         >
-                            {t("nav.foryou", "推荐")}
+                            {t("nav.foryou")}
                         </button>
                         {chipsToRender.map((t) => (
                             <button
@@ -367,7 +367,7 @@ export function Explore() {
                             (canScrollRight ? "" : " is-hidden")
                         }
                         onClick={() => scrollChips(280)}
-                        aria-label={t("nav.scroll_tags_right", "标签向右滚动")}
+                        aria-label={t("nav.scroll_tags_right")}
                         tabIndex={canScrollRight ? 0 : -1}
                     >
                         <ChevronRight />
@@ -404,14 +404,14 @@ export function Explore() {
 
                 {error && (
                     <div className="binge-feed-empty binge-status-error">
-                        {t("status.load_failed", "无法加载：{{message}}", { message: error })}
+                        {t("status.load_failed", { message: error })}
                     </div>
                 )}
                 {tiles.length === 0 && !isLoading && !error && (
                     <div className="binge-feed-empty">
                         {searchQuery || activeTag
-                            ? t("status.no_scenes_matched", "没有匹配的场景。（是否有保存的筛选条件或筛选标签生效？）")
-                            : t("status.no_scenes_in_library", "您的库中没有场景。")}
+                            ? t("status.no_scenes_matched")
+                            : t("status.no_scenes_in_library")}
                     </div>
                 )}
 
@@ -421,12 +421,12 @@ export function Explore() {
                         className="binge-feed-sentinel"
                         aria-hidden="true"
                     >
-                        {isLoading ? t("status.loading", "加载中…") : ""}
+                        {isLoading ? t("status.loading") : ""}
                     </div>
                 )}
                 {!hasMore && tiles.length > 0 && (
                     <div className="binge-feed-empty">
-                        {t("status.reached_bottom_scenes", "已到达底部 · {{count}} 个场景", { count: tiles.length })}
+                        {t("status.reached_bottom_scenes", { count: tiles.length })}
                     </div>
                 )}
             </div>

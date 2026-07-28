@@ -333,7 +333,7 @@ export function Reel() {
                     if (!pinnedScene) {
                         setState({
                             kind: "error",
-                            message: t("status.pinned_scene_not_found", "找不到置顶场景"),
+                            message: t("status.pinned_scene_not_found"),
                         });
                         return;
                     }
@@ -563,9 +563,9 @@ export function Reel() {
     const scenes = state.kind === "ready" ? state.scenes : [];
     const errorOrEmpty =
         state.kind === "error"
-            ? t("status.error_message", "错误：{{message}}", { message: state.message })
+            ? t("status.error_message", { message: state.message })
             : state.kind === "ready" && state.scenes.length === 0
-              ? t("status.no_scenes_matched", "没有匹配的场景。（是否有保存的筛选条件或筛选标签生效？）")
+              ? t("status.no_scenes_matched")
               : null;
     return (
         <div className="binge-reel" ref={scrollRef}>

@@ -85,7 +85,7 @@ export function ActionStack({
     const { t } = useTranslation();
 
     return (
-        <aside className="binge-actions" aria-label={t("action.scene_actions", "场景操作")}>
+        <aside className="binge-actions" aria-label={t("action.scene_actions")}>
             <HeartButton
                 oCount={oCount}
                 oError={oError}
@@ -133,8 +133,8 @@ export function ActionStack({
                     e.stopPropagation();
                     onOpenMore();
                 }}
-                aria-label={t("action.more_actions", "更多操作")}
-                            title={t("action.more", "更多")}
+                aria-label={t("action.more_actions")}
+                            title={t("action.more")}
             >
                 <MoreIcon />
             </button>
@@ -224,8 +224,8 @@ function HeartButton({
             onPointerLeave={handlePointerLeave}
             onPointerCancel={handlePointerLeave}
             onContextMenu={suppressContextMenu}
-            aria-label={t("action.like_unlike_desc", "O 计数 {{count}}。点击喜欢，长按取消喜欢。", { count: oCount })}
-            title={t("action.like_unlike", "点击喜欢 · 长按取消喜欢")}
+            aria-label={t("action.like_unlike_desc", { count: oCount })}
+            title={t("action.like_unlike")}
         >
             <HeartIcon filled={oCount > 0} />
             {oCount > 0 && (
@@ -276,12 +276,12 @@ function RateButton({
                 }}
                 aria-label={
                     ratingStars
-                        ? t("action.rated_stars", "已评 {{count}} 颗星。点击修改。", { count: ratingStars })
+                        ? t("action.rated_stars", { count: ratingStars })
                         : advanced
-                          ? t("action.rate_advanced", "为场景评分（高级）")
-                          : t("action.rate_scene", "为场景评分")
+                          ? t("action.rate_advanced")
+                          : t("action.rate_scene")
                 }
-                title={advanced ? t("action.rate_advanced", "评分（高级）") : t("action.rate", "评分")}
+                title={advanced ? t("action.rate_advanced") : t("action.rate")}
             >
                 <StarIcon filled={rated} />
                 {rated && (
@@ -322,7 +322,7 @@ function RateStrip({
             className="binge-rate-strip"
             onClick={(e) => e.stopPropagation()}
             role="radiogroup"
-            aria-label={t("action.rate_scene", "为场景评分")}
+            aria-label={t("action.rate_scene")}
         >
             {[1, 2, 3, 4, 5].map((n) => (
                 <button
@@ -336,7 +336,7 @@ function RateStrip({
                         // Tapping the current rating clears it (toggle).
                         onPick(n === current ? null : n);
                 }}
-                aria-label={t("action.rate_stars_count", "{{count}} 颗星", { count: n })}
+                aria-label={t("action.rate_stars_count", { count: n })}
                 role="radio"
                     aria-checked={n === current}
                 >
@@ -406,10 +406,10 @@ function MultiviewButton({
             onPointerCancel={onPointerLeave}
             aria-label={
                 inQueue
-                    ? t("multiview.remove_from_queue", "从多视图队列移除。长按打开播放器。")
-                    : t("multiview.add_to_queue", "加入多视图队列。长按打开播放器。")
+                    ? t("multiview.remove_from_queue")
+                    : t("multiview.add_to_queue")
             }
-            title={t("multiview.queue_and_open_player", "点击加入队列 · 长按打开多视图")}
+            title={t("multiview.queue_and_open_player")}
         >
             <GridIcon filled={inQueue} />
         </button>
@@ -428,8 +428,8 @@ function ScribeButton({ onTap }: { onTap: () => void }) {
                 e.stopPropagation();
                 onTap();
             }}
-            aria-label={t("action.write_scribe_review", "用 Scribe 写评价")}
-            title={t("action.write_review", "写评价")}
+            aria-label={t("action.write_scribe_review")}
+            title={t("action.write_review")}
         >
             <PencilIcon />
         </button>
@@ -463,11 +463,11 @@ function BookmarkButton({
                     setSheetOpen(true);
                 }}
                 aria-label={
-                    savedSomewhere ? t("action.manage_saves", "管理保存位置") : t("action.save_scene", "保存场景")
+                    savedSomewhere ? t("action.manage_saves") : t("action.save_scene")
                 }
                 aria-haspopup="dialog"
                 aria-expanded={sheetOpen}
-                title={t("action.save_to", "保存到…")}
+                title={t("action.save_to")}
             >
                 <BookmarkIcon filled={savedSomewhere} />
             </button>

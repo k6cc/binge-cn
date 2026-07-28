@@ -136,7 +136,7 @@ export function PerformerImageGrid({ performer }: PerformerImageGridProps) {
                     className="binge-gallery-back"
                     onClick={() => setOpenGallery(null)}
                 >
-                    ← {t("nav.back", "返回")}
+                    ← {t("nav.back")}
                 </button>
                 {openGallery.title && (
                     <div className="binge-gallery-title">
@@ -145,16 +145,16 @@ export function PerformerImageGrid({ performer }: PerformerImageGridProps) {
                 )}
                 {galleryError && (
                     <div className="binge-status binge-status-error">
-                        {t("status.error_message", "错误：{{message}}", { message: galleryError })}
+                        {t("status.error_message", { message: galleryError })}
                     </div>
                 )}
                 {galleryImages.length === 0 && galleryLoading && (
-                    <div className="binge-status">{t("status.loading", "加载中…")}</div>
+                    <div className="binge-status">{t("status.loading")}</div>
                 )}
                 {galleryImages.length === 0 &&
                     !galleryLoading &&
                     !galleryError && (
-                        <div className="binge-status">{t("status.no_image", "无图片")}</div>
+                        <div className="binge-status">{t("status.no_image")}</div>
                     )}
                 {galleryImages.length > 0 && (
                     <ul className="binge-profile-photo-grid">
@@ -167,7 +167,7 @@ export function PerformerImageGrid({ performer }: PerformerImageGridProps) {
                                     type="button"
                                     className="binge-profile-photo-card"
                                     onClick={() => setLightboxIndex(i)}
-                                    title={img.title || t("gallery.image_id", "图片 {{id}}", { id: img.id })}
+                                    title={img.title || t("gallery.image_id", { id: img.id })}
                                 >
                                     <img
                                         src={
@@ -186,7 +186,7 @@ export function PerformerImageGrid({ performer }: PerformerImageGridProps) {
                 )}
                 {galleryLoading && galleryImages.length > 0 && (
                 <div className="binge-status binge-profile-scenes-loading">
-                    {t("status.loading", "加载中…")}
+                    {t("status.loading")}
                 </div>
             )}
                 {lightboxIndex != null && galleryImages.length > 0 && (
@@ -205,14 +205,14 @@ export function PerformerImageGrid({ performer }: PerformerImageGridProps) {
         <section className="binge-profile-photos">
             {error && (
                 <div className="binge-status binge-status-error">
-                    {t("status.error_message", "错误：{{message}}", { message: error })}
+                    {t("status.error_message", { message: error })}
                 </div>
             )}
             {galleries.length === 0 && loading && (
-                <div className="binge-status">{t("status.loading", "加载中…")}</div>
+                <div className="binge-status">{t("status.loading")}</div>
             )}
             {galleries.length === 0 && !loading && !error && (
-                <div className="binge-status">{t("status.no_gallery", "无图库")}</div>
+                <div className="binge-status">{t("status.no_gallery")}</div>
             )}
             {galleries.length > 0 && (
                 <ul className="binge-gallery-grid">
@@ -228,7 +228,7 @@ export function PerformerImageGrid({ performer }: PerformerImageGridProps) {
             <div ref={sentinelRef} aria-hidden="true" />
             {loading && galleries.length > 0 && (
                 <div className="binge-status binge-profile-scenes-loading">
-                    {t("status.loading", "加载中…")}
+                    {t("status.loading")}
                 </div>
             )}
         </section>
@@ -318,7 +318,7 @@ function GalleryCoverCell({
                 type="button"
                 className="binge-gallery-cover-btn"
                 onClick={onOpen}
-                aria-label={t("action.view_gallery", "查看图库 {{title}}", { title: gallery.title ?? gallery.id })}
+                aria-label={t("action.view_gallery", { title: gallery.title ?? gallery.id })}
                 onMouseEnter={() => {
                     hoverGuardRef.current = true;
                     fetchTimerRef.current = window.setTimeout(
@@ -343,10 +343,10 @@ function GalleryCoverCell({
                     loading="lazy"
                 />
                 <span className="binge-gallery-cell-title">
-                    {gallery.title || t("gallery.gallery_id", "图库 {{id}}", { id: gallery.id })}
+                    {gallery.title || t("gallery.gallery_id", { id: gallery.id })}
                 </span>
                 <span className="binge-gallery-cell-count">
-                    {t("gallery.image_count", "{{count}} 张", { count: gallery.image_count })}
+                    {t("gallery.image_count", { count: gallery.image_count })}
                 </span>
             </button>
         </li>

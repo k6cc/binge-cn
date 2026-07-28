@@ -110,11 +110,11 @@ export function PerformerRow({ performers }: PerformerRowProps) {
                     "binge-follow-btn" + (primaryFav ? " is-following" : "")
                 }
                 onClick={() => setSheetOpen(true)}
-                title={t("action.manage_follows", "管理关注")}
+                title={t("action.manage_follows")}
                 aria-haspopup="dialog"
                 aria-expanded={sheetOpen}
             >
-                {primaryFav ? t("status.favorite", "已收藏") : t("action.favorite", "收藏")}
+                {primaryFav ? t("status.favorite") : t("action.favorite")}
             </button>
             {sheetOpen && (
                 <PerformerSheet

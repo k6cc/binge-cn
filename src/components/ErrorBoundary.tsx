@@ -45,7 +45,7 @@ class ErrorBoundary extends Component<Props, State> {
                     }}
                 >
                     <div style={{ fontSize: "1.1rem", fontWeight: 700 }}>
-                        {this.props.t("status.encountered_error", "binge 遇到了错误")}
+                        {this.props.t("status.encountered_error")}
                     </div>
                     <div
                         style={{
@@ -54,7 +54,7 @@ class ErrorBoundary extends Component<Props, State> {
                             maxWidth: "32rem",
                         }}
                     >
-                        {this.state.error.message || this.props.t("status.unexpected_render_error", "意外的渲染错误。")}
+                        {this.state.error.message || this.props.t("status.unexpected_render_error")}
                     </div>
                     <button
                         type="button"
@@ -71,7 +71,7 @@ class ErrorBoundary extends Component<Props, State> {
                             borderRadius: "999px",
                         }}
                     >
-                        {this.props.t("action.reload_binge", "重新加载 binge")}
+                        {this.props.t("action.reload_binge")}
                     </button>
                 </div>
             );

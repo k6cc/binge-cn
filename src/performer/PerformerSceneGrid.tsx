@@ -286,7 +286,7 @@ export function PerformerSceneGrid({
                                 !includeStashDBInProfile
                             )
                         }
-                        title={t("performer.stashdb_mixin_title", "将 StashDB 场景混入此演员的网格")}
+                        title={t("performer.stashdb_mixin_title")}
                     >
                         <span className="binge-profile-stashdb-toggle-dot" />
                         StashDB
@@ -295,14 +295,14 @@ export function PerformerSceneGrid({
             </h2>
             {error && (
                 <div className="binge-status binge-status-error">
-                    {t("status.error_message", "错误：{{message}}", { message: error })}
+                    {t("status.error_message", { message: error })}
                 </div>
             )}
             {scenes.length === 0 && loading && (
                 <BingeLoading minHeight="30vh" />
             )}
                 {scenes.length === 0 && !loading && !error && (
-                <div className="binge-status">{t("status.no_scenes", "无场景")}</div>
+                <div className="binge-status">{t("status.no_scenes")}</div>
             )}
             {(scenes.length > 0 ||
                 effectiveStashDBScenes.length > 0 ||
@@ -363,7 +363,7 @@ export function PerformerSceneGrid({
             <div ref={sentinelRef} aria-hidden="true" />
             {loading && scenes.length > 0 && (
                 <div className="binge-status binge-profile-scenes-loading">
-                    {t("status.loading", "加载中…")}
+                    {t("status.loading")}
                 </div>
             )}
             {sceneModalFor && stashBoxIndex !== null && (
@@ -463,7 +463,7 @@ function StashDBTile({
                 type="button"
                 className="binge-profile-scene-card"
                 onClick={onPick}
-                title={sceneTitle || t("performer.stashdb_scene_id", "StashDB 场景 {{id}}", { id: scene.id })}
+                title={sceneTitle || t("performer.stashdb_scene_id", { id: scene.id })}
             >
                 <span
                     className="binge-profile-scene-poster"
@@ -476,7 +476,7 @@ function StashDBTile({
                     }
                 />
                 <span className="binge-profile-scene-stashdb-badge">
-                    {t("common.stashdb", "StashDB")}
+                    {t("common.stashdb")}
                 </span>
                 <span className="binge-profile-scene-hover">
                     <span className="binge-profile-scene-hover-stats">
@@ -567,7 +567,7 @@ function SceneTile({
                 onMouseLeave={handleLeave}
                 onFocus={handleEnter}
                 onBlur={handleLeave}
-                title={sceneTitle || t("performer.scene_id", "场景 {{id}}", { id: scene.id })}
+                title={sceneTitle || t("performer.scene_id", { id: scene.id })}
             >
                 <span
                     className="binge-profile-scene-poster"
@@ -779,7 +779,7 @@ function compactMonthYear(raw: string | null, i18n: any): string | null {
         const t = i18n.t;
         const mi = parseInt(m[2], 10);
         return mi >= 1 && mi <= 12
-            ? `${m[1]}${t("time.year", "年")}${mi}${t("time.month", "月")}`
+            ? `${m[1]}${t("time.year")}${mi}${t("time.month")}`
             : m[1];
     }
 }

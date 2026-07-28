@@ -655,7 +655,7 @@ export function SceneSlide({
         () =>
             scene.title ||
             scene.performers.map((p) => p.name).join(", ") ||
-            t("scene.scene_id", "场景 {{id}}", { id: scene.id }),
+            t("scene.scene_id", { id: scene.id }),
         [scene.id, scene.title, scene.performers]
     );
     const detailsLine = scene.details?.trim() || "";
@@ -696,7 +696,7 @@ export function SceneSlide({
                 type="button"
                 className="binge-tap-target"
                 onClick={handleTap}
-                aria-label={isPlaying ? t("action.pause", "暂停") : t("action.play", "播放")}
+                aria-label={isPlaying ? t("action.pause") : t("action.play")}
                 tabIndex={-1}
             />
             {bursts.length > 0 && (
@@ -731,7 +731,7 @@ export function SceneSlide({
                     type="button"
                     className="binge-caption"
                     onClick={() => setDetailsOpen(true)}
-                    aria-label={t("action.view_details", "查看详情")}
+                    aria-label={t("action.view_details")}
                 >
                     <span className="binge-caption-line">
                         <span className="binge-caption-title">

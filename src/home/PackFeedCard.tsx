@@ -104,7 +104,7 @@ export function PackFeedCard({ item }: { item: PackFeedItem }) {
                                 {item.isRepost && (
                                     <span
                                         className="binge-pack-card-repost-badge"
-                                        aria-label={t("status.reposted", "转发了")}
+                                        aria-label={t("status.reposted")}
                                     >
                                         <RepostIcon />
                                     </span>
@@ -140,8 +140,8 @@ export function PackFeedCard({ item }: { item: PackFeedItem }) {
                                         }
                                         aria-label={
                                             primary.favorite
-                                                ? t("status.favorite", "已收藏")
-                                                : t("status.in_library", "在库中")
+                                                ? t("status.favorite")
+                                                : t("status.in_library")
                                         }
                                     >
                                         <VerifiedIcon />

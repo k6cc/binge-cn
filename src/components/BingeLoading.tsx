@@ -25,7 +25,7 @@ export function BingeLoading({
         <div
             className={"binge-loading" + (compact ? " is-compact" : "")}
             style={minHeight ? { minHeight } : undefined}
-            aria-label={t("status.loading", "加载中")}
+            aria-label={t("status.loading")}
             role="status"
         >
             <BingeLoadingIcon className="binge-loading-icon" />

@@ -362,13 +362,13 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
                                                 }
                                                 aria-label={
                                                     p.favorite
-                                                        ? t("status.favorite", "已收藏")
-                                                        : t("status.in_library", "在库中")
+                                                        ? t("status.favorite")
+                                                        : t("status.in_library")
                                                 }
                                                 title={
                                                     p.favorite
-                                                        ? t("status.favorite", "已收藏")
-                                                        : t("status.in_library", "在库中")
+                                                        ? t("status.favorite")
+                                                        : t("status.in_library")
                                                 }
                                             >
                                                 <VerifiedIcon />
@@ -380,7 +380,7 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
                         </PerformerHoverCard>
                     ) : (
                         <span className="binge-feed-card-name">
-                            {t("performer.unknown", "未知")}
+                            {t("performer.unknown")}
                         </span>
                     )}
                 </div>
@@ -390,8 +390,8 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
                 <SceneCardMenu
                     items={[
                         {
-                            label: t("action.open_in_stash", "在 Stash 中打开"),
-                            sub: t("action.open_in_stash_details", "在 Stash 界面中打开此场景"),
+                            label: t("action.open_in_stash"),
+                            sub: t("action.open_in_stash_details"),
                             onClick: () =>
                                 window.open(
                                     `/scenes/${item.sceneId}`,
@@ -425,7 +425,7 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
                     type="button"
                     className="binge-feed-card-tap"
                     onClick={handleTap}
-                    aria-label={isPlaying ? t("action.pause", "暂停") : t("action.play", "播放")}
+                    aria-label={isPlaying ? t("action.pause") : t("action.play")}
                     tabIndex={-1}
                 />
                 {!isPlaying && (
@@ -449,8 +449,8 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
                         e.stopPropagation();
                         setMuted(!muted);
                     }}
-                    aria-label={muted ? t("action.unmute", "取消静音") : t("action.mute", "静音")}
-                    title={muted ? t("action.unmute", "取消静音") : t("action.mute", "静音")}
+                    aria-label={muted ? t("action.unmute") : t("action.mute")}
+                    title={muted ? t("action.unmute") : t("action.mute")}
                 >
                     {muted ? <MutedIcon /> : <UnmutedIcon />}
                 </button>
@@ -464,8 +464,8 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
                         (liked || oCount > 0 ? " is-liked" : "")
                     }
                     onClick={triggerLike}
-                    aria-label={t("action.like", "喜欢")}
-                    title={t("action.like", "喜欢")}
+                    aria-label={t("action.like")}
+                    title={t("action.like")}
                 >
                     <HeartIcon filled={liked || oCount > 0} />
                     {oCount > 0 && (
@@ -479,8 +479,8 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
                         type="button"
                         className="binge-feed-card-iconbtn"
                         onClick={() => setRatingOpen(true)}
-                        aria-label={t("action.rate", "评分")}
-                        title={t("action.rate_advanced", "评分（高级）")}
+                        aria-label={t("action.rate")}
+                        title={t("action.rate_advanced")}
                     >
                         <StarIcon filled={false} />
                     </button>
@@ -495,10 +495,10 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
                         onClick={handleToggleMV}
                         aria-label={
                             inMVQueue
-                                ? t("action.remove_from_multiview", "移出多视图")
-                                : t("action.add_to_multiview", "加入多视图")
+                                ? t("action.remove_from_multiview")
+                                : t("action.add_to_multiview")
                         }
-                        title={t("action.send_to_multiview", "发送到多视图")}
+                        title={t("action.send_to_multiview")}
                     >
                         <GridIcon filled={inMVQueue} />
                     </button>
@@ -508,8 +508,8 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
                         type="button"
                         className="binge-feed-card-iconbtn"
                         onClick={handleOpenScribe}
-                        aria-label={t("action.write_scribe_review", "用 Scribe 写评价")}
-                        title={t("action.write_review", "写评价")}
+                        aria-label={t("action.write_scribe_review")}
+                        title={t("action.write_review")}
                     >
                         <PencilIcon />
                     </button>
@@ -521,8 +521,8 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
                         (savedSomewhere ? " is-active" : "")
                     }
                     onClick={() => setSaveSheetOpen(true)}
-                    aria-label={t("action.save", "保存")}
-                    title={t("action.save", "保存")}
+                    aria-label={t("action.save")}
+                    title={t("action.save")}
                 >
                     <BookmarkIcon filled={savedSomewhere} />
                 </button>
@@ -531,7 +531,7 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
                     className="binge-feed-card-cta"
                     onClick={handleWatchFullScene}
                 >
-                    {t("action.watch_full_scene", "观看完整场景 →")}
+                    {t("action.watch_full_scene")}
                 </button>
             </div>
 
@@ -717,8 +717,8 @@ function AvatarStack({
                             {ringedNode}
                             <span
                                 className="binge-feed-card-stack-repost-badge"
-                                aria-label={t("status.reposted", "转发了")}
-                                title={t("status.reposted_details", "转发了 — 你重新添加的旧内容")}
+                                aria-label={t("status.reposted")}
+                                title={t("status.reposted_details")}
                             >
                                 <RepostIcon />
                             </span>
@@ -784,7 +784,7 @@ function HashtagRow({
                     type="button"
                     className="binge-feed-card-hashtag-more"
                     onClick={() => setExpanded(true)}
-                    aria-label={t("action.show_more_tags", "显示另外 {{count}} 个标签", { count: hidden })}
+                    aria-label={t("action.show_more_tags", { count: hidden })}
                 >
                     +{hidden}
                 </button>
@@ -794,9 +794,9 @@ function HashtagRow({
                     type="button"
                     className="binge-feed-card-hashtag-more"
                     onClick={() => setExpanded(false)}
-                    aria-label={t("action.show_fewer_tags", "显示更少标签")}
+                    aria-label={t("action.show_fewer_tags")}
                 >
-                    {t("action.collapse", "收起")}
+                    {t("action.collapse")}
                 </button>
             )}
         </div>

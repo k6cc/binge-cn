@@ -84,7 +84,7 @@ export function XDetailModal({
     };
 
     return createPortal(
-        <div className="binge-x-modal-root" role="dialog" aria-label={t("modal.x_media_details", "X 媒体详情")}>
+        <div className="binge-x-modal-root" role="dialog" aria-label={t("modal.x_media_details")}>
             <div
                 className="binge-x-modal-backdrop"
                 onClick={onClose}
@@ -94,7 +94,7 @@ export function XDetailModal({
                 type="button"
                 className="binge-x-modal-close"
                 onClick={onClose}
-                aria-label={t("action.close", "关闭")}
+                aria-label={t("action.close")}
             >
                 ×
             </button>
@@ -104,7 +104,7 @@ export function XDetailModal({
                     type="button"
                     className="binge-x-modal-nav binge-x-modal-nav-prev"
                     onClick={() => onIndexChange(index - 1)}
-                    aria-label={t("action.previous", "上一条")}
+                    aria-label={t("action.previous")}
                 >
                     ‹
                 </button>
@@ -114,7 +114,7 @@ export function XDetailModal({
                     type="button"
                     className="binge-x-modal-nav binge-x-modal-nav-next"
                     onClick={() => onIndexChange(index + 1)}
-                    aria-label={t("action.next", "下一条")}
+                    aria-label={t("action.next")}
                 >
                     ›
                 </button>
@@ -124,7 +124,7 @@ export function XDetailModal({
                     {current.kind === "video" ? (
                         failed ? (
                             <div className="binge-x-modal-error">
-                                {t("status.video_load_failed", "视频加载失败")}
+                                {t("status.video_load_failed")}
                             </div>
                         ) : blobUrl ? (
                             <video
@@ -136,7 +136,7 @@ export function XDetailModal({
                             />
                         ) : (
                             <div className="binge-x-modal-loading">
-                                {t("status.video_loading", "视频加载中…")}
+                                {t("status.video_loading")}
                             </div>
                         )
                     ) : (
@@ -177,12 +177,12 @@ export function XDetailModal({
                             disabled={st === "saving" || st === "saved"}
                         >
                             {st === "saving"
-                                ? t("action.saving", "保存中…")
+                                ? t("action.saving")
                                 : st === "saved"
-                                ? t("status.saved", "已保存")
+                                ? t("status.saved")
                                 : st === "error"
-                                ? t("action.save_failed_retry", "保存失败，重试")
-                                : t("action.save_to_stash", "保存到 Stash")}
+                                ? t("action.save_failed_retry")
+                                : t("action.save_to_stash")}
                         </button>
                         <a
                             href={current.tweetUrl}
@@ -190,7 +190,7 @@ export function XDetailModal({
                             rel="noopener noreferrer"
                             className="binge-x-modal-open-x"
                         >
-                            {t("action.open_in_x", "在 X 上打开")}
+                            {t("action.open_in_x")}
                         </a>
                     </div>
                 </div>

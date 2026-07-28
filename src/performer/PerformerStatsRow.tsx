@@ -19,8 +19,8 @@ export function PerformerStatsRow({
     const { t } = useTranslation();
     return (
         <ul className="binge-profile-stats">
-            <Stat value={sceneCount} label={t("performer.stat_scenes", "场景")} />
-            <Stat value={oCounter} label={t("performer.stat_orgasms", "高潮")} />
+            <Stat value={sceneCount} label={t("performer.stat_scenes")} />
+            <Stat value={oCounter} label={t("performer.stat_orgasms")} />
             <RatingStat rating100={rating100} />
         </ul>
     );
@@ -42,7 +42,7 @@ function RatingStat({ rating100 }: { rating100: number | null }) {
             <span className="binge-profile-stat-value">
                 {formatRating(rating100)}
             </span>
-            <span className="binge-profile-stat-label">{t("performer.stat_rating", "评分")}</span>
+            <span className="binge-profile-stat-label">{t("performer.stat_rating")}</span>
         </li>
     );
 }

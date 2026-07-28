@@ -1,7 +1,7 @@
 {
   "name": "binge",
   "private": true,
-  "version": "0.4.17-RC1",
+  "version": "0.4.17",
   "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {

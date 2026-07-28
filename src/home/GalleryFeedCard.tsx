@@ -55,7 +55,17 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
     // too (last dot = the end panel).
     const slideCount = images.length + 1;
 
-    const firstImageUrl = images.length > 0 ? (images[0].paths.thumbnail || images[0].paths.image) : item.coverPath;
+    const endBgUrl = images.length > 0
+        ? images[0].paths.thumbnail || images[0].paths.image
+        : item.coverPath;
+
+    const handleEndClick = () => {
+        if (primaryPerformer) {
+            openProfile(primaryPerformer.id, "galleries");
+        } else {
+            setLightboxOpenAt(0);
+        }
+    };
 
     // Update activeIndex as the carousel scrolls. Uses scroll position
     // / clientWidth math — robust against snap timing differences
@@ -139,9 +149,7 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                             birthDate={null}
                             inLibrary
                             favorite={primaryPerformer.favorite}
-                            onOpenProfile={() =>
-                                openProfile(primaryPerformer.id)
-                            }
+                            onOpenProfile={() => openProfile(primaryPerformer.id)}
                         >
                             <span
                                 className="binge-feed-card-avatar-ring"
@@ -155,43 +163,17 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                                     className="binge-feed-card-avatar"
                                     style={
                                         primaryPerformer.imagePath
-                                            ? {
-                                                  backgroundImage: `url("${primaryPerformer.imagePath}")`,
-                                              }
+                                            ? { backgroundImage: `url("${primaryPerformer.imagePath}")` }
                                             : undefined
                                     }
                                 >
                                     {!primaryPerformer.imagePath && (
                                         <span className="binge-feed-card-initial">
-                                            {primaryPerformer.name
-                                                .charAt(0)
-                                                .toUpperCase()}
+                                            {primaryPerformer.name.charAt(0).toUpperCase()}
                                         </span>
                                     )}
                                 </span>
                             </span>
-                        </PerformerHoverCard>
-                    ) : (
-                        <span className="binge-feed-card-avatar-ring">
-                            <span className="binge-feed-card-avatar">
-                                <span className="binge-feed-card-initial">
-                                    ?
-                                </span>
-                            </span>
-                        </span>
-                    )}
-                    {primaryPerformer ? (
-                        <PerformerHoverCard
-                            name={primaryPerformer.name}
-                            image={primaryPerformer.imagePath ?? null}
-                            gender={null}
-                            birthDate={null}
-                            inLibrary
-                            favorite={primaryPerformer.favorite}
-                            onOpenProfile={() =>
-                                openProfile(primaryPerformer.id)
-                            }
-                        >
                             <button
                                 type="button"
                                 className="binge-feed-card-name-btn"
@@ -209,19 +191,17 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                                             <span
                                                 className={
                                                     "binge-feed-card-verified" +
-                                                    (p.favorite
-                                                        ? " is-favorite"
-                                                        : "")
+                                                    (p.favorite ? " is-favorite" : "")
                                                 }
                                                 aria-label={
                                                     p.favorite
-                                                        ? t("status.favorite", "已收藏")
-                                                        : t("status.in_library", "在库中")
+                                                        ? t("status.favorite")
+                                                        : t("status.in_library")
                                                 }
                                                 title={
                                                     p.favorite
-                                                        ? t("status.favorite", "已收藏")
-                                                        : t("status.in_library", "在库中")
+                                                        ? t("status.favorite")
+                                                        : t("status.in_library")
                                                 }
                                             >
                                                 <VerifiedIcon />
@@ -232,7 +212,14 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                             </button>
                         </PerformerHoverCard>
                     ) : (
-                        <span className="binge-feed-card-name">{t("gallery.gallery", "图库")}</span>
+                        <>
+                            <span className="binge-feed-card-avatar-ring">
+                                <span className="binge-feed-card-avatar">
+                                    <span className="binge-feed-card-initial">?</span>
+                                </span>
+                            </span>
+                            <span className="binge-feed-card-name">{t("gallery.gallery")}</span>
+                        </>
                     )}
                 </div>
                 <span className="binge-feed-card-time">
@@ -246,7 +233,7 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                     ref={carouselRef}
                     role="region"
                     aria-roledescription="carousel"
-                    aria-label={item.title ?? t("gallery.gallery_image", "图库图片")}
+                    aria-label={item.title ?? t("gallery.gallery_image")}
                 >
                     {images.length === 0 ? (
                         // Empty image list — typically means the gallery
@@ -263,7 +250,7 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                                     : undefined
                             }
                             onClick={() => setLightboxOpenAt(0)}
-                            aria-label={t("gallery.open_gallery_title", "打开 {{title}}", { title: item.title ?? t("gallery.gallery", "图库") })}
+                            aria-label={t("gallery.open_gallery_title", { title: item.title ?? t("gallery.gallery") })}
                         />
                     ) : (
                         images.map((img, idx) => {
@@ -280,7 +267,7 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                                             : undefined
                                     }
                                     onClick={() => setLightboxOpenAt(idx)}
-                                    aria-label={t("gallery.slide_position", "第 {{current}} 张，共 {{total}} 张", { current: idx + 1, total: item.imageCount })}
+                                    aria-label={t("gallery.slide_position", { current: idx + 1, total: item.imageCount })}
                                 />
                             );
                         })
@@ -294,30 +281,20 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                     <button
                         type="button"
                         className="binge-gallery-slide binge-gallery-end"
-                        onClick={() => {
-                            if (primaryPerformer) {
-                                openProfile(primaryPerformer.id, "galleries");
-                            } else {
-                                setLightboxOpenAt(0);
-                            }
-                        }}
-                        aria-label={t("gallery.view_full_gallery", "查看完整图库")}
+                        onClick={handleEndClick}
+                        aria-label={t("gallery.view_full_gallery")}
+                        style={
+                            endBgUrl
+                                ? ({ "--end-bg": `url("${endBgUrl}")` } as React.CSSProperties)
+                                : undefined
+                        }
                     >
-                        {firstImageUrl && (
-                            <div
-                                className="binge-gallery-end-bg"
-                                style={{
-                                    backgroundImage: `url("${firstImageUrl}")`,
-                                }}
-                            />
-                        )}
-                        <div className="binge-gallery-end-overlay" />
                         <span className="binge-gallery-end-inner">
                             <span className="binge-gallery-end-label">
-                                {t("gallery.view_gallery", "查看图库")}
+                                {t("gallery.view_gallery")}
                             </span>
                             <span className="binge-gallery-end-sub">
-                                {t("gallery.image_count", "{{count}} 张图片", { count: item.imageCount })}
+                                {t("gallery.image_count", { count: item.imageCount })}
                             </span>
                             <ChevronRight />
                         </span>
@@ -329,13 +306,7 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                     className="binge-gallery-count-badge"
                     role="button"
                     tabIndex={0}
-                    onClick={() => {
-                        if (primaryPerformer) {
-                            openProfile(primaryPerformer.id, "galleries");
-                        } else {
-                            setLightboxOpenAt(0);
-                        }
-                    }}
+                    onClick={handleEndClick}
                     aria-hidden="true"
                 >
                     <StackIcon />
@@ -348,7 +319,7 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                 <div
                     className="binge-gallery-dots"
                     role="tablist"
-                    aria-label={t("nav.gallery_position", "图库位置")}
+                    aria-label={t("nav.gallery_position")}
                 >
                     {Array.from({ length: slideCount }).map((_, i) => (
                         <button
@@ -362,7 +333,7 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                             }
                             onClick={() => scrollToSlide(i)}
                             tabIndex={-1}
-                            aria-label={t("gallery.jump_to_slide", "跳转到第 {{current}} 张", { current: i + 1 })}
+                            aria-label={t("gallery.jump_to_slide", { current: i + 1 })}
                         />
                     ))}
                 </div>

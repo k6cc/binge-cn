@@ -105,7 +105,7 @@ export function DiscoverPerformersBar() {
     if (state.kind === "error") return null; // graceful no-op
     return (
         <section className="binge-discover-bar">
-            <h2 className="binge-discover-bar-title">{t("nav.discover_performers", "发现演员")}</h2>
+            <h2 className="binge-discover-bar-title">{t("nav.discover_performers")}</h2>
             <div className="binge-discover-bar-row">
                 <button
                     type="button"
@@ -114,7 +114,7 @@ export function DiscoverPerformersBar() {
                         (canScrollLeft ? "" : " is-hidden")
                     }
                     onClick={() => scrollBy(-300)}
-                    aria-label={t("nav.scroll_left", "向左滚动")}
+                    aria-label={t("nav.scroll_left")}
                     tabIndex={canScrollLeft ? 0 : -1}
                 >
                     <ChevronLeft />
@@ -150,7 +150,7 @@ export function DiscoverPerformersBar() {
                         (canScrollRight ? "" : " is-hidden")
                     }
                     onClick={() => scrollBy(300)}
-                    aria-label={t("nav.scroll_right", "向右滚动")}
+                    aria-label={t("nav.scroll_right")}
                     tabIndex={canScrollRight ? 0 : -1}
                 >
                     <ChevronRight />

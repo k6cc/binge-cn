@@ -74,11 +74,11 @@ export function StoriesRow({ stories }: { stories: StoriesResult }) {
     return (
         <section
             className="binge-stories-row"
-            aria-label={t("nav.performers_with_new_scenes", "有新场景的演员")}
+            aria-label={t("nav.performers_with_new_scenes")}
         >
             {list.length === 0 ? (
                 <div className="binge-stories-empty">
-                    {t("status.no_new_scenes_last_30_days", "过去 30 天内你的收藏没有新场景。")}
+                    {t("status.no_new_scenes_last_30_days")}
                 </div>
             ) : (
                 <>
@@ -87,7 +87,7 @@ export function StoriesRow({ stories }: { stories: StoriesResult }) {
                             type="button"
                             className="binge-stories-chevron binge-stories-chevron-left"
                             onClick={() => scrollByAmount(-280)}
-                            aria-label={t("nav.scroll_left", "向左滚动")}
+                            aria-label={t("nav.scroll_left")}
                         >
                             <ChevronLeft />
                         </button>
@@ -109,7 +109,7 @@ export function StoriesRow({ stories }: { stories: StoriesResult }) {
                             type="button"
                             className="binge-stories-chevron binge-stories-chevron-right"
                             onClick={() => scrollByAmount(280)}
-                            aria-label={t("nav.scroll_right", "向右滚动")}
+                            aria-label={t("nav.scroll_right")}
                         >
                             <ChevronRight />
                         </button>

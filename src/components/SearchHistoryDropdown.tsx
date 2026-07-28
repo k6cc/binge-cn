@@ -40,7 +40,7 @@ export function SearchHistoryDropdown({
                     type="button"
                     className="binge-search-history-chip"
                     role="option"
-                    aria-label={t("action.use_history_search", "使用历史搜索 {{term}}", { term })}
+                    aria-label={t("action.use_history_search", { term })}
                     title={term}
                     onMouseDown={(e) => {
                         e.preventDefault();
@@ -53,7 +53,7 @@ export function SearchHistoryDropdown({
                     <span
                         className="binge-search-history-chip-remove"
                         role="button"
-                        aria-label={t("action.remove_term", "移除 {{term}}", { term })}
+                        aria-label={t("action.remove_term", { term })}
                         onMouseDown={(e) => {
                             e.preventDefault();
                             e.stopPropagation();

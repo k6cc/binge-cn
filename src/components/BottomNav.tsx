@@ -12,11 +12,11 @@ export function BottomNav() {
     const { t } = useTranslation();
 
     const SLOTS: { id: Tab; label: string }[] = [
-        { id: "home", label: t("nav.home", "首页") },
-        { id: "foryou", label: t("nav.foryou", "推荐") },
-        { id: "explore", label: t("nav.explore", "发现") },
-        { id: "following", label: t("nav.following", "关注中") },
-        { id: "menu", label: t("nav.menu", "菜单") },
+        { id: "home", label: t("nav.home") },
+        { id: "foryou", label: t("nav.foryou") },
+        { id: "explore", label: t("nav.explore") },
+        { id: "following", label: t("nav.following") },
+        { id: "menu", label: t("nav.menu") },
     ];
 
     if (tab === "saved" || tab === "settings") return null;
@@ -27,7 +27,7 @@ export function BottomNav() {
                 "binge-bottom-nav" + (tabBarVisible ? "" : " is-hidden")
             }
             role="tablist"
-            aria-label={t("nav.sections", "分区")}
+            aria-label={t("nav.sections")}
         >
             {SLOTS.map((slot) => {
                 const active = tab === slot.id;

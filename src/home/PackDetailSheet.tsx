@@ -73,7 +73,7 @@ export function PackDetailSheet({
             <div
                 className="binge-sheet binge-pack-sheet"
                 role="dialog"
-                aria-label={t("action.pack_aria_label", "{{name}} — 包", { name: pack.primaryPerformer.name })}
+                aria-label={t("action.pack_aria_label", { name: pack.primaryPerformer.name })}
             >
                 <div className="binge-sheet-handle" aria-hidden="true" />
                 <header className="binge-pack-sheet-header">
@@ -81,7 +81,7 @@ export function PackDetailSheet({
                         {pack.primaryPerformer.name}
                     </div>
                     <div className="binge-pack-sheet-sub">
-                        {t("story.new_scenes_count", "{{count}} 个新场景", { count: pack.sceneCount })}
+                        {t("story.new_scenes_count", { count: pack.sceneCount })}
                     </div>
                 </header>
                 <div className="binge-pack-sheet-grid">
@@ -91,7 +91,7 @@ export function PackDetailSheet({
                             key={scene.sceneId}
                             className="binge-pack-sheet-tile"
                             onClick={() => handlePick(scene)}
-                            aria-label={scene.title ?? t("action.open_scene", "打开场景")}
+                            aria-label={scene.title ?? t("action.open_scene")}
                             style={
                                 scene.screenshot
                                     ? {
@@ -107,7 +107,7 @@ export function PackDetailSheet({
                                 标题右对齐，与封面右对齐保持一致。空标题降级为
                                 "未命名" 以保证视觉占位。 */}
                             <span className="binge-pack-sheet-tile-title">
-                                {scene.title?.trim() || t("nav.untitled", "未命名")}
+                                {scene.title?.trim() || t("nav.untitled")}
                             </span>
                         </button>
                     ))}

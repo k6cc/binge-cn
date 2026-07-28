@@ -128,16 +128,16 @@ export function AddChipMenu({ onClose }: AddChipMenuProps) {
                 ref={inputRef}
                 type="text"
                 className="binge-chip-menu-input"
-                placeholder={t("action.search_tab", "搜索{{tab}}…", { tab: t(TABS_KEYS.find((tItem) => tItem.id === tab)?.labelKey || "", TABS_KEYS.find((tItem) => tItem.id === tab)?.fallback || tab) })}
+                placeholder={t("action.search_tab", { tab: t(TABS_KEYS.find((tItem) => tItem.id === tab)?.labelKey || "", TABS_KEYS.find((tItem) => tItem.id === tab)?.fallback || tab) })}
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
             />
             <ul className="binge-chip-menu-results">
                 {loading && (
-                    <li className="binge-chip-menu-status">{t("status.searching", "搜索中…")}</li>
+                    <li className="binge-chip-menu-status">{t("status.searching")}</li>
                 )}
                 {!loading && results.length === 0 && (
-                    <li className="binge-chip-menu-status">{t("status.no_results", "无结果")}</li>
+                    <li className="binge-chip-menu-status">{t("status.no_results")}</li>
                 )}
                 {results.map((r) => {
                     const isSelected = alreadySelected.has(r.id);

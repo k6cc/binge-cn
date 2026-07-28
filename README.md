@@ -1,6 +1,6 @@
 # Binge（汉化版）
 
-> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.4.17-RC1**。
+> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.4.17**。
 
 为 [Stash](https://github.com/stashapp/stash) 提供的 Instagram 风格社交与发现层：竖屏 Reel、Stories、演员档案、StashDB 驱动的发现功能——全部基于 Stash 既有的 GraphQL API。Web 插件形态。
 
@@ -19,9 +19,9 @@
 - **评分维度**：`总体` / `默契度` / `美感` / `制作质量` / `创意` / `外形` / `表现` 等
 - 品牌名保持英文：Stash、StashDB、Reddit、X (Twitter)、PornHub、Cookie、forage、binge-server、HLS、MP4、WebM
 
-### i18n 多语言架构（v0.4.17-RC1 新增）
+### i18n 多语言架构（v0.4.17 新增）
 
-v0.4.17-RC1 将原硬编码中文迁移为基于 `react-i18next` 的动态多语言架构：
+v0.4.17 将原硬编码中文迁移为基于 `react-i18next` 的动态多语言架构：
 
 - **中英双语**：内置中文（`zh`）和英文（`en`）两套翻译资源，默认中文，可在设置页切换语言，无需刷新
 - **242 个翻译键**：按功能域分组（`action` / `status` / `performer` / `settings` / `nav` / `gallery` / `time` / `filter` / `scene` / `form` / `multiview` / `rating` / `scribe` / `error` / `x_grid` 等），支持 `{{interpolation}}` 插值
@@ -31,7 +31,7 @@ v0.4.17-RC1 将原硬编码中文迁移为基于 `react-i18next` 的动态多语
 
 ### 功能修复
 
-#### v0.4.17-RC1 新增修复
+#### v0.4.17 新增修复
 
 | # | 修复 | 说明 |
 |-|-|-|
@@ -39,6 +39,9 @@ v0.4.17-RC1 将原硬编码中文迁移为基于 `react-i18next` 的动态多语
 | 2 | 补全 242 个缺失翻译键 | 自建扫描器识别所有 `t()` 调用与 locale 文件的差异，补全 8 个新 section（multiview / rating / scene / form / scribe / error / x_grid / separator）+ 184 个现有 section 扩展键 |
 | 3 | 硬编码中文迁移为 t() | 扫描并迁移 7 个文件的硬编码中文字符串（PackFeedCard / PornhubPlayer / StoryViewer / SceneFeedCard / StoriesRow / Explore / PerformerSheet），含修复 PerformerSheet 的 `t()` 调用方式 bug（第二参数字符串被当作 defaultValue） |
 | 4 | 修复 PackFeedCard 构建错误 | 上次未完成的 t() 转换导致 `Cannot find name 't'` 构建失败，补全 `useTranslation` import + 完成剩余字符串转换 |
+| 5 | 移除 681 处 fallback 字符串 | 所有 `t("key", "fallback")` 的第二参数已冗余（locale 0 缺失），批量移除后 bundle −17KB，中文文本只存在于 zh.ts 一处 |
+| 6 | 首页图库卡片精简 | End panel DOM 3 层 → 1 层（CSS 伪元素替代），PerformerHoverCard 2 实例 → 1，onClick 重复逻辑提取为函数。文件 −28 行 |
+| 7 | Stash 标签语言联动 | 标签名从硬编码改为语言感知，切换语言后弹出"同步 Stash 标签"按钮手动触发 rename，不即时生效。Favourite ★ 不受影响（ASR 共享） |
 
 #### v0.4.16 新增修复
 

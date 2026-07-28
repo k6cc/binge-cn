@@ -192,8 +192,8 @@ export function CriterionRatingModal({
                 role="dialog"
                 aria-label={
                     target.kind === "scene"
-                        ? t("rating.scene_rating", "场景评分")
-                        : t("rating.performer_rating", "演员评分")
+                        ? t("rating.scene_rating")
+                        : t("rating.performer_rating")
                 }
             >
                 <div className="binge-sheet-handle" aria-hidden="true" />
@@ -227,8 +227,8 @@ function Header({
             <header className="binge-rating-modal-header">
                 <h2>
                     {target.kind === "scene"
-                        ? t("rating.scene_rating", "场景评分")
-                        : t("rating.performer_rating", "演员评分")}
+                        ? t("rating.scene_rating")
+                        : t("rating.performer_rating")}
                 </h2>
             </header>
         );
@@ -239,18 +239,18 @@ function Header({
     );
     const rating100 = state.rating100;
     const ratingDisplay =
-        rating100 !== null ? `${Math.round(rating100)} / 100` : t("rating.unrated", "未评分");
+        rating100 !== null ? `${Math.round(rating100)} / 100` : t("rating.unrated");
     return (
         <header className="binge-rating-modal-header">
             <h2>
-                {target.kind === "scene" ? t("rating.scene_rating", "场景评分") : t("rating.performer_rating", "演员评分")}
+                {target.kind === "scene" ? t("rating.scene_rating") : t("rating.performer_rating")}
             </h2>
             <div className="binge-rating-modal-summary">
                 <span className="binge-rating-modal-rating">
                     {ratingDisplay}
                 </span>
                 <span className="binge-rating-modal-progress">
-                    {t("rating.rated_progress", "{{rated}}/{{total}} 已评分", { rated, total })}
+                    {t("rating.rated_progress", { rated, total })}
                 </span>
             </div>
         </header>
@@ -268,12 +268,12 @@ function Body({
 }) {
     const { t } = useTranslation();
     if (state.kind === "loading") {
-        return <div className="binge-rating-modal-empty">{t("status.loading", "加载中…")}</div>;
+        return <div className="binge-rating-modal-empty">{t("status.loading")}</div>;
     }
     if (state.kind === "error") {
         return (
             <div className="binge-rating-modal-empty binge-status-error">
-                {t("rating.config_load_failed", "无法加载评分配置：{{message}}", { message: state.message })}
+                {t("rating.config_load_failed", { message: state.message })}
             </div>
         );
     }
@@ -315,9 +315,9 @@ function Body({
             })}
             {previewRating !== null && (
                 <footer className="binge-rating-modal-footer">
-                    {t("rating.preview_score", "预览 · {{score}} / 100", { score: Math.round(previewRating) })}
+                    {t("rating.preview_score", { score: Math.round(previewRating) })}
                     <small>
-                        {t("rating.stash_plugin_hook_lock", "Stash 的插件钩子将锁定此值。")}
+                        {t("rating.stash_plugin_hook_lock")}
                     </small>
                 </footer>
             )}
@@ -375,7 +375,7 @@ function CriterionRow({
                         }
                         onMouseEnter={() => setHover(s)}
                         onClick={() => onScore(s)}
-                        aria-label={t("rating.criterion_score", "{{name}}：{{score}} / 5", { name: criterion.name, score: s })}
+                        aria-label={t("rating.criterion_score", { name: criterion.name, score: s })}
                     >
                         ★
                     </button>
@@ -385,8 +385,8 @@ function CriterionRow({
                     className="binge-rating-modal-clear"
                     disabled={disabled || score === null}
                     onClick={() => onScore(null)}
-                    aria-label={t("rating.clear_criterion_score", "清除 {{name}} 评分", { name: criterion.name })}
-                    title={t("action.clear", "清除")}
+                    aria-label={t("rating.clear_criterion_score", { name: criterion.name })}
+                    title={t("action.clear")}
                 >
                     ×
                 </button>

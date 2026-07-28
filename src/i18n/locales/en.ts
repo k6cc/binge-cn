@@ -439,7 +439,8 @@ export default {
                 title: "Show debug overlay",
                 desc: "Pins a small diagnostic panel showing number of videos mounted, JS heap, scroll/tab state, and recent GraphQL response times. Shortcut: \\",
                 label: "Debug overlay"
-            }
+            },
+            sync_tags: "Sync Stash tags to {{lang}}"
         },
 
         // 5.5 Time
