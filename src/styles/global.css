@@ -8337,3 +8337,21 @@ body,
 .binge-settings-hidden-tags .binge-chip-menu-results {
     max-height: 220px;
 }
+
+/* Retry affordance on a failed feed load. Sits under the message so the
+   error reads as something you can act on rather than a dead end. */
+.binge-feed-retry {
+    margin-top: 10px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    background: rgba(255, 255, 255, 0.08);
+    color: inherit;
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.binge-feed-retry:hover {
+    background: rgba(255, 255, 255, 0.14);
+}

@@ -42,7 +42,7 @@ interface FeedProps {
 // viewport are mounted. Avoids 50+ <video> elements + carousels piling
 // up in the DOM as the user infinite-scrolls.
 export function Feed({ scrollContainerRef }: FeedProps) {
-    const { state } = useFeed();
+    const { state, retry } = useFeed();
     const hidden = useHiddenFeedCategories();
     const feedRef = useRef<HTMLElement>(null);
     const [scrollMargin, setScrollMargin] = useState(0);
@@ -126,7 +126,14 @@ export function Feed({ scrollContainerRef }: FeedProps) {
         return (
             <section className="binge-feed">
                 <div className="binge-feed-empty binge-status-error">
-                    couldn't load feed: {state.message}
+                    <div>couldn't load feed: {state.message}</div>
+                    <button
+                        type="button"
+                        className="binge-feed-retry"
+                        onClick={retry}
+                    >
+                        Try again
+                    </button>
                 </div>
             </section>
         );

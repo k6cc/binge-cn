@@ -270,6 +270,10 @@ function isNoiseGallery(paths: string[]): boolean {
 
 export interface FeedHookResult {
     state: FeedState;
+    /// Re-run the load. Exposed so a failed feed can offer a retry
+    /// instead of stranding the user on an error with no way forward
+    /// short of reloading the whole plugin.
+    retry: () => void;
 }
 
 export function useFeed(): FeedHookResult {
@@ -277,6 +281,8 @@ export function useFeed(): FeedHookResult {
     const [state, setState] = useState<FeedState>({ kind: "loading" });
     const showGalleries = useShowGalleries();
     const includeStashDB = useIncludeStashDB();
+    // Bumped by retry() to force the effect below to re-run.
+    const [reloadTick, setReloadTick] = useState(0);
 
     useEffect(() => {
         let alive = true;
@@ -457,9 +463,9 @@ export function useFeed(): FeedHookResult {
         return () => {
             alive = false;
         };
-    }, [lookbackDays, showGalleries, includeStashDB]);
+    }, [lookbackDays, showGalleries, includeStashDB, reloadTick]);
 
-    return { state };
+    return { state, retry: () => setReloadTick((t) => t + 1) };
 }
 
 // Dedupe scene rows by sceneId. Rows are scene/performer pairs, so a
