@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { getBingeServerHealth } from "../api/bingeServer";
 import { readBingeServerUrl } from "../home/pluginSettings";
 import {
-    INSTALLED_URL,
+    installedUrl,
     installTaskAvailable,
     composeSnippet,
     manualInstallCommand,
@@ -97,7 +97,7 @@ export function BingeServerInstallCard() {
             setShowManual(true);
             return;
         }
-        await recordServerUrl(INSTALLED_URL);
+        await recordServerUrl(installedUrl());
         const health = await getBingeServerHealth();
         setState({ kind: "running", version: health?.version });
     };

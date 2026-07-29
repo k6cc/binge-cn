@@ -39,9 +39,13 @@ IMAGE = "ghcr.io/%s:latest" % REPO
 CONTAINER = "binge-server"
 PORT = 7878
 HEALTH_URL = "http://127.0.0.1:%d/healthz" % PORT
-# The daemon's own default bind is loopback-only, which is right: it holds
-# a Stash API key. Same reasoning for the published port below.
-PUBLISH = "127.0.0.1:%d:%d" % (PORT, PORT)
+# Loopback by default because the daemon holds a Stash API key. But that's
+# only correct when the browser is ON the Stash host: if you run Stash on a
+# NAS and browse from a laptop, a loopback-bound daemon installs perfectly
+# and is unreachable from the only place that needs it. The UI knows which
+# case it's in (is the page served from localhost?) and passes `bind`.
+PUBLISH_LOOPBACK = "127.0.0.1:%d:%d" % (PORT, PORT)
+PUBLISH_LAN = "%d:%d" % (PORT, PORT)
 
 
 def log(msg):
@@ -140,7 +144,7 @@ def container_exists():
     return ok and CONTAINER in out.splitlines()
 
 
-def install_docker():
+def install_docker(publish):
     log("Docker found. Pulling %s ..." % IMAGE)
     ok, out = run(["docker", "pull", IMAGE], 900)
     if not ok:
@@ -158,7 +162,7 @@ def install_docker():
         "docker", "run", "-d",
         "--name", CONTAINER,
         "--restart", "unless-stopped",
-        "-p", PUBLISH,
+        "-p", publish,
         "-v", "%s:/data" % data_dir(),
         IMAGE,
     ], 120)
@@ -309,9 +313,14 @@ def main():
                           "method": "already-running"}))
         return 0
 
+    # "lan" when the user is browsing from another machine, so the daemon
+    # has to be reachable off the Stash host to be any use to them.
+    publish = (PUBLISH_LAN if args.get("bind") == "lan"
+               else PUBLISH_LOOPBACK)
+
     method = None
     if docker_available():
-        method = "docker" if install_docker() else None
+        method = "docker" if install_docker(publish) else None
     elif in_container():
         # Refuse rather than install something unreachable. See in_container.
         log("Stash is running inside a container, and that container has no "

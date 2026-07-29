@@ -14,17 +14,49 @@ import { setBingeServerUrl } from "../home/pluginSettings";
 const PLUGIN_ID = "binge";
 const TASK_NAME = "Install binge-server";
 
-// Where the installer always puts it. Matches binge-install.py's PORT.
-export const INSTALLED_URL = "http://localhost:7878";
+// Where the installer puts it: port 7878 on the Stash host, which is the
+// host serving this page. Not a hardcoded localhost — that's only the same
+// machine when you happen to be browsing from the Stash box.
+export function installedUrl(): string {
+    try {
+        const host = window.location.hostname;
+        if (host) return `http://${host}:7878`;
+    } catch {
+        /* no window */
+    }
+    return "http://localhost:7878";
+}
+
+/** Loopback is the safer bind, but it only works when the browser is on the
+ *  Stash host. Anywhere else the daemon must listen LAN-wide or the install
+ *  is useless to the person who asked for it. */
+function bindMode(): "loopback" | "lan" {
+    try {
+        const h = window.location.hostname;
+        return h === "localhost" || h === "127.0.0.1" || h === "::1"
+            ? "loopback"
+            : "lan";
+    } catch {
+        return "loopback";
+    }
+}
 
 /** Ask Stash to run the installer task. Resolves once the task is queued,
  *  not once it finishes — progress is observed via the health poll. */
 export async function startServerInstall(): Promise<void> {
     await gql(
-        `mutation($plugin_id: ID!, $task_name: String!) {
-            runPluginTask(plugin_id: $plugin_id, task_name: $task_name)
+        `mutation($plugin_id: ID!, $task_name: String!, $args_map: Map!) {
+            runPluginTask(
+                plugin_id: $plugin_id
+                task_name: $task_name
+                args_map: $args_map
+            )
         }`,
-        { plugin_id: PLUGIN_ID, task_name: TASK_NAME }
+        {
+            plugin_id: PLUGIN_ID,
+            task_name: TASK_NAME,
+            args_map: { mode: "install", bind: bindMode() },
+        }
     );
 }
 
