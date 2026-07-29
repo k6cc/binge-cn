@@ -478,7 +478,7 @@ export default {
             scene_id: "场景 {{id}}",
             scenes: "场景",
             open_stashdb: "在 StashDB 打开",
-            aka: "又名",
+            aka: "又名：{{aliases}}",
             view_story_for: "查看 {{name}} 的故事",
             view_story: "查看故事",
             stat_scenes: "场景",

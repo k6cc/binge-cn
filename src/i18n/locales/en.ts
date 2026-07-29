@@ -478,7 +478,7 @@ export default {
             scene_id: "Scene {{id}}",
             scenes: "Scenes",
             open_stashdb: "Open in StashDB",
-            aka: "aka",
+            aka: "aka: {{aliases}}",
             view_story_for: "View story for {{name}}",
             view_story: "View story",
             stat_scenes: "Scenes",
