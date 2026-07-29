@@ -5,7 +5,11 @@ AGENTS.md
 
 # Personal deploy shortcuts — `npm run push` reads scripts/push.sh,
 # which is meant to be a per-user file (host alias + Stash plugins dir).
-scripts/
+scripts/push.sh
+scripts/walkthrough.mjs
+
+# i18n tooling outputs (generated reports, not source)
+scripts/i18n/output/
 
 # Logs
 logs

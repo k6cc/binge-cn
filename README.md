@@ -292,6 +292,25 @@ npm run build   # 产出 dist/index.html
 
 技术栈：Vite · React 19 · TypeScript · TanStack Virtual（Reel 虚拟化）。
 
+### i18n 工具
+
+`scripts/i18n/` 下提供 6 个 Node.js 脚本辅助翻译键维护（详见 [scripts/i18n/README.md](./scripts/i18n/README.md)）：
+
+| 脚本 | 用途 |
+|-|-|
+| `scan_missing_keys.cjs` | 扫描 `t()` 调用，找出 zh.ts / en.ts 中缺失的键 |
+| `find_hardcoded_chinese.cjs` | 扫描未用 `t()` 包裹的硬编码中文字符串 |
+| `sync_en_from_source.cjs` | 英文源码升级后，同步 en.ts 的大小写/空格/标点 |
+| `validate_en.cjs` | 校验 en.ts 的空值、中文残留、`{{*}}` 残留 |
+| `remove_fallbacks.cjs` | 批量移除 `t()` 调用中的冗余 fallback 字符串 |
+| `analyze_bundle.cjs` | 分析 i18n bundle 体积构成 |
+
+```bash
+node scripts/i18n/scan_missing_keys.cjs      # 新增组件后检查缺失键
+node scripts/i18n/find_hardcoded_chinese.cjs # 检查遗漏的硬编码中文
+node scripts/i18n/sync_en_from_source.cjs    # 英文源码升级后同步 en.ts
+```
+
 ---
 
 ## License
