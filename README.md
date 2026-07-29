@@ -42,6 +42,7 @@ v0.4.17 将原硬编码中文迁移为基于 `react-i18next` 的动态多语言�
 | 5 | 移除 681 处 fallback 字符串 | 所有 `t("key", "fallback")` 的第二参数已冗余（locale 0 缺失），批量移除后 bundle −17KB，中文文本只存在于 zh.ts 一处 |
 | 6 | 首页图库卡片精简 | End panel DOM 3 层 → 1 层（CSS 伪元素替代），PerformerHoverCard 2 实例 → 1，onClick 重复逻辑提取为函数。文件 −28 行 |
 | 7 | Stash 标签语言联动 | 标签名从硬编码改为语言感知，切换语言后弹出"同步 Stash 标签"按钮手动触发 rename，不即时生效。Favourite ★ 不受影响（ASR 共享） |
+| 8 | 修复演员"又名"不显示别名 | `performer.aka` 翻译键迁移时丢失 `{{aliases}}` 占位符，导致只显示"又名"不显示实际别名。补全占位符后显示为"又名：alias1, alias2"（同时影响 StashDB 演员档案页） |
 
 #### v0.4.16 新增修复
 
