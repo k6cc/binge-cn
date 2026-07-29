@@ -2,6 +2,23 @@ name: Binge
 description: Instagram-shaped social + discovery layer for Stash — stories, vertical reel, performer profiles, and StashDB-powered Follow/Discover.
 version: 0.4.0
 url: https://github.com/ordureconnoisseur/binge
+# Runs the binge-server installer on the machine hosting Stash. A browser
+# can't install software, so the Settings button calls runPluginTask and
+# Stash executes this here. Python is only needed for that one task; the
+# plugin's UI works without it.
+exec:
+  - python
+  - "{pluginDir}/binge-install.py"
+interface: raw
+tasks:
+  - name: Install binge-server
+    description: >-
+      Install or update the optional binge-server daemon on this machine
+      (Docker if available, otherwise the release binary). Adds Reddit, X,
+      PornHub and Save-to-Stash to binge. Also runnable from binge's
+      Settings page.
+    defaultArgs:
+      mode: install
 ui:
   assets:
     /: .

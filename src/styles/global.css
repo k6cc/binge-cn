@@ -8291,3 +8291,87 @@ body,
     width: 14rem;
     filter: drop-shadow(0 0 24px rgba(168, 85, 247, 0.45));
 }
+
+/* ── Settings: binge-server install card ──────────────────────────────
+   Wider than a normal setting row: it owns a status line, two buttons and
+   a copy-paste fallback command, so it stacks instead of sitting in the
+   label/control two-column layout. */
+.binge-install-card {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+}
+
+.binge-install-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.binge-install-status {
+    font-size: 12px;
+    opacity: 0.7;
+    line-height: 1.45;
+}
+
+.binge-install-status.is-ok {
+    color: rgb(120, 205, 140);
+    opacity: 1;
+}
+
+.binge-install-status.is-error {
+    color: rgb(235, 130, 130);
+    opacity: 1;
+}
+
+.binge-install-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.binge-install-btn {
+    padding: 7px 16px;
+    border-radius: 999px;
+    border: 0;
+    background: rgba(var(--accent-rgb), 0.9);
+    color: #fff;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.binge-install-btn:hover {
+    background: rgb(var(--accent-rgb));
+}
+
+.binge-install-btn.is-secondary {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    font-weight: 500;
+}
+
+.binge-install-btn.is-secondary:hover {
+    background: rgba(255, 255, 255, 0.14);
+}
+
+.binge-install-manual {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+}
+
+.binge-install-manual pre {
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    font-size: 11.5px;
+    line-height: 1.5;
+    overflow-x: auto;
+    max-width: 100%;
+    white-space: pre;
+}

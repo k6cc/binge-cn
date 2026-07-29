@@ -37,6 +37,9 @@ export interface RedditPost {
 
 export interface BingeServerHealth {
     ok: boolean;
+    // New in v0.2.1 — the daemon's build version. Absent on older
+    // daemons, so treat it as "unknown" rather than "not running".
+    version?: string;
     // New in v0.2 — present when the daemon reports its config state.
     // false → Stash creds or Reddit cookie not yet set.
     configured?: boolean;

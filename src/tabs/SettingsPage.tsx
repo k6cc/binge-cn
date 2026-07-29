@@ -46,6 +46,7 @@ import {
     type BingeServerHealth,
 } from "../api/bingeServer";
 import { getForageHealth } from "../api/forageServer";
+import { BingeServerInstallCard } from "./BingeServerInstallCard";
 import { fetchStashApiKey } from "../api/queries";
 
 // In-app settings page — all preferences that used to live in Stash's
@@ -82,6 +83,7 @@ export function SettingsPage() {
                 <RedditRow />
                 <XRow />
                 <PornhubRow />
+                <BingeServerInstallCard />
                 <BingeServerRow />
                 <BingeServerConfigCard />
                 <ForageUrlRow />
