@@ -34,8 +34,6 @@ import {
     useShowDebug,
     useShowGalleries,
     useShowcaseBlur,
-    useHiddenTagIds,
-    setHiddenTagIds,
     useTranscodeType,
     type ForageWatchTarget,
     type Gender,
@@ -48,12 +46,7 @@ import {
     type BingeServerHealth,
 } from "../api/bingeServer";
 import { getForageHealth } from "../api/forageServer";
-import {
-    fetchStashApiKey,
-    findTagsByIds,
-    findTagsForPicker,
-    type PickerResult,
-} from "../api/queries";
+import { fetchStashApiKey } from "../api/queries";
 
 // In-app settings page — all preferences that used to live in Stash's
 // plugin settings UI now live here. Same localStorage keys + pubsub,
@@ -93,7 +86,6 @@ export function SettingsPage() {
                 <BingeServerConfigCard />
                 <ForageUrlRow />
                 <ForageTargetRow />
-                <HiddenTagsRow />
                 <RefractRow />
                 <ShowcaseRow />
                 <DebugRow />
@@ -1039,146 +1031,6 @@ function ShowcaseRow() {
                 onChange={(v) => setShowcaseBlur(v)}
                 label="Privacy blur"
             />
-        </SettingRow>
-    );
-}
-
-// "Hidden tags" — a standing never-show-me-this list. Persists tag ids
-// (names change; ids don't), so stored ids are resolved back to names for
-// display. Empty by default: binge must not decide for the user which tags
-// to hide, and a baked-in id would mean something different in every
-// library.
-function HiddenTagsRow() {
-    const ids = useHiddenTagIds();
-    const [labels, setLabels] = useState<Record<string, string>>({});
-    const [query, setQuery] = useState("");
-    const [results, setResults] = useState<PickerResult[]>([]);
-    const [searching, setSearching] = useState(false);
-
-    // `ids` is memoised on the stored string, so this only re-runs when
-    // the list actually changes. Nothing to resolve when it's empty —
-    // stale entries for removed ids are harmless (only `ids` is ever
-    // rendered), so leave the map alone rather than clearing it here.
-    useEffect(() => {
-        if (ids.length === 0) return;
-        let alive = true;
-        findTagsByIds([...ids])
-            .then((tags) => {
-                if (!alive) return;
-                const next: Record<string, string> = {};
-                for (const t of tags) next[t.id] = t.name;
-                setLabels(next);
-            })
-            .catch(() => {
-                /* leave ids showing raw — remove still works */
-            });
-        return () => {
-            alive = false;
-        };
-    }, [ids]);
-
-    // Debounced tag search. The empty-query case is handled at render
-    // time (the list is gated on a non-empty query), so the effect can
-    // bail without touching state.
-    useEffect(() => {
-        const term = query.trim();
-        if (!term) return;
-        let alive = true;
-        const timer = setTimeout(() => {
-            // Flipped here rather than in the effect body so typing
-            // doesn't re-render on every keystroke — only once the
-            // debounce actually fires a request.
-            setSearching(true);
-            findTagsForPicker(term)
-                .then((r) => {
-                    if (!alive) return;
-                    setResults(r);
-                    setSearching(false);
-                })
-                .catch(() => {
-                    if (alive) setSearching(false);
-                });
-        }, 200);
-        return () => {
-            alive = false;
-            clearTimeout(timer);
-        };
-    }, [query]);
-
-    const add = (tag: PickerResult) => {
-        if (ids.includes(tag.id)) return;
-        setLabels((prev) => ({ ...prev, [tag.id]: tag.name }));
-        setHiddenTagIds([...ids, tag.id]);
-        setQuery("");
-    };
-    const remove = (id: string) => {
-        setHiddenTagIds(ids.filter((x) => x !== id));
-    };
-
-    return (
-        <SettingRow
-            title="Hidden tags"
-            description="Scenes with any of these tags never appear anywhere in binge — no card, no story, no reel, and no filter chip to bring them back. Empty by default; this is your list, binge doesn't preset it."
-        >
-            <div className="binge-settings-hidden-tags">
-                {ids.length > 0 && (
-                    <div className="binge-settings-tag-chips">
-                        {ids.map((id) => (
-                            <span key={id} className="binge-settings-tag-chip">
-                                {labels[id] ?? `tag ${id}`}
-                                <button
-                                    type="button"
-                                    onClick={() => remove(id)}
-                                    aria-label={`Stop hiding ${
-                                        labels[id] ?? id
-                                    }`}
-                                >
-                                    ×
-                                </button>
-                            </span>
-                        ))}
-                    </div>
-                )}
-                <input
-                    type="text"
-                    className="binge-settings-input"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    spellCheck={false}
-                    autoCapitalize="off"
-                    autoCorrect="off"
-                    placeholder="Search tags to hide…"
-                />
-                {query.trim() && (
-                    <ul className="binge-chip-menu-results">
-                        {searching && (
-                            <li className="binge-chip-menu-status">
-                                searching…
-                            </li>
-                        )}
-                        {!searching && results.length === 0 && (
-                            <li className="binge-chip-menu-status">
-                                no results
-                            </li>
-                        )}
-                        {!searching &&
-                            results.map((tag) => (
-                                <li key={tag.id}>
-                                    <button
-                                        type="button"
-                                        className="binge-chip-menu-row"
-                                        disabled={ids.includes(tag.id)}
-                                        onClick={() => add(tag)}
-                                    >
-                                        <span className="binge-chip-menu-name">
-                                            {tag.name}
-                                        </span>
-                                    </button>
-                                </li>
-                            ))}
-                    </ul>
-                )}
-            </div>
         </SettingRow>
     );
 }

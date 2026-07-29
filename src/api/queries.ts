@@ -1,5 +1,4 @@
 import { gql } from "./graphql";
-import { readHiddenTagIds } from "../home/pluginSettings";
 
 // Minimal shape of a Stash scene used by the reel. Fields are the union of
 // what we need for: <video> playback, the overlay (title, performers,
@@ -51,58 +50,6 @@ export interface FindScenesVariables {
     // object_filter JSON pass-through (rating100, play_count, date, etc.
     // — anything Stash's SceneFilterType accepts).
     scene_filter?: Record<string, unknown>;
-}
-
-// Tags whose scenes are dropped EVERYWHERE in binge (Home feed, stories,
-// For You reel, Explore) — no toggle and no filter chip, per the user's
-// "Hidden tags" setting. `depth: 0` matches exactly these tag ids.
-//
-// GraphQL fragment for the inline-string query builders below. Returns ""
-// when the user has set no hidden tags (the default) so the surrounding
-// scene_filter is left alone rather than gaining an empty EXCLUDES clause.
-// Evaluated per call rather than hoisted to a constant, so a Settings
-// change takes effect without a reload.
-function hiddenTagsClause(): string {
-    const ids = readHiddenTagIds();
-    if (ids.length === 0) return "";
-    return `tags: {
-                    value: [${ids.map((id) => `"${id}"`).join(", ")}]
-                    excludes: []
-                    modifier: EXCLUDES
-                    depth: 0
-                }`;
-}
-// Merge the hidden-tag exclusion into a (possibly chip- or saved-filter-
-// derived) scene_filter object for the generic findScenes() path. Adds the
-// ids to the tags filter's `excludes` sub-list so it composes with an
-// existing INCLUDES chip instead of clobbering it; falls back to a clean
-// EXCLUDES filter when no tag criterion is present.
-function withHiddenTagsExcluded(
-    sf: Record<string, unknown> | undefined
-): Record<string, unknown> {
-    const hidden = readHiddenTagIds();
-    // No hidden tags configured (the default) — hand the filter back
-    // untouched so binge never narrows a query the user didn't ask to
-    // narrow.
-    if (hidden.length === 0) return { ...(sf ?? {}) };
-    const next: Record<string, unknown> = { ...(sf ?? {}) };
-    const existing = next.tags as
-        | { value?: string[]; excludes?: string[]; modifier?: string; depth?: number }
-        | undefined;
-    if (!existing) {
-        next.tags = {
-            value: hidden,
-            excludes: [],
-            modifier: "EXCLUDES",
-            depth: 0,
-        };
-    } else {
-        next.tags = {
-            ...existing,
-            excludes: [...(existing.excludes ?? []), ...hidden],
-        };
-    }
-    return next;
 }
 
 // Translate a high-level filter state (chips) to Stash's SceneFilterType
@@ -181,7 +128,7 @@ export async function findScenes(
             direction: "DESC",
             ...variables.filter,
         },
-        scene_filter: withHiddenTagsExcluded(variables.scene_filter),
+        scene_filter: variables.scene_filter,
     };
     // Double-cast: `merged` is well-typed but `gql<T>`'s variables
     // param is the loosely-typed `Record<string, unknown>` shape. TS
@@ -479,36 +426,6 @@ export async function findTagsForPicker(q: string): Promise<PickerResult[]> {
         }
     );
     return data.findTags.tags;
-}
-
-const FIND_TAG_BY_ID = /* GraphQL */ `
-    query FindTagById($id: ID!) {
-        findTag(id: $id) {
-            id
-            name
-        }
-    }
-`;
-
-// Resolve stored tag ids back to names, for the "Hidden tags" setting
-// (which persists ids, since names change). One request per id is fine:
-// the list is a handful of entries and only loads on the Settings page.
-// A tag that no longer exists resolves to nothing and is dropped from the
-// display rather than erroring the whole row.
-export async function findTagsByIds(ids: string[]): Promise<PickerResult[]> {
-    const found = await Promise.all(
-        ids.map(async (id) => {
-            try {
-                const data = await gql<{
-                    findTag: { id: string; name: string } | null;
-                }>(FIND_TAG_BY_ID, { id });
-                return data.findTag;
-            } catch {
-                return null;
-            }
-        })
-    );
-    return found.filter((t): t is PickerResult => t !== null);
 }
 
 export async function findStudiosForPicker(q: string): Promise<PickerResult[]> {
@@ -1031,7 +948,6 @@ function buildFindRecentScenesQuery(): string {
         findScenes(
             scene_filter: {
                 created_at: { value: $since, modifier: GREATER_THAN }
-                ${hiddenTagsClause()}
             }
             filter: {
                 page: 1
@@ -1081,7 +997,6 @@ function buildFindScenesByDateQuery(): string {
         findScenes(
             scene_filter: {
                 date: { value: $since, modifier: GREATER_THAN }
-                ${hiddenTagsClause()}
             }
             filter: {
                 page: 1

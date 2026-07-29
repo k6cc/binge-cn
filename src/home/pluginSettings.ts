@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { gql } from "../api/graphql";
 
 // Plugin-settings the reel SPA shares with the Stash settings panel
@@ -326,40 +326,6 @@ export function setAllowedGenders(values: ReadonlySet<Gender>): void {
     // anyone inspecting localStorage).
     const ordered = ALL_GENDERS.filter((g) => values.has(g));
     writeString(ALLOWED_GENDERS_KEY, ordered.join(","));
-}
-
-// ── Hidden tags ─────────────────────────────────────────────────────
-// Scenes carrying one of these tags are dropped everywhere in binge
-// (Home feed, stories, For You reel, Explore) with no chip and no
-// toggle — a standing "never show me this" list.
-//
-// EMPTY BY DEFAULT, and it has to stay that way: tag ids are per-database,
-// so any baked-in id silently hides an arbitrary tag in someone else's
-// library with no way to discover why. (binge shipped a hardcoded id for
-// exactly this reason until 2026-07.) Stored as a comma-separated list of
-// Stash tag ids; the Settings picker writes it.
-const HIDDEN_TAG_IDS_KEY = "binge.hiddenTagIds";
-
-function parseTagIds(raw: string): string[] {
-    return raw
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
-}
-
-// Imperative reader for the query layer (src/api/queries.ts), which
-// builds GraphQL outside React.
-export function readHiddenTagIds(): string[] {
-    return parseTagIds(readFreeString(HIDDEN_TAG_IDS_KEY, ""));
-}
-
-export function useHiddenTagIds(): string[] {
-    const raw = useStoredFreeString(HIDDEN_TAG_IDS_KEY, "");
-    return useMemo(() => parseTagIds(raw), [raw]);
-}
-
-export function setHiddenTagIds(ids: ReadonlyArray<string>): void {
-    writeString(HIDDEN_TAG_IDS_KEY, ids.join(","));
 }
 
 // ── Home-feed category filter ───────────────────────────────────────
