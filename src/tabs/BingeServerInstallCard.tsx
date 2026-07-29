@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getBingeServerHealth } from "../api/bingeServer";
+import { readBingeServerUrl } from "../home/pluginSettings";
 import {
     INSTALLED_URL,
     installTaskAvailable,
@@ -45,6 +46,27 @@ export function BingeServerInstallCard() {
             alive = false;
         };
     }, []);
+
+    // While the manual instructions are open the user is, right now, off
+    // running compose. Keep probing so the card flips to "running" by
+    // itself the moment it comes up, and records the URL — otherwise they
+    // finish the install and the page still claims nothing is there.
+    useEffect(() => {
+        if (!showManual) return;
+        if (state.kind === "running" || state.kind === "installing") return;
+        let alive = true;
+        const timer = setInterval(async () => {
+            const health = await getBingeServerHealth();
+            if (!alive || !(health && health.ok)) return;
+            clearInterval(timer);
+            await recordServerUrl(readBingeServerUrl());
+            if (alive) setState({ kind: "running", version: health.version });
+        }, 4000);
+        return () => {
+            alive = false;
+            clearInterval(timer);
+        };
+    }, [showManual, state.kind]);
 
     const install = async () => {
         setState({ kind: "installing", elapsed: 0 });

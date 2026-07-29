@@ -24,12 +24,29 @@ const REFRACT_INTEGRATION_KEY = "binge.refractIntegration";
 const SHOWCASE_BLUR_KEY = "binge.showcaseBlur";
 const BINGE_SERVER_URL_KEY = "binge.bingeServerUrl";
 const LOOKBACK_DAYS_KEY = "binge.lookbackDays";
-// Defaults to the loopback address — the typical case where binge-server
-// runs on the same machine as Stash. Users with a remote daemon (e.g. a
-// mini behind a Tailscale Funnel) set their own URL in Settings, which
-// persists in localStorage. Kept as a plain default so the plugin ships
-// without any deployment-specific URL baked in.
-const DEFAULT_BINGE_SERVER_URL = "http://localhost:7878";
+// binge-server runs alongside Stash — every install path here sets it up
+// that way — so the host serving this page is the host running the daemon.
+//
+// Derived rather than hardcoded, because "localhost" is only correct when
+// you browse FROM the machine Stash runs on. The common Docker setup is
+// Stash on a NAS or server with a browser on a laptop, where localhost
+// pointed at the wrong machine entirely and every user had to work out
+// and type the address themselves.
+//
+// Stays http even when Stash is https: the daemon isn't behind the same
+// reverse proxy, so an https guess would fail the TLS handshake. Those
+// users need a proxied endpoint and must set it in Settings — mixed
+// content blocks the fetch either way, so this is no worse than before,
+// and getBingeServerHealth surfaces that case explicitly.
+function defaultBingeServerUrl(): string {
+    try {
+        const host = window.location.hostname;
+        if (host) return `http://${host}:7878`;
+    } catch {
+        /* no window (tests / SSR) — fall through */
+    }
+    return "http://localhost:7878";
+}
 // Stream-type key matches src/config.ts (legacy reader still used in
 // imperative call sites like SceneSlide). Kept in sync via the same
 // localStorage entry.
@@ -486,10 +503,10 @@ export function toggleShowcaseBlur(): void {
 // binge-server URL. Read both as a React hook and via the imperative
 // reader below (used by src/api/bingeServer.ts inside async fetches).
 export function useBingeServerUrl(): string {
-    return useStoredFreeString(BINGE_SERVER_URL_KEY, DEFAULT_BINGE_SERVER_URL);
+    return useStoredFreeString(BINGE_SERVER_URL_KEY, defaultBingeServerUrl());
 }
 export function readBingeServerUrl(): string {
-    return readFreeString(BINGE_SERVER_URL_KEY, DEFAULT_BINGE_SERVER_URL);
+    return readFreeString(BINGE_SERVER_URL_KEY, defaultBingeServerUrl());
 }
 
 // One-time seed of the binge-server URL from Stash's server-side plugin

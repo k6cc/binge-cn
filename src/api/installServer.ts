@@ -84,6 +84,9 @@ export async function recordServerUrl(url: string): Promise<void> {
  *  be pasted into the same compose file Stash is already in. */
 export function composeSnippet(): string {
     return [
+        "  # Reachable from your LAN, unlike the loopback-only docker run:",
+        "  # your browser has to reach it, and it isn't on the Stash host.",
+        "  # It holds your Stash API key, so don't forward 7878 publicly.",
         "  binge-server:",
         "    image: ghcr.io/ordureconnoisseur/binge-server:latest",
         "    container_name: binge-server",
