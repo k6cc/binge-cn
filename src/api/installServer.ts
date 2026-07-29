@@ -78,6 +78,23 @@ export async function recordServerUrl(url: string): Promise<void> {
     }
 }
 
+/** For the case the button deliberately refuses: Stash itself running in a
+ *  container. Installing into that container would put the daemon on a port
+ *  nothing outside can reach, so the answer is a sibling service. Written to
+ *  be pasted into the same compose file Stash is already in. */
+export function composeSnippet(): string {
+    return [
+        "  binge-server:",
+        "    image: ghcr.io/ordureconnoisseur/binge-server:latest",
+        "    container_name: binge-server",
+        "    restart: unless-stopped",
+        "    ports:",
+        '      - "7878:7878"',
+        "    volumes:",
+        "      - ./binge-server-data:/data",
+    ].join("\n");
+}
+
 /** The paste-this-instead command, for hosts where the task can't run (no
  *  python, Stash in a container without Docker access, a remote daemon). */
 export function manualInstallCommand(): string {

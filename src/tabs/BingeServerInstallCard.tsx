@@ -3,6 +3,7 @@ import { getBingeServerHealth } from "../api/bingeServer";
 import {
     INSTALLED_URL,
     installTaskAvailable,
+    composeSnippet,
     manualInstallCommand,
     recordServerUrl,
     startServerInstall,
@@ -25,7 +26,7 @@ type InstallState =
 export function BingeServerInstallCard() {
     const [state, setState] = useState<InstallState>({ kind: "checking" });
     const [showManual, setShowManual] = useState(false);
-    const [copied, setCopied] = useState(false);
+    const [copied, setCopied] = useState<"compose" | "run" | null>(null);
 
     // Initial probe: is it already there, and could we install it if not?
     useEffect(() => {
@@ -79,13 +80,13 @@ export function BingeServerInstallCard() {
         setState({ kind: "running", version: health?.version });
     };
 
-    const copyManual = async () => {
+    const copy = async (text: string, which: "compose" | "run") => {
         try {
-            await navigator.clipboard.writeText(manualInstallCommand());
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
+            await navigator.clipboard.writeText(text);
+            setCopied(which);
+            setTimeout(() => setCopied(null), 2000);
         } catch {
-            /* clipboard blocked — the command is on screen to select */
+            /* clipboard blocked — the text is on screen to select */
         }
     };
 
@@ -154,26 +155,45 @@ export function BingeServerInstallCard() {
                         </div>
                         {!state.canInstall && (
                             <div className="binge-install-status">
-                                One-click install isn't available here. It
-                                needs python on the Stash host, and a plugin
-                                reload after updating binge. Use the command
-                                instead.
+                                One-click install isn't offered here — Stash
+                                has no install task registered. Reload plugins
+                                in Stash if you just updated binge; otherwise
+                                use one of the options below.
                             </div>
                         )}
                         {showManual && (
                             <div className="binge-install-manual">
                                 <div className="binge-install-status">
-                                    Run this on the machine hosting Stash,
-                                    then set the URL below if it isn't
-                                    localhost:
+                                    <strong>If Stash runs in Docker</strong> —
+                                    add this beside it in the same compose
+                                    file, then <code>docker compose up -d</code>.
+                                    Installing inside the Stash container
+                                    wouldn't be reachable from your browser.
+                                </div>
+                                <pre>{composeSnippet()}</pre>
+                                <button
+                                    type="button"
+                                    className="binge-install-btn is-secondary"
+                                    onClick={() => void copy(composeSnippet(), "compose")}
+                                >
+                                    {copied === "compose"
+                                        ? "Copied"
+                                        : "Copy compose service"}
+                                </button>
+                                <div className="binge-install-status">
+                                    <strong>Otherwise</strong> — run this on
+                                    the machine hosting Stash, then set the
+                                    URL below if it isn't localhost:
                                 </div>
                                 <pre>{manualInstallCommand()}</pre>
                                 <button
                                     type="button"
                                     className="binge-install-btn is-secondary"
-                                    onClick={copyManual}
+                                    onClick={() => void copy(manualInstallCommand(), "run")}
                                 >
-                                    {copied ? "Copied" : "Copy command"}
+                                    {copied === "run"
+                                        ? "Copied"
+                                        : "Copy docker run"}
                                 </button>
                             </div>
                         )}

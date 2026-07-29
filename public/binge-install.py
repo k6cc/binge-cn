@@ -103,6 +103,27 @@ def data_dir():
     return path
 
 
+def in_container():
+    """True when Stash itself is containerised.
+
+    This matters more than it looks. A Stash container has python (so the
+    task runs) but no docker CLI and no docker socket, so the Docker path
+    below fails and we would fall through to installing the binary INSIDE
+    the Stash container. That "succeeds" — the health check here passes,
+    because it runs in the same container — while being useless: the port
+    isn't published, so the user's browser can never reach it, and the
+    process dies with the next container restart. Better to stop and say
+    what actually works."""
+    if os.path.exists("/.dockerenv"):
+        return True
+    try:
+        with open("/proc/1/cgroup", "r") as f:
+            blob = f.read()
+        return any(k in blob for k in ("docker", "containerd", "kubepods"))
+    except Exception:  # noqa: BLE001 - not Linux, or no procfs
+        return False
+
+
 # ── docker ───────────────────────────────────────────────────────────
 
 
@@ -291,6 +312,16 @@ def main():
     method = None
     if docker_available():
         method = "docker" if install_docker() else None
+    elif in_container():
+        # Refuse rather than install something unreachable. See in_container.
+        log("Stash is running inside a container, and that container has no "
+            "access to Docker.")
+        log("")
+        log("Installing binge-server in here would put it on a port nothing "
+            "outside the container can reach, and it would vanish on the "
+            "next restart. Add it as a service alongside Stash instead — "
+            "binge's Settings page has the compose snippet to paste.")
+        return 1
     else:
         log("No Docker on this machine.")
     if method is None:
