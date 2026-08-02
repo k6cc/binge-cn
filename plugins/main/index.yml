@@ -6,3 +6,11 @@
   date: 2026-08-03 00:08:51
   path: https://github.com/k6cc/binge-cn/releases/download/v0.4.17/binge-v0.4.17.zip
   sha256: 04235c0b001c3e593e893c9a5c3593ecca7e0e72b4d71f8617b6aa62c7f936a7
+- id: nfoSceneParser
+  name: nfoSceneParser
+  metadata:
+    description: Fills scene data from NFO or filename pattern (jav fork - do NOT install alongside upstream nfoSceneParser)
+  version: 1.5.0
+  date: 2026-08-03 00:00:00
+  path: https://github.com/k6cc/nfoSceneParser-jav/releases/download/v1.5.0/nfoSceneParser-v1.5.0.zip
+  sha256: e4c80fabbf90986586cbe9e3cc65d2477f9e14abf3182604137f7d8e77569068
