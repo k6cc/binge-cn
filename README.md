@@ -1,4 +1,4 @@
-# Binge（汉化版）
+﻿# Binge（汉化版）
 
 > 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.4.17**。
 
@@ -86,15 +86,17 @@ v0.4.17 将原硬编码中文迁移为基于 `react-i18next` 的动态多语言�
 
 **推荐（GitHub Pages，需启用 Pages）**：
 ```
-https://k6cc.github.io/binge-cn/plugins/main/index.yml
+https://k6cc.github.io/stash-plugins/plugins/main/index.yml
 ```
 
 **备用（raw URL，无需启用 Pages，立即可用）**：
 ```
-https://raw.githubusercontent.com/k6cc/binge-cn/main/plugins/main/index.yml
+https://raw.githubusercontent.com/k6cc/stash-plugins/main/plugins/main/index.yml
 ```
 
-> **启用 Pages 步骤**：仓库 → Settings → Pages → Source: `Deploy from a branch` → Branch: `main` / `(root)` → Save。等待 1-2 分钟后 `k6cc.github.io/binge-cn/` 即可访问。
+> **启用 Pages 步骤**：stash-plugins 仓库 → Settings → Pages → Source: `Deploy from a branch` → Branch: `main` / `(root)` → Save。等待 1-2 分钟后 `k6cc.github.io/stash-plugins/` 即可访问。
+
+> 此 URL 是统一插件源，同时包含 Binge、nfoSceneParser、sceneTranslate 等多个插件，可一并安装。
 
 然后从列表中安装 **Binge**。Stash 主导航栏会出现一个无穷符号按钮——点击即可。
 
