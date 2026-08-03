@@ -298,15 +298,13 @@ body,
     opacity: 0.25;
 }
 
-/* 全屏下禁用 overlay 中会触发导航的元素（头像、名字、收藏按钮）。
-   这些元素的 onClick 调用 openProfile 打开演员档案，但档案组件渲染
-   在 React 树其他位置（非全屏元素子节点），被全屏元素的堆叠上下文
-   遮挡，用户看不到 → 误以为"点击没反应"，退出全屏后才发现档案已打开。
-   标题按钮（.binge-caption）保留可点击：SceneDetailsSheet 在卡片内
-   渲染，是全屏元素的子节点，能正常显示。 */
-.binge-slide.is-fullscreen .binge-performer-bubble,
-.binge-slide.is-fullscreen .binge-performer-names,
-.binge-slide.is-fullscreen .binge-follow-btn {
+/* 全屏下禁用 overlay 中所有交互元素。
+   overlay 内的按钮（头像、名字、收藏、标题）onClick 会打开
+   PerformerSheet / SceneDetailsSheet / PerformerProfile，但这些
+   组件都用 createPortal 渲染到 document.body，被全屏元素的堆叠
+   上下文遮挡 → 用户看不到目标页面，退出全屏后才发现已打开。
+   禁用整个 overlay 的 pointer-events，避免误触导航。 */
+.binge-slide.is-fullscreen .binge-overlay {
     pointer-events: none;
 }
 

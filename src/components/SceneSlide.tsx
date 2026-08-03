@@ -698,18 +698,25 @@ export function SceneSlide({
                 setFullscreenUIVisible(true);
                 // 退出全屏后 scroll 容器的 scrollTop 可能偏移，导致
                 // 顶部黑色空白、底部画面截断（滑动切换后 snap 重新
-                // 对齐才恢复）。修复：
-                //   1. 同步触发 resize — 通知全局监听器 + virtualizer
-                //   2. rAF 中 scrollIntoView — 等布局恢复后强制
-                //      scroll-snap 对齐到当前卡片
-                // rAF 二次 resize 无效（scrollElement 尺寸未变时
-                // ResizeObserver 不触发），用 scrollIntoView 直接修正
-                // scroll position 才是根因修复。
+                // 对齐才恢复）。
+                // 修复：同步 resize 通知全局监听器 + rAF 中直接设置
+                // scrollTop 到当前卡片的 wrapper translateY 值。
+                // 不用 scrollIntoView — 在 scroll-snap-type: y mandatory
+                // 容器中 scrollIntoView 可能被 snap 行为覆盖。
+                // 直接设置 scrollTop 到 wrapper 的 translateY（snap 点），
+                // snap 不会调整（已在 snap 点上）。
                 window.dispatchEvent(new Event("resize"));
                 requestAnimationFrame(() => {
                     const el = containerRef.current;
-                    if (el) {
-                        el.scrollIntoView({ block: "start" });
+                    if (!el) return;
+                    const wrapper = el.parentElement; // .binge-slide-wrapper
+                    const reel = el.closest(".binge-reel") as HTMLElement | null;
+                    if (!wrapper || !reel) return;
+                    // 从 wrapper 的 transform 提取 translateY（virtualizer 设置）
+                    const transform = (wrapper as HTMLElement).style.transform;
+                    const match = transform.match(/translateY\(([\d.]+)px\)/);
+                    if (match) {
+                        reel.scrollTop = parseFloat(match[1]);
                     }
                 });
             }
