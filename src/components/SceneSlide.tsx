@@ -126,6 +126,8 @@ export function SceneSlide({
     const [advancedRatingOpen, setAdvancedRatingOpen] = useState(false);
     const [moreOpen, setMoreOpen] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [fullscreenUIVisible, setFullscreenUIVisible] = useState(true);
+    const fullscreenUITimerRef = useRef<number | null>(null);
 
     // ── Touch gesture state: horizontal swipe seek + long-press 2× ──
     const touchStartRef = useRef<{ x: number; y: number; time: number; videoTime: number } | null>(null);
@@ -647,6 +649,16 @@ export function SceneSlide({
     };
 
     // ── Fullscreen toggle ──────────────────────────────────────────
+    const showFullscreenUI = useCallback(() => {
+        setFullscreenUIVisible(true);
+        if (fullscreenUITimerRef.current !== null) {
+            window.clearTimeout(fullscreenUITimerRef.current);
+        }
+        fullscreenUITimerRef.current = window.setTimeout(() => {
+            setFullscreenUIVisible(false);
+        }, 3000);
+    }, []);
+
     const handleToggleFullscreen = useCallback(() => {
         const el = containerRef.current;
         if (!el) return;
@@ -658,9 +670,44 @@ export function SceneSlide({
     }, []);
 
     useEffect(() => {
-        const onChange = () => setIsFullscreen(!!document.fullscreenElement);
+        const onChange = () => {
+            const fs = !!document.fullscreenElement;
+            setIsFullscreen(fs);
+            if (fs) {
+                showFullscreenUI();
+            } else {
+                // Exit fullscreen: clear timer, reset UI, fix layout
+                if (fullscreenUITimerRef.current !== null) {
+                    window.clearTimeout(fullscreenUITimerRef.current);
+                    fullscreenUITimerRef.current = null;
+                }
+                setFullscreenUIVisible(true);
+                // Force scroll-snap recalculation after layout restore
+                window.dispatchEvent(new Event("resize"));
+            }
+        };
         document.addEventListener("fullscreenchange", onChange);
         return () => document.removeEventListener("fullscreenchange", onChange);
+    }, [showFullscreenUI]);
+
+    // Mouse move in fullscreen → show UI
+    useEffect(() => {
+        if (!isFullscreen) return;
+        const onMove = () => showFullscreenUI();
+        const el = containerRef.current;
+        if (el) el.addEventListener("mousemove", onMove);
+        return () => {
+            if (el) el.removeEventListener("mousemove", onMove);
+        };
+    }, [isFullscreen, showFullscreenUI]);
+
+    // Cleanup timer on unmount
+    useEffect(() => {
+        return () => {
+            if (fullscreenUITimerRef.current !== null) {
+                window.clearTimeout(fullscreenUITimerRef.current);
+            }
+        };
     }, []);
 
     // ── Touch: swipe seek + long-press 2× ──────────────────────────
@@ -778,6 +825,12 @@ export function SceneSlide({
     };
 
     const handleTap = () => {
+        // In fullscreen, first tap shows UI; if UI already visible, toggle play/pause
+        if (isFullscreen && !fullscreenUIVisible) {
+            showFullscreenUI();
+            return;
+        }
+        if (isFullscreen) showFullscreenUI();
         if (tapTimerRef.current !== null) {
             // Second tap inside the window → double-tap like.
             window.clearTimeout(tapTimerRef.current);
@@ -810,7 +863,11 @@ export function SceneSlide({
     return (
         <article
             ref={containerRef}
-            className="binge-slide"
+            className={
+                "binge-slide" +
+                (isFullscreen ? " is-fullscreen" : "") +
+                (isFullscreen && !fullscreenUIVisible ? " fs-ui-hidden" : "")
+            }
             data-scene-id={scene.id}
             data-active={isActive ? "true" : "false"}
         >
@@ -954,6 +1011,7 @@ export function SceneSlide({
                 onOpenMore={() => setMoreOpen(true)}
                 isFullscreen={isFullscreen}
                 onToggleFullscreen={handleToggleFullscreen}
+                fullscreenUIVisible={fullscreenUIVisible}
             />
             <SceneProgress
                 videoRef={videoRef}

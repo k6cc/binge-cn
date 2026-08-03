@@ -244,6 +244,29 @@ body,
     max-height: 100%;
 }
 
+/* ── Fullscreen UI auto-hide ──────────────────────────────────── */
+/* When in fullscreen and UI is hidden, fade out all overlay elements */
+.binge-slide.is-fullscreen .binge-overlay,
+.binge-slide.is-fullscreen .binge-caption,
+.binge-actions.is-fullscreen {
+    transition: opacity 0.3s ease;
+}
+.binge-slide.is-fullscreen.fs-ui-hidden .binge-overlay,
+.binge-slide.is-fullscreen.fs-ui-hidden .binge-caption,
+.binge-actions.is-fullscreen.fs-ui-hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* In fullscreen, disable non-essential buttons (keep Like/Rate/Fullscreen) */
+.binge-actions.is-fullscreen .binge-multiview-button,
+.binge-actions.is-fullscreen .binge-scribe-button,
+.binge-actions.is-fullscreen .binge-bookmark-button,
+.binge-actions.is-fullscreen .binge-more-button {
+    pointer-events: none;
+    opacity: 0.25;
+}
+
 .binge-video {
     width: 100%;
     height: 100%;

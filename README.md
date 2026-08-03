@@ -1,6 +1,6 @@
 ﻿# Binge（汉化版）
 
-> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.5.0**。
+> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.5.1**。
 
 为 [Stash](https://github.com/stashapp/stash) 提供的 Instagram 风格社交与发现层：竖屏 Reel、Stories、演员档案、StashDB 驱动的发现功能——全部基于 Stash 既有的 GraphQL API。Web 插件形态。
 
@@ -39,6 +39,17 @@ v0.4.17 将原硬编码中文迁移为基于 `react-i18next` 的动态多语言�
 - 详见 [汉化及修复.md](./汉化及修复.md)
 
 ### 功能修复
+
+#### v0.5.0–v0.5.1
+
+- 全屏按钮（操作栈，容器全屏，overlay 可用）
+- 全屏 UI 自动隐藏（3 秒淡出，点击/移动鼠标恢复，进度条始终可见）
+- 全屏模式仅保留 喜欢/评分/全屏 可点击，其他按钮禁用
+- 水平滑动快进快退（每像素 0.6 秒，居中指示器）
+- 长按 2× 倍速播放（500ms 触发，顶部徽章）
+- 修复影片详情标签只显示"#"（`toHashtag` 正则双反斜杠 bug）
+- 修复退出全屏后顶部空白底部截断（`resize` 事件触发 scroll-snap 重算）
+- 设置页最大宽度限制 1100px
 
 #### v0.4.17–v0.4.19
 

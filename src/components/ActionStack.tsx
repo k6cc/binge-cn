@@ -46,6 +46,7 @@ interface ActionStackProps {
     // ── Fullscreen ─────────────────────────────────────────────────
     isFullscreen: boolean;
     onToggleFullscreen: () => void;
+    fullscreenUIVisible: boolean;
 }
 import { useTranslation } from "react-i18next";
 
@@ -81,6 +82,7 @@ export function ActionStack({
     onOpenMore,
     isFullscreen,
     onToggleFullscreen,
+    fullscreenUIVisible,
 }: ActionStackProps) {
     const hasMultiview = useHasMultiview();
     const hasScribe = useHasScribe();
@@ -90,7 +92,14 @@ export function ActionStack({
     const { t } = useTranslation();
 
     return (
-        <aside className="binge-actions" aria-label={t("action.scene_actions")}>
+        <aside
+            className={
+                "binge-actions" +
+                (isFullscreen ? " is-fullscreen" : "") +
+                (isFullscreen && !fullscreenUIVisible ? " fs-ui-hidden" : "")
+            }
+            aria-label={t("action.scene_actions")}
+        >
             <HeartButton
                 oCount={oCount}
                 oError={oError}
