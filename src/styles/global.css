@@ -2426,6 +2426,34 @@ body,
     outline: 2px solid rgba(255, 255, 255, 0.25);
     outline-offset: 1px;
 }
+
+/* 极窄屏幕（手机）：控件下移到文字下方，输入框/下拉框占满宽度 */
+@media (max-width: 480px) {
+    .binge-settings-row {
+        flex-direction: column;
+        gap: 0.6rem;
+    }
+    .binge-settings-row-control {
+        align-self: stretch;
+        width: 100%;
+    }
+    .binge-settings-select,
+    .binge-settings-input {
+        min-width: 0;
+        width: 100%;
+    }
+    .binge-settings-url-row {
+        display: flex;
+        width: 100%;
+    }
+    .binge-settings-url-row .binge-settings-input {
+        flex: 1;
+    }
+    /* 性别按钮行：缩小按钮以避免溢出 */
+    .binge-settings-gender-row {
+        justify-content: flex-start;
+    }
+}
 .binge-settings-status-dot {
     width: 0.65rem;
     height: 0.65rem;
