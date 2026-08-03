@@ -688,7 +688,7 @@ export function SceneSlide({
                 showFullscreenUI();
             } else if (!fsEl) {
                 // 完全退出全屏（无任何元素全屏）：清理 UI 定时器，
-                // 触发 resize 让 scroll-snap 重算布局。
+                // 修复 scroll-snap 对齐。
                 // 仅在真正退出全屏时触发，避免其他卡片进入全屏时
                 // 误触 resize 导致 Reel 重算、视频重载。
                 if (fullscreenUITimerRef.current !== null) {
@@ -696,14 +696,21 @@ export function SceneSlide({
                     fullscreenUITimerRef.current = null;
                 }
                 setFullscreenUIVisible(true);
-                // 延迟到下一帧触发 resize：fullscreenchange 事件触发时
-                // 浏览器可能还没完成全屏退出后的布局恢复，window.innerHeight
-                // 仍是全屏尺寸。同步 dispatchEvent 会让 Reel 的虚拟列表
-                // （estimateSize: () => window.innerHeight）测量到错误尺寸，
-                // 导致 scroll-snap 对齐失败 → 顶部黑色空白、底部画面截断。
-                // requestAnimationFrame 确保浏览器完成布局恢复后再测量。
+                // 退出全屏后 scroll 容器的 scrollTop 可能偏移，导致
+                // 顶部黑色空白、底部画面截断（滑动切换后 snap 重新
+                // 对齐才恢复）。修复：
+                //   1. 同步触发 resize — 通知全局监听器 + virtualizer
+                //   2. rAF 中 scrollIntoView — 等布局恢复后强制
+                //      scroll-snap 对齐到当前卡片
+                // rAF 二次 resize 无效（scrollElement 尺寸未变时
+                // ResizeObserver 不触发），用 scrollIntoView 直接修正
+                // scroll position 才是根因修复。
+                window.dispatchEvent(new Event("resize"));
                 requestAnimationFrame(() => {
-                    window.dispatchEvent(new Event("resize"));
+                    const el = containerRef.current;
+                    if (el) {
+                        el.scrollIntoView({ block: "start" });
+                    }
                 });
             }
         };
