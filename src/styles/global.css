@@ -7024,6 +7024,14 @@ body,
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
     gap: 6px;
 }
+/* Narrow screens: force at least 2 columns so scenes don't stretch
+   to full width on phones. minmax(160px) would allow 1 column below
+   ~330px, which looks broken. */
+@media (max-width: 380px) {
+    .binge-profile-scene-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
 @media (min-width: 720px) {
     .binge-profile-scene-grid {
         grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
