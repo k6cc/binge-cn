@@ -1941,6 +1941,8 @@ body,
 }
 .binge-settings-list {
     padding: 0.5rem 0;
+    max-width: 1100px;
+    margin: 0 auto;
 }
 .binge-settings-row {
     display: flex;
