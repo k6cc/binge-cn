@@ -125,6 +125,15 @@ export function SceneSlide({
     const [detailsOpen, setDetailsOpen] = useState(false);
     const [advancedRatingOpen, setAdvancedRatingOpen] = useState(false);
     const [moreOpen, setMoreOpen] = useState(false);
+    const [isFullscreen, setIsFullscreen] = useState(false);
+
+    // ── Touch gesture state: horizontal swipe seek + long-press 2× ──
+    const touchStartRef = useRef<{ x: number; y: number; time: number; videoTime: number } | null>(null);
+    const isSwipeRef = useRef(false);
+    const longPressTimerRef = useRef<number | null>(null);
+    const isLongPressRef = useRef(false);
+    const [seekIndicator, setSeekIndicator] = useState<{ delta: number; current: number } | null>(null);
+    const [showSpeedBadge, setShowSpeedBadge] = useState(false);
 
     // Like state. Optimistic value lives here AND in the parent Reel
     // (oCountOverride) so a remount after scroll-away inherits the
@@ -559,6 +568,9 @@ export function SceneSlide({
             if (tapTimerRef.current !== null) {
                 window.clearTimeout(tapTimerRef.current);
             }
+            if (longPressTimerRef.current !== null) {
+                window.clearTimeout(longPressTimerRef.current);
+            }
         };
     }, []);
 
@@ -634,6 +646,137 @@ export function SceneSlide({
         }
     };
 
+    // ── Fullscreen toggle ──────────────────────────────────────────
+    const handleToggleFullscreen = useCallback(() => {
+        const el = containerRef.current;
+        if (!el) return;
+        if (!document.fullscreenElement) {
+            void el.requestFullscreen?.().catch(() => {});
+        } else {
+            void document.exitFullscreen?.().catch(() => {});
+        }
+    }, []);
+
+    useEffect(() => {
+        const onChange = () => setIsFullscreen(!!document.fullscreenElement);
+        document.addEventListener("fullscreenchange", onChange);
+        return () => document.removeEventListener("fullscreenchange", onChange);
+    }, []);
+
+    // ── Touch: swipe seek + long-press 2× ──────────────────────────
+    // touch-action: pan-y on the tap target lets the browser handle
+    // vertical scroll (Reel slide navigation) while delivering
+    // horizontal swipes to us.
+    const TOUCH_SWIPE_THRESHOLD = 12; // px before deciding horizontal vs vertical
+    const SEEK_PX_TO_SEC = 0.6; // each pixel = 0.6 seconds of seek
+    const LONG_PRESS_MS = 500;
+
+    const handleTouchStart: React.TouchEventHandler = (e) => {
+        if (e.touches.length !== 1) return;
+        const video = videoRef.current;
+        const touch = e.touches[0];
+        touchStartRef.current = {
+            x: touch.clientX,
+            y: touch.clientY,
+            time: Date.now(),
+            videoTime: video?.currentTime ?? 0,
+        };
+        isSwipeRef.current = false;
+        isLongPressRef.current = false;
+        // Start long-press timer
+        if (longPressTimerRef.current !== null) {
+            window.clearTimeout(longPressTimerRef.current);
+        }
+        longPressTimerRef.current = window.setTimeout(() => {
+            if (!isSwipeRef.current && touchStartRef.current) {
+                isLongPressRef.current = true;
+                if (video) video.playbackRate = 2;
+                setShowSpeedBadge(true);
+            }
+        }, LONG_PRESS_MS);
+    };
+
+    const handleTouchMove: React.TouchEventHandler = (e) => {
+        if (!touchStartRef.current || e.touches.length !== 1) return;
+        const touch = e.touches[0];
+        const dx = touch.clientX - touchStartRef.current.x;
+        const dy = touch.clientY - touchStartRef.current.y;
+        if (!isSwipeRef.current) {
+            if (Math.abs(dx) < TOUCH_SWIPE_THRESHOLD && Math.abs(dy) < TOUCH_SWIPE_THRESHOLD) {
+                return; // not enough movement yet
+            }
+            // Decide direction once
+            if (Math.abs(dx) > Math.abs(dy)) {
+                isSwipeRef.current = true;
+                // Cancel long-press
+                if (longPressTimerRef.current !== null) {
+                    window.clearTimeout(longPressTimerRef.current);
+                    longPressTimerRef.current = null;
+                }
+            } else {
+                // Vertical — let browser handle scroll, cancel long-press
+                if (longPressTimerRef.current !== null) {
+                    window.clearTimeout(longPressTimerRef.current);
+                    longPressTimerRef.current = null;
+                }
+                touchStartRef.current = null;
+                return;
+            }
+        }
+        // Horizontal swipe: seek
+        e.preventDefault();
+        const video = videoRef.current;
+        if (!video) return;
+        const deltaSec = dx * SEEK_PX_TO_SEC;
+        const duration = video.duration || 0;
+        let target = touchStartRef.current.videoTime + deltaSec;
+        if (target < 0) target = 0;
+        if (duration > 0 && target > duration) target = duration;
+        setSeekIndicator({ delta: deltaSec, current: target });
+    };
+
+    const handleTouchEnd: React.TouchEventHandler = (e) => {
+        // Cancel long-press timer
+        if (longPressTimerRef.current !== null) {
+            window.clearTimeout(longPressTimerRef.current);
+            longPressTimerRef.current = null;
+        }
+        // Restore 2× speed
+        if (isLongPressRef.current) {
+            const video = videoRef.current;
+            if (video) video.playbackRate = 1;
+            setShowSpeedBadge(false);
+            isLongPressRef.current = false;
+            // Prevent click from firing (don't toggle play/pause)
+            e.preventDefault();
+            e.stopPropagation();
+            touchStartRef.current = null;
+            return;
+        }
+        // If horizontal swipe: perform the seek and prevent click
+        if (isSwipeRef.current && touchStartRef.current) {
+            const video = videoRef.current;
+            if (video) {
+                const dx = (e.changedTouches[0]?.clientX ?? touchStartRef.current.x) - touchStartRef.current.x;
+                const deltaSec = dx * SEEK_PX_TO_SEC;
+                const duration = video.duration || 0;
+                let target = touchStartRef.current.videoTime + deltaSec;
+                if (target < 0) target = 0;
+                if (duration > 0 && target > duration) target = duration;
+                seekToTime(target);
+            }
+            setSeekIndicator(null);
+            isSwipeRef.current = false;
+            // Prevent click from firing
+            e.preventDefault();
+            e.stopPropagation();
+            touchStartRef.current = null;
+            return;
+        }
+        // Simple tap — let click event fire normally for handleTap
+        touchStartRef.current = null;
+    };
+
     const handleTap = () => {
         if (tapTimerRef.current !== null) {
             // Second tap inside the window → double-tap like.
@@ -696,9 +839,27 @@ export function SceneSlide({
                 type="button"
                 className="binge-tap-target"
                 onClick={handleTap}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
                 aria-label={isPlaying ? t("action.pause") : t("action.play")}
                 tabIndex={-1}
             />
+            {/* Seek indicator overlay (horizontal swipe) */}
+            {seekIndicator && (
+                <div className="binge-seek-indicator" aria-hidden="true">
+                    <span className="binge-seek-indicator-dir">
+                        {seekIndicator.delta >= 0 ? "▶▶" : "◀◀"}
+                    </span>
+                    <span className="binge-seek-indicator-time">
+                        {Math.round(seekIndicator.current)}s
+                    </span>
+                </div>
+            )}
+            {/* 2× speed badge (long press) */}
+            {showSpeedBadge && (
+                <div className="binge-speed-badge" aria-hidden="true">2×</div>
+            )}
             {bursts.length > 0 && (
                 <div className="binge-heart-burst-layer" aria-hidden="true">
                     {bursts.map((b) => (
@@ -791,6 +952,8 @@ export function SceneSlide({
                 onOpenMultiviewPlayer={handleOpenMultiview}
                 onOpenScribe={handleOpenScribe}
                 onOpenMore={() => setMoreOpen(true)}
+                isFullscreen={isFullscreen}
+                onToggleFullscreen={handleToggleFullscreen}
             />
             <SceneProgress
                 videoRef={videoRef}

@@ -233,6 +233,16 @@ body,
     background: #000;
     overflow: hidden;
 }
+/* Fullscreen mode: container fills the screen, video stays contained */
+.binge-slide:fullscreen {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.binge-slide:fullscreen .binge-video {
+    max-width: 100%;
+    max-height: 100%;
+}
 
 .binge-video {
     width: 100%;
@@ -256,10 +266,58 @@ body,
     cursor: pointer;
     /* Suppress the iOS tap highlight + double-tap zoom */
     -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
+    /* pan-y: browser handles vertical scroll (Reel slide nav),
+       horizontal swipes delivered to our touch handlers for seek. */
+    touch-action: pan-y;
 }
 .binge-tap-target:focus {
     outline: none;
+}
+
+/* Seek indicator (horizontal swipe) */
+.binge-seek-indicator {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.8rem 1.2rem;
+    background: rgba(0, 0, 0, 0.75);
+    border-radius: 12px;
+    pointer-events: none;
+    backdrop-filter: blur(4px);
+}
+.binge-seek-indicator-dir {
+    font-size: 1.2rem;
+    color: rgba(255, 255, 255, 0.9);
+}
+.binge-seek-indicator-time {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #fff;
+    font-variant-numeric: tabular-nums;
+}
+
+/* 2× speed badge (long press) */
+.binge-speed-badge {
+    position: absolute;
+    top: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
+    padding: 0.3rem 0.8rem;
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #fff;
+    pointer-events: none;
+    backdrop-filter: blur(4px);
 }
 
 /* Centered paused-overlay: mute toggle on top, large play glyph below.

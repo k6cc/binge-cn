@@ -43,6 +43,9 @@ interface ActionStackProps {
     // contents (currently just "Open in Stash") so callers can extend
     // it without touching ActionStack.
     onOpenMore: () => void;
+    // ── Fullscreen ─────────────────────────────────────────────────
+    isFullscreen: boolean;
+    onToggleFullscreen: () => void;
 }
 import { useTranslation } from "react-i18next";
 
@@ -76,6 +79,8 @@ export function ActionStack({
     onOpenMultiviewPlayer,
     onOpenScribe,
     onOpenMore,
+    isFullscreen,
+    onToggleFullscreen,
 }: ActionStackProps) {
     const hasMultiview = useHasMultiview();
     const hasScribe = useHasScribe();
@@ -125,6 +130,22 @@ export function ActionStack({
                 inCollections={inCollections}
                 onToggleCollection={onToggleCollection}
             />
+
+            <button
+                type="button"
+                className={
+                    "binge-action-button binge-fullscreen-button" +
+                    (isFullscreen ? " is-active" : "")
+                }
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleFullscreen();
+                }}
+                aria-label={isFullscreen ? t("action.exit_fullscreen") : t("action.enter_fullscreen")}
+                title={isFullscreen ? t("action.exit_fullscreen") : t("action.enter_fullscreen")}
+            >
+                <FullscreenIcon exit={isFullscreen} />
+            </button>
 
             <button
                 type="button"
@@ -629,6 +650,25 @@ export function BookmarkIcon({ filled }: { filled: boolean }) {
             aria-hidden="true"
         >
             <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+        </svg>
+    );
+}
+
+export function FullscreenIcon({ exit }: { exit: boolean }) {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            width="2.6em"
+            height="2.6em"
+            {...ICON_LINE_PROPS}
+            aria-hidden="true"
+        >
+            {exit ? (
+                <path d="M9 9H4M9 9V4M9 9 5 5M15 9h5M15 9V4m0 5 4-4M9 15H4m5 0v5m0-5-4 4M15 15h5m-5 0v5m0-5 4 4" />
+            ) : (
+                <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
+            )}
         </svg>
     );
 }

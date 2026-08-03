@@ -15,8 +15,8 @@ export function basenameNoExt(path: string | undefined): string {
 // run, leave casing alone so "Big Naturals" → "BigNaturals".
 export function toHashtag(name: string): string {
     return name
-        .replace(/[^\\p{L}\\p{N}\\s]/gu, "")
-        .split(/\\s+/)
+        .replace(/[^\p{L}\p{N}\s]/gu, "")
+        .split(/\s+/)
         .filter(Boolean)
         .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
         .join("");
