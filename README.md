@@ -1,6 +1,6 @@
 ﻿# Binge（汉化版）
 
-> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.4.18**。
+> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.4.19**。
 
 为 [Stash](https://github.com/stashapp/stash) 提供的 Instagram 风格社交与发现层：竖屏 Reel、Stories、演员档案、StashDB 驱动的发现功能——全部基于 Stash 既有的 GraphQL API。Web 插件形态。
 
@@ -40,7 +40,7 @@ v0.4.17 将原硬编码中文迁移为基于 `react-i18next` 的动态多语言�
 
 ### 功能修复
 
-#### v0.4.17
+#### v0.4.17–v0.4.19
 
 - i18n 多语言架构（react-i18next，中英双语，设置页切换）
 - 补全 242 个翻译键 + 硬编码中文迁移为 `t()` 调用
@@ -48,6 +48,10 @@ v0.4.17 将原硬编码中文迁移为基于 `react-i18next` 的动态多语言�
 - 首页图库卡片精简（DOM 简化，−28 行）
 - Stash 标签语言联动（切换语言后手动同步标签名）
 - 修复演员"又名"不显示别名（`{{aliases}}` 占位符丢失）
+- 修复 binge.yml 版本号未同步（Stash 显示旧版本号）
+- 修复极窄屏幕下演员详情页影片每行仅显示 1 部（≤380px 强制最少 2 列）
+- 修复设置页极窄屏幕排版（≤480px 控件下移、输入框占满宽度）
+- README 重排序 + 功能修复大幅精简
 
 #### v0.4.0–v0.4.16 历史修复
 
