@@ -258,6 +258,37 @@ body,
     pointer-events: none;
 }
 
+/* 方案 A：全屏 UI 淡出时进度条收细变淡，但常驻可见且可点击。
+   参考 YouTube / B 站 / Netflix 的"残留细条"设计：
+   - 热区缩小（仍保留足够点击区域）
+   - 可见条贴底边、去掉左右内边距，让细条横贯整个底部
+   - 半透明，弱化视觉重量，保持沉浸感
+   - 点击/悬停细条时通过 SceneProgress 的 onInteract 唤出完整 UI */
+.binge-progress {
+    transition: opacity 0.3s ease, height 0.3s ease, padding 0.3s ease;
+}
+.binge-progress.is-fs-collapsed {
+    height: 10px;          /* 热区缩小但保证可点中 */
+    padding: 0 0;          /* 去掉左右内边距，细条横贯底部 */
+    opacity: 0.55;
+}
+.binge-progress.is-fs-collapsed::before {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+    background: rgba(255, 255, 255, 0.18);
+    transition: height 0.18s ease, bottom 0.18s ease, left 0.3s ease, right 0.3s ease, background 0.3s ease;
+}
+.binge-progress.is-fs-collapsed .binge-progress-fill {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+    opacity: 0.7;
+    transition: height 0.18s ease, bottom 0.18s ease, left 0.3s ease, right 0.3s ease, opacity 0.3s ease;
+}
+
 /* In fullscreen, disable non-essential buttons (keep Like/Rate/Fullscreen) */
 .binge-actions.is-fullscreen .binge-multiview-button,
 .binge-actions.is-fullscreen .binge-scribe-button,

@@ -17,6 +17,13 @@ interface SceneProgressProps {
     // 需要按 (currentTime + seekOffset) / duration 计算真实进度，否则
     // seek 后进度条会瞬间跳回 0。原生流/web 兼容容器偏移量为 0。
     seekOffset?: number;
+    // 全屏状态。仅用于影响交互逻辑：全屏下点击/悬停进度条时
+    // 唤出已淡出的 UI（YouTube/B 站式残留细条常驻可点）。
+    isFullscreen?: boolean;
+    // 全屏 UI 是否已淡出。进度条本体始终可见，UI 淡出时仅剩细条。
+    fullscreenUIVisible?: boolean;
+    // 用户与进度条交互时的回调（用于唤出全屏 UI）。
+    onInteract?: () => void;
 }
 
 // Thin Instagram-style progress bar. Pinned to the bottom of the slide,
@@ -28,6 +35,9 @@ export function SceneProgress({
     duration,
     onSeekToTime,
     seekOffset = 0,
+    isFullscreen = false,
+    fullscreenUIVisible = true,
+    onInteract,
 }: SceneProgressProps) {
     const { t } = useTranslation();
     const [progress, setProgress] = useState(0);
@@ -37,6 +47,9 @@ export function SceneProgress({
     // 在 React 重新绑定前抢先触发 timeupdate，把进度条瞬间重置为 0。
     const seekOffsetRef = useRef(seekOffset);
     seekOffsetRef.current = seekOffset;
+    // 全屏 + UI 已淡出：进度条变为"残留细条"模式（CSS 控制）。
+    // 此状态下用户点击/悬停应先唤出完整 UI，再继续 seek 行为。
+    const fsCollapsed = isFullscreen && !fullscreenUIVisible;
 
     useEffect(() => {
         const video = videoRef.current;
@@ -64,6 +77,10 @@ export function SceneProgress({
     }, [videoRef, duration]);
 
     const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+        // 全屏 UI 已淡出时，先唤出完整 UI（YouTube/B 站式残留细条
+        // 可点：点击细条 → 显示完整进度条 + overlay），仍同步执行
+        // seek，避免第二次点击才能跳转的笨拙体验。
+        if (fsCollapsed) onInteract?.();
         const video = videoRef.current;
         if (!video) return;
         const d =
@@ -89,9 +106,16 @@ export function SceneProgress({
     return (
         <div
             className={
-                "binge-progress" + (hovering ? " is-hovering" : "")
+                "binge-progress" +
+                (hovering ? " is-hovering" : "") +
+                (fsCollapsed ? " is-fs-collapsed" : "")
             }
-            onMouseEnter={() => setHovering(true)}
+            onMouseEnter={() => {
+                setHovering(true);
+                // 鼠标移入细条时唤出完整 UI（桌面端）。移动端无 hover，
+                // 由 onClick 路径唤出。
+                if (fsCollapsed) onInteract?.();
+            }}
             onMouseLeave={() => setHovering(false)}
             onClick={handleSeek}
             role="slider"

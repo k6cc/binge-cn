@@ -1018,6 +1018,9 @@ export function SceneSlide({
                 duration={stashDuration}
                 onSeekToTime={seekToTime}
                 seekOffset={seekOffset}
+                isFullscreen={isFullscreen}
+                fullscreenUIVisible={fullscreenUIVisible}
+                onInteract={showFullscreenUI}
             />
         </article>
     );
