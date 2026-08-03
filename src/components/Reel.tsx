@@ -188,6 +188,38 @@ export function Reel() {
             }
         };
     }, []);
+    // 退出全屏后修复 scroll position：
+    // 全屏时 innerHeight 变大，退出后变小，virtualizer 重新 measure
+    // 导致 wrapper 的 translateY 变化，scroll-snap 自动对齐时可能
+    // 滚到错误位置（向上滚动半屏 → 顶部黑色空白、底部截断）。
+    // 等 virtualizer re-measure 完成后强制 scrollToIndex 到当前卡片。
+    useEffect(() => {
+        const onChange = () => {
+            if (document.fullscreenElement) return;
+            // 双重 rAF：第一帧让浏览器完成布局恢复 + ResizeObserver
+            // 触发 virtualizer re-measure，第二帧 measure 完成后
+            // scrollToIndex 到正确位置。
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    const el = scrollRef.current;
+                    if (!el) return;
+                    // 临时禁用 smooth scroll，让 scrollToIndex 瞬时对齐
+                    const original = el.style.scrollBehavior;
+                    el.style.scrollBehavior = "auto";
+                    virtualizer.scrollToIndex(activeIndex, {
+                        align: "start",
+                    });
+                    // 下一帧恢复 smooth scroll
+                    requestAnimationFrame(() => {
+                        el.style.scrollBehavior = original;
+                    });
+                });
+            });
+        };
+        document.addEventListener("fullscreenchange", onChange);
+        return () =>
+            document.removeEventListener("fullscreenchange", onChange);
+    }, [virtualizer, activeIndex]);
     // Latest in-flight fetch token. Stale responses (from a previous
     // filter set, or duplicate next-page calls) compare and bail.
     const fetchTokenRef = useRef(0);

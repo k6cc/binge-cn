@@ -687,8 +687,7 @@ export function SceneSlide({
             if (isMine) {
                 showFullscreenUI();
             } else if (!fsEl) {
-                // 完全退出全屏（无任何元素全屏）：清理 UI 定时器，
-                // 修复 scroll-snap 对齐。
+                // 完全退出全屏（无任何元素全屏）：清理 UI 定时器。
                 // 仅在真正退出全屏时触发，避免其他卡片进入全屏时
                 // 误触 resize 导致 Reel 重算、视频重载。
                 if (fullscreenUITimerRef.current !== null) {
@@ -696,29 +695,13 @@ export function SceneSlide({
                     fullscreenUITimerRef.current = null;
                 }
                 setFullscreenUIVisible(true);
-                // 退出全屏后 scroll 容器的 scrollTop 可能偏移，导致
-                // 顶部黑色空白、底部画面截断（滑动切换后 snap 重新
-                // 对齐才恢复）。
-                // 修复：同步 resize 通知全局监听器 + rAF 中直接设置
-                // scrollTop 到当前卡片的 wrapper translateY 值。
-                // 不用 scrollIntoView — 在 scroll-snap-type: y mandatory
-                // 容器中 scrollIntoView 可能被 snap 行为覆盖。
-                // 直接设置 scrollTop 到 wrapper 的 translateY（snap 点），
-                // snap 不会调整（已在 snap 点上）。
-                window.dispatchEvent(new Event("resize"));
-                requestAnimationFrame(() => {
-                    const el = containerRef.current;
-                    if (!el) return;
-                    const wrapper = el.parentElement; // .binge-slide-wrapper
-                    const reel = el.closest(".binge-reel") as HTMLElement | null;
-                    if (!wrapper || !reel) return;
-                    // 从 wrapper 的 transform 提取 translateY（virtualizer 设置）
-                    const transform = (wrapper as HTMLElement).style.transform;
-                    const match = transform.match(/translateY\(([\d.]+)px\)/);
-                    if (match) {
-                        reel.scrollTop = parseFloat(match[1]);
-                    }
-                });
+                // 退出全屏后的 scroll-snap 对齐由 Reel 的
+                // fullscreenchange 监听器处理（virtualizer.scrollToIndex）。
+                // 这里不设置 scrollTop — 全屏时 innerHeight 变大，退出后
+                // 变小，virtualizer 重新 measure 后 wrapper 的 translateY
+                // 会变化，此时设置 scrollTop 可能读到旧值导致错误滚动。
+                // Reel 层面等 virtualizer re-measure 完成后再 scrollToIndex
+                // 更可靠。
             }
         };
         document.addEventListener("fullscreenchange", onChange);
