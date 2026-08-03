@@ -662,7 +662,10 @@ export function SceneSlide({
     const handleToggleFullscreen = useCallback(() => {
         const el = containerRef.current;
         if (!el) return;
-        if (!document.fullscreenElement) {
+        // 判断当前卡片是否已全屏，而非全局 document.fullscreenElement。
+        // 若其他卡片在全屏，当前卡片点击全屏应 requestFullscreen 切换到
+        // 当前卡片，而非误调 exitFullscreen 导致"闪一下退出"。
+        if (document.fullscreenElement !== el) {
             void el.requestFullscreen?.().catch(() => {});
         } else {
             void document.exitFullscreen?.().catch(() => {});
@@ -671,18 +674,28 @@ export function SceneSlide({
 
     useEffect(() => {
         const onChange = () => {
-            const fs = !!document.fullscreenElement;
-            setIsFullscreen(fs);
-            if (fs) {
+            // 关键修复：判断全屏元素是否是当前卡片，而不是全局
+            // document.fullscreenElement。虚拟列表中多个 SceneSlide 实例
+            // 都监听 fullscreenchange，若不区分归属，任一卡片进入全屏
+            // 会让所有渲染中的卡片 isFullscreen=true，导致：
+            //   1. 非全屏卡片也应用全屏样式
+            //   2. 在其他卡片上点全屏时 document.fullscreenElement 已存在
+            //      → 调用 exitFullscreen → "闪一下退出" → resize → 视频重载
+            const fsEl = document.fullscreenElement;
+            const isMine = fsEl === containerRef.current;
+            setIsFullscreen(isMine);
+            if (isMine) {
                 showFullscreenUI();
-            } else {
-                // Exit fullscreen: clear timer, reset UI, fix layout
+            } else if (!fsEl) {
+                // 完全退出全屏（无任何元素全屏）：清理 UI 定时器，
+                // 触发 resize 让 scroll-snap 重算布局。
+                // 仅在真正退出全屏时触发，避免其他卡片进入全屏时
+                // 误触 resize 导致 Reel 重算、视频重载。
                 if (fullscreenUITimerRef.current !== null) {
                     window.clearTimeout(fullscreenUITimerRef.current);
                     fullscreenUITimerRef.current = null;
                 }
                 setFullscreenUIVisible(true);
-                // Force scroll-snap recalculation after layout restore
                 window.dispatchEvent(new Event("resize"));
             }
         };
