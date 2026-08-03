@@ -696,7 +696,15 @@ export function SceneSlide({
                     fullscreenUITimerRef.current = null;
                 }
                 setFullscreenUIVisible(true);
-                window.dispatchEvent(new Event("resize"));
+                // 延迟到下一帧触发 resize：fullscreenchange 事件触发时
+                // 浏览器可能还没完成全屏退出后的布局恢复，window.innerHeight
+                // 仍是全屏尺寸。同步 dispatchEvent 会让 Reel 的虚拟列表
+                // （estimateSize: () => window.innerHeight）测量到错误尺寸，
+                // 导致 scroll-snap 对齐失败 → 顶部黑色空白、底部画面截断。
+                // requestAnimationFrame 确保浏览器完成布局恢复后再测量。
+                requestAnimationFrame(() => {
+                    window.dispatchEvent(new Event("resize"));
+                });
             }
         };
         document.addEventListener("fullscreenchange", onChange);
