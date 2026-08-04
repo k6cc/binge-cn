@@ -289,13 +289,15 @@ body,
     transition: height 0.18s ease, bottom 0.18s ease, left 0.3s ease, right 0.3s ease, opacity 0.3s ease;
 }
 
-/* In fullscreen, disable non-essential buttons (keep Like/Rate/Fullscreen) */
+/* 全屏下隐藏非必要按钮（保留 喜欢/评分/全屏）。
+   用 display:none 而非 pointer-events:none + opacity:0.25，
+   这样按钮完全脱离布局，flex column 的 gap 不会为隐藏元素
+   保留空间，其他按钮自动靠拢，布局更紧凑。 */
 .binge-actions.is-fullscreen .binge-multiview-button,
 .binge-actions.is-fullscreen .binge-scribe-button,
 .binge-actions.is-fullscreen .binge-bookmark-button,
 .binge-actions.is-fullscreen .binge-more-button {
-    pointer-events: none;
-    opacity: 0.25;
+    display: none;
 }
 
 /* 全屏下禁用 overlay 中所有交互元素。

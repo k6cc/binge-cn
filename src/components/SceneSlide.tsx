@@ -663,26 +663,23 @@ export function SceneSlide({
         const el = containerRef.current;
         if (!el) return;
         // 判断当前卡片是否已全屏，而非全局 document.fullscreenElement。
-        // 若其他卡片在全屏，当前卡片点击全屏应 requestFullscreen 切换到
-        // 当前卡片，而非误调 exitFullscreen 导致"闪一下退出"。
         const fsEl = document.fullscreenElement;
         const isMine = fsEl === el;
-        console.log("[binge-fs] handleToggleFullscreen", {
-            sceneId: scene.id,
-            hasEl: true,
-            fsElExists: !!fsEl,
-            isMine,
-        });
         if (!isMine) {
-            console.log("[binge-fs] → requestFullscreen", scene.id);
-            void el.requestFullscreen?.().catch((e) => {
-                console.log("[binge-fs] requestFullscreen REJECTED", scene.id, e);
+            // 在 requestFullscreen 之前固定 .binge-reel 的 height！
+            // fullscreenchange 事件触发时 100vh 已更新，来不及了。
+            // virtualizer 的 ResizeObserver 会检测到 .binge-reel 尺寸变化
+            // → 重新 measure → 卡片位置移动 → 卸载 → 浏览器退出全屏（闪屏）
+            const reel = el.closest(".binge-reel") as HTMLElement | null;
+            if (reel) {
+                reel.style.height = `${reel.clientHeight}px`;
+            }
+            void el.requestFullscreen?.().catch(() => {
+                // 失败时恢复 height
+                if (reel) reel.style.height = "";
             });
         } else {
-            console.log("[binge-fs] → exitFullscreen", scene.id);
-            void document.exitFullscreen?.().catch((e) => {
-                console.log("[binge-fs] exitFullscreen REJECTED", scene.id, e);
-            });
+            void document.exitFullscreen?.().catch(() => {});
         }
     }, [scene.id]);
 
@@ -697,12 +694,6 @@ export function SceneSlide({
             //      → 调用 exitFullscreen → "闪一下退出" → resize → 视频重载
             const fsEl = document.fullscreenElement;
             const isMine = fsEl === containerRef.current;
-            console.log("[binge-fs] fullscreenchange", {
-                sceneId: scene.id,
-                fsElExists: !!fsEl,
-                isMine,
-                hasContainer: !!containerRef.current,
-            });
             setIsFullscreen(isMine);
             if (isMine) {
                 showFullscreenUI();

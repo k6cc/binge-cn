@@ -188,55 +188,45 @@ export function Reel() {
             }
         };
     }, []);
-    // 退出全屏后修复 scroll position：
-    // 全屏时 innerHeight 变大，退出后变小，virtualizer 重新 measure
-    // 导致 wrapper 的 translateY 变化，scroll-snap 自动对齐时可能
-    // 滚到错误位置（向上滚动半屏 → 顶部黑色空白、底部截断）。
-    // 等 virtualizer re-measure 完成后强制 scrollToIndex 到当前卡片。
+    // 全屏/退出全屏后修复 scroll position：
+    // 进入全屏：innerHeight 变大 → virtualizer 重新 measure → 卡片位置
+    // 移动 → 当前卡片不在可见范围 → 卸载 → 浏览器检测到全屏元素从 DOM
+    // 移除 → 自动退出全屏（"闪屏"）。
+    // 根本修复：进入全屏前在 SceneSlide.handleToggleFullscreen 中固定
+    // .binge-reel 的 height，防止 virtualizer 重新 measure。
+    // 退出全屏：恢复 height，三重 rAF 等 virtualizer re-measure + React
+    // 重新渲染完成后 scrollToIndex。
     useEffect(() => {
         const onChange = () => {
             const el = scrollRef.current;
-            console.log("[binge-fs] Reel fullscreenchange", {
-                fsElExists: !!document.fullscreenElement,
-                activeIndex,
-                scrollTop: el?.scrollTop,
-                innerHeight: window.innerHeight,
-                totalSize: virtualizer.getTotalSize(),
-            });
-            if (document.fullscreenElement) return;
-            // 双重 rAF：第一帧让浏览器完成布局恢复 + ResizeObserver
-            // 触发 virtualizer re-measure，第二帧 measure 完成后
-            // scrollToIndex 到正确位置。
-            requestAnimationFrame(() => {
+            const fs = !!document.fullscreenElement;
+            if (fs) {
+                // 进入全屏：height 已在 SceneSlide.handleToggleFullscreen
+                // 中固定（在 requestFullscreen 之前），无需处理
+            } else {
+                // 退出全屏：恢复 .binge-reel 的 height
+                if (el) {
+                    el.style.height = "";
+                }
+                // 三重 rAF，等 React 重新渲染后再 scrollToIndex
                 requestAnimationFrame(() => {
-                    const el2 = scrollRef.current;
-                    if (!el2) return;
-                    const beforeTop = el2.scrollTop;
-                    const beforeH = window.innerHeight;
-                    const beforeTotal = virtualizer.getTotalSize();
-                    console.log("[binge-fs] Reel rAF2 scrollToIndex", {
-                        activeIndex,
-                        beforeTop,
-                        beforeH,
-                        beforeTotal,
-                    });
-                    // 临时禁用 smooth scroll，让 scrollToIndex 瞬时对齐
-                    const original = el2.style.scrollBehavior;
-                    el2.style.scrollBehavior = "auto";
-                    virtualizer.scrollToIndex(activeIndex, {
-                        align: "start",
-                    });
-                    // 下一帧恢复 smooth scroll + 记录结果
                     requestAnimationFrame(() => {
-                        el2.style.scrollBehavior = original;
-                        console.log("[binge-fs] Reel rAF3 after scrollToIndex", {
-                            afterTop: el2.scrollTop,
-                            afterH: window.innerHeight,
-                            afterTotal: virtualizer.getTotalSize(),
+                        virtualizer.measure();
+                        requestAnimationFrame(() => {
+                            const el2 = scrollRef.current;
+                            if (!el2) return;
+                            const original = el2.style.scrollBehavior;
+                            el2.style.scrollBehavior = "auto";
+                            virtualizer.scrollToIndex(activeIndex, {
+                                align: "start",
+                            });
+                            requestAnimationFrame(() => {
+                                el2.style.scrollBehavior = original;
+                            });
                         });
                     });
                 });
-            });
+            }
         };
         document.addEventListener("fullscreenchange", onChange);
         return () =>
