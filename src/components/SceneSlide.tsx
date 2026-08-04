@@ -665,12 +665,26 @@ export function SceneSlide({
         // 判断当前卡片是否已全屏，而非全局 document.fullscreenElement。
         // 若其他卡片在全屏，当前卡片点击全屏应 requestFullscreen 切换到
         // 当前卡片，而非误调 exitFullscreen 导致"闪一下退出"。
-        if (document.fullscreenElement !== el) {
-            void el.requestFullscreen?.().catch(() => {});
+        const fsEl = document.fullscreenElement;
+        const isMine = fsEl === el;
+        console.log("[binge-fs] handleToggleFullscreen", {
+            sceneId: scene.id,
+            hasEl: true,
+            fsElExists: !!fsEl,
+            isMine,
+        });
+        if (!isMine) {
+            console.log("[binge-fs] → requestFullscreen", scene.id);
+            void el.requestFullscreen?.().catch((e) => {
+                console.log("[binge-fs] requestFullscreen REJECTED", scene.id, e);
+            });
         } else {
-            void document.exitFullscreen?.().catch(() => {});
+            console.log("[binge-fs] → exitFullscreen", scene.id);
+            void document.exitFullscreen?.().catch((e) => {
+                console.log("[binge-fs] exitFullscreen REJECTED", scene.id, e);
+            });
         }
-    }, []);
+    }, [scene.id]);
 
     useEffect(() => {
         const onChange = () => {
@@ -683,6 +697,12 @@ export function SceneSlide({
             //      → 调用 exitFullscreen → "闪一下退出" → resize → 视频重载
             const fsEl = document.fullscreenElement;
             const isMine = fsEl === containerRef.current;
+            console.log("[binge-fs] fullscreenchange", {
+                sceneId: scene.id,
+                fsElExists: !!fsEl,
+                isMine,
+                hasContainer: !!containerRef.current,
+            });
             setIsFullscreen(isMine);
             if (isMine) {
                 showFullscreenUI();
@@ -695,18 +715,11 @@ export function SceneSlide({
                     fullscreenUITimerRef.current = null;
                 }
                 setFullscreenUIVisible(true);
-                // 退出全屏后的 scroll-snap 对齐由 Reel 的
-                // fullscreenchange 监听器处理（virtualizer.scrollToIndex）。
-                // 这里不设置 scrollTop — 全屏时 innerHeight 变大，退出后
-                // 变小，virtualizer 重新 measure 后 wrapper 的 translateY
-                // 会变化，此时设置 scrollTop 可能读到旧值导致错误滚动。
-                // Reel 层面等 virtualizer re-measure 完成后再 scrollToIndex
-                // 更可靠。
             }
         };
         document.addEventListener("fullscreenchange", onChange);
         return () => document.removeEventListener("fullscreenchange", onChange);
-    }, [showFullscreenUI]);
+    }, [showFullscreenUI, scene.id]);
 
     // Mouse move in fullscreen → show UI
     useEffect(() => {

@@ -195,23 +195,45 @@ export function Reel() {
     // 等 virtualizer re-measure 完成后强制 scrollToIndex 到当前卡片。
     useEffect(() => {
         const onChange = () => {
+            const el = scrollRef.current;
+            console.log("[binge-fs] Reel fullscreenchange", {
+                fsElExists: !!document.fullscreenElement,
+                activeIndex,
+                scrollTop: el?.scrollTop,
+                innerHeight: window.innerHeight,
+                totalSize: virtualizer.getTotalSize(),
+            });
             if (document.fullscreenElement) return;
             // 双重 rAF：第一帧让浏览器完成布局恢复 + ResizeObserver
             // 触发 virtualizer re-measure，第二帧 measure 完成后
             // scrollToIndex 到正确位置。
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
-                    const el = scrollRef.current;
-                    if (!el) return;
+                    const el2 = scrollRef.current;
+                    if (!el2) return;
+                    const beforeTop = el2.scrollTop;
+                    const beforeH = window.innerHeight;
+                    const beforeTotal = virtualizer.getTotalSize();
+                    console.log("[binge-fs] Reel rAF2 scrollToIndex", {
+                        activeIndex,
+                        beforeTop,
+                        beforeH,
+                        beforeTotal,
+                    });
                     // 临时禁用 smooth scroll，让 scrollToIndex 瞬时对齐
-                    const original = el.style.scrollBehavior;
-                    el.style.scrollBehavior = "auto";
+                    const original = el2.style.scrollBehavior;
+                    el2.style.scrollBehavior = "auto";
                     virtualizer.scrollToIndex(activeIndex, {
                         align: "start",
                     });
-                    // 下一帧恢复 smooth scroll
+                    // 下一帧恢复 smooth scroll + 记录结果
                     requestAnimationFrame(() => {
-                        el.style.scrollBehavior = original;
+                        el2.style.scrollBehavior = original;
+                        console.log("[binge-fs] Reel rAF3 after scrollToIndex", {
+                            afterTop: el2.scrollTop,
+                            afterH: window.innerHeight,
+                            afterTotal: virtualizer.getTotalSize(),
+                        });
                     });
                 });
             });

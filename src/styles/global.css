@@ -299,15 +299,15 @@ body,
 }
 
 /* 全屏下禁用 overlay 中所有交互元素。
-   overlay 本身就是 pointer-events: none（line 518），但子元素
-   .binge-caption（line 550）和 .binge-performer-row（line 601）
-   用 pointer-events: auto 重新启用。必须用更高优先级的选择器
-   覆盖子元素的 auto，否则禁用不生效。
+   overlay 本身就是 pointer-events: none（line 518），但后代元素
+   .binge-caption（line 550）、.binge-performer-row（line 601）、
+   .binge-follow-btn（line 711）都有自己的 pointer-events: auto。
+   必须用 * （所有后代元素）+ !important 覆盖所有层级的 auto。
    overlay 内的按钮（头像、名字、收藏、标题）onClick 会打开
    PerformerSheet / SceneDetailsSheet / PerformerProfile，但这些
    组件都用 createPortal 渲染到 document.body，被全屏元素的堆叠
    上下文遮挡 → 用户看不到目标页面，退出全屏后才发现已打开。 */
-.binge-slide.is-fullscreen .binge-overlay > * {
+.binge-slide.is-fullscreen .binge-overlay * {
     pointer-events: none !important;
 }
 
