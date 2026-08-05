@@ -265,7 +265,7 @@ body,
    - 半透明，弱化视觉重量，保持沉浸感
    - 点击/悬停细条时通过 SceneProgress 的 onInteract 唤出完整 UI */
 .binge-progress {
-    transition: opacity 0.3s ease, height 0.3s ease, padding 0.3s ease;
+    transition: opacity 0.3s ease, height 0.3s ease, padding 0.3s ease, bottom 0.28s ease;
 }
 .binge-progress.is-fs-collapsed {
     height: 10px;          /* 热区缩小但保证可点中 */
@@ -318,6 +318,43 @@ body,
     height: 100%;
     object-fit: contain;
     background: #000;
+}
+
+/* ── Caption (subtitle) styling ────────────────────────────────
+   Native <track> display is hidden (mode=hidden); cues are rendered
+   in a custom .binge-caption-track div positioned over the video
+   CONTENT area (not the element), so 16:9 video on a portrait screen
+   shows captions above the letterbox where the binge overlay lives.
+   The ::cue rules below are a fallback only. */
+.binge-video::cue {
+    background: transparent;
+    color: #fff;
+}
+.binge-caption-track {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: 92%;
+    text-align: center;
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                 "Helvetica Neue", Arial, "Noto Sans", "PingFang SC",
+                 "Microsoft YaHei", "Hiragino Sans GB", sans-serif;
+    line-height: 1.3;
+    /* bottom + font-size set imperatively by SceneSlide based on the
+       rendered video content area (object-fit: contain math). */
+    text-shadow:
+        0 0 2px #000, 0 0 2px #000, 0 0 2px #000,
+        1px 1px 2px #000, -1px -1px 2px #000,
+        1px -1px 2px #000, -1px 1px 2px #000;
+    pointer-events: none;
+    z-index: 6;
+    white-space: pre-wrap;
+    word-break: break-word;
+    /* Hide the empty container when no cue is active. */
+}
+.binge-caption-track:empty {
+    display: none;
 }
 
 /* Full-slide tap target. Sits over the video; overlay text, action stack,
@@ -522,6 +559,25 @@ body,
     color: var(--text);
     pointer-events: none;
     z-index: 5;
+    /* Smooth shift when bottom-nav appears/disappears on mobile. */
+    transition: bottom 0.28s ease;
+}
+
+/* Mobile bottom-nav visible → shift overlay + actions + progress up
+   so they aren't covered by the 3.5rem nav bar (+ iOS safe-area).
+   Uses :has() to detect the nav's ACTUAL visibility (is-hidden class)
+   rather than a React state mirror — avoids any state/CSS sync lag.
+   Only matches non-fullscreen slides (the nav is behind the
+   fullscreen element anyway). .binge-bottom-nav only renders on
+   mobile (useIsMobile), so desktop is unaffected. */
+.binge-app:has(.binge-bottom-nav:not(.is-hidden)) .binge-slide:not(.is-fullscreen) .binge-overlay {
+    bottom: calc(3.5rem + env(safe-area-inset-bottom, 0));
+}
+.binge-app:has(.binge-bottom-nav:not(.is-hidden)) .binge-slide:not(.is-fullscreen) .binge-actions {
+    bottom: calc(8.5rem + env(safe-area-inset-bottom, 0));
+}
+.binge-app:has(.binge-bottom-nav:not(.is-hidden)) .binge-slide:not(.is-fullscreen) .binge-progress {
+    bottom: calc(3.5rem + env(safe-area-inset-bottom, 0));
 }
 
 .binge-studio {
@@ -547,7 +603,7 @@ body,
     cursor: pointer;
     text-align: left;
     width: 100%;
-    max-width: 50%;
+    max-width: 90%;
     display: block;
     /* The .binge-overlay parent has pointer-events: none so video taps
        still pass through to the play/pause target. Opt this button back
@@ -595,6 +651,7 @@ body,
     gap: 0.85rem;
     pointer-events: auto;
     z-index: 6;
+    transition: bottom 0.28s ease;
 }
 
 /* Performer row — Instagram-style stacked avatars + "A and B" name text */
@@ -1575,7 +1632,7 @@ body,
 .binge-tabbar {
     display: flex;
     justify-content: center;
-    gap: 1.5rem;
+    gap: 2.25rem;
     line-height: 1.1;
 }
 
@@ -1583,10 +1640,10 @@ body,
     appearance: none;
     background: transparent;
     border: none;
-    padding: 0.2rem 0.1rem;
+    padding: 0.3rem 0.15rem;
     margin: 0;
     color: rgba(255, 255, 255, 0.6);
-    font-size: 0.95rem;
+    font-size: 1.425rem;
     font-weight: 600;
     letter-spacing: 0.01em;
     line-height: 1.1;
@@ -1607,9 +1664,9 @@ body,
     content: "";
     position: absolute;
     left: 50%;
-    bottom: -4px;
-    width: 18px;
-    height: 2px;
+    bottom: -6px;
+    width: 27px;
+    height: 3px;
     background: #fff;
     border-radius: 2px;
     transform: translateX(-50%);
@@ -2556,8 +2613,8 @@ body,
     outline-offset: 1px;
 }
 
-/* 极窄屏幕（手机）：控件下移到文字下方，输入框/下拉框占满宽度 */
-@media (max-width: 480px) {
+/* 窄屏（手机）：控件下移到文字下方，输入框/下拉框占满宽度 */
+@media (max-width: 720px) {
     .binge-settings-row {
         flex-direction: column;
         gap: 0.6rem;
@@ -2983,6 +3040,34 @@ body,
     color: var(--text-muted);
     letter-spacing: 0.04em;
     text-transform: uppercase;
+}
+
+/* Narrow screens: shrink avatars + gaps so 3 columns fit on phones
+   (≥320px). Default minmax(140px) only gives 2 columns below ~494px;
+   this override lowers the threshold to ~320px. Everything scales
+   proportionally — avatar, name, count, gap. */
+@media (max-width: 720px) {
+    .binge-following-grid {
+        grid-template-columns: repeat(auto-fill, minmax(95px, 1fr));
+        gap: 0.8rem 0.5rem;
+    }
+    .binge-follow-card {
+        gap: 0.35rem;
+    }
+    .binge-follow-avatar {
+        width: 85px;
+        height: 85px;
+        border-width: 2px;
+    }
+    .binge-follow-initial {
+        font-size: 2rem;
+    }
+    .binge-follow-name {
+        font-size: 0.82rem;
+    }
+    .binge-follow-count {
+        font-size: 0.65rem;
+    }
 }
 
 /* ── Explore grid (3-column scene wall, IG-style) ──────────────────── */
@@ -3865,6 +3950,31 @@ body,
     -webkit-line-clamp: 1;
     line-clamp: 1;
     -webkit-box-orient: vertical;
+}
+
+/* Narrow screens: shrink Stories row avatars to match Following tab
+   proportions. Stories is a horizontal scroller (not a grid), so we
+   only scale the avatar + name — no column-count change needed. */
+@media (max-width: 720px) {
+    .binge-stories-scroller {
+        gap: 0.5rem;
+    }
+    .binge-story {
+        width: 62px;
+        gap: 0.3rem;
+    }
+    .binge-story-ring {
+        width: 58px;
+        height: 58px;
+        padding: 2px;
+    }
+    .binge-story-initial {
+        font-size: 1.3rem;
+    }
+    .binge-story-name {
+        font-size: 0.65rem;
+        max-width: 62px;
+    }
 }
 
 /* Discover performers horizontal scroller (Explore tab). */
@@ -8370,12 +8480,9 @@ body,
     .binge-discover-bar {
         padding: 1rem 0.6rem 0;
     }
-    /* Reel action stack: lift above the 3.5rem bottom nav. The
-       existing 5rem already gives a bit of breathing room; we just
-       add the nav height on top. */
-    .binge-actions {
-        bottom: calc(5rem + 3.5rem);
-    }
+    /* Reel action stack bottom offset is handled by the :has() rule
+       above (shifts up when bottom-nav is visible, returns to 5rem
+       when hidden). No fixed override needed here. */
     /* Settings + Saved have their own back-chevron headers — no
        fixed strip to clear, but the back-button-style header looks
        cramped against the viewport top. Give it some breathing

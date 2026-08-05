@@ -1,6 +1,6 @@
-﻿# Binge（汉化版）
+# Binge（汉化版）
 
-> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.5.1**。
+> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.5.2**。
 
 为 [Stash](https://github.com/stashapp/stash) 提供的 Instagram 风格社交与发现层：竖屏 Reel、Stories、演员档案、StashDB 驱动的发现功能——全部基于 Stash 既有的 GraphQL API。Web 插件形态。
 
@@ -39,6 +39,16 @@ v0.4.17 将原硬编码中文迁移为基于 `react-i18next` 的动态多语言�
 - 详见 [汉化及修复.md](./汉化及修复.md)
 
 ### 功能修复
+
+#### v0.5.2
+
+- 自动加载字幕（更多选项开关，Stash sidecar `.srt`/`.vtt` 自动加载第一个）
+- 字幕自定义渲染（`text-shadow` 描边替代黑底，位置随 `object-fit: contain` 内容区域，字体随视频宽度缩放）
+- 底部导航栏出现时播放页 UI 同步上移（CSS `:has()` 实时检测导航栏可见性，零时序差）
+- 关注页/首页 Stories 行头像缩小（720px 断点统一，窄屏 3 列布局）
+- 顶部导航栏放大 50%（首页/关注/推荐/发现）
+- 影片标题显示宽度 90%
+- 设置页窄屏断点统一为 720px
 
 #### v0.5.0–v0.5.1
 

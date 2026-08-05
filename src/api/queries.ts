@@ -5,6 +5,10 @@ import * as demo from "../demo/demoContent";
 // Minimal shape of a Stash scene used by the reel. Fields are the union of
 // what we need for: <video> playback, the overlay (title, performers,
 // tags), and chip-filter interactions (performer.id).
+export interface VideoCaption {
+    language_code: string;
+    caption_type: string;
+}
 export interface BingeScene {
     id: string;
     title: string | null;
@@ -18,6 +22,10 @@ export interface BingeScene {
     };
     sceneStreams: { url: string; mime_type: string | null; label: string | null }[];
     files: { duration: number; path: string }[];
+    // Sidecar/extracted captions discovered by Stash's scan. Empty when
+    // the scene has no .srt/.vtt next to it. language_code may be ""
+    // when the file had no lang tag (e.g. "video.srt").
+    captions?: VideoCaption[];
     performers: {
         id: string;
         name: string;
@@ -140,6 +148,10 @@ const FIND_SCENES = /* GraphQL */ `
                 files {
                     duration
                     path
+                }
+                captions {
+                    language_code
+                    caption_type
                 }
                 performers {
                     id
@@ -878,6 +890,10 @@ const FIND_SCENE = /* GraphQL */ `
             files {
                 duration
                 path
+            }
+            captions {
+                language_code
+                caption_type
             }
             performers {
                 id

@@ -20,6 +20,7 @@ const INCLUDE_REDDIT_KEY = "binge.includeReddit";
 const INCLUDE_X_KEY = "binge.includeX";
 const INCLUDE_PORNHUB_KEY = "binge.includePornhub";
 const AUTO_SCROLL_KEY = "binge.autoScroll";
+const AUTO_LOAD_CAPTIONS_KEY = "binge.autoLoadCaptions";
 const REFRACT_INTEGRATION_KEY = "binge.refractIntegration";
 const SHOWCASE_BLUR_KEY = "binge.showcaseBlur";
 const DEMO_MODE_KEY = "binge.demoMode";
@@ -449,6 +450,20 @@ export function readAutoScroll(): boolean {
 }
 export function setAutoScroll(value: boolean): void {
     writeBool(AUTO_SCROLL_KEY, value);
+}
+
+// Auto-load captions — when on, the active slide's <video> gets a
+// <track> pointing at Stash's /scene/{id}/caption endpoint for the
+// first available caption (if any). No per-scene probing; scenes
+// without captions simply render no <track> and play normally.
+export function useAutoLoadCaptions(): boolean {
+    return useStoredBool(AUTO_LOAD_CAPTIONS_KEY, false);
+}
+export function readAutoLoadCaptions(): boolean {
+    return readBool(AUTO_LOAD_CAPTIONS_KEY, false);
+}
+export function setAutoLoadCaptions(value: boolean): void {
+    writeBool(AUTO_LOAD_CAPTIONS_KEY, value);
 }
 
 // Refract integration — when on, the app reads refract's accent vars

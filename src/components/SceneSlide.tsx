@@ -36,6 +36,7 @@ import { CriterionRatingModal } from "./CriterionRatingModal";
 import { MoreSheet } from "./MoreSheet";
 import {
     useAutoScroll,
+    useAutoLoadCaptions,
     useTranscodeType,
     readDemoMode,
 } from "../home/pluginSettings";
@@ -113,6 +114,96 @@ export function SceneSlide({
 }: SceneSlideProps) {
     const { t } = useTranslation();
     const autoScroll = useAutoScroll();
+    const autoLoadCaptions = useAutoLoadCaptions();
+    // Caption <track> src — only when the toggle is on AND Stash reported
+    // at least one caption for this scene. We always pick the first;
+    // local libraries typically have a single subtitle file and the
+    // Stash scan already ordered them. language_code may be "" (no lang
+    // tag in filename) — passed through as-is; srclang falls back to
+    // "und" so the <track> stays valid HTML.
+    const captionTrack = useMemo(() => {
+        if (!autoLoadCaptions) return null;
+        const c = scene.captions?.[0];
+        if (!c) return null;
+        const lang = c.language_code ?? "";
+        return {
+            src: `/scene/${scene.id}/caption?lang=${encodeURIComponent(lang)}&type=${encodeURIComponent(c.caption_type)}`,
+            srclang: lang || "und",
+            label: lang || t("action.captions"),
+        };
+    }, [autoLoadCaptions, scene.id, scene.captions, t]);
+
+    // Custom caption rendering: we hide the native <track> display
+    // (mode=hidden) and render the active cue's text in a positioned
+    // <div> instead. This gives us full control over:
+    //   - position: anchored to the video CONTENT bottom (not the
+    //     element bottom), so 16:9 video on a portrait screen shows
+    //     captions above the letterbox area where the binge overlay
+    //     lives — no UI overlap.
+    //   - font size: scales with the rendered video width (not the
+    //     viewport), so captions shrink on narrow phones and grow on
+    //     fullscreen desktops.
+    //   - style: text-shadow outline instead of the default black box.
+    const captionRef = useRef<HTMLDivElement>(null);
+    const [captionText, setCaptionText] = useState("");
+    useEffect(() => {
+        const video = videoRef.current;
+        if (!video || !captionTrack) return;
+        const setup = () => {
+            for (let i = 0; i < video.textTracks.length; i++) {
+                const tr = video.textTracks[i];
+                if (tr.kind !== "subtitles") continue;
+                tr.mode = "hidden";
+                tr.oncuechange = () => {
+                    const cue = tr.activeCues?.[0] as VTTCue | undefined;
+                    setCaptionText(cue?.text ?? "");
+                };
+            }
+        };
+        setup();
+        video.addEventListener("loadstart", setup);
+        return () => video.removeEventListener("loadstart", setup);
+    }, [captionTrack, scene.id]);
+
+    // Position + font-size: recompute whenever the video element
+    // resizes (orientation change, fullscreen toggle, virtualizer
+    // re-measure). ResizeObserver covers all cases without needing
+    // per-event listeners.
+    useEffect(() => {
+        if (!captionTrack) return;
+        const video = videoRef.current;
+        const el = captionRef.current;
+        if (!video || !el) return;
+        const update = () => {
+            const vw = video.videoWidth;
+            const vh = video.videoHeight;
+            if (!vw || !vh) return;
+            const ratio = vw / vh;
+            const cr = video.clientWidth / video.clientHeight;
+            // object-fit: contain → video content is centered & scaled
+            let rw: number, rh: number;
+            if (ratio > cr) {
+                rw = video.clientWidth;
+                rh = rw / ratio;
+            } else {
+                rh = video.clientHeight;
+                rw = rh * ratio;
+            }
+            // Bottom offset = distance from element bottom to content
+            // bottom (letterbox gap) + 8px padding.
+            el.style.bottom = `${Math.max(8, (video.clientHeight - rh) / 2 + 8)}px`;
+            // Font size ~3% of rendered video width, clamped ≥10px.
+            el.style.fontSize = `${Math.max(10, rw * 0.03)}px`;
+        };
+        update();
+        video.addEventListener("loadedmetadata", update);
+        const ro = new ResizeObserver(update);
+        ro.observe(video);
+        return () => {
+            video.removeEventListener("loadedmetadata", update);
+            ro.disconnect();
+        };
+    }, [captionTrack, scene.id]);
     // Reactive — re-points mounted <video> src when the user changes
     // the stream type in Settings (the old getTranscodeType() read was
     // non-reactive, so mounted slides kept the stale stream).
@@ -910,7 +1001,22 @@ export function SceneSlide({
                     if (!autoScroll || !isActive) return;
                     onAutoAdvance?.();
                 }}
-            />
+            >
+                {captionTrack && (
+                    <track
+                        kind="subtitles"
+                        src={captionTrack.src}
+                        srcLang={captionTrack.srclang}
+                        label={captionTrack.label}
+                        default
+                    />
+                )}
+            </video>
+            {captionTrack && (
+                <div className="binge-caption-track" ref={captionRef}>
+                    {captionText}
+                </div>
+            )}
             {/* Full-frame tap target. Sits above the video but below the
                 overlay/action-stack so taps in the video area toggle
                 play/pause while UI controls remain hot. */}

@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useSheetClose } from "../hooks/useSheetClose";
-import { setAutoScroll, useAutoScroll } from "../home/pluginSettings";
+import { setAutoScroll, useAutoScroll, setAutoLoadCaptions, useAutoLoadCaptions } from "../home/pluginSettings";
 import { useTranslation } from "react-i18next";
 
 interface MoreSheetProps {
@@ -15,6 +15,7 @@ interface MoreSheetProps {
 export function MoreSheet({ sceneId, onClose }: MoreSheetProps) {
     const { isExiting, beginClose } = useSheetClose(onClose);
     const autoScroll = useAutoScroll();
+    const autoLoadCaptions = useAutoLoadCaptions();
     const { t } = useTranslation();
 
     useEffect(() => {
@@ -61,6 +62,30 @@ export function MoreSheet({ sceneId, onClose }: MoreSheetProps) {
                                 className={
                                     "binge-more-sheet-switch" +
                                     (autoScroll ? " is-on" : "")
+                                }
+                                aria-hidden="true"
+                            >
+                                <span className="binge-more-sheet-switch-thumb" />
+                            </span>
+                        </button>
+                    </li>
+                    <li>
+                        <button
+                            type="button"
+                            className="binge-more-sheet-row"
+                            onClick={() => setAutoLoadCaptions(!autoLoadCaptions)}
+                            aria-pressed={autoLoadCaptions}
+                        >
+                            <span className="binge-more-sheet-row-label">
+                                <span>{t("action.auto_load_captions")}</span>
+                                <small className="binge-more-sheet-row-sub">
+                                    {t("action.auto_load_captions_desc")}
+                                </small>
+                            </span>
+                            <span
+                                className={
+                                    "binge-more-sheet-switch" +
+                                    (autoLoadCaptions ? " is-on" : "")
                                 }
                                 aria-hidden="true"
                             >
