@@ -34,7 +34,11 @@ body,
 
 .binge-app {
     position: relative;
-    height: 100vh;
+    /* 100dvh 让容器跟随 mobile Chrome 地址栏显隐动态变化。
+       地址栏显示时容器 = 当前视口高度，地址栏隐藏时容器扩展。
+       配合 .binge-reel / .binge-tab-scroll 同步使用 100dvh，
+       确保所有 tab 页面（含 Reel virtualizer 的 vi.size）跟实际视口一致。 */
+    height: 100dvh;
     width: 100vw;
     overflow: hidden;
 }
@@ -201,7 +205,9 @@ body,
 /* ── Reel ──────────────────────────────────────────────────────────── */
 .binge-reel {
     position: relative;
-    height: 100vh;
+    /* 100dvh 跟随地址栏显隐：避免 vi.size 与 .binge-reel height 不一致
+       导致最后一部 wrapper 顶部无法对齐视口顶部（scroll max 不够）。 */
+    height: 100dvh;
     overflow-y: scroll;
     scroll-snap-type: y mandatory;
     scroll-behavior: smooth;
@@ -1965,7 +1971,8 @@ body,
 
 /* ── Following / Explore tab containers ────────────────────────────── */
 .binge-tab-scroll {
-    height: 100vh;
+    /* 100dvh 跟随地址栏显隐，与 .binge-app / .binge-reel 保持一致 */
+    height: 100dvh;
     overflow-y: auto;
     overscroll-behavior: contain;
     scrollbar-width: thin;
@@ -8369,14 +8376,22 @@ body,
     place-items: center;
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
+    /* 移除 mobile 默认 tap highlight（点击瞬间箭头变透明在白底上不可见）*/
+    -webkit-tap-highlight-color: transparent;
     transition: background 0.18s ease;
 }
 .binge-lightbox-nav:hover {
     background: rgba(255, 255, 255, 0.18);
 }
+.binge-lightbox-nav:active {
+    /* 点击时加深背景而非依赖默认透明行为，确保白底图片上箭头始终可见 */
+    background: rgba(0, 0, 0, 0.75);
+}
 .binge-lightbox-nav svg {
     width: 22px;
     height: 22px;
+    /* 描边让箭头在纯白图片背景上也能识别 */
+    filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.85));
 }
 .binge-lightbox-prev {
     left: 0.75rem;

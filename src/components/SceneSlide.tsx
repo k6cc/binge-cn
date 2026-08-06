@@ -690,7 +690,9 @@ export function SceneSlide({
         const observer = new IntersectionObserver(
             (entries) => {
                 for (const entry of entries) {
-                    const active = entry.intersectionRatio >= 0.6;
+                    // 阈值 0.7：略严于 0.6，避免最后一部视频滑到边界时
+                    // 上一部仍 ≥0.6 触发双 active（同时播放两部声音）
+                    const active = entry.intersectionRatio >= 0.7;
                     setIsActive(active);
                     if (active) {
                         onActiveRef.current?.(scene.id);
@@ -706,7 +708,7 @@ export function SceneSlide({
                     }
                 }
             },
-            { threshold: [0, 0.6, 1] }
+            { threshold: [0, 0.7, 1] }
         );
 
         observer.observe(container);

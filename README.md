@@ -1,6 +1,6 @@
 # Binge（汉化版）
 
-> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.5.3**。
+> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.5.4**。
 
 为 [Stash](https://github.com/stashapp/stash) 提供的 Instagram 风格社交与发现层：竖屏 Reel、Stories、演员档案、StashDB 驱动的发现功能——全部基于 Stash 既有的 GraphQL API。Web 插件形态。
 
@@ -39,6 +39,13 @@ v0.4.17 将原硬编码中文迁移为基于 `react-i18next` 的动态多语言�
 - 详见 [汉化及修复.md](./汉化及修复.md)
 
 ### 功能修复
+
+#### v0.5.4
+
+- 容器改用 `100dvh`（`.binge-app` / `.binge-reel` / `.binge-tab-scroll`），地址栏显示时等于当前视口高度，配合 `estimateSize` 用 `.binge-reel` 的 `clientHeight`，vi.size 跟容器实际高度一致，wrapper 完美对齐视口顶部，标题/进度条不再被地址栏遮挡
+- 全屏退出跳错影片修复（退出时 pause 当前 video，等 `orientationchange` 完成 + 250ms 稳定后再 `scrollToIndex`，IO 阈值 0.6 → 0.7，避免最后一部边界双 active）
+- Reel 最后一部对齐修复（`estimateSize` 用 `.binge-reel` 的 `clientHeight` 代替 `window.innerHeight`，避免 mobile Chrome 上 100vh 与 innerHeight 不一致导致最后一部 wrapper 顶部无法对齐视口顶部）
+- Lightbox 箭头点击在白色图片上不可见修复（移除默认 tap-highlight，`:active` 加深背景，svg 加 drop-shadow 描边）
 
 #### v0.5.3
 

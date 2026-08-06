@@ -141,7 +141,14 @@ export function Reel() {
     const virtualizer = useVirtualizer({
         count: sceneCount,
         getScrollElement: () => scrollRef.current,
-        estimateSize: () => window.innerHeight,
+        // 关键：必须用 .binge-reel 的 clientHeight（= 100vh = mobile Chrome
+        // 的 large viewport height），不能用 window.innerHeight（地址栏显示时
+        // 比 100vh 小）。否则 vi.size < .binge-reel height，最后一部 wrapper
+        // 顶部无法完全对齐视口顶部（max scrollTop 不够），导致最后一部
+        // 不能达到 IO active 阈值，activeIndex 不更新，全屏退出会跳到
+        // 倒数第三部。scrollRef.current 在首次 render 时可能为 null，用
+        // window.innerHeight 作 fallback，measure() 后会修正。
+        estimateSize: () => scrollRef.current?.clientHeight ?? window.innerHeight,
         overscan: OVERSCAN,
         getItemKey: (i) =>
             state.kind === "ready" ? state.scenes[i].id : i,
@@ -197,6 +204,7 @@ export function Reel() {
     // 退出全屏：恢复 height，三重 rAF 等 virtualizer re-measure + React
     // 重新渲染完成后 scrollToIndex。
     useEffect(() => {
+        let cancelled = false;
         const onChange = () => {
             const el = scrollRef.current;
             const fs = !!document.fullscreenElement;
@@ -208,29 +216,79 @@ export function Reel() {
                 if (el) {
                     el.style.height = "";
                 }
-                // 三重 rAF，等 React 重新渲染后再 scrollToIndex
-                requestAnimationFrame(() => {
+                // A. 立即暂停当前 active video，避免 scrollToIndex 期间
+                //    orientationchange 触发的 IO 误激活上一部（双声/跳上一部）
+                const pauseActive = () => {
+                    const v = el?.querySelector<HTMLVideoElement>(
+                        '.binge-slide[data-active="true"] video'
+                    );
+                    if (v && !v.paused) v.pause();
+                };
+                pauseActive();
+
+                // B. scrollToIndex 必须等 orientationchange 完成（如果横屏 → 竖屏）
+                //    再执行，否则在方向变化中途 measure 会得到错误尺寸
+                const doScroll = () => {
+                    if (cancelled) return;
                     requestAnimationFrame(() => {
-                        virtualizer.measure();
                         requestAnimationFrame(() => {
-                            const el2 = scrollRef.current;
-                            if (!el2) return;
-                            const original = el2.style.scrollBehavior;
-                            el2.style.scrollBehavior = "auto";
-                            virtualizer.scrollToIndex(activeIndex, {
-                                align: "start",
-                            });
+                            if (cancelled) return;
+                            virtualizer.measure();
                             requestAnimationFrame(() => {
-                                el2.style.scrollBehavior = original;
+                                if (cancelled) return;
+                                const el2 = scrollRef.current;
+                                if (!el2) return;
+                                const original = el2.style.scrollBehavior;
+                                el2.style.scrollBehavior = "auto";
+                                virtualizer.scrollToIndex(activeIndex, {
+                                    align: "start",
+                                });
+                                requestAnimationFrame(() => {
+                                    el2.style.scrollBehavior = original;
+                                    // scrollToIndex 完成后让 IO 重新激活。
+                                    // IO 在转换期间可能因 pause 守卫没触发 play，
+                                    // 这里主动恢复当前 active video 播放。
+                                    const v = el2.querySelector<HTMLVideoElement>(
+                                        '.binge-slide[data-active="true"] video'
+                                    );
+                                    if (v && v.paused) {
+                                        v.play().catch(() => {});
+                                    }
+                                });
                             });
                         });
                     });
-                });
+                };
+
+                // screen.orientation 解锁会触发 orientationchange（约 300-500ms 后）
+                const orient = screen.orientation;
+                if (orient && typeof orient.addEventListener === "function") {
+                    let orientationChanged = false;
+                    const onOrientChange = () => {
+                        orientationChanged = true;
+                        orient.removeEventListener("change", onOrientChange);
+                        // orientationchange 后 layout 还要 200-300ms 稳定
+                        setTimeout(doScroll, 250);
+                    };
+                    orient.addEventListener("change", onOrientChange);
+                    // 兜底：如果 400ms 内没 orientationchange（非横屏视频或 iOS）
+                    // 直接执行
+                    setTimeout(() => {
+                        if (!orientationChanged) {
+                            orient.removeEventListener("change", onOrientChange);
+                            doScroll();
+                        }
+                    }, 400);
+                } else {
+                    doScroll();
+                }
             }
         };
         document.addEventListener("fullscreenchange", onChange);
-        return () =>
+        return () => {
+            cancelled = true;
             document.removeEventListener("fullscreenchange", onChange);
+        };
     }, [virtualizer, activeIndex]);
     // Latest in-flight fetch token. Stale responses (from a previous
     // filter set, or duplicate next-page calls) compare and bail.
