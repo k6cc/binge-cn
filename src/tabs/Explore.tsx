@@ -7,7 +7,9 @@ import { useFilter } from "../filter/FilterContext";
 import { useTab } from "./TabContext";
 import { useAutoHideTabBar } from "../hooks/useAutoHideTabBar";
 import { useSearchHistory } from "../hooks/useSearchHistory";
+import { useScrollToTop } from "../hooks/useScrollToTop";
 import { SearchHistoryDropdown } from "../components/SearchHistoryDropdown";
+import { ScrollTopButton } from "../components/ScrollTopButton";
 
 interface ExploreTile {
     id: string;
@@ -78,6 +80,7 @@ export function Explore() {
     const composingRef = useRef(false);
 
     useAutoHideTabBar(scrollRef);
+    const { show: showScrollTop, scrollToTop } = useScrollToTop(scrollRef);
 
     // Top chips refresh on mount + whenever the user comes back to
     // Explore (they may have liked things in between visits). A
@@ -430,6 +433,7 @@ export function Explore() {
                     </div>
                 )}
             </div>
+            {showScrollTop && <ScrollTopButton onClick={scrollToTop} />}
         </div>
     );
 }

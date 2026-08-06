@@ -158,30 +158,48 @@ export function PerformerImageGrid({ performer }: PerformerImageGridProps) {
                     )}
                 {galleryImages.length > 0 && (
                     <ul className="binge-profile-photo-grid">
-                        {galleryImages.map((img, i) => (
-                            <li
-                                key={img.id}
-                                className="binge-profile-photo-cell"
-                            >
-                                <button
-                                    type="button"
-                                    className="binge-profile-photo-card"
-                                    onClick={() => setLightboxIndex(i)}
-                                    title={img.title || t("gallery.image_id", { id: img.id })}
+                        {galleryImages.map((img, i) => {
+                            const src =
+                                img.paths.thumbnail ||
+                                img.paths.image ||
+                                "";
+                            return (
+                                <li
+                                    key={img.id}
+                                    className="binge-profile-photo-cell"
                                 >
-                                    <img
-                                        src={
-                                            img.paths.thumbnail ||
-                                            img.paths.image ||
-                                            ""
+                                    <button
+                                        type="button"
+                                        className={
+                                            "binge-profile-photo-card" +
+                                            (src ? "" : " has-no-image")
                                         }
-                                        alt={img.title || ""}
-                                        className="binge-profile-photo-thumb"
-                                        loading="lazy"
-                                    />
-                                </button>
-                            </li>
-                        ))}
+                                        onClick={() => setLightboxIndex(i)}
+                                        title={img.title || t("gallery.image_id", { id: img.id })}
+                                    >
+                                        <span className="binge-photo-fallback">
+                                            {t("status.no_image")}
+                                        </span>
+                                        {src && (
+                                            <img
+                                                src={src}
+                                                alt={img.title || ""}
+                                                className="binge-profile-photo-thumb"
+                                                loading="lazy"
+                                                onError={(e) => {
+                                                    e.currentTarget.classList.add(
+                                                        "is-broken"
+                                                    );
+                                                    e.currentTarget.parentElement?.classList.add(
+                                                        "has-no-image"
+                                                    );
+                                                }}
+                                            />
+                                        )}
+                                    </button>
+                                </li>
+                            );
+                        })}
                     </ul>
                 )}
                 {galleryLoading && galleryImages.length > 0 && (
@@ -271,7 +289,17 @@ function GalleryCoverCell({
     };
 
     const restoreCover = () => {
-        if (imgRef.current) imgRef.current.src = coverSrc;
+        if (imgRef.current) {
+            imgRef.current.src = coverSrc;
+            // 恢复封面时，根据 coverSrc 同步 has-no-image 状态
+            if (coverSrc) {
+                imgRef.current.classList.remove("is-broken");
+                imgRef.current.parentElement?.classList.remove("has-no-image");
+            } else {
+                imgRef.current.classList.add("is-broken");
+                imgRef.current.parentElement?.classList.add("has-no-image");
+            }
+        }
         indexRef.current = 0;
         setCycling(false);
     };
@@ -292,6 +320,9 @@ function GalleryCoverCell({
         const imgs = imagesCacheRef.current;
         if (imgs.length > 1 && imgRef.current) {
             setCycling(true);
+            // hover 切换图片时移除无图状态
+            imgRef.current.classList.remove("is-broken");
+            imgRef.current.parentElement?.classList.remove("has-no-image");
             indexRef.current = (indexRef.current + 1) % imgs.length;
             imgRef.current.src =
                 imgs[indexRef.current]?.paths?.thumbnail || coverSrc;
@@ -316,7 +347,10 @@ function GalleryCoverCell({
         <li className="binge-gallery-cell">
             <button
                 type="button"
-                className="binge-gallery-cover-btn"
+                className={
+                    "binge-gallery-cover-btn" +
+                    (coverSrc ? "" : " has-no-image")
+                }
                 onClick={onOpen}
                 aria-label={t("action.view_gallery", { title: gallery.title ?? gallery.id })}
                 onMouseEnter={() => {
@@ -332,15 +366,25 @@ function GalleryCoverCell({
                     restoreCover();
                 }}
             >
+                <span className="binge-photo-fallback">
+                    {t("status.no_image")}
+                </span>
                 <img
                     ref={imgRef}
                     src={coverSrc}
                     alt={gallery.title || ""}
                     className={
                         "binge-gallery-cover" +
-                        (cycling ? " is-cycling" : "")
+                        (cycling ? " is-cycling" : "") +
+                        (coverSrc ? "" : " is-broken")
                     }
                     loading="lazy"
+                    onError={(e) => {
+                        e.currentTarget.classList.add("is-broken");
+                        e.currentTarget.parentElement?.classList.add(
+                            "has-no-image"
+                        );
+                    }}
                 />
                 <span className="binge-gallery-cell-title">
                     {gallery.title || t("gallery.gallery_id", { id: gallery.id })}

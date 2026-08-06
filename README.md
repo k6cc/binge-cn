@@ -1,6 +1,6 @@
 # Binge（汉化版）
 
-> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.5.2**。
+> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.5.3**。
 
 为 [Stash](https://github.com/stashapp/stash) 提供的 Instagram 风格社交与发现层：竖屏 Reel、Stories、演员档案、StashDB 驱动的发现功能——全部基于 Stash 既有的 GraphQL API。Web 插件形态。
 
@@ -39,6 +39,15 @@ v0.4.17 将原硬编码中文迁移为基于 `react-i18next` 的动态多语言�
 - 详见 [汉化及修复.md](./汉化及修复.md)
 
 ### 功能修复
+
+#### v0.5.3
+
+- 移动端 Chrome 地址栏背景色统一（`<meta name="theme-color" content="#0a0a0a">`，与 binge 主背景一致）
+- 回到顶部按钮（首页/关注/发现三页，滚动超过一屏出现，导航栏可见时自动上移，720px 缩放）
+- 演员图库无图占位符（无 `src` 时不渲染 `<img>`，加载失败兜底为「无图片」，图库卡片背景 `#050505 → #111111`）
+- 全屏自动旋转横屏视频（Android Chrome `screen.orientation.lock("landscape")`，iOS 静默失败）
+- Discover chevron 浮于两侧（`position: absolute`，隐藏改为透明而非 `display:none` 避免布局跳动）
+- Lightbox 导航按钮 720px 缩放统一（36px / 18px svg / padding 收紧）
 
 #### v0.5.2
 

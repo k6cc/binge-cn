@@ -5,19 +5,15 @@ import { Feed } from "../home/Feed";
 import { FeedFilterMenu } from "../home/FeedFilterMenu";
 import { useSharedStories } from "../home/StoriesContext";
 import { useAutoHideTabBar } from "../hooks/useAutoHideTabBar";
+import { useScrollToTop } from "../hooks/useScrollToTop";
+import { ScrollTopButton } from "../components/ScrollTopButton";
 
-// Home is the landing surface — IG-style stories at the top, vertical
-// scene-feed below. Reddit posts are merged into the per-performer
-// stories bubbles alongside library + stashdb scenes.
-//
-// useStories is lifted to this component so the manual-refresh button
-// (which lives in the page-title row, away from the bubble strip) can
-// reach the same refresh callback the stories internally use.
 export function Home() {
     const scrollRef = useRef<HTMLDivElement>(null);
     useAutoHideTabBar(scrollRef);
     const stories = useSharedStories();
     const { t } = useTranslation();
+    const { show: showScrollTop, scrollToTop } = useScrollToTop(scrollRef);
 
     return (
         <div className="binge-tab-scroll" ref={scrollRef}>
@@ -44,6 +40,7 @@ export function Home() {
                 <StoriesRow stories={stories} />
                 <Feed scrollContainerRef={scrollRef} />
             </div>
+            {showScrollTop && <ScrollTopButton onClick={scrollToTop} />}
         </div>
     );
 }

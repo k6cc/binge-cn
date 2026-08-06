@@ -753,24 +753,32 @@ export function SceneSlide({
     const handleToggleFullscreen = useCallback(() => {
         const el = containerRef.current;
         if (!el) return;
-        // 判断当前卡片是否已全屏，而非全局 document.fullscreenElement。
         const fsEl = document.fullscreenElement;
         const isMine = fsEl === el;
         if (!isMine) {
-            // 在 requestFullscreen 之前固定 .binge-reel 的 height！
-            // fullscreenchange 事件触发时 100vh 已更新，来不及了。
-            // virtualizer 的 ResizeObserver 会检测到 .binge-reel 尺寸变化
-            // → 重新 measure → 卡片位置移动 → 卸载 → 浏览器退出全屏（闪屏）
             const reel = el.closest(".binge-reel") as HTMLElement | null;
             if (reel) {
                 reel.style.height = `${reel.clientHeight}px`;
             }
-            void el.requestFullscreen?.().catch(() => {
-                // 失败时恢复 height
+            void el.requestFullscreen?.().then(() => {
+                // 横屏视频 → 锁定横屏方向（Android only，iOS 静默失败）
+                const video = videoRef.current;
+                if (video && video.videoWidth > video.videoHeight) {
+                    const orient = screen.orientation;
+                    if (orient && typeof orient.lock === "function") {
+                        orient.lock("landscape").catch(() => {});
+                    }
+                }
+            }).catch(() => {
                 if (reel) reel.style.height = "";
             });
         } else {
-            void document.exitFullscreen?.().catch(() => {});
+            void document.exitFullscreen?.().then(() => {
+                const orient = screen.orientation;
+                if (orient && typeof orient.unlock === "function") {
+                    orient.unlock();
+                }
+            }).catch(() => {});
         }
     }, [scene.id]);
 

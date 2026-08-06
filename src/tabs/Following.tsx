@@ -10,6 +10,8 @@ import { useAutoHideTabBar } from "../hooks/useAutoHideTabBar";
 import { useSearchHistory } from "../hooks/useSearchHistory";
 import { SearchHistoryDropdown } from "../components/SearchHistoryDropdown";
 import { BingeLoading } from "../components/BingeLoading";
+import { useScrollToTop } from "../hooks/useScrollToTop";
+import { ScrollTopButton } from "../components/ScrollTopButton";
 
 type LoadState =
     | { kind: "loading" }
@@ -86,6 +88,7 @@ export function Following() {
         useSearchHistory("performers");
     const scrollRef = useRef<HTMLDivElement>(null);
     useAutoHideTabBar(scrollRef);
+    const { show: showScrollTop, scrollToTop } = useScrollToTop(scrollRef);
     const { t } = useTranslation();
     const SORT_OPTIONS: { value: SortMode; label: string }[] = useMemo(() => [
         { value: "name-asc", label: t("sort.name_asc") },
@@ -253,6 +256,7 @@ export function Following() {
                     </>
                 )}
             </div>
+            {showScrollTop && <ScrollTopButton onClick={scrollToTop} />}
         </div>
     );
 }

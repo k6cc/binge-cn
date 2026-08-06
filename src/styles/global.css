@@ -3753,6 +3753,48 @@ body,
     to { transform: rotate(360deg); }
 }
 
+/* Scroll-to-top button — appears on Home after scrolling past one
+   viewport height. Fixed at bottom-right; lifts above the mobile
+   bottom nav when it's visible (same :has() pattern as the reel). */
+.binge-scroll-top {
+    position: fixed;
+    right: 1rem;
+    bottom: calc(1rem + env(safe-area-inset-bottom, 0));
+    z-index: 50;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: bottom 0.28s ease, opacity 0.2s ease, transform 0.2s ease;
+}
+.binge-scroll-top:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+.binge-scroll-top:active {
+    transform: scale(0.92);
+}
+.binge-app:has(.binge-bottom-nav:not(.is-hidden)) .binge-scroll-top {
+    bottom: calc(4.5rem + env(safe-area-inset-bottom, 0));
+}
+@media (max-width: 720px) {
+    .binge-scroll-top {
+        width: 36px;
+        height: 36px;
+    }
+    .binge-scroll-top svg {
+        width: 18px;
+        height: 18px;
+    }
+}
+
 /* ── Home feed filter ─────────────────────────────────────────────── */
 /* Title + filter button share a left-aligned group so the funnel sits
    right next to "Home"; the refresh button stays pushed to the right by
@@ -5285,6 +5327,7 @@ body,
     align-items: center;
     flex: 1 1 auto;
     min-width: 0;
+    gap: 0.55rem;
 }
 /* Pack cards wrap the SINGLE avatar in a hovercard too (regular
    scene cards stack multiple avatars without per-avatar hovercards).
@@ -6681,6 +6724,22 @@ body,
     line-clamp: 2;
     -webkit-box-orient: vertical;
 }
+@media (max-width: 720px) {
+    .binge-discover-bubble {
+        flex: 0 0 62px;
+    }
+    .binge-discover-bubble-img {
+        width: 56px;
+        height: 56px;
+    }
+    .binge-discover-bubble-initial {
+        font-size: 1.2rem;
+    }
+    .binge-discover-bubble-name {
+        font-size: 0.7rem;
+        max-width: 62px;
+    }
+}
 .binge-discover-bar-chevron {
     appearance: none;
     background: rgba(20, 20, 22, 0.7);
@@ -6692,9 +6751,17 @@ body,
     display: grid;
     place-items: center;
     cursor: pointer;
-    flex: 0 0 32px;
-    margin: 0 0.25rem;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 5;
     transition: opacity 0.15s ease, background 0.15s ease;
+}
+.binge-discover-bar-chevron.is-prev {
+    left: 0;
+}
+.binge-discover-bar-chevron.is-next {
+    right: 0;
 }
 .binge-discover-bar-chevron:hover,
 .binge-discover-bar-chevron:focus-visible {
@@ -6702,7 +6769,8 @@ body,
     outline: none;
 }
 .binge-discover-bar-chevron.is-hidden {
-    display: none;
+    opacity: 0;
+    pointer-events: none;
 }
 .binge-discover-bar-chevron svg {
     width: 18px;
@@ -7742,7 +7810,7 @@ body,
     border: none;
     padding: 0;
     margin: 0;
-    background: #050505;
+    background: #111111;
     cursor: pointer;
     width: 100%;
     aspect-ratio: 1 / 1;
@@ -7762,6 +7830,27 @@ body,
     height: 100%;
     object-fit: cover;
     display: block;
+    position: relative;
+    z-index: 1;
+}
+/* 无图片占位符：默认隐藏，has-no-image 时显示 */
+.binge-photo-fallback {
+    position: absolute;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    color: #666;
+    font-size: 0.8rem;
+    z-index: 0;
+    pointer-events: none;
+}
+.has-no-image .binge-photo-fallback {
+    display: flex;
+}
+.binge-profile-photo-thumb.is-broken,
+.binge-gallery-cover.is-broken {
+    display: none;
 }
 
 /* ──────────────────────────────────────────────────────────────────────
@@ -7800,7 +7889,7 @@ body,
     border: none;
     padding: 0;
     margin: 0;
-    background: #050505;
+    background: #111111;
     cursor: pointer;
     width: 100%;
     /* Bug 3：3:4 竖排比例 */
@@ -8227,7 +8316,7 @@ body,
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 4rem 5rem;
+    padding: 4rem 4rem;
     pointer-events: none;
 }
 .binge-lightbox-image {
@@ -8294,6 +8383,26 @@ body,
 }
 .binge-lightbox-next {
     right: 0.75rem;
+}
+@media (max-width: 720px) {
+    .binge-lightbox-stage {
+        padding: 3rem 0.5rem;
+    }
+    .binge-lightbox-nav {
+        width: 36px;
+        height: 36px;
+        background: rgba(0, 0, 0, 0.35);
+    }
+    .binge-lightbox-nav svg {
+        width: 18px;
+        height: 18px;
+    }
+    .binge-lightbox-prev {
+        left: 0.5rem;
+    }
+    .binge-lightbox-next {
+        right: 0.5rem;
+    }
 }
 .binge-lightbox-counter {
     position: absolute;

@@ -177,6 +177,7 @@ export default {
         // 5.3 Actions
         action: {
             refresh_story: "Refresh story",
+            scroll_to_top: "Scroll to top",
             new_collection: "New collection",
             close: "Close",
             more: "More",

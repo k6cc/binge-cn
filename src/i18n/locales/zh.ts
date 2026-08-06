@@ -177,6 +177,7 @@ export default {
         // 5.3 动作
         action: {
             refresh_story: "刷新故事",
+            scroll_to_top: "回到顶部",
             new_collection: "新建合集",
             close: "关闭",
             more: "更多",
