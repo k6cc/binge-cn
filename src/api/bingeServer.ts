@@ -1,3 +1,4 @@
+import { fetchStashApiKey } from "./queries";
 import {
     readBingeServerUrl,
     ensureBingeServerUrlSeeded,
@@ -37,6 +38,9 @@ export interface RedditPost {
 
 export interface BingeServerHealth {
     ok: boolean;
+    // New in v0.2.1 — the daemon's build version. Absent on older
+    // daemons, so treat it as "unknown" rather than "not running".
+    version?: string;
     // New in v0.2 — present when the daemon reports its config state.
     // false → Stash creds or Reddit cookie not yet set.
     configured?: boolean;
@@ -184,16 +188,54 @@ export function hasPornhubUrl(urls: string[] | null | undefined): boolean {
     return urls.some((u) => /pornhub\.com\/(pornstar|model)\//i.test(u));
 }
 
+// The daemon authenticates with the Stash API key — the same secret binge
+// already reads to talk to Stash, so this adds nothing for the user to
+// configure. Fetched once and cached: every daemon call needs it, and the
+// media URLs below need it synchronously.
+//
+// Empty string is a real answer, not a failure: a Stash with no API key
+// (authentication off) has none to send, and the daemon matches Stash by
+// serving private networks without one.
+let stashKeyPromise: Promise<string> | null = null;
+let cachedStashKey = "";
+
+async function ensureStashKey(): Promise<string> {
+    if (!stashKeyPromise) {
+        stashKeyPromise = fetchStashApiKey()
+            .then((k) => {
+                cachedStashKey = k ?? "";
+                return cachedStashKey;
+            })
+            .catch(() => "");
+    }
+    return stashKeyPromise;
+}
+
+/// Appends the key as a query parameter. Needed for URLs handed to <img>
+/// and <video>, which cannot carry headers — the same reason Stash accepts
+/// `apikey` on its own media routes. Returns the URL untouched when no key
+/// is configured.
+function withKey(url: string): string {
+    if (!cachedStashKey) return url;
+    const sep = url.includes("?") ? "&" : "?";
+    return `${url}${sep}apikey=${encodeURIComponent(cachedStashKey)}`;
+}
+
 async function fetchJSON<T>(
     path: string,
     init?: RequestInit,
     timeoutMs = 8000
 ): Promise<T | null> {
     await ensureBingeServerUrlSeeded();
+    const key = await ensureStashKey();
     const base = readBingeServerUrl();
     try {
         const resp = await fetch(base + path, {
             ...init,
+            headers: {
+                ...(init?.headers ?? {}),
+                ...(key ? { ApiKey: key } : {}),
+            },
             // Tailscale Funnel + Mullvad NL adds latency vs a local
             // daemon. 8s is enough for the fast (DB-backed) endpoints;
             // callers that shell out server-side (X → gallery-dl) pass a
@@ -265,9 +307,13 @@ export async function saveToStash(
 ): Promise<{ ok: true; result: SaveToStashResult } | { ok: false; error: string }> {
     const base = readBingeServerUrl();
     try {
+        const key = await ensureStashKey();
         const resp = await fetch(base + "/save", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+                "Content-Type": "application/json",
+                ...(key ? { ApiKey: key } : {}),
+            },
             body: JSON.stringify(req),
             signal: AbortSignal.timeout(30_000),
         });
@@ -333,14 +379,14 @@ export async function getPornhubStories(
 // locked and on adult CDNs (UK-blocked), so they all route through
 // binge-server, which extracts + relays them from its Mullvad exit.
 export function pornhubStreamUrl(videoId: string): string {
-    return `${readBingeServerUrl()}/pornhub/stream/${encodeURIComponent(videoId)}`;
+    return withKey(`${readBingeServerUrl()}/pornhub/stream/${encodeURIComponent(videoId)}`);
 }
 export function pornhubPreviewUrl(videoId: string): string {
-    return `${readBingeServerUrl()}/pornhub/preview/${encodeURIComponent(videoId)}`;
+    return withKey(`${readBingeServerUrl()}/pornhub/preview/${encodeURIComponent(videoId)}`);
 }
 export function pornhubThumbUrl(raw: string | null): string | null {
     if (!raw) return raw;
-    return `${readBingeServerUrl()}/pornhub/thumb?url=${encodeURIComponent(raw)}`;
+    return withKey(`${readBingeServerUrl()}/pornhub/thumb?url=${encodeURIComponent(raw)}`);
 }
 
 export async function getBingeServerHealth(): Promise<BingeServerHealth | null> {
@@ -369,9 +415,13 @@ export async function setBingeServerConfig(
         };
     }
     try {
+        const key = await ensureStashKey();
         const resp = await fetch(base + "/config", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+                "Content-Type": "application/json",
+                ...(key ? { ApiKey: key } : {}),
+            },
             body: JSON.stringify(payload),
             signal: AbortSignal.timeout(15_000),
         });
@@ -434,7 +484,7 @@ export function rewriteRedgifsMediaUrl(url: string | null): string | null {
         return url;
     }
     const base = readBingeServerUrl();
-    return `${base}/redgifs/proxy?url=${encodeURIComponent(url)}`;
+    return withKey(`${base}/redgifs/proxy?url=${encodeURIComponent(url)}`);
 }
 
 // Rewrite Reddit-hosted image/video URLs (i.redd.it / preview.redd.it /
@@ -456,5 +506,5 @@ export function rewriteRedditMediaUrl(url: string | null): string | null {
         return url;
     }
     const base = readBingeServerUrl();
-    return `${base}/reddit/proxy?url=${encodeURIComponent(url)}`;
+    return withKey(`${base}/reddit/proxy?url=${encodeURIComponent(url)}`);
 }

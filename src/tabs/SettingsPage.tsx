@@ -22,7 +22,6 @@ import {
     setShowDebug,
     setShowGalleries,
     setShowcaseBlur,
-    setDemoMode,
     setTranscodeType,
     useAllowedGenders,
     useBingeServerUrl,
@@ -38,7 +37,6 @@ import {
     useShowDebug,
     useShowGalleries,
     useShowcaseBlur,
-    useDemoMode,
     useTranscodeType,
     type ForageWatchTarget,
     type Gender,
@@ -51,6 +49,8 @@ import {
     type BingeServerHealth,
 } from "../api/bingeServer";
 import { getForageHealth } from "../api/forageServer";
+import { parseCookiesTxt, describeParse } from "../api/cookiesTxt";
+import { BingeServerInstallCard } from "./BingeServerInstallCard";
 import { fetchStashApiKey } from "../api/queries";
 
 // In-app settings page — all preferences that used to live in Stash's
@@ -89,13 +89,13 @@ export function SettingsPage() {
                 <RedditRow />
                 <XRow />
                 <PornhubRow />
+                <BingeServerInstallCard />
                 <BingeServerRow />
                 <BingeServerConfigCard />
                 <ForageUrlRow />
                 <ForageTargetRow />
                 <RefractRow />
                 <ShowcaseRow />
-                <DemoRow />
                 <DebugRow />
             </div>
         </div>
@@ -527,6 +527,10 @@ function BingeServerConfigCard() {
     const [cookieBusy, setCookieBusy] = useState(false);
     const [cookieError, setCookieError] = useState<string | null>(null);
     const [cookieSaved, setCookieSaved] = useState(false);
+    // cookies.txt import — one file drop instead of two devtools digs.
+    const [importMsg, setImportMsg] = useState<string | null>(null);
+    const [importErr, setImportErr] = useState<string | null>(null);
+    const [importBusy, setImportBusy] = useState(false);
     const [showHelp, setShowHelp] = useState(false);
     // X (Twitter) cookies — two values, saved together.
     const [xAuthInput, setXAuthInput] = useState("");
@@ -594,6 +598,42 @@ function BingeServerConfigCard() {
             alive = false;
         };
     }, [config]);
+
+    // Parses in the browser and sends only the values binge understands.
+    // The file itself never leaves the page — a cookies.txt exported from a
+    // live session usually holds logins for every site you've visited, so
+    // uploading it wholesale would be a poor trade for saving one paste.
+    const handleCookiesFile = async (file: File) => {
+        setImportBusy(true);
+        setImportMsg(null);
+        setImportErr(null);
+        try {
+            const parsed = parseCookiesTxt(await file.text());
+            if (parsed.found.length === 0) {
+                setImportErr(describeParse(parsed));
+                return;
+            }
+            const result = await setBingeServerConfig({
+                redditSessionCookie: parsed.redditSessionCookie,
+                xAuthToken: parsed.xAuthToken,
+                xCt0: parsed.xCt0,
+            });
+            if (result.ok) {
+                setImportMsg(describeParse(parsed) + " Saved.");
+                const refreshed = await getBingeServerConfig();
+                setConfig(refreshed);
+            } else {
+                setImportErr(result.error);
+            }
+        } catch (err) {
+            setImportErr(
+                "Couldn't read that file: " +
+                    (err instanceof Error ? err.message : String(err))
+            );
+        } finally {
+            setImportBusy(false);
+        }
+    };
 
     const handleSaveCookie = async () => {
         const cookie = cookieInput.trim();
@@ -737,6 +777,38 @@ function BingeServerConfigCard() {
                 <span className="binge-settings-card-field-value">
                     {stashKeyState}
                 </span>
+            </div>
+
+            <div className="binge-settings-card-field is-stacked">
+                <span className="binge-settings-card-field-label">
+                    {t("settings.server_config.import_cookies")}
+                </span>
+                <div className="binge-cookies-import">
+                    <label className="binge-install-btn is-secondary">
+                        {importBusy
+                            ? t("settings.server_config.import_reading")
+                            : t("settings.server_config.import_choose_file")}
+                        <input
+                            type="file"
+                            accept=".txt,text/plain"
+                            hidden
+                            onChange={(e) => {
+                                const f = e.target.files?.[0];
+                                e.target.value = "";
+                                if (f) void handleCookiesFile(f);
+                            }}
+                        />
+                    </label>
+                    <span className="binge-cookies-import-hint">
+                        {t("settings.server_config.import_cookies_hint")}
+                    </span>
+                </div>
+                {importMsg && (
+                    <p className="binge-server-config-ok">{importMsg}</p>
+                )}
+                {importErr && (
+                    <p className="binge-server-config-error">{importErr}</p>
+                )}
             </div>
 
             <div className="binge-settings-card-field is-stacked">
@@ -1094,23 +1166,6 @@ function ShowcaseRow() {
                 checked={value}
                 onChange={(v) => setShowcaseBlur(v)}
                 label={t("settings.showcase.label")}
-            />
-        </SettingRow>
-    );
-}
-
-function DemoRow() {
-    const value = useDemoMode();
-    const { t } = useTranslation();
-    return (
-        <SettingRow
-            title={t("settings.demo.title")}
-            description={t("settings.demo.desc")}
-        >
-            <SwitchToggle
-                checked={value}
-                onChange={(v) => setDemoMode(v)}
-                label={t("settings.demo.label")}
             />
         </SettingRow>
     );

@@ -1,0 +1,10 @@
+# Build output.
+dist/
+
+# Hand-written ES5 shim that runs inside Stash's own page, not through
+# Vite. Its formatting is deliberate (and Prettier rewrites ~all of it),
+# so it stays hand-maintained.
+public/binge.entry.js
+
+# Vendored/generated.
+package-lock.json

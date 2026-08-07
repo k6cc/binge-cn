@@ -136,6 +136,7 @@ export default {
             add_to_forage_watchlist: "Add to your forage watchlist",
             followed_in_library: "Followed — added to your library",
             feed_load_failed: "Failed to load feed: {{message}}",
+            try_again: "Try again",
             all_filtered_out: "Everything filtered out — adjust filters.",
             no_new_content: "No new content within the lookback window.",
             current_total_image: "{{current}} / {{total}}",
@@ -393,6 +394,10 @@ export default {
                 poll_meta: "· {{count}} performers · last polled {{time}}",
                 desc: "Credentials the daemon uses to poll Reddit on your behalf. Stash API key is auto-filled; Reddit session cookie requires you to paste it manually (it's stored in your browser, not in Stash).",
                 stash_api_key: "Stash API key",
+                import_cookies: "Import cookies.txt",
+                import_choose_file: "Choose file",
+                import_reading: "Reading…",
+                import_cookies_hint: "Export cookies from a browser signed into Reddit and X, then pick the file here — it fills both in one step. Parsed in your browser; only the Reddit and X values are sent.",
                 reddit_cookie: "Reddit session cookie",
                 cookie_set: "✓ Set · Paste new value to rotate",
                 cookie_placeholder: "Paste your reddit_session value",
@@ -413,9 +418,30 @@ export default {
                 daemon_write_path: "daemon write path, e.g. /library/social",
                 stash_path: "Stash path, e.g. Z:\\Media\\social"
             },
+            install_card: {
+                title: "binge-server",
+                desc: "Optional daemon that adds Reddit, X and PornHub posts to your stories, plus Save-to-Stash. binge works fine without it. Installs onto the machine running Stash — if you run the daemon somewhere else, set its URL below instead.",
+                checking: "checking…",
+                running: "Installed and running",
+                installing: "Installing… the first run can take a few minutes while Docker pulls the image ({{seconds}}s)",
+                try_again: "Try again",
+                install: "Install binge-server",
+                hide_command: "Hide command",
+                install_manually: "Install manually",
+                no_task: "One-click install isn't offered here — Stash has no install task registered. Reload plugins in Stash if you just updated binge; otherwise use one of the options below.",
+                docker_label: "If Stash runs in Docker",
+                docker_note: "add this beside it in the same compose file, then",
+                otherwise_label: "Otherwise",
+                otherwise_note: "run this on the machine hosting Stash, then set the URL below if it isn't localhost:",
+                copy_compose: "Copy compose service",
+                copy_run: "Copy docker run",
+                copied: "Copied",
+                failed_task: "Stash refused to start the install task: {{error}}",
+                failed_no_answer: "The task ran but nothing answered on port 7878. Settings, then Tasks, has its log."
+            },
             forage_url: {
                 title: "forage server URL",
-                desc: "Base URL for your forage daemon (e.g. https://forage.tailf01ca.ts.net). When this daemon is reachable, 'Send to forage' will appear on discover scenes. Auth is automatic — binge presents your Stash API key, which forage already trusts; no pasting required. Status dot pings /healthz."
+                desc: "Optional. Base URL of your forage daemon, if you run one. \"Send to forage\" appears on discovery scenes once this daemon is reachable, and stays hidden while this is blank. Authentication is automatic — binge presents your Stash API key, which forage already trusts; nothing to paste. Status dot pings /healthz. Use https if Stash is served over https, or the browser blocks it as mixed content."
             },
             forage_health: {
                 ok: "forage reachable",
@@ -432,14 +458,9 @@ export default {
                 label: "Follow refract accent color"
             },
             showcase: {
-                title: "Showcase mode (blur all media)",
-                desc: "Blurs all images, videos, and avatars in binge while keeping the UI clear — useful for screenshots, demo recording, or screen sharing without exposing library content. Does not upload or modify anything; just a display filter within the browser. Shortcut: | (Shift + \\)",
-                label: "Showcase blur"
-            },
-            demo: {
-                title: "Demo content",
-                desc: "Replaces your library with fictitious, SFW placeholder content (gradients + made-up names) for recording marketing materials — no real performers, scenes, or media shown. Display-only; no changes in Stash.",
-                label: "Demo content"
+                title: "Privacy blur",
+                desc: "Blurs every image, video, and avatar while leaving the interface sharp — so you can screen-share, take a screenshot, or use binge somewhere public without putting your library on display. Nothing is uploaded or changed; it's a display-only filter in your browser. Toggle it fast with | (Shift + \\).",
+                label: "Privacy blur"
             },
             debug: {
                 title: "Show debug overlay",

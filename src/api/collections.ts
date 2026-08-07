@@ -1,5 +1,4 @@
 import { findTagByName, findTagsContaining } from "./queries";
-import { readDemoMode } from "../home/pluginSettings";
 import {
     sceneUpdate,
     tagCreate,
@@ -232,17 +231,6 @@ function ensureCollectionsParentTagId(): Promise<string> {
 // migration the user doesn't see.
 export function getCollectionTagIds(): Promise<Map<string, string>> {
     if (cachedTagIdsPromise) return cachedTagIdsPromise;
-    // Demo: hand each collection a synthetic id (no findTagByName /
-    // parent-tag round-trips). findRecentScenesForTag / findScenesByTag
-    // hash the id into a deterministic slice, so covers + detail load.
-    if (readDemoMode()) {
-        cachedTagIdsPromise = getCollections().then((cols) => {
-            const m = new Map<string, string>();
-            for (const c of cols) m.set(c.tagName, "democol-" + c.tagName);
-            return m;
-        });
-        return cachedTagIdsPromise;
-    }
     cachedTagIdsPromise = (async () => {
         const collections = await getCollections();
         const parentId = await ensureCollectionsParentTagId();
@@ -390,7 +378,6 @@ const DEFAULT_COLLECTIONS_SEEDED_KEY = "binge.defaultCollectionsSeeded";
 const LEGACY_MIGRATION_DONE_KEY = "binge.legacyTagNamesMigrated.v0.4.15";
 
 async function migrateLegacyTagNamesIfNeeded(): Promise<void> {
-    if (readDemoMode()) return;
     let migrated = false;
     try {
         migrated =
@@ -441,7 +428,6 @@ async function migrateLegacyTagNamesIfNeeded(): Promise<void> {
 }
 
 export async function ensureDefaultCollections(): Promise<void> {
-    if (readDemoMode()) return;
     // v0.4.15：先迁移旧英文 tagName 为中文，再走原有 ensure 逻辑。
     // 迁移在 seeded 短路之前执行，确保已 seeded 的老用户也能迁移。
     await migrateLegacyTagNamesIfNeeded();
@@ -480,7 +466,6 @@ export async function ensureDefaultCollections(): Promise<void> {
 // 找到旧名 tag → rename 为新名。如果旧名不存在或新名已存在则跳过。
 // 成功后更新 localStorage 中的标签语言状态并清空缓存。
 export async function syncTagLanguage(targetLang: string): Promise<void> {
-    if (readDemoMode()) return;
     const currentLang = getTagLanguage();
     if (currentLang === targetLang) return;
     if (!TAG_NAMES[targetLang]) return;

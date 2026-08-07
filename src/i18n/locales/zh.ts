@@ -136,6 +136,7 @@ export default {
             add_to_forage_watchlist: "加入你的 forage 观看列表",
             followed_in_library: "已关注 — 已加入你的库",
             feed_load_failed: "无法加载动态：{{message}}",
+            try_again: "重试",
             all_filtered_out: "所有内容被筛选掉了 — 调整筛选条件。",
             no_new_content: "近期窗口内没有新内容。",
             current_total_image: "{{current}} / {{total}}",
@@ -393,6 +394,10 @@ export default {
                 poll_meta: "· {{count}} 名演员 · 上次轮询 {{time}}",
                 desc: "守护进程代表你轮询 Reddit 所使用的凭据。Stash API 密钥会自动填入；Reddit 会话 Cookie 需要你手动粘贴（它保存在你的浏览器中，不在 Stash 中）。",
                 stash_api_key: "Stash API 密钥",
+                import_cookies: "导入 cookies.txt",
+                import_choose_file: "选择文件",
+                import_reading: "读取中…",
+                import_cookies_hint: "从已登录 Reddit 和 X 的浏览器导出 cookies，然后在此选择该文件 — 一步填入两者。在浏览器内解析；仅发送 Reddit 和 X 的值。",
                 reddit_cookie: "Reddit 会话 Cookie",
                 cookie_set: "✓ 已设置 · 粘贴新值以轮换",
                 cookie_placeholder: "粘贴你的 reddit_session 值",
@@ -413,9 +418,30 @@ export default {
                 daemon_write_path: "守护进程写入路径，例如 /library/social",
                 stash_path: "Stash 路径，例如 Z:\\Media\\social"
             },
+            install_card: {
+                title: "binge-server",
+                desc: "可选守护进程，为你的故事添加 Reddit、X 和 PornHub 帖子，以及保存到 Stash。没有它 binge 也能正常工作。安装到运行 Stash 的机器上 —— 如果你在别处运行守护进程，请在下方设置其 URL。",
+                checking: "检查中…",
+                running: "已安装并运行中",
+                installing: "安装中…首次运行可能需要几分钟拉取 Docker 镜像（{{seconds}}s）",
+                try_again: "重试",
+                install: "安装 binge-server",
+                hide_command: "隐藏命令",
+                install_manually: "手动安装",
+                no_task: "此处不提供一键安装 —— Stash 未注册安装任务。如果你刚更新 binge，请在 Stash 中重新加载插件；否则使用下方选项之一。",
+                docker_label: "如果 Stash 运行在 Docker 中",
+                docker_note: "将其添加到同一 compose 文件中 Stash 旁边，然后",
+                otherwise_label: "其他情况",
+                otherwise_note: "在运行 Stash 的机器上运行此命令，如果不是 localhost 则在下方设置 URL：",
+                copy_compose: "复制 compose 服务",
+                copy_run: "复制 docker run",
+                copied: "已复制",
+                failed_task: "Stash 拒绝启动安装任务：{{error}}",
+                failed_no_answer: "任务已运行但端口 7878 无响应。设置 → 任务中有其日志。"
+            },
             forage_url: {
                 title: "forage 服务器 URL",
-                desc: "你的 forage 守护进程的基础 URL（例如 https://forage.tailf01ca.ts.net）。当此守护进程可达时，发现场景上会出现“发送到 forage”。认证是自动的——binge 出示你的 Stash API 密钥，forage 已信任它；无需粘贴任何内容。状态点会 ping /healthz。"
+                desc: "可选。你的 forage 守护进程的基础 URL（如果你运行的话）。当此守护进程可达时，发现场景上会出现“发送到 forage”；为空时保持隐藏。认证是自动的——binge 出示你的 Stash API 密钥，forage 已信任它；无需粘贴。状态点会 ping /healthz。若 Stash 以 https 提供，请使用 https，否则浏览器会因混合内容阻止。"
             },
             forage_health: {
                 ok: "forage 可达",
@@ -432,14 +458,9 @@ export default {
                 label: "跟随 refract 强调色"
             },
             showcase: {
-                title: "展示模式（模糊所有媒体）",
-                desc: "模糊 binge 中所有图片、视频和头像，同时保持界面清晰——用于截图、演示录制或屏幕共享而不暴露库内容。不会上传或修改任何内容；仅为浏览器内的显示滤镜。快捷键：|（Shift + \\）",
-                label: "展示模糊"
-            },
-            demo: {
-                title: "演示内容",
-                desc: "用虚构的、SFW 占位内容（渐变 + 虚构名字）替换你的库，用于录制营销素材——不显示真实的演员、场景或媒体。仅显示用；Stash 中无任何变化。",
-                label: "演示内容"
+                title: "隐私模糊",
+                desc: "模糊所有图片、视频和头像，同时保持界面清晰——让你可以屏幕共享、截图或在公共场合使用 binge 而不展示你的库内容。不会上传或修改任何内容；仅为浏览器内的显示滤镜。按 |（Shift + \\）快速切换。",
+                label: "隐私模糊"
             },
             debug: {
                 title: "显示调试覆盖层",

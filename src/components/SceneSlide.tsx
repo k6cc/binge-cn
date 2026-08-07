@@ -38,7 +38,6 @@ import {
     useAutoScroll,
     useAutoLoadCaptions,
     useTranscodeType,
-    readDemoMode,
 } from "../home/pluginSettings";
 import { useScribeModal } from "../scribe/ScribeContext";
 
@@ -367,9 +366,6 @@ export function SceneSlide({
         if (currentlyScrolling) return;
         // 仅视口内（active）卡片加载视频源。
         if (!isActive) return;
-        // Demo mode: no real stream — leave src unset so the gradient
-        // poster shows (a data-URI can't play as <video>).
-        if (readDemoMode()) return;
         const url = pickStreamUrl(scene, transcodeType);
         baseStreamUrlRef.current = url;
         if (video.src !== url) {

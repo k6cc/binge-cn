@@ -19,7 +19,6 @@ import {
     setIncludeStashDBInProfile,
     useIncludeStashDBInProfile,
     useIncludePornhub,
-    useDemoMode,
 } from "../home/pluginSettings";
 import {
     getPornhubFeed,
@@ -51,10 +50,16 @@ type GridCell =
 
 const STASHDB_ENDPOINT = "https://stashdb.org/graphql";
 
-const PAGE_SIZE = 24;
-// Distance from grid bottom that triggers the next page load. Matches the
-// Reel's PAGINATE_TRIGGER_DISTANCE feel — load before the user hits the floor.
-const NEAR_BOTTOM_PX = 600;
+// 24 was one flick of the wrist on a wide grid (5-6 columns = 4 rows), so
+// the loader showed up constantly. 60 is ~10 rows even at desktop width
+// while staying a comfortable single query. "recent" ignores this and
+// fetches everything (see findScenesByPerformer) because its sort can't
+// be expressed server-side.
+const PAGE_SIZE = 60;
+// Distance from grid bottom that triggers the next page load. Deliberately
+// more than a screen's worth so the next page is usually already in place
+// by the time the user reaches the end and they never watch a spinner.
+const NEAR_BOTTOM_PX = 1400;
 
 // Paginated grid of poster cards. Tapping a card closes the profile and
 // replaces the active filter with `{performers:[this], tags:[], studios:[]}`,
@@ -79,8 +84,7 @@ export function PerformerSceneGrid({
     // Filtered to scenes the user doesn't already own (owned ids
     // matched against `scene_id` not `id`, since Stash dedupes by
     // stash_id locally and we want to suppress duplicates).
-    const includeStashDBInProfile =
-        useIncludeStashDBInProfile() && !useDemoMode();
+    const includeStashDBInProfile = useIncludeStashDBInProfile();
     const [stashDBScenes, setStashDBScenes] = useState<StashDBScene[]>([]);
     const [stashBoxIndex, setStashBoxIndex] = useState<number | null>(null);
     const [sceneModalFor, setSceneModalFor] = useState<{
@@ -93,7 +97,7 @@ export function PerformerSceneGrid({
     // PornHub mixin — the performer's cached PornHub videos, folded into
     // the grid as tiles. Fetched once on profile open (gated on a pornhub
     // url). Tapping a tile opens the inline stream player.
-    const includePornhub = useIncludePornhub() && !useDemoMode();
+    const includePornhub = useIncludePornhub();
     const [pornhubVideos, setPornhubVideos] = useState<PornhubVideo[]>([]);
     const [pornhubPlayFor, setPornhubPlayFor] = useState<PornhubVideo | null>(
         null
@@ -519,7 +523,7 @@ function SceneTile({
     const oCount = scene.o_counter ?? 0;
     const viewCount = scene.play_count ?? 0;
     const sceneTitle = scene.title?.trim() || "";
-    const previewUrl = useDemoMode() ? null : scene.paths.preview;
+    const previewUrl = scene.paths.preview;
     // Persistent corner badge showing the stat that matches the active
     // sort (à la TikTok's view-count overlay). Hidden on hover, where the
     // full stat row takes over.

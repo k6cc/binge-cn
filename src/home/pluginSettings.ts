@@ -23,15 +23,31 @@ const AUTO_SCROLL_KEY = "binge.autoScroll";
 const AUTO_LOAD_CAPTIONS_KEY = "binge.autoLoadCaptions";
 const REFRACT_INTEGRATION_KEY = "binge.refractIntegration";
 const SHOWCASE_BLUR_KEY = "binge.showcaseBlur";
-const DEMO_MODE_KEY = "binge.demoMode";
 const BINGE_SERVER_URL_KEY = "binge.bingeServerUrl";
 const LOOKBACK_DAYS_KEY = "binge.lookbackDays";
-// Defaults to the loopback address — the typical case where binge-server
-// runs on the same machine as Stash. Users with a remote daemon (e.g. a
-// mini behind a Tailscale Funnel) set their own URL in Settings, which
-// persists in localStorage. Kept as a plain default so the plugin ships
-// without any deployment-specific URL baked in.
-const DEFAULT_BINGE_SERVER_URL = "http://localhost:7878";
+// binge-server runs alongside Stash — every install path here sets it up
+// that way — so the host serving this page is the host running the daemon.
+//
+// Derived rather than hardcoded, because "localhost" is only correct when
+// you browse FROM the machine Stash runs on. The common Docker setup is
+// Stash on a NAS or server with a browser on a laptop, where localhost
+// pointed at the wrong machine entirely and every user had to work out
+// and type the address themselves.
+//
+// Stays http even when Stash is https: the daemon isn't behind the same
+// reverse proxy, so an https guess would fail the TLS handshake. Those
+// users need a proxied endpoint and must set it in Settings — mixed
+// content blocks the fetch either way, so this is no worse than before,
+// and getBingeServerHealth surfaces that case explicitly.
+function defaultBingeServerUrl(): string {
+    try {
+        const host = window.location.hostname;
+        if (host) return `http://${host}:7878`;
+    } catch {
+        /* no window (tests / SSR) — fall through */
+    }
+    return "http://localhost:7878";
+}
 // Stream-type key matches src/config.ts (legacy reader still used in
 // imperative call sites like SceneSlide). Kept in sync via the same
 // localStorage entry.
@@ -499,28 +515,13 @@ export function toggleShowcaseBlur(): void {
     writeBool(SHOWCASE_BLUR_KEY, !readBool(SHOWCASE_BLUR_KEY, false));
 }
 
-// Demo mode — replaces the real Stash library with fictional, SFW
-// placeholder content (procedural gradients + invented performers /
-// scenes / tags / collections) for capturing marketing footage. Read as
-// a React hook (settings UI / App) AND imperatively from the query layer
-// (src/api/queries.ts), which runs outside React. Off by default.
-export function useDemoMode(): boolean {
-    return useStoredBool(DEMO_MODE_KEY, false);
-}
-export function readDemoMode(): boolean {
-    return readBool(DEMO_MODE_KEY, false);
-}
-export function setDemoMode(value: boolean): void {
-    writeBool(DEMO_MODE_KEY, value);
-}
-
 // binge-server URL. Read both as a React hook and via the imperative
 // reader below (used by src/api/bingeServer.ts inside async fetches).
 export function useBingeServerUrl(): string {
-    return useStoredFreeString(BINGE_SERVER_URL_KEY, DEFAULT_BINGE_SERVER_URL);
+    return useStoredFreeString(BINGE_SERVER_URL_KEY, defaultBingeServerUrl());
 }
 export function readBingeServerUrl(): string {
-    return readFreeString(BINGE_SERVER_URL_KEY, DEFAULT_BINGE_SERVER_URL);
+    return readFreeString(BINGE_SERVER_URL_KEY, defaultBingeServerUrl());
 }
 
 // One-time seed of the binge-server URL from Stash's server-side plugin
@@ -530,26 +531,46 @@ export function readBingeServerUrl(): string {
 // shipped bundle. Only writes localStorage when the user hasn't set their
 // own value. Memoized; binge-server fetches await it (see bingeServer.ts)
 // so there's no first-load race.
-let seedPromise: Promise<void> | null = null;
-export function ensureBingeServerUrlSeeded(): Promise<void> {
-    if (!seedPromise) seedPromise = seedFromPluginConfig();
-    return seedPromise;
-}
-async function seedFromPluginConfig(): Promise<void> {
-    if (readFreeString(BINGE_SERVER_URL_KEY, "")) return; // user set it
-    try {
-        const data = await gql<{
-            configuration?: {
-                plugins?: Record<string, { serverUrl?: string } | null>;
-            };
-        }>(`query { configuration { plugins } }`);
-        const url = data.configuration?.plugins?.["binge"]?.serverUrl;
-        if (typeof url === "string" && url.trim()) {
-            setBingeServerUrl(url.trim());
-        }
-    } catch {
-        // Stash unreachable / no config — fall back to the localhost default.
+// One seed per storage key, memoised for the page's lifetime.
+const seedPromises = new Map<string, Promise<void>>();
+function ensureSeededFromPluginConfig(
+    storageKey: string,
+    field: string,
+    write: (value: string) => void
+): Promise<void> {
+    let pending = seedPromises.get(storageKey);
+    if (!pending) {
+        pending = (async () => {
+            if (readFreeString(storageKey, "")) return; // user set it
+            try {
+                const data = await gql<{
+                    configuration?: {
+                        plugins?: Record<
+                            string,
+                            Record<string, unknown> | null
+                        >;
+                    };
+                }>(`query { configuration { plugins } }`);
+                const value =
+                    data.configuration?.plugins?.["binge"]?.[field];
+                if (typeof value === "string" && value.trim()) {
+                    write(value.trim());
+                }
+            } catch {
+                // Stash unreachable / no config — keep the default.
+            }
+        })();
+        seedPromises.set(storageKey, pending);
     }
+    return pending;
+}
+
+export function ensureBingeServerUrlSeeded(): Promise<void> {
+    return ensureSeededFromPluginConfig(
+        BINGE_SERVER_URL_KEY,
+        "serverUrl",
+        setBingeServerUrl
+    );
 }
 
 // ── forage integration ──────────────────────────────────────────────
@@ -560,13 +581,17 @@ async function seedFromPluginConfig(): Promise<void> {
 // the Settings UI) and imperatively from src/api/forageServer.ts.
 const FORAGE_URL_KEY = "binge.forageUrl";
 const FORAGE_WATCH_TARGET_KEY = "binge.forageWatchTarget";
-// Points at the forage daemon's Tailscale Serve URL out of the box —
-// https so it works from a binge loaded over https (mixed-content
-// otherwise blocks the fetch). Users on a different host override it in
-// Settings. The "Send to forage" action still only appears when this
-// daemon actually answers /healthz, so a default that's unreachable for
-// a given user just hides the feature rather than erroring.
-const DEFAULT_FORAGE_URL = "https://forage.tailf01ca.ts.net";
+// EMPTY by default — no deployment-specific host is baked into the
+// shipped bundle. (It used to default to the maintainer's own Tailscale
+// URL, which meant every install probed a stranger's daemon.) Empty
+// disables the feature outright: isForageConfigured() is false, the
+// health probe short-circuits, and "Send to forage" stays hidden until
+// the user sets a URL in Settings — or until one arrives from Stash's
+// plugin config, see ensureForageUrlSeeded below.
+//
+// Use https if binge itself is served over https; a plain-http daemon URL
+// is blocked as mixed content and the probe fails closed.
+const DEFAULT_FORAGE_URL = "";
 
 // Quality the watch waits for. Mirrors forage's WatchTarget enum minus
 // 480p (no one watches for a 480p copy). "any" = grab-ready as soon as
@@ -589,6 +614,20 @@ export function readForageUrl(): string {
 export function setForageUrl(value: string): void {
     // Strip trailing slash so path concatenation stays predictable.
     writeString(FORAGE_URL_KEY, value.trim().replace(/\/+$/, ""));
+}
+
+// One-time seed of the forage URL from Stash's plugin config
+// (`configuration.plugins.binge.forageUrl`), so a deployment can be
+// configured once server-side instead of per browser. Same rules as the
+// binge-server seed: a value the user typed always wins, and this runs at
+// most once per page. forageServer.ts awaits it before the health probe
+// so a cold load can't race the seed.
+export function ensureForageUrlSeeded(): Promise<void> {
+    return ensureSeededFromPluginConfig(
+        FORAGE_URL_KEY,
+        "forageUrl",
+        setForageUrl
+    );
 }
 
 export function useForageWatchTarget(): ForageWatchTarget {

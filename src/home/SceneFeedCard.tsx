@@ -10,7 +10,6 @@ import { useFilter } from "../filter/FilterContext";
 import { useTab } from "../tabs/TabContext";
 import { usePerformerProfile } from "../performer/PerformerProfileContext";
 import { useMuteState } from "../hooks/useMuteState";
-import { readDemoMode } from "./pluginSettings";
 import { sceneIncrementO } from "../api/mutations";
 import { recordTagInteractions } from "../api/interactedTags";
 import {
@@ -415,7 +414,7 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
                         "binge-feed-card-video" +
                         (isPortrait ? " is-portrait" : "")
                     }
-                    src={readDemoMode() ? undefined : item.preview ?? undefined}
+                    src={item.preview ?? undefined}
                     poster={item.screenshot ?? undefined}
                     playsInline
                     loop

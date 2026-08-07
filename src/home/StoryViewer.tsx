@@ -9,7 +9,6 @@ import { useTab } from "../tabs/TabContext";
 import { VerifiedIcon } from "../performer/PerformerProfile";
 import { usePerformerProfile } from "../performer/PerformerProfileContext";
 import { timeAgo } from "./timeAgo";
-import { readDemoMode } from "./pluginSettings";
 import {
     rewriteRedditMediaUrl,
     rewriteRedgifsMediaUrl,
@@ -405,11 +404,7 @@ export function StoryViewer() {
                                     : "")
                             }
                             key={currentScene.id}
-                            src={
-                                readDemoMode()
-                                    ? undefined
-                                    : currentScene.preview ?? undefined
-                            }
+                            src={currentScene.preview ?? undefined}
                             poster={currentScene.screenshot ?? undefined}
                             playsInline
                             muted={muted}
