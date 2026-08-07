@@ -1,6 +1,6 @@
 # Binge（汉化版）
 
-> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.5.4**。
+> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.5.5**。
 
 为 [Stash](https://github.com/stashapp/stash) 提供的 Instagram 风格社交与发现层：竖屏 Reel、Stories、演员档案、StashDB 驱动的发现功能——全部基于 Stash 既有的 GraphQL API。Web 插件形态。
 
@@ -39,6 +39,22 @@ v0.4.17 将原硬编码中文迁移为基于 `react-i18next` 的动态多语言�
 - 详见 [汉化及修复.md](./汉化及修复.md)
 
 ### 功能修复
+
+#### v0.5.5
+
+- **合并上游 752df50..3da7524**（14 个提交，26 个文件，+1355/-717 行）
+- **binge-server API Key 认证**（配合新版 daemon）：所有 daemon 请求携带 Stash API Key，媒体 URL 追加 `?apikey=` 查询参数（fork 改用 query param 避免 CORS preflight，上游用 header）
+- **binge-server URL 派生**：`defaultBingeServerUrl()` 用 `window.location.hostname` 派生 `http://{host}:7878`，解决非 localhost 访问场景
+- **一键安装 binge-server**：Stash 任务面板触发 `binge-install.py`，docker 优先（含 gallery-dl/yt-dlp/ffmpeg），失败回退 release 二进制；容器内无 docker socket 时拒绝并提示 compose 兄弟服务
+- **cookies.txt 一键导入**：Netscape cookies.txt 浏览器内解析，提取媒体平台登录态，文件不上传
+- **forage 默认 URL 清空**：不再探测陌生人 daemon，需手动设置或 Stash 配置下发
+- **导航按钮改用 PluginApi.patch**：SPA 重渲染无需重注入，用户可在 Stash Settings → Interface → Menu Items 勾选显隐
+- **Feed 失败重试**：error 态显示"重试"按钮
+- **隐私模糊**（原"展示模式"）：文案从"截图/演示录制"改"屏幕共享/公共场合"
+- **移除 demo 模式**：删除 `src/demo/demoContent.ts`（459 行），清理 11 个文件的 demo 分支
+- **移除隐藏标签**：删除 `HIDDEN_TAG_IDS`/`withHiddenTagsExcluded`，所有内容按 gender 设置正常展示
+- **演员分页放宽**：`PAGE_SIZE` 24→60，`NEAR_BOTTOM_PX` 600→1400
+- **锁定 Prettier 配置**：`.prettierrc.json`（`tabWidth:4, endOfLine:auto`）+ `.prettierignore`
 
 #### v0.5.4
 
