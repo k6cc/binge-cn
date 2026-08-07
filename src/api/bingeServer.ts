@@ -230,12 +230,15 @@ async function fetchJSON<T>(
     const key = await ensureStashKey();
     const base = readBingeServerUrl();
     try {
-        const resp = await fetch(base + path, {
+        // ApiKey as a query param instead of a header: a custom header
+        // triggers a CORS preflight the daemon doesn't answer, breaking
+        // every call (including /healthz) when Stash API auth is on.
+        // The daemon already accepts ?apikey= on its media routes (same
+        // mechanism Stash itself uses), so this is consistent and keeps
+        // requests as simple CORS requests.
+        const url = key ? withKey(base + path) : base + path;
+        const resp = await fetch(url, {
             ...init,
-            headers: {
-                ...(init?.headers ?? {}),
-                ...(key ? { ApiKey: key } : {}),
-            },
             // Tailscale Funnel + Mullvad NL adds latency vs a local
             // daemon. 8s is enough for the fast (DB-backed) endpoints;
             // callers that shell out server-side (X → gallery-dl) pass a
@@ -308,11 +311,12 @@ export async function saveToStash(
     const base = readBingeServerUrl();
     try {
         const key = await ensureStashKey();
-        const resp = await fetch(base + "/save", {
+        // query param auth — see fetchJSON (avoid CORS preflight).
+        const url = key ? withKey(base + "/save") : base + "/save";
+        const resp = await fetch(url, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                ...(key ? { ApiKey: key } : {}),
             },
             body: JSON.stringify(req),
             signal: AbortSignal.timeout(30_000),
@@ -416,11 +420,12 @@ export async function setBingeServerConfig(
     }
     try {
         const key = await ensureStashKey();
-        const resp = await fetch(base + "/config", {
+        // query param auth — see fetchJSON (avoid CORS preflight).
+        const url = key ? withKey(base + "/config") : base + "/config";
+        const resp = await fetch(url, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                ...(key ? { ApiKey: key } : {}),
             },
             body: JSON.stringify(payload),
             signal: AbortSignal.timeout(15_000),
