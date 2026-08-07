@@ -5,6 +5,7 @@
 #   binge-v0.1.0.zip
 #   ├── binge.yml
 #   ├── binge.entry.js
+#   ├── binge-install.py
 #   └── index.html
 #
 # To cut a release: `git tag v0.1.0 && git push --tags`.
@@ -64,12 +65,12 @@ jobs:
       - name: Stage plugin files
         run: |
           mkdir -p release
-          cp binge.yml dist/binge.entry.js dist/index.html release/
+          cp binge.yml dist/binge.entry.js dist/index.html dist/binge-install.py release/
 
       - name: Pack zip
         run: |
           cd release
-          zip "../binge-v${{ steps.ver.outputs.version }}.zip" binge.yml binge.entry.js index.html
+          zip "../binge-v${{ steps.ver.outputs.version }}.zip" binge.yml binge.entry.js index.html binge-install.py
           cd ..
           ls -lh "binge-v${{ steps.ver.outputs.version }}.zip"
 
