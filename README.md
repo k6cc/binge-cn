@@ -56,45 +56,14 @@ v0.4.17 将原硬编码中文迁移为基于 `react-i18next` 的动态多语言�
 - **演员分页放宽**：`PAGE_SIZE` 24→60，`NEAR_BOTTOM_PX` 600→1400
 - **锁定 Prettier 配置**：`.prettierrc.json`（`tabWidth:4, endOfLine:auto`）+ `.prettierignore`
 
-#### v0.5.4
+#### v0.5.0–v0.5.4
 
-- 容器改用 `100dvh`（`.binge-app` / `.binge-reel` / `.binge-tab-scroll`），地址栏显示时等于当前视口高度，配合 `estimateSize` 用 `.binge-reel` 的 `clientHeight`，vi.size 跟容器实际高度一致，wrapper 完美对齐视口顶部，标题/进度条不再被地址栏遮挡
-- 全屏退出跳错影片修复（退出时 pause 当前 video，等 `orientationchange` 完成 + 250ms 稳定后再 `scrollToIndex`，IO 阈值 0.6 → 0.7，避免最后一部边界双 active）
-- Reel 最后一部对齐修复（`estimateSize` 用 `.binge-reel` 的 `clientHeight` 代替 `window.innerHeight`，避免 mobile Chrome 上 100vh 与 innerHeight 不一致导致最后一部 wrapper 顶部无法对齐视口顶部）
-- Lightbox 箭头点击在白色图片上不可见修复（移除默认 tap-highlight，`:active` 加深背景，svg 加 drop-shadow 描边）
-
-#### v0.5.3
-
-- 移动端 Chrome 地址栏背景色统一（`<meta name="theme-color" content="#0a0a0a">`，与 binge 主背景一致）
-- 回到顶部按钮（首页/关注/发现三页，滚动超过一屏出现，导航栏可见时自动上移，720px 缩放）
-- 演员图库无图占位符（无 `src` 时不渲染 `<img>`，加载失败兜底为「无图片」，图库卡片背景 `#050505 → #111111`）
-- 全屏自动旋转横屏视频（Android Chrome `screen.orientation.lock("landscape")`，iOS 静默失败）
-- Discover chevron 浮于两侧（`position: absolute`，隐藏改为透明而非 `display:none` 避免布局跳动）
-- Lightbox 导航按钮 720px 缩放统一（36px / 18px svg / padding 收紧）
-
-#### v0.5.2
-
-- 自动加载字幕（更多选项开关，Stash sidecar `.srt`/`.vtt` 自动加载第一个）
-- 字幕自定义渲染（`text-shadow` 描边替代黑底，位置随 `object-fit: contain` 内容区域，字体随视频宽度缩放）
-- 底部导航栏出现时播放页 UI 同步上移（CSS `:has()` 实时检测导航栏可见性，零时序差）
-- 关注页/首页 Stories 行头像缩小（720px 断点统一，窄屏 3 列布局）
-- 顶部导航栏放大 50%（首页/关注/推荐/发现）
-- 影片标题显示宽度 90%
-- 设置页窄屏断点统一为 720px
-
-#### v0.5.0–v0.5.1
-
-- 全屏按钮（操作栈，容器全屏，overlay 可用）
-- 全屏 UI 自动隐藏（3 秒淡出，点击/移动鼠标恢复，进度条始终可见）
-- 全屏模式隐藏 收藏/多视图/Scribe/更多 按钮（`display:none`，其他按钮自动靠拢）
-- 全屏下禁用 overlay 所有交互元素（头像/名字/收藏/标题，防止 Portal 页面被遮挡）
-- 全屏进度条残留细条常驻可点（方案 A，参考 YouTube/B 站）
-- 水平滑动快进快退（每像素 0.6 秒，居中指示器）
-- 长按 2× 倍速播放（500ms 触发，顶部徽章）
-- 修复全屏闪屏+视频重播（进入全屏前固定 `.binge-reel` height，防止 virtualizer 卸载卡片）
-- 修复退出全屏后顶部空白底部截断（三重 rAF + `scrollToIndex` 瞬时对齐）
-- 修复影片详情标签只显示"#"（`toHashtag` 正则双反斜杠 bug）
-- 设置页最大宽度限制 1100px
+- **全屏体验**：操作栈全屏按钮、UI 3 秒自动隐藏、进度条残留细条常驻、水平滑动快进快退、长按 2× 倍速；全屏下隐藏次要按钮、禁用 overlay 交互、横屏视频自动旋转（Android Chrome）
+- **全屏稳定性修复**：进入前固定 `.binge-reel` height 防止 virtualizer 卸载卡片；退出时 pause video + 等 `orientationchange` 完成再 `scrollToIndex`，避免跳错影片
+- **移动端容器高度**：`100dvh` + `estimateSize` 用 `.binge-reel` 的 `clientHeight`，解决 mobile Chrome 上 100vh 与 innerHeight 不一致导致的 wrapper 错位、标题/进度条被地址栏遮挡
+- **字幕**：自动加载 Stash sidecar `.srt`/`.vtt`，`text-shadow` 描边替代黑底，位置随 `object-fit: contain` 内容区，字体随视频宽度缩放
+- **UI 细节**：移动端地址栏背景色统一、回到顶部按钮（三页 720px 缩放）、演员图库无图占位符、Stories 行头像缩小、顶部导航放大 50%、Discover chevron 浮于两侧、Lightbox 箭头描边 + 720px 缩放、设置页最大宽度 1100px、窄屏断点统一 720px
+- **其他修复**：退出全屏顶部空白底部截断（三重 rAF + `scrollToIndex` 对齐）、影片详情标签只显示"#"（`toHashtag` 正则 bug）
 
 #### v0.4.17–v0.4.19
 
