@@ -13,6 +13,7 @@ import {
     readStashDBCache,
     writeStashDBCache,
     invalidateStashDBCache,
+    invalidateTrendingPerformersCache,
     type StashDBScene,
     type LinkedPerformer,
 } from "../api/stashdb";
@@ -150,6 +151,9 @@ export function useStories(): StoriesResult {
         // refreshTick) refetches trending + costar seeds instead of
         // reusing the 12h cached copy.
         invalidateDiscoveryFeedCache();
+        // Drop the Discover page's trending-performers cache too so
+        // the next visit refetches fresh bubbles.
+        invalidateTrendingPerformersCache();
         setRefreshing(true);
         setRefreshTick((n) => n + 1);
     }, []);

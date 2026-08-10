@@ -42,12 +42,13 @@ v0.4.17 将原硬编码中文迁移为基于 `react-i18next` 的动态多语言�
 
 #### v0.5.6
 
-- **StashDB 网络降级优化**：`postStashDB` 加 10s 超时（AbortController），断网时最多 10 秒降级，不再几分钟卡死
+- **StashDB 网络降级优化**：`postStashDB` 加超时（AbortController），Stories/Feed 链路 10s、发现页头像 20s，断网时快速降级，不再几分钟卡死
 - **Feed discovery 12h 缓存**：trending + costar 查询结果独立缓存（`binge.discovery.seeds.v1`），对齐 Stories 链路，避免每次冷启动打 stashdb
+- **发现页头像 12h 缓存**：trending performers 查询结果独立缓存（`binge.stashdb.trendingPerformers.v1.*`），12h 内再进发现页秒出
 - **空结果不覆盖缓存**：fetch 失败（超时/断网）返回空数组时不写入缓存，保留上一次成功拉取的数据
 - **隐藏分类控制 fetch**：Feed 筛选菜单隐藏"热门"后 trending 查询完全不发，不再"先 fetch 再过滤"
 - **trending/costar 并行拉取**：两条独立 stashdb 查询改并行（Promise.all），断网时总等待从 20s 降到 10s
-- **刷新按钮联动 Feed**：首页右上角刷新按钮现在同时清 Stories + Feed 的 stashdb 缓存并重拉两条链路
+- **刷新按钮联动全链路**：首页右上角刷新按钮现在同时清 Stories + Feed + 发现页头像的 stashdb 缓存并重拉
 
 #### v0.5.5
 

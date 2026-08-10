@@ -192,10 +192,11 @@ const STASHDB_TIMEOUT_MS = 10_000;
 async function postStashDB<T>(
     apiKey: string,
     query: string,
-    variables: Record<string, unknown>
+    variables: Record<string, unknown>,
+    timeoutMs: number = STASHDB_TIMEOUT_MS
 ): Promise<T | null> {
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), STASHDB_TIMEOUT_MS);
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
     try {
         const res = await fetch(STASHDB_ENDPOINT, {
             method: "POST",
@@ -717,6 +718,28 @@ export async function getTrendingStashDBPerformers(
     genders: ReadonlyArray<string> = ["FEMALE"]
 ): Promise<StashDBTrendingPerformer[]> {
     if (genders.length === 0) return [];
+
+    // 12h cache for trending performers — mirrors the Stories/Feed
+    // stashdb cache. Without this, Explore's Discover row is empty
+    // on any network where stashdb.org is unreachable, even if it
+    // was loaded successfully earlier in the day.
+    const genderKey = genders.slice().sort().join(",");
+    const cacheKey = `binge.stashdb.trendingPerformers.v1.${perPage}.${genderKey}`;
+    try {
+        const raw = localStorage.getItem(cacheKey);
+        if (raw) {
+            const entry = JSON.parse(raw) as {
+                fetchedAt: number;
+                performers: StashDBTrendingPerformer[];
+            };
+            if (Date.now() - entry.fetchedAt < 12 * 60 * 60 * 1000) {
+                return entry.performers;
+            }
+        }
+    } catch {
+        /* ignore corrupt cache */
+    }
+
     // queryPerformers takes a single `gender` enum (or omitted for
     // all). Fire one request per selected gender in parallel and
     // dedupe by id. Interleave to keep early slots gender-balanced
@@ -745,7 +768,7 @@ export async function getTrendingStashDBPerformers(
                         page: 1,
                         per_page: perPage,
                     },
-                });
+                }, 20_000); // 20s timeout for Discover page avatars — slower load acceptable, more reliable on degraded networks
                 return data?.queryPerformers?.performers ?? [];
             } catch (err) {
                 console.warn(
@@ -777,6 +800,23 @@ export async function getTrendingStashDBPerformers(
             if (merged.length >= perPage) break;
         }
     }
+
+    // Only cache if we actually got data — don't overwrite a valid
+    // cache with empty results from a flaky network.
+    if (merged.length > 0) {
+        try {
+            localStorage.setItem(
+                cacheKey,
+                JSON.stringify({
+                    fetchedAt: Date.now(),
+                    performers: merged,
+                })
+            );
+        } catch {
+            /* quota etc — ignore */
+        }
+    }
+
     return merged;
 }
 
@@ -904,6 +944,25 @@ export function writeStashDBCache(
 export function invalidateStashDBCache(): void {
     try {
         localStorage.removeItem(CACHE_KEY);
+    } catch {
+        /* ignore */
+    }
+}
+
+// Drop all trending-performers caches. Called separately from
+// invalidateStashDBCache because the Discover page's performer bar
+// is independent from the Home Stories/Feed stashdb data — refreshing
+// Home shouldn't blow away Discover's cache and force a slow refetch
+// that might time out on degraded networks.
+export function invalidateTrendingPerformersCache(): void {
+    try {
+        const prefix = "binge.stashdb.trendingPerformers.v1.";
+        const toRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith(prefix)) toRemove.push(key);
+        }
+        for (const key of toRemove) localStorage.removeItem(key);
     } catch {
         /* ignore */
     }
