@@ -181,11 +181,21 @@ const PERFORMER_BATCH_SIZE = 100;
 const PAGE_SIZE = 100;
 const MAX_PAGES = 50;
 
+// Abort stashdb fetches after 10s. Without this, an unreachable
+// stashdb.org hangs the feed/stories load for the browser's own
+// timeout (60-300s), which is what makes binge's home take minutes
+// to appear on networks where stashdb is blocked. 10s is generous
+// for a warm request (typical <1s) and short enough that the
+// degraded path lights up fast.
+const STASHDB_TIMEOUT_MS = 10_000;
+
 async function postStashDB<T>(
     apiKey: string,
     query: string,
     variables: Record<string, unknown>
 ): Promise<T | null> {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), STASHDB_TIMEOUT_MS);
     try {
         const res = await fetch(STASHDB_ENDPOINT, {
             method: "POST",
@@ -194,6 +204,7 @@ async function postStashDB<T>(
                 ApiKey: apiKey,
             },
             body: JSON.stringify({ query, variables }),
+            signal: ctrl.signal,
         });
         if (!res.ok) {
             console.warn(
@@ -220,6 +231,8 @@ async function postStashDB<T>(
     } catch (err) {
         console.warn("[binge] stashdb fetch failed", err);
         return null;
+    } finally {
+        clearTimeout(timer);
     }
 }
 

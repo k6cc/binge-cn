@@ -15,11 +15,13 @@ import {
     useShowGalleries,
     useLookbackDays,
     useIncludeStashDB,
+    useHiddenFeedCategories,
 } from "./pluginSettings";
 import {
     fetchDiscoveryFeedItems,
     type DiscoveryFeedItem,
 } from "./discoveryFeed";
+import { useSharedStories } from "./StoriesContext";
 
 // Performer summary inside a feed item. Multiple performers per item are
 // kept so the card can show their names and route taps to the correct
@@ -283,6 +285,12 @@ export function useFeed(): FeedHookResult {
     const [state, setState] = useState<FeedState>({ kind: "loading" });
     const showGalleries = useShowGalleries();
     const includeStashDB = useIncludeStashDB();
+    const hidden = useHiddenFeedCategories();
+    // The Home refresh button lives on stories.refresh(); we watch
+    // its tick so a single tap coordinates refetch across stories +
+    // feed (including dropping the 12h discovery cache and pulling
+    // fresh seeds from stashdb).
+    const { refreshTick: storiesRefreshTick } = useSharedStories();
     // Bumped by retry() to force the effect below to re-run.
     const [reloadTick, setReloadTick] = useState(0);
 
@@ -333,8 +341,17 @@ export function useFeed(): FeedHookResult {
                     // hide together so the user has one switch.
                     // Failures swallowed inside fetchDiscoveryFeedItems
                     // so a StashDB outage never breaks the feed.
+                    //
+                    // skipTrending: when the user has hidden the
+                    // "trending" feed category, skip the trending
+                    // stashdb query entirely — no point fetching data
+                    // we'd then filter out in the card layer. The
+                    // co-star seed still runs because "discover"
+                    // (costar) is a separate category.
                     includeStashDB
-                        ? fetchDiscoveryFeedItems(sinceDate)
+                        ? fetchDiscoveryFeedItems(sinceDate, {
+                              skipTrending: hidden.has("trending"),
+                          })
                         : Promise.resolve([] as DiscoveryFeedItem[]),
                 ]);
                 if (!alive) return;
@@ -465,7 +482,7 @@ export function useFeed(): FeedHookResult {
         return () => {
             alive = false;
         };
-    }, [lookbackDays, showGalleries, includeStashDB, reloadTick]);
+    }, [lookbackDays, showGalleries, includeStashDB, hidden, storiesRefreshTick, reloadTick]);
 
     return { state, retry: () => setReloadTick((t) => t + 1) };
 }

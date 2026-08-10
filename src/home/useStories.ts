@@ -20,6 +20,7 @@ import {
     getCachedRedditStories,
     invalidateRedditCaches,
 } from "./redditCache";
+import { invalidateDiscoveryFeedCache } from "./discoveryFeed";
 import {
     rewriteStashAssetUrl,
     getPornhubStories,
@@ -106,6 +107,11 @@ export interface StoriesResult {
     state: StoriesState;
     refresh: () => void;
     refreshing: boolean;
+    // Monotonic counter bumped by refresh(). Other hooks (e.g. useFeed)
+    // can add this to their effect deps so the Home refresh button
+    // forces a coordinated refetch across stories + feed without
+    // threading a separate signal through props.
+    refreshTick: number;
 }
 
 // Lookback window for "new" scenes — read from plugin settings via
@@ -140,6 +146,10 @@ export function useStories(): StoriesResult {
         invalidateRecentGalleries();
         invalidateStashDBCache();
         invalidateRedditCaches();
+        // Also drop the Feed discovery cache so useFeed (which watches
+        // refreshTick) refetches trending + costar seeds instead of
+        // reusing the 12h cached copy.
+        invalidateDiscoveryFeedCache();
         setRefreshing(true);
         setRefreshTick((n) => n + 1);
     }, []);
@@ -327,6 +337,7 @@ export function useStories(): StoriesResult {
         state,
         refresh,
         refreshing,
+        refreshTick,
     };
 }
 

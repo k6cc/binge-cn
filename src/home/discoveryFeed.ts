@@ -23,6 +23,64 @@ import {
 } from "../api/stashdb";
 import { readAllowedGenders } from "./pluginSettings";
 
+// ── 12h cache for discovery seeds ───────────────────────────────────
+//
+// Without this, every cold load of Home fires both trending and co-star
+// queries at stashdb.org. On networks where stashdb is slow or blocked
+// that's minutes of wait per page open. Stories already caches its own
+// stashdb pull (see stashdb.ts CACHE_KEY); this mirrors that for the
+// Feed's discovery seeds. The cache is keyed by sinceIsoDate + which
+// seeds were requested, so toggling "hide trending" or changing the
+// lookback window correctly invalidates. The Home refresh button calls
+// invalidateDiscoveryFeedCache() to force a fresh pull.
+
+const DISCOVERY_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
+const DISCOVERY_CACHE_KEY = "binge.discovery.seeds.v1";
+
+interface DiscoveryCacheEntry {
+    sinceIsoDate: string;
+    skipTrending: boolean;
+    fetchedAt: number;
+    trending: StashDBScene[];
+    costar: StashDBScene[];
+}
+
+function readDiscoveryCache(
+    sinceIsoDate: string,
+    skipTrending: boolean
+): DiscoveryCacheEntry | null {
+    try {
+        const raw = localStorage.getItem(DISCOVERY_CACHE_KEY);
+        if (!raw) return null;
+        const entry = JSON.parse(raw) as DiscoveryCacheEntry;
+        if (entry.sinceIsoDate !== sinceIsoDate) return null;
+        if (entry.skipTrending !== skipTrending) return null;
+        if (Date.now() - entry.fetchedAt > DISCOVERY_CACHE_TTL_MS) return null;
+        return entry;
+    } catch {
+        return null;
+    }
+}
+
+function writeDiscoveryCache(entry: DiscoveryCacheEntry): void {
+    try {
+        localStorage.setItem(
+            DISCOVERY_CACHE_KEY,
+            JSON.stringify(entry)
+        );
+    } catch {
+        /* quota — ignore */
+    }
+}
+
+export function invalidateDiscoveryFeedCache(): void {
+    try {
+        localStorage.removeItem(DISCOVERY_CACHE_KEY);
+    } catch {
+        /* ignore */
+    }
+}
+
 export interface DiscoveryFeedItem {
     key: string;
     sceneStashId: string;
@@ -88,8 +146,10 @@ const MAX_SCENES_PER_PRIMARY = 2;
 const MAX_TRENDING_ITEMS = 12;
 
 export async function fetchDiscoveryFeedItems(
-    sinceIsoDate: string
+    sinceIsoDate: string,
+    opts: { skipTrending?: boolean } = {}
 ): Promise<DiscoveryFeedItem[]> {
+    const skipTrending = !!opts.skipTrending;
     const box = await getStashDBBox();
     if (!box) return [];
 
@@ -108,9 +168,77 @@ export async function fetchDiscoveryFeedItems(
 
     const owned = await getOwnedStashDBSceneIds();
 
-    // Fetch both seeds in parallel-ish (recent might fail
-    // independently). Collect raw scenes from BOTH into a single
-    // pool keyed by scene_id so we never emit the same scene twice.
+    // Cache the raw seed scenes (trending + costar) for 12h, keyed
+    // by sinceIsoDate + skipTrending. The post-fetch build below is
+    // cheap and depends on live library state, so we only cache the
+    // raw stashdb pull — not the final items — so follow/unfollow
+    // still takes effect immediately on the next build.
+    let cached = readDiscoveryCache(sinceIsoDate, skipTrending);
+    let trendingScenes: StashDBScene[] = [];
+    let costarScenes: StashDBScene[] = [];
+
+    if (cached) {
+        trendingScenes = cached.trending;
+        costarScenes = cached.costar;
+    } else {
+        // Fetch both seeds in PARALLEL. They're independent queries
+        // (trending = global top-N, costar = by linked performers),
+        // so running them together turns two 10s stashdb timeouts
+        // into one on degraded networks. Each is independently
+        // try-caught so a failure in one doesn't sink the other.
+        const tasks: Promise<void>[] = [];
+        let anyFetchAttempted = false;
+        let anyFetchSucceeded = false;
+
+        if (!skipTrending) {
+            anyFetchAttempted = true;
+            tasks.push(
+                getTrendingStashDBScenes(box.api_key)
+                    .then((s) => { trendingScenes = s; anyFetchSucceeded = true; })
+                    .catch((err) => {
+                        console.warn("[binge] discovery trending fetch failed", err);
+                    })
+            );
+        }
+
+        if (linkedPerformers.length > 0) {
+            anyFetchAttempted = true;
+            tasks.push(
+                getNewStashDBScenesForPerformers(
+                    linkedPerformers.map((p) => p.stashId),
+                    sinceIsoDate,
+                    box.api_key
+                )
+                    .then((s) => { costarScenes = s; anyFetchSucceeded = true; })
+                    .catch((err) => {
+                        console.warn("[binge] discovery co-star fetch failed", err);
+                    })
+            );
+        }
+
+        await Promise.all(tasks);
+
+        // Only cache if at least one fetch actually ran and succeeded.
+        // On a flaky network both seeds come back as [] (10s timeout
+        // already swallowed above) — writing that empty result would
+        // silently overwrite valid cached data with nothing. When no
+        // fetch was attempted at all (skipTrending + no linked
+        // performers), the empty result is legitimate and we skip
+        // caching for a different reason: nothing worth storing.
+        if (anyFetchAttempted && anyFetchSucceeded) {
+            cached = {
+                sinceIsoDate,
+                skipTrending,
+                fetchedAt: Date.now(),
+                trending: trendingScenes,
+                costar: costarScenes,
+            };
+            writeDiscoveryCache(cached);
+        }
+    }
+
+    // Collect raw scenes from BOTH into a single pool keyed by
+    // scene_id so we never emit the same scene twice.
     //
     // Trending is loaded FIRST so it wins the dedup — being in
     // StashDB's global top-N is a stronger signal than "features a
@@ -123,39 +251,19 @@ export async function fetchDiscoveryFeedItems(
         { scene: StashDBScene; source: "costar" | "trending" }
     >();
 
-    try {
-        // Pulls the same scene set that powers stashdb.org's
-        // homepage "Trending" section (sort: TRENDING).
-        const trendingScenes = await getTrendingStashDBScenes(
-            box.api_key
-        );
-        for (const s of trendingScenes.slice(0, MAX_TRENDING_ITEMS)) {
-            if (owned.has(s.id)) continue;
-            if (!scenesById.has(s.id)) {
-                scenesById.set(s.id, { scene: s, source: "trending" });
-            }
+    for (const s of trendingScenes.slice(0, MAX_TRENDING_ITEMS)) {
+        if (owned.has(s.id)) continue;
+        if (!scenesById.has(s.id)) {
+            scenesById.set(s.id, { scene: s, source: "trending" });
         }
-    } catch (err) {
-        console.warn("[binge] discovery trending fetch failed", err);
     }
 
-    if (linkedPerformers.length > 0) {
-        try {
-            const costarScenes = await getNewStashDBScenesForPerformers(
-                linkedPerformers.map((p) => p.stashId),
-                sinceIsoDate,
-                box.api_key
-            );
-            for (const s of costarScenes) {
-                if (owned.has(s.id)) continue;
-                // Trending was loaded first; don't overwrite the
-                // stronger signal.
-                if (!scenesById.has(s.id)) {
-                    scenesById.set(s.id, { scene: s, source: "costar" });
-                }
-            }
-        } catch (err) {
-            console.warn("[binge] discovery co-star fetch failed", err);
+    for (const s of costarScenes) {
+        if (owned.has(s.id)) continue;
+        // Trending was loaded first; don't overwrite the
+        // stronger signal.
+        if (!scenesById.has(s.id)) {
+            scenesById.set(s.id, { scene: s, source: "costar" });
         }
     }
 
