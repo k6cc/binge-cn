@@ -27,6 +27,8 @@ jobs:
 
             - run: npm run format:check
 
+            - run: npm test
+
             # tsc -b runs as the first half of `npm run build`, so this
             # covers typechecking as well as proving the bundle builds.
             - run: npm run build
