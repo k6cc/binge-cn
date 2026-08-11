@@ -50,9 +50,7 @@ export function FilterSheet({ onClose }: FilterSheetProps) {
                     setState({
                         kind: "error",
                         message:
-                            err instanceof Error
-                                ? err.message
-                                : String(err),
+                            err instanceof Error ? err.message : String(err),
                     });
             });
         return () => {
@@ -123,9 +121,7 @@ export function FilterSheet({ onClose }: FilterSheetProps) {
                                     key={`p:${p.id}`}
                                     label={p.name}
                                     tone="performers"
-                                    onRemove={() =>
-                                        remove("performers", p.id)
-                                    }
+                                    onRemove={() => remove("performers", p.id)}
                                 />
                             ))}
                             {filter.tags.map((t) => (
@@ -154,9 +150,7 @@ export function FilterSheet({ onClose }: FilterSheetProps) {
                         <h3>Stash saved filters</h3>
                     </header>
                     {state.kind === "loading" && (
-                        <div className="binge-filter-sheet-empty">
-                            Loading…
-                        </div>
+                        <div className="binge-filter-sheet-empty">Loading…</div>
                     )}
                     {state.kind === "error" && (
                         <div className="binge-filter-sheet-empty">
@@ -165,9 +159,9 @@ export function FilterSheet({ onClose }: FilterSheetProps) {
                     )}
                     {state.kind === "ready" && state.filters.length === 0 && (
                         <div className="binge-filter-sheet-empty">
-                            No saved filters for scenes. Create them in
-                            Stash's main scene browser — they'll appear
-                            here automatically.
+                            No saved filters for scenes. Create them in Stash's
+                            main scene browser — they'll appear here
+                            automatically.
                         </div>
                     )}
                     {state.kind === "ready" && state.filters.length > 0 && (
@@ -188,7 +182,7 @@ export function FilterSheet({ onClose }: FilterSheetProps) {
                 </section>
             </div>
         </div>,
-        document.body
+        document.body,
     );
 }
 
@@ -238,8 +232,7 @@ function SavedFilterRow({
     return (
         <li
             className={
-                "binge-filter-sheet-preset-row" +
-                (active ? " is-active" : "")
+                "binge-filter-sheet-preset-row" + (active ? " is-active" : "")
             }
         >
             <button

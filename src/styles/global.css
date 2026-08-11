@@ -27,7 +27,8 @@ body,
     margin: 0;
     background: var(--bg-0);
     color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    font-family:
+        -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     overscroll-behavior: none;
 }
@@ -113,7 +114,8 @@ body,
     box-shadow: none !important;
 }
 .binge-showcase-blur .binge-performer-bubble {
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.95),
+    box-shadow:
+        0 0 0 2px rgba(255, 255, 255, 0.95),
         0 0 0 3px rgba(0, 0, 0, 0.45),
         0 2px 8px rgba(0, 0, 0, 0.55);
 }
@@ -321,7 +323,9 @@ body,
     place-items: center;
     cursor: pointer;
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
-    transition: transform 0.18s ease, background 0.22s ease,
+    transition:
+        transform 0.18s ease,
+        background 0.22s ease,
         border-color 0.22s ease;
     pointer-events: auto;
 }
@@ -359,7 +363,9 @@ body,
     height: 2px;
     background: rgba(255, 255, 255, 0.22);
     border-radius: 2px;
-    transition: height 0.18s ease, bottom 0.18s ease;
+    transition:
+        height 0.18s ease,
+        bottom 0.18s ease;
 }
 .binge-progress.is-hovering::before {
     height: 4px;
@@ -376,7 +382,9 @@ body,
     border-radius: 2px;
     will-change: transform;
     pointer-events: none;
-    transition: height 0.18s ease, bottom 0.18s ease;
+    transition:
+        height 0.18s ease,
+        bottom 0.18s ease;
 }
 .binge-progress.is-hovering .binge-progress-fill {
     height: 4px;
@@ -392,7 +400,11 @@ body,
     /* Full-width so the gradient reaches the right edge; padding-right
        reserves space for the action stack so text never sits under it. */
     padding: 1.5rem 5.5rem 2.25rem 1.25rem;
-    background: linear-gradient(to top, rgba(0, 0, 0, 0.75) 0%, transparent 100%);
+    background: linear-gradient(
+        to top,
+        rgba(0, 0, 0, 0.75) 0%,
+        transparent 100%
+    );
     color: var(--text);
     pointer-events: none;
     z-index: 5;
@@ -520,7 +532,8 @@ body,
     background-position: center top;
     background-repeat: no-repeat;
     /* White ring keeps each circle separable when they overlap. */
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.95),
+    box-shadow:
+        0 0 0 2px rgba(255, 255, 255, 0.95),
         0 0 0 3px rgba(0, 0, 0, 0.45),
         0 2px 8px rgba(0, 0, 0, 0.55);
     overflow: hidden;
@@ -540,7 +553,8 @@ body,
     font-weight: 700;
     display: grid;
     place-items: center;
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.95),
+    box-shadow:
+        0 0 0 2px rgba(255, 255, 255, 0.95),
         0 0 0 3px rgba(0, 0, 0, 0.45);
 }
 
@@ -585,7 +599,10 @@ body,
     line-height: 1;
     margin-left: 0.4rem;
     pointer-events: auto;
-    transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease,
+    transition:
+        background 0.18s ease,
+        border-color 0.18s ease,
+        color 0.18s ease,
         opacity 0.18s ease;
     flex: 0 0 auto;
     text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
@@ -677,12 +694,10 @@ body,
    sheet's React owner sets `.is-exiting` on the root, waits for the
    animation to finish, then unmounts. See useSheetClose. */
 .binge-sheet-root.is-exiting .binge-sheet {
-    animation: binge-sheet-slide-out 0.26s
-        cubic-bezier(0.7, 0, 0.84, 0) both;
+    animation: binge-sheet-slide-out 0.26s cubic-bezier(0.7, 0, 0.84, 0) both;
 }
 .binge-sheet-root.is-exiting .binge-sheet-backdrop {
-    animation: binge-sheet-fade-out 0.26s
-        cubic-bezier(0.7, 0, 0.84, 0) both;
+    animation: binge-sheet-fade-out 0.26s cubic-bezier(0.7, 0, 0.84, 0) both;
 }
 @keyframes binge-sheet-slide-out {
     from {
@@ -823,7 +838,9 @@ body,
     flex-direction: column;
     align-items: center;
     gap: 0.05rem;
-    transition: transform 0.18s ease, filter 0.22s ease;
+    transition:
+        transform 0.18s ease,
+        filter 0.22s ease;
     /* Drop shadow on the icon ensures contrast against bright video frames. */
     filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.85));
 }
@@ -848,11 +865,17 @@ body,
 .binge-action-button.is-holding .binge-heart {
     color: #9ca3af !important;
     transform: scale(0.72);
-    transition: transform 1.5s ease-out, color 1.5s ease-out, filter 1.5s ease-out;
+    transition:
+        transform 1.5s ease-out,
+        color 1.5s ease-out,
+        filter 1.5s ease-out;
     filter: none;
 }
 .binge-action-button .binge-heart {
-    transition: color 0.2s ease, filter 0.2s ease, transform 0.2s ease;
+    transition:
+        color 0.2s ease,
+        filter 0.2s ease,
+        transform 0.2s ease;
 }
 
 /* Heart icon: outlined white by default; refract-pink (#f472b6) with glow
@@ -861,12 +884,13 @@ body,
    the celebration is the one-shot burst (see .binge-heart-burst below). */
 .binge-heart {
     color: #fff;
-    transition: color 0.2s ease, filter 0.2s ease;
+    transition:
+        color 0.2s ease,
+        filter 0.2s ease;
 }
 .binge-action-button.is-active .binge-heart {
     color: #f472b6;
-    filter:
-        drop-shadow(0 0 6px rgba(244, 114, 182, 0.85))
+    filter: drop-shadow(0 0 6px rgba(244, 114, 182, 0.85))
         drop-shadow(0 0 14px rgba(244, 114, 182, 0.45));
 }
 
@@ -883,13 +907,11 @@ body,
     position: absolute;
     bottom: -2rem;
     color: #f472b6;
-    filter:
-        drop-shadow(0 0 6px rgba(244, 114, 182, 0.7))
+    filter: drop-shadow(0 0 6px rgba(244, 114, 182, 0.7))
         drop-shadow(0 0 12px rgba(244, 114, 182, 0.35));
     will-change: transform, opacity;
     animation: binge-heart-rise var(--binge-burst-duration, 2400ms)
-        cubic-bezier(0.25, 0.7, 0.45, 1)
-        var(--binge-burst-delay, 0ms) forwards;
+        cubic-bezier(0.25, 0.7, 0.45, 1) var(--binge-burst-delay, 0ms) forwards;
 }
 
 @keyframes binge-heart-rise {
@@ -933,14 +955,12 @@ body,
 }
 .binge-rate-button.is-active svg {
     color: #ffd24c;
-    filter:
-        drop-shadow(0 0 6px rgba(255, 210, 76, 0.65))
+    filter: drop-shadow(0 0 6px rgba(255, 210, 76, 0.65))
         drop-shadow(0 0 14px rgba(255, 210, 76, 0.35));
 }
 .binge-app.refract .binge-rate-button.is-active svg {
     color: rgba(var(--accent-rgb), 1);
-    filter:
-        drop-shadow(0 0 6px rgba(var(--accent-rgb), 0.65))
+    filter: drop-shadow(0 0 6px rgba(var(--accent-rgb), 0.65))
         drop-shadow(0 0 14px rgba(var(--accent-rgb), 0.35));
 }
 
@@ -969,7 +989,9 @@ body,
     padding: 0.15rem;
     cursor: pointer;
     color: rgba(255, 255, 255, 0.45);
-    transition: color 0.12s ease, transform 0.12s ease;
+    transition:
+        color 0.12s ease,
+        transform 0.12s ease;
 }
 .binge-rate-star:hover,
 .binge-rate-star:focus-visible {
@@ -993,14 +1015,12 @@ body,
 /* ── Multiview button ──────────────────────────────────────────────── */
 .binge-multiview-button.is-active svg {
     color: #6aa9ff;
-    filter:
-        drop-shadow(0 0 6px rgba(106, 169, 255, 0.65))
+    filter: drop-shadow(0 0 6px rgba(106, 169, 255, 0.65))
         drop-shadow(0 0 14px rgba(106, 169, 255, 0.35));
 }
 .binge-app.refract .binge-multiview-button.is-active svg {
     color: rgba(var(--accent-rgb), 1);
-    filter:
-        drop-shadow(0 0 6px rgba(var(--accent-rgb), 0.65))
+    filter: drop-shadow(0 0 6px rgba(var(--accent-rgb), 0.65))
         drop-shadow(0 0 14px rgba(var(--accent-rgb), 0.35));
 }
 
@@ -1093,7 +1113,9 @@ body,
     gap: 0.35rem;
     font-size: 0.82rem;
     font-weight: 500;
-    transition: background 0.12s ease, border-color 0.12s ease;
+    transition:
+        background 0.12s ease,
+        border-color 0.12s ease;
 }
 .binge-filter-sheet-chip:hover {
     background: rgba(255, 255, 255, 0.14);
@@ -1208,7 +1230,9 @@ body,
     color: rgba(255, 255, 255, 0.5);
     font-size: 1.15rem;
     font-weight: 700;
-    transition: color 0.12s ease, background 0.12s ease;
+    transition:
+        color 0.12s ease,
+        background 0.12s ease;
 }
 .binge-filter-sheet-preset-delete:hover {
     color: #ff6b6b;
@@ -1369,7 +1393,9 @@ body,
     font-size: 0.85rem;
     font-weight: 600;
     cursor: pointer;
-    transition: background 0.12s ease, color 0.12s ease;
+    transition:
+        background 0.12s ease,
+        color 0.12s ease;
 }
 .binge-save-sheet-create-confirm {
     background: #6aa9ff;
@@ -1401,14 +1427,12 @@ body,
 /* ── Bookmark / favourite button ───────────────────────────────────── */
 .binge-bookmark-button.is-active svg {
     color: #ffd24c;
-    filter:
-        drop-shadow(0 0 6px rgba(255, 210, 76, 0.7))
+    filter: drop-shadow(0 0 6px rgba(255, 210, 76, 0.7))
         drop-shadow(0 0 14px rgba(255, 210, 76, 0.4));
 }
 .binge-app.refract .binge-bookmark-button.is-active svg {
     color: rgba(var(--accent-rgb), 1);
-    filter:
-        drop-shadow(0 0 6px rgba(var(--accent-rgb), 0.7))
+    filter: drop-shadow(0 0 6px rgba(var(--accent-rgb), 0.7))
         drop-shadow(0 0 14px rgba(var(--accent-rgb), 0.4));
 }
 
@@ -1434,7 +1458,9 @@ body,
     pointer-events: none; /* children opt back in */
     opacity: 1;
     transform: translateY(0);
-    transition: opacity 0.28s ease, transform 0.28s ease;
+    transition:
+        opacity 0.28s ease,
+        transform 0.28s ease;
 }
 .binge-top-header.is-hidden {
     opacity: 0;
@@ -1467,7 +1493,9 @@ body,
     cursor: pointer;
     /* Drop shadow so the bare-text labels stay readable over any frame. */
     text-shadow: 0 1px 4px rgba(0, 0, 0, 0.85);
-    transition: color 0.18s ease, transform 0.18s ease;
+    transition:
+        color 0.18s ease,
+        transform 0.18s ease;
     position: relative;
 }
 .binge-tabbar-link:hover {
@@ -1528,7 +1556,10 @@ body,
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
-    transition: background 0.2s ease, border-color 0.2s ease, transform 0.18s ease;
+    transition:
+        background 0.2s ease,
+        border-color 0.2s ease,
+        transform 0.18s ease;
     line-height: 1;
 }
 .binge-filter-chip:hover,
@@ -1604,7 +1635,8 @@ body,
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
     border-radius: var(--radius);
-    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55),
+    box-shadow:
+        0 14px 40px rgba(0, 0, 0, 0.55),
         0 0 22px rgba(var(--accent-rgb), 0.18);
     padding: 0.5rem;
     pointer-events: auto;
@@ -1627,7 +1659,10 @@ body,
     font-weight: 600;
     padding: 0.35rem 0.7rem;
     border-radius: 999px;
-    transition: color 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+    transition:
+        color 0.18s ease,
+        background 0.18s ease,
+        border-color 0.18s ease;
 }
 .binge-chip-menu-tab:hover {
     color: #fff;
@@ -1770,7 +1805,9 @@ body,
     line-height: 1;
     padding: 0.35rem 0.5rem;
     border-radius: 6px;
-    transition: background 0.18s ease, color 0.18s ease;
+    transition:
+        background 0.18s ease,
+        color 0.18s ease;
 }
 .binge-preset-icon-button:hover {
     background: rgba(255, 255, 255, 0.06);
@@ -1836,7 +1873,9 @@ body,
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    transition: color 0.12s ease, background 0.12s ease;
+    transition:
+        color 0.12s ease,
+        background 0.12s ease;
 }
 .binge-tab-title-action:hover,
 .binge-tab-title-action:focus-visible {
@@ -1881,7 +1920,9 @@ body,
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    transition: color 0.12s ease, background 0.12s ease;
+    transition:
+        color 0.12s ease,
+        background 0.12s ease;
 }
 .binge-home-burger-btn:hover,
 .binge-home-burger-btn:focus-visible {
@@ -2081,7 +2122,10 @@ body,
     + .binge-settings-switch-track {
     background: rgba(var(--accent-rgb), 1);
 }
-.binge-settings-switch input:checked + .binge-settings-switch-track .binge-settings-switch-thumb {
+.binge-settings-switch
+    input:checked
+    + .binge-settings-switch-track
+    .binge-settings-switch-thumb {
     transform: translateX(calc(2.4rem - 1.35rem));
 }
 
@@ -2745,12 +2789,16 @@ body,
     /* Non-favorited: muted ring. Favorites get accent + glow via the
        .is-favorite override below. */
     border: 3px solid rgba(255, 255, 255, 0.18);
-    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45),
+    box-shadow:
+        0 0 0 1px rgba(0, 0, 0, 0.45),
         0 10px 26px rgba(0, 0, 0, 0.55);
     display: grid;
     place-items: center;
     overflow: hidden;
-    transition: transform 0.2s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+    transition:
+        transform 0.2s ease,
+        box-shadow 0.22s ease,
+        border-color 0.22s ease;
 }
 /* Favorited: refract-pink "glass" ring — semi-translucent border with
    layered outer glow + inner glow for a luminous halo. Pink matches the
@@ -2780,7 +2828,8 @@ body,
 .binge-follow-card:focus-visible .binge-follow-avatar {
     transform: scale(1.04);
     border-color: #fff;
-    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45),
+    box-shadow:
+        0 0 0 1px rgba(0, 0, 0, 0.45),
         0 14px 32px rgba(0, 0, 0, 0.65),
         0 0 30px rgba(var(--accent-rgb), 0.55);
 }
@@ -2919,7 +2968,9 @@ body,
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    transition: background 0.15s ease, opacity 0.15s ease,
+    transition:
+        background 0.15s ease,
+        opacity 0.15s ease,
         visibility 0.15s ease;
 }
 .binge-explore-chips-chevron:hover {
@@ -2953,7 +3004,9 @@ body,
     line-height: 1.1;
     cursor: pointer;
     white-space: nowrap;
-    transition: background 0.15s ease, border-color 0.15s ease,
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease,
         color 0.15s ease;
 }
 .binge-explore-chip:hover {
@@ -2994,7 +3047,9 @@ body,
     background-position: center;
     background-repeat: no-repeat;
     overflow: hidden;
-    transition: filter 0.15s ease, transform 0.15s ease;
+    transition:
+        filter 0.15s ease,
+        transform 0.15s ease;
 }
 .binge-explore-tile:hover,
 .binge-explore-tile:focus-visible {
@@ -3058,7 +3113,9 @@ body,
     cursor: pointer;
     padding: 0.15rem 0.3rem;
     border-radius: 6px;
-    transition: color 0.18s ease, background 0.18s ease;
+    transition:
+        color 0.18s ease,
+        background 0.18s ease;
 }
 .binge-see-all:hover,
 .binge-see-all:focus-visible {
@@ -3119,7 +3176,9 @@ body,
     justify-content: center;
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
-    transition: background 0.15s ease, opacity 0.15s ease;
+    transition:
+        background 0.15s ease,
+        opacity 0.15s ease;
 }
 .binge-stories-chevron:hover,
 .binge-stories-chevron:focus-visible {
@@ -3395,7 +3454,9 @@ body,
     cursor: progress;
 }
 @keyframes binge-spin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 /* ── Home feed filter ─────────────────────────────────────────────── */
@@ -3441,12 +3502,7 @@ body,
     width: 7px;
     height: 7px;
     border-radius: 50%;
-    background: linear-gradient(
-        135deg,
-        #f472b6 0%,
-        #a855f7 50%,
-        #6aa9ff 100%
-    );
+    background: linear-gradient(135deg, #f472b6 0%, #a855f7 50%, #6aa9ff 100%);
     border: 1.5px solid var(--bg-0, #0a0a0a);
     box-sizing: border-box;
 }
@@ -3486,7 +3542,9 @@ body,
     color: rgba(255, 255, 255, 0.55);
     cursor: pointer;
     text-align: left;
-    transition: background 0.12s ease, color 0.12s ease;
+    transition:
+        background 0.12s ease,
+        color 0.12s ease;
 }
 .binge-feed-filter-item:hover {
     background: rgba(255, 255, 255, 0.06);
@@ -3541,12 +3599,7 @@ body,
     /* binge's identity gradient — pink (--accent) → purple →
        blue (bingeLink). Replaces the IG-quote pink→orange ring
        so the ring matches the rest of the two-tone palette. */
-    background: linear-gradient(
-        45deg,
-        #f472b6 0%,
-        #a855f7 50%,
-        #6aa9ff 100%
-    );
+    background: linear-gradient(45deg, #f472b6 0%, #a855f7 50%, #6aa9ff 100%);
     padding: 3px;
     display: block;
     transition: filter 0.18s ease;
@@ -3559,7 +3612,6 @@ body,
 /* Story rings keep Instagram's signature gradient regardless of theme —
    the ring is a strong visual anchor and the IG colours read more
    reliably as "has new content" than an accent-tinted variant did. */
-
 
 .binge-story-avatar {
     box-sizing: border-box;
@@ -3643,12 +3695,16 @@ body,
     background-position: center top;
     background-repeat: no-repeat;
     border: 2px solid rgba(255, 255, 255, 0.2);
-    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4),
+    box-shadow:
+        0 0 0 1px rgba(0, 0, 0, 0.4),
         0 6px 18px rgba(0, 0, 0, 0.45);
     display: grid;
     place-items: center;
     overflow: hidden;
-    transition: border-color 0.22s ease, box-shadow 0.22s ease, transform 0.2s ease;
+    transition:
+        border-color 0.22s ease,
+        box-shadow 0.22s ease,
+        transform 0.2s ease;
 }
 .binge-discover-card.is-favorite .binge-discover-avatar {
     border-color: rgba(244, 114, 182, 0.85);
@@ -3699,8 +3755,12 @@ body,
     animation: binge-modal-fade 0.18s ease-out;
 }
 @keyframes binge-modal-fade {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
 }
 
 .binge-modal {
@@ -3711,7 +3771,8 @@ body,
     max-height: 88vh;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6),
+    box-shadow:
+        0 24px 60px rgba(0, 0, 0, 0.6),
         0 0 30px rgba(var(--accent-rgb), 0.18);
     overflow: hidden;
 }
@@ -3740,7 +3801,9 @@ body,
     line-height: 1;
     padding: 0.2rem 0.5rem;
     border-radius: 8px;
-    transition: color 0.18s ease, background 0.18s ease;
+    transition:
+        color 0.18s ease,
+        background 0.18s ease;
 }
 .binge-modal-close:hover {
     color: #fff;
@@ -3824,14 +3887,17 @@ body,
     flex-direction: column;
     gap: 0.35rem;
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
-    transition: transform 0.18s ease, border-color 0.22s ease,
+    transition:
+        transform 0.18s ease,
+        border-color 0.22s ease,
         box-shadow 0.22s ease;
 }
 .binge-preset-card:hover,
 .binge-preset-card:focus-visible {
     transform: translateY(-2px);
     border-color: rgba(var(--accent-rgb), 0.55);
-    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.55),
+    box-shadow:
+        0 10px 26px rgba(0, 0, 0, 0.55),
         0 0 22px rgba(var(--accent-rgb), 0.32);
 }
 
@@ -3886,7 +3952,9 @@ body,
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
-    transition: background 0.18s ease, border-color 0.18s ease,
+    transition:
+        background 0.18s ease,
+        border-color 0.18s ease,
         transform 0.18s ease;
 }
 .binge-tag-pill:hover,
@@ -4051,8 +4119,7 @@ body,
     align-items: center;
     flex: 0 0 auto;
 }
-.binge-discovery-card-avatar-stack
-    > .binge-hovercard-trigger:not(:first-child),
+.binge-discovery-card-avatar-stack > .binge-hovercard-trigger:not(:first-child),
 .binge-discovery-card-avatar-stack
     > .binge-discovery-card-avatar:not(:first-child) {
     margin-left: -14px;
@@ -4222,7 +4289,9 @@ body,
     padding: 0.45rem 0.85rem;
     border-radius: 999px;
     cursor: pointer;
-    transition: background 0.15s ease, filter 0.15s ease;
+    transition:
+        background 0.15s ease,
+        filter 0.15s ease;
     white-space: nowrap;
 }
 .binge-discovery-card-follow:hover:not(:disabled),
@@ -4345,7 +4414,9 @@ body,
     font-weight: 600;
     padding: 0.5rem 0.7rem;
     cursor: pointer;
-    transition: background 0.15s ease, filter 0.15s ease;
+    transition:
+        background 0.15s ease,
+        filter 0.15s ease;
     border: none;
 }
 .binge-performer-hovercard-open {
@@ -4654,7 +4725,9 @@ body,
     display: grid;
     place-items: center;
     flex: 0 0 32px;
-    transition: background 0.15s ease, color 0.15s ease;
+    transition:
+        background 0.15s ease,
+        color 0.15s ease;
 }
 .binge-card-menu-trigger:hover,
 .binge-card-menu-trigger:focus-visible,
@@ -4781,7 +4854,9 @@ body,
     padding: 0.5rem 0.6rem;
     width: 100%;
     box-sizing: border-box;
-    transition: border-color 0.15s ease, background 0.15s ease;
+    transition:
+        border-color 0.15s ease,
+        background 0.15s ease;
     font-family: inherit;
 }
 .binge-follow-modal-input:focus,
@@ -4822,7 +4897,9 @@ body,
     font-weight: 600;
     padding: 0.7rem 0.9rem;
     cursor: pointer;
-    transition: background 0.15s ease, filter 0.15s ease;
+    transition:
+        background 0.15s ease,
+        filter 0.15s ease;
 }
 .binge-follow-modal-cancel {
     background: rgba(255, 255, 255, 0.06);
@@ -4919,7 +4996,7 @@ body,
     height: 13px;
     margin: 0 0.18em 0 0.25em;
     vertical-align: -1px;
-    color: #3897F0;
+    color: #3897f0;
 }
 .binge-feed-card-verified.is-favorite {
     color: rgba(244, 114, 182, 1);
@@ -4989,12 +5066,7 @@ body,
     justify-content: center;
     padding: 2px;
     border-radius: 50%;
-    background: linear-gradient(
-        45deg,
-        #f472b6 0%,
-        #a855f7 50%,
-        #6aa9ff 100%
-    );
+    background: linear-gradient(45deg, #f472b6 0%, #a855f7 50%, #6aa9ff 100%);
     box-sizing: border-box;
     position: relative;
 }
@@ -5145,7 +5217,9 @@ body,
     gap: 0.3rem;
     padding: 0.25rem 0.3rem;
     border-radius: 6px;
-    transition: background 0.15s ease, color 0.15s ease;
+    transition:
+        background 0.15s ease,
+        color 0.15s ease;
     font-size: 0.85rem;
     font-weight: 600;
 }
@@ -5174,7 +5248,9 @@ body,
     justify-content: center;
     padding: 0.25rem 0.3rem;
     border-radius: 6px;
-    transition: background 0.15s ease, color 0.15s ease;
+    transition:
+        background 0.15s ease,
+        color 0.15s ease;
 }
 .binge-feed-card-iconbtn:hover,
 .binge-feed-card-iconbtn:focus-visible {
@@ -5205,7 +5281,10 @@ body,
     padding: 0.4rem 0.8rem;
     border-radius: 999px;
     cursor: pointer;
-    transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+    transition:
+        background 0.15s ease,
+        color 0.15s ease,
+        transform 0.15s ease;
 }
 .binge-feed-card-cta:hover,
 .binge-feed-card-cta:focus-visible {
@@ -5335,7 +5414,9 @@ body,
     border-radius: 50%;
     cursor: pointer;
     padding: 0;
-    transition: background 0.15s ease, transform 0.15s ease;
+    transition:
+        background 0.15s ease,
+        transform 0.15s ease;
 }
 .binge-gallery-dot:hover {
     background: rgba(255, 255, 255, 0.45);
@@ -5363,7 +5444,9 @@ body,
     font-size: 0.85rem;
     font-weight: 500;
     color: #6aa9ff;
-    transition: color 0.12s ease, text-decoration 0.12s ease;
+    transition:
+        color 0.12s ease,
+        text-decoration 0.12s ease;
 }
 .binge-feed-card-hashtag:hover,
 .binge-feed-card-hashtag:focus-visible {
@@ -5476,7 +5559,9 @@ body,
     cursor: pointer;
     display: grid;
     place-items: center;
-    transition: background 0.15s ease, transform 0.15s ease;
+    transition:
+        background 0.15s ease,
+        transform 0.15s ease;
 }
 .binge-story-viewer-close:hover,
 .binge-story-viewer-close:focus-visible {
@@ -5869,7 +5954,9 @@ body,
     padding: 0.65rem 1rem;
     border-radius: 999px;
     cursor: pointer;
-    transition: background 0.15s ease, transform 0.15s ease;
+    transition:
+        background 0.15s ease,
+        transform 0.15s ease;
 }
 .binge-story-viewer-cta:hover,
 .binge-story-viewer-cta:focus-visible {
@@ -5901,7 +5988,10 @@ body,
     aspect-ratio: 9 / 16;
     position: relative;
     overflow: hidden;
-    transition: transform 0.2s ease, opacity 0.2s ease, filter 0.2s ease;
+    transition:
+        transform 0.2s ease,
+        opacity 0.2s ease,
+        filter 0.2s ease;
 }
 .binge-story-viewer-peek.is-distance-1 {
     height: min(46vh, 460px);
@@ -5953,7 +6043,10 @@ body,
     place-items: center;
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
-    transition: background 0.18s ease, transform 0.18s ease, opacity 0.18s ease;
+    transition:
+        background 0.18s ease,
+        transform 0.18s ease,
+        opacity 0.18s ease;
 }
 .binge-story-viewer-chevron svg {
     width: 22px;
@@ -6013,8 +6106,14 @@ body,
     color: #fff;
 }
 @keyframes binge-profile-fade {
-    from { opacity: 0; transform: translateY(8px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* Sticky top bar starts transparent so the avatar peeks through; ramps
@@ -6030,7 +6129,9 @@ body,
     height: 56px;
     padding: 0 0.5rem;
     background: transparent;
-    transition: background 0.22s ease, backdrop-filter 0.22s ease,
+    transition:
+        background 0.22s ease,
+        backdrop-filter 0.22s ease,
         border-color 0.22s ease;
     border-bottom: 1px solid transparent;
 }
@@ -6053,7 +6154,9 @@ body,
     display: grid;
     place-items: center;
     cursor: pointer;
-    transition: background 0.18s ease, opacity 0.18s ease;
+    transition:
+        background 0.18s ease,
+        opacity 0.18s ease;
 }
 .binge-profile-back svg,
 .binge-profile-more svg {
@@ -6094,7 +6197,7 @@ body,
     place-items: center;
     width: 16px;
     height: 16px;
-    color: #3897F0;
+    color: #3897f0;
 }
 .binge-profile-verified.is-favorite {
     color: rgba(244, 114, 182, 1);
@@ -6115,7 +6218,9 @@ body,
     scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
     padding-bottom: 2rem;
 }
-.binge-profile-body::-webkit-scrollbar { width: 6px; }
+.binge-profile-body::-webkit-scrollbar {
+    width: 6px;
+}
 .binge-profile-body::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.2);
     border-radius: 3px;
@@ -6200,7 +6305,9 @@ body,
     display: grid;
     place-items: center;
     color: #fff;
-    transition: transform 0.18s ease, border-color 0.18s ease;
+    transition:
+        transform 0.18s ease,
+        border-color 0.18s ease;
 }
 .binge-discover-bubble-img.is-in-library {
     /* IG-verified blue (`#3897F0`) for performers already in the
@@ -6242,7 +6349,9 @@ body,
     cursor: pointer;
     flex: 0 0 32px;
     margin: 0 0.25rem;
-    transition: opacity 0.15s ease, background 0.15s ease;
+    transition:
+        opacity 0.15s ease,
+        background 0.15s ease;
 }
 .binge-discover-bar-chevron:hover,
 .binge-discover-bar-chevron:focus-visible {
@@ -6423,12 +6532,7 @@ body,
     /* binge identity gradient — kept in sync with .binge-story-ring
        so every "performer has new content" affordance reads as the
        same design element. */
-    background: linear-gradient(
-        45deg,
-        #f472b6 0%,
-        #a855f7 50%,
-        #6aa9ff 100%
-    );
+    background: linear-gradient(45deg, #f472b6 0%, #a855f7 50%, #6aa9ff 100%);
     border-radius: 50%;
     cursor: pointer;
     display: inline-flex;
@@ -6548,7 +6652,9 @@ body,
     cursor: pointer;
     font-family: inherit;
     line-height: 1;
-    transition: background 0.18s ease, border-color 0.18s ease;
+    transition:
+        background 0.18s ease,
+        border-color 0.18s ease;
 }
 .binge-profile-link-chip:hover {
     background: rgba(255, 255, 255, 0.14);
@@ -6754,7 +6860,9 @@ body,
     cursor: pointer;
     text-align: left;
     white-space: nowrap;
-    transition: background 0.12s ease, color 0.12s ease;
+    transition:
+        background 0.12s ease,
+        color 0.12s ease;
 }
 .binge-scene-sort-item:hover {
     background: rgba(255, 255, 255, 0.06);
@@ -6789,7 +6897,9 @@ body,
     text-transform: uppercase;
     color: var(--text-muted, rgba(255, 255, 255, 0.6));
     cursor: pointer;
-    transition: background 0.12s ease, color 0.12s ease,
+    transition:
+        background 0.12s ease,
+        color 0.12s ease,
         border-color 0.12s ease;
 }
 .binge-profile-stashdb-toggle:hover {
@@ -6809,7 +6919,9 @@ body,
     height: 8px;
     border-radius: 50%;
     background: rgba(255, 255, 255, 0.2);
-    transition: background 0.12s ease, box-shadow 0.12s ease;
+    transition:
+        background 0.12s ease,
+        box-shadow 0.12s ease;
 }
 .binge-profile-stashdb-toggle.is-on .binge-profile-stashdb-toggle-dot {
     background: rgba(255, 60, 120, 1);
@@ -6870,7 +6982,9 @@ body,
     position: relative;
     overflow: hidden;
     border-radius: 8px;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition:
+        transform 0.2s ease,
+        box-shadow 0.2s ease;
     contain: layout paint style;
 }
 .binge-profile-scene-card:focus-visible {
@@ -6887,7 +7001,9 @@ body,
     background-color: #050505;
     /* background-size is a keyword — it doesn't tween — so the
        cover→contain swap snaps. transform stays animatable. */
-    transition: background-size 0.25s ease, transform 0.4s ease;
+    transition:
+        background-size 0.25s ease,
+        transform 0.4s ease;
 }
 .binge-profile-scene-cell.is-landscape-thumb
     .binge-profile-scene-card:hover
@@ -7146,7 +7262,9 @@ body,
 .binge-details-title-link {
     color: inherit;
     text-decoration: none;
-    transition: color 0.12s ease, text-decoration-color 0.12s ease;
+    transition:
+        color 0.12s ease,
+        text-decoration-color 0.12s ease;
 }
 .binge-details-title-link:hover,
 .binge-details-title-link:focus-visible {
@@ -7338,8 +7456,12 @@ body,
     animation: binge-lightbox-fade 0.18s ease-out;
 }
 @keyframes binge-lightbox-fade {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
 }
 .binge-lightbox-backdrop {
     position: absolute;
@@ -7463,7 +7585,9 @@ body,
     align-items: center;
     gap: 0.85rem;
     text-align: left;
-    transition: background 0.15s ease, border-color 0.15s ease;
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease;
 }
 .binge-menu-row:hover,
 .binge-menu-row:focus-visible {
@@ -7524,7 +7648,9 @@ body,
        hide so chrome at top and bottom feel like a single layer. */
     opacity: 1;
     transform: translateY(0);
-    transition: opacity 0.28s ease, transform 0.28s ease;
+    transition:
+        opacity 0.28s ease,
+        transform 0.28s ease;
 }
 .binge-bottom-nav.is-hidden {
     opacity: 0;
@@ -7545,7 +7671,9 @@ body,
     /* 48px min target keeps the nav passable on a11y for small
        phones where 3.5rem comes in below that. */
     min-height: 48px;
-    transition: color 0.15s ease, transform 0.15s ease;
+    transition:
+        color 0.15s ease,
+        transform 0.15s ease;
 }
 .binge-bottom-nav-item.is-active {
     color: #fff;
@@ -7572,7 +7700,9 @@ body,
     pointer-events: none;
     opacity: 1;
     transform: translateY(0);
-    transition: opacity 0.28s ease, transform 0.28s ease;
+    transition:
+        opacity 0.28s ease,
+        transform 0.28s ease;
 }
 .binge-mobile-floating.is-hidden {
     opacity: 0;
@@ -7655,8 +7785,7 @@ body,
         animation: binge-sheet-fade 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
     }
     .binge-sheet-root.is-exiting .binge-scribe-modal {
-        animation: binge-sheet-fade-out 0.2s
-            cubic-bezier(0.7, 0, 0.84, 0) both;
+        animation: binge-sheet-fade-out 0.2s cubic-bezier(0.7, 0, 0.84, 0) both;
     }
 }
 .binge-scribe-header {
@@ -7832,7 +7961,9 @@ body,
     font-size: 0.82rem;
     font-weight: 600;
     cursor: pointer;
-    transition: background 0.15s ease, border-color 0.15s ease;
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease;
 }
 .binge-scribe-send:hover:not(:disabled),
 .binge-scribe-generate:hover:not(:disabled),
@@ -8102,12 +8233,7 @@ body,
     justify-content: center;
     padding: 2px;
     border-radius: 50%;
-    background: linear-gradient(
-        45deg,
-        #f472b6 0%,
-        #a855f7 50%,
-        #6aa9ff 100%
-    );
+    background: linear-gradient(45deg, #f472b6 0%, #a855f7 50%, #6aa9ff 100%);
     box-sizing: border-box;
     flex: 0 0 auto;
 }
@@ -8137,12 +8263,7 @@ body,
     place-items: center;
     padding: 3px;
     box-sizing: border-box;
-    background: linear-gradient(
-        135deg,
-        #f472b6 0%,
-        #a855f7 50%,
-        #6aa9ff 100%
-    );
+    background: linear-gradient(135deg, #f472b6 0%, #a855f7 50%, #6aa9ff 100%);
     border: 2px solid var(--bg-1, #111);
     color: #fff;
     pointer-events: none;
@@ -8169,12 +8290,7 @@ body,
     place-items: center;
     padding: 3px;
     box-sizing: border-box;
-    background: linear-gradient(
-        135deg,
-        #f472b6 0%,
-        #a855f7 50%,
-        #6aa9ff 100%
-    );
+    background: linear-gradient(135deg, #f472b6 0%, #a855f7 50%, #6aa9ff 100%);
     border: 2px solid var(--bg-1, #111);
     color: #fff;
     z-index: 20;

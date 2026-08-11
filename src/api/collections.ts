@@ -1,10 +1,5 @@
 import { findTagByName, findTagsContaining } from "./queries";
-import {
-    sceneUpdate,
-    tagCreate,
-    tagDestroy,
-    tagSetParents,
-} from "./mutations";
+import { sceneUpdate, tagCreate, tagDestroy, tagSetParents } from "./mutations";
 
 // "Save to ..." folder system. Each collection is a Stash tag; the
 // bookmark sheet lists all known collections + lets the user create new
@@ -131,10 +126,7 @@ function ensureCollectionsParentTagId(): Promise<string> {
     cachedParentIdPromise = (async () => {
         const existing = await findTagByName(COLLECTIONS_PARENT_TAG_NAME);
         if (existing) return existing.id;
-        const created = await tagCreate(
-            COLLECTIONS_PARENT_TAG_NAME,
-            true
-        );
+        const created = await tagCreate(COLLECTIONS_PARENT_TAG_NAME, true);
         return created.id;
     })().catch((err) => {
         cachedParentIdPromise = null;
@@ -172,16 +164,14 @@ export function getCollectionTagIds(): Promise<Map<string, string>> {
                         new Set([
                             ...existing.parents.map((p) => p.id),
                             parentId,
-                        ])
+                        ]),
                     );
                     try {
                         await tagSetParents(existing.id, next);
                     } catch (err) {
                         console.warn(
-                            "[binge] reparent of " +
-                                c.tagName +
-                                " failed",
-                            err
+                            "[binge] reparent of " + c.tagName + " failed",
+                            err,
                         );
                     }
                 }
@@ -191,7 +181,7 @@ export function getCollectionTagIds(): Promise<Map<string, string>> {
             const created = await tagCreate(
                 c.tagName,
                 true,
-                reparent ? [parentId] : undefined
+                reparent ? [parentId] : undefined,
             );
             map.set(c.tagName, created.id);
         }
@@ -209,7 +199,7 @@ export function getCollectionTagIds(): Promise<Map<string, string>> {
 // wipe the caches so the next read picks up the new collection,
 // then notify subscribers so any open SaveSheet re-renders.
 export async function createCollection(
-    displayName: string
+    displayName: string,
 ): Promise<CollectionDef> {
     const trimmed = displayName.trim();
     if (!trimmed) throw new Error("Collection name cannot be empty");
@@ -219,16 +209,11 @@ export async function createCollection(
     const existing = await findTagByName(tagName);
     if (!existing) {
         await tagCreate(tagName, true, [parentId]);
-    } else if (
-        !existing.parents.some((p) => p.id === parentId)
-    ) {
+    } else if (!existing.parents.some((p) => p.id === parentId)) {
         // Tag existed without the parent (e.g. pre-migration);
         // reparent in place.
         const next = Array.from(
-            new Set([
-                ...existing.parents.map((p) => p.id),
-                parentId,
-            ])
+            new Set([...existing.parents.map((p) => p.id), parentId]),
         );
         await tagSetParents(existing.id, next);
     }
@@ -251,7 +236,7 @@ export async function createCollection(
 export async function deleteCollection(tagName: string): Promise<boolean> {
     if (tagName === FAVOURITES_TAG_NAME) {
         throw new Error(
-            "The Favourites collection is shared with ASR and can't be deleted from binge."
+            "The Favourites collection is shared with ASR and can't be deleted from binge.",
         );
     }
     const tagIds = await getCollectionTagIds();
@@ -270,7 +255,7 @@ export async function setSceneInCollection(
     sceneId: string,
     currentTagIds: string[],
     tagName: string,
-    next: boolean
+    next: boolean,
 ): Promise<boolean> {
     const tagIds = await getCollectionTagIds();
     const id = tagIds.get(tagName);

@@ -10,13 +10,7 @@ import {
 } from "react";
 
 export type Tab =
-    | "home"
-    | "foryou"
-    | "following"
-    | "explore"
-    | "saved"
-    | "settings"
-    | "menu";
+    "home" | "foryou" | "following" | "explore" | "saved" | "settings" | "menu";
 
 // "random" — the existing reel behaviour: random sort + scene_filter chips.
 // "chained" — recommendation chain seeded by an Explore-tile tap. The reel
@@ -94,9 +88,10 @@ export function TabProvider({ children }: { children: ReactNode }) {
     const [tab, setTabRaw] = useState<Tab>(() => readTabFromHash() ?? "home");
     const [tabBarVisible, setTabBarVisible] = useState(true);
     const [pinFirstSceneId, setPinFirstSceneId] = useState<string | null>(null);
-    const [pinnedQueue, setPinnedQueue] = useState<
-        { ids: string[]; startIndex: number } | null
-    >(null);
+    const [pinnedQueue, setPinnedQueue] = useState<{
+        ids: string[];
+        startIndex: number;
+    } | null>(null);
     const [reelMode, setReelMode] = useState<ReelMode>("random");
 
     // On first paint, make sure the hash reflects the resolved tab —
@@ -158,14 +153,7 @@ export function TabProvider({ children }: { children: ReactNode }) {
             reelMode,
             setReelMode,
         }),
-        [
-            tab,
-            setTab,
-            tabBarVisible,
-            pinFirstSceneId,
-            pinnedQueue,
-            reelMode,
-        ]
+        [tab, setTab, tabBarVisible, pinFirstSceneId, pinnedQueue, reelMode],
     );
 
     return <TabContext.Provider value={value}>{children}</TabContext.Provider>;

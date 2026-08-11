@@ -17,9 +17,7 @@ export function StoryProgressStrip({
 }: StoryProgressStripProps) {
     const segments: number[] = [];
     for (let i = 0; i < sceneCount; i++) {
-        segments.push(
-            i < currentIndex ? 1 : i === currentIndex ? progress : 0
-        );
+        segments.push(i < currentIndex ? 1 : i === currentIndex ? progress : 0);
     }
     return (
         <div className="binge-story-viewer-progress" aria-hidden="true">

@@ -84,7 +84,7 @@ export function BingeServerInstallCard() {
             return;
         }
         const up = await waitForServer(300_000, (elapsed) =>
-            setState({ kind: "installing", elapsed })
+            setState({ kind: "installing", elapsed }),
         );
         if (!up) {
             setState({
@@ -121,8 +121,8 @@ export function BingeServerInstallCard() {
                 <div className="binge-settings-row-desc">
                     Optional daemon that adds Reddit, X and PornHub posts to
                     your stories, plus Save-to-Stash. binge works fine without
-                    it. Installs onto the machine running Stash — if you run
-                    the daemon somewhere else, set its URL below instead.
+                    it. Installs onto the machine running Stash — if you run the
+                    daemon somewhere else, set its URL below instead.
                 </div>
             </div>
 
@@ -177,18 +177,18 @@ export function BingeServerInstallCard() {
                         </div>
                         {!state.canInstall && (
                             <div className="binge-install-status">
-                                One-click install isn't offered here — Stash
-                                has no install task registered. Reload plugins
-                                in Stash if you just updated binge; otherwise
-                                use one of the options below.
+                                One-click install isn't offered here — Stash has
+                                no install task registered. Reload plugins in
+                                Stash if you just updated binge; otherwise use
+                                one of the options below.
                             </div>
                         )}
                         {showManual && (
                             <div className="binge-install-manual">
                                 <div className="binge-install-status">
                                     <strong>If Stash runs in Docker</strong> —
-                                    add this beside it in the same compose
-                                    file, then <code>docker compose up -d</code>.
+                                    add this beside it in the same compose file,
+                                    then <code>docker compose up -d</code>.
                                     Installing inside the Stash container
                                     wouldn't be reachable from your browser.
                                 </div>
@@ -196,22 +196,26 @@ export function BingeServerInstallCard() {
                                 <button
                                     type="button"
                                     className="binge-install-btn is-secondary"
-                                    onClick={() => void copy(composeSnippet(), "compose")}
+                                    onClick={() =>
+                                        void copy(composeSnippet(), "compose")
+                                    }
                                 >
                                     {copied === "compose"
                                         ? "Copied"
                                         : "Copy compose service"}
                                 </button>
                                 <div className="binge-install-status">
-                                    <strong>Otherwise</strong> — run this on
-                                    the machine hosting Stash, then set the
-                                    URL below if it isn't localhost:
+                                    <strong>Otherwise</strong> — run this on the
+                                    machine hosting Stash, then set the URL
+                                    below if it isn't localhost:
                                 </div>
                                 <pre>{manualInstallCommand()}</pre>
                                 <button
                                     type="button"
                                     className="binge-install-btn is-secondary"
-                                    onClick={() => void copy(manualInstallCommand(), "run")}
+                                    onClick={() =>
+                                        void copy(manualInstallCommand(), "run")
+                                    }
                                 >
                                     {copied === "run"
                                         ? "Copied"

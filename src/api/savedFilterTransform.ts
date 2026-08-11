@@ -44,14 +44,14 @@ const SCALAR_FIELDS: ReadonlySet<string> = new Set([
 ]);
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
-    return (
-        v !== null && typeof v === "object" && !Array.isArray(v)
-    );
+    return v !== null && typeof v === "object" && !Array.isArray(v);
 }
 
 // Transform a single criterion `{modifier, value}` entry from stored
 // shape to input shape.
-function transformCriterion(v: Record<string, unknown>): Record<string, unknown> {
+function transformCriterion(
+    v: Record<string, unknown>,
+): Record<string, unknown> {
     const modifier = v.modifier;
     const value = v.value;
 
@@ -74,7 +74,11 @@ function transformCriterion(v: Record<string, unknown>): Record<string, unknown>
             modifier,
             value: inner.value,
         };
-        if ("value2" in inner && inner.value2 !== undefined && inner.value2 !== null) {
+        if (
+            "value2" in inner &&
+            inner.value2 !== undefined &&
+            inner.value2 !== null
+        ) {
             out.value2 = inner.value2;
         }
         return out;
@@ -85,7 +89,7 @@ function transformCriterion(v: Record<string, unknown>): Record<string, unknown>
 }
 
 export function transformObjectFilter(
-    obj: Record<string, unknown> | null | undefined
+    obj: Record<string, unknown> | null | undefined,
 ): Record<string, unknown> {
     if (!obj || !isPlainObject(obj)) return {};
     const out: Record<string, unknown> = {};

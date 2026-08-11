@@ -111,7 +111,7 @@ function TranscodeRow() {
                 value={value}
                 onChange={(e) =>
                     setTranscodeType(
-                        e.target.value as (typeof ALLOWED_TRANSCODE)[number]
+                        e.target.value as (typeof ALLOWED_TRANSCODE)[number],
                     )
                 }
             >
@@ -451,7 +451,7 @@ function BingeServerHealthDot({ url }: { url: string }) {
 function BingeServerConfigCard() {
     const url = useBingeServerUrl();
     const [health, setHealth] = useState<BingeServerHealth | null | "pending">(
-        "pending"
+        "pending",
     );
     const [config, setConfig] = useState<BingeServerConfigState | null>(null);
     const [cookieInput, setCookieInput] = useState("");
@@ -559,7 +559,7 @@ function BingeServerConfigCard() {
         } catch (err) {
             setImportErr(
                 "Couldn't read that file: " +
-                    (err instanceof Error ? err.message : String(err))
+                    (err instanceof Error ? err.message : String(err)),
             );
         } finally {
             setImportBusy(false);
@@ -656,8 +656,8 @@ function BingeServerConfigCard() {
                     </span>
                 </div>
                 <p className="binge-settings-card-description">
-                    Daemon unreachable at <code>{url}</code>. Reddit
-                    stories will be silently skipped until it's running.{" "}
+                    Daemon unreachable at <code>{url}</code>. Reddit stories
+                    will be silently skipped until it's running.{" "}
                     <a
                         href="https://github.com/ordureconnoisseur/binge-server"
                         target="_blank"
@@ -689,17 +689,17 @@ function BingeServerConfigCard() {
                     Connected
                     {health.lastPoll && (
                         <span className="binge-settings-card-status-meta">
-                            · {health.performerCount} performers ·{" "}
-                            last poll {formatRelative(health.lastPoll)}
+                            · {health.performerCount} performers · last poll{" "}
+                            {formatRelative(health.lastPoll)}
                         </span>
                     )}
                 </span>
             </div>
             <p className="binge-settings-card-description">
-                Credentials the daemon uses to poll Reddit on your
-                behalf. The Stash API key is filled in automatically; the
-                Reddit session cookie has to be pasted (it lives in your
-                browser, not in Stash).
+                Credentials the daemon uses to poll Reddit on your behalf. The
+                Stash API key is filled in automatically; the Reddit session
+                cookie has to be pasted (it lives in your browser, not in
+                Stash).
             </p>
 
             <div className="binge-settings-card-field">
@@ -730,10 +730,10 @@ function BingeServerConfigCard() {
                         />
                     </label>
                     <span className="binge-cookies-import-hint">
-                        Export cookies from a browser signed into Reddit and
-                        X, then pick the file here — it fills both in one
-                        step. Parsed in your browser; only the Reddit and X
-                        values are sent.
+                        Export cookies from a browser signed into Reddit and X,
+                        then pick the file here — it fills both in one step.
+                        Parsed in your browser; only the Reddit and X values are
+                        sent.
                     </span>
                 </div>
                 {importMsg && (
@@ -778,9 +778,7 @@ function BingeServerConfigCard() {
                     </button>
                 </div>
                 {cookieError && (
-                    <p className="binge-server-config-error">
-                        {cookieError}
-                    </p>
+                    <p className="binge-server-config-error">{cookieError}</p>
                 )}
                 {cookieSaved && (
                     <p className="binge-server-config-ok">Saved ✓</p>
@@ -794,23 +792,19 @@ function BingeServerConfigCard() {
                 </button>
                 {showHelp && (
                     <ol className="binge-server-config-help">
+                        <li>In a regular browser tab, log into reddit.com.</li>
                         <li>
-                            In a regular browser tab, log into
-                            reddit.com.
+                            Open DevTools (F12) → Application → Cookies →
+                            https://www.reddit.com
                         </li>
                         <li>
-                            Open DevTools (F12) → Application → Cookies
-                            → https://www.reddit.com
-                        </li>
-                        <li>
-                            Find the row named{" "}
-                            <code>reddit_session</code> and copy its
-                            Value column (a long JWT-looking string).
+                            Find the row named <code>reddit_session</code> and
+                            copy its Value column (a long JWT-looking string).
                             Paste it above.
                         </li>
                         <li>
-                            Cookies expire every few months. When
-                            stories stop updating, repeat steps 1–3.
+                            Cookies expire every few months. When stories stop
+                            updating, repeat steps 1–3.
                         </li>
                     </ol>
                 )}
@@ -885,15 +879,13 @@ function BingeServerConfigCard() {
                             https://x.com
                         </li>
                         <li>
-                            Copy the Value of both <code>auth_token</code>{" "}
-                            and <code>ct0</code> into the fields above, then
-                            Save.
+                            Copy the Value of both <code>auth_token</code> and{" "}
+                            <code>ct0</code> into the fields above, then Save.
                         </li>
                         <li>
                             Use a secondary X account if you can — automated
                             access is against X's terms. Cookies expire
-                            periodically; re-paste when X media stops
-                            loading.
+                            periodically; re-paste when X media stops loading.
                         </li>
                     </ol>
                 )}
@@ -906,10 +898,10 @@ function BingeServerConfigCard() {
                 </span>
                 <p className="binge-settings-card-description">
                     Where saved X/Reddit/Redgifs posts are written. Two paths
-                    because the daemon and Stash can be on different hosts:
-                    the first is where binge-server writes; the second is the
-                    same folder as Stash sees it (a Stash library path). When
-                    they're the same machine, both are identical.
+                    because the daemon and Stash can be on different hosts: the
+                    first is where binge-server writes; the second is the same
+                    folder as Stash sees it (a Stash library path). When they're
+                    the same machine, both are identical.
                 </p>
                 <input
                     type="text"
@@ -954,9 +946,7 @@ function BingeServerConfigCard() {
                 {socError && (
                     <p className="binge-server-config-error">{socError}</p>
                 )}
-                {socSaved && (
-                    <p className="binge-server-config-ok">Saved ✓</p>
-                )}
+                {socSaved && <p className="binge-server-config-ok">Saved ✓</p>}
             </div>
         </div>
     );
@@ -1016,7 +1006,7 @@ function ForageUrlRow() {
 // Pings forage /healthz on mount + whenever the URL changes.
 function ForageHealthDot({ url }: { url: string }) {
     const [state, setState] = useState<"pending" | "ok" | "down" | "idle">(
-        url ? "pending" : "idle"
+        url ? "pending" : "idle",
     );
     useEffect(() => {
         if (!url) {

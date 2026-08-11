@@ -29,7 +29,9 @@ export function PresetsMenu({ onClose }: PresetsMenuProps) {
     const handleSave = () => {
         if (isEmpty) return;
         const total =
-            filter.performers.length + filter.tags.length + filter.studios.length;
+            filter.performers.length +
+            filter.tags.length +
+            filter.studios.length;
         const defaultName =
             filter.performers[0]?.name ||
             filter.tags[0]?.name ||
@@ -38,7 +40,7 @@ export function PresetsMenu({ onClose }: PresetsMenuProps) {
         const suffix = total > 1 ? ` +${total - 1}` : "";
         const name = window.prompt(
             "Name this preset",
-            `${defaultName}${suffix}`
+            `${defaultName}${suffix}`,
         );
         if (!name) return;
         const preset: FilterPreset = {
@@ -74,8 +76,8 @@ export function PresetsMenu({ onClose }: PresetsMenuProps) {
         }
         persist(
             presets.map((p) =>
-                p.id === renameId ? { ...p, name: trimmed } : p
-            )
+                p.id === renameId ? { ...p, name: trimmed } : p,
+            ),
         );
         setRenameId(null);
     };
@@ -89,7 +91,7 @@ export function PresetsMenu({ onClose }: PresetsMenuProps) {
         };
         const t = window.setTimeout(
             () => document.addEventListener("mousedown", handler),
-            0
+            0,
         );
         return () => {
             window.clearTimeout(t);
@@ -109,9 +111,15 @@ export function PresetsMenu({ onClose }: PresetsMenuProps) {
     }, [onClose, renameId]);
 
     return (
-        <div className="binge-chip-menu binge-presets-menu" ref={panelRef} role="dialog">
+        <div
+            className="binge-chip-menu binge-presets-menu"
+            ref={panelRef}
+            role="dialog"
+        >
             <div className="binge-chip-menu-tabs">
-                <span className="binge-chip-menu-tab is-active">Saved filters</span>
+                <span className="binge-chip-menu-tab is-active">
+                    Saved filters
+                </span>
                 <button
                     type="button"
                     className="binge-chip-menu-tab binge-presets-save"
@@ -153,7 +161,8 @@ export function PresetsMenu({ onClose }: PresetsMenuProps) {
                                         }
                                         onBlur={commitRename}
                                         onKeyDown={(e) => {
-                                            if (e.key === "Enter") commitRename();
+                                            if (e.key === "Enter")
+                                                commitRename();
                                         }}
                                     />
                                 ) : (

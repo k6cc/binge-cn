@@ -1,8 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-    findAllPerformers,
-    type PerformerSummary,
-} from "../api/queries";
+import { findAllPerformers, type PerformerSummary } from "../api/queries";
 import { useSharedStories } from "../home/StoriesContext";
 import { usePerformerProfile } from "../performer/PerformerProfileContext";
 import { useAutoHideTabBar } from "../hooks/useAutoHideTabBar";
@@ -40,25 +37,29 @@ type LastPostMap = Map<string, string>;
 function sortPerformers(
     list: PerformerSummary[],
     mode: SortMode,
-    lastPost: LastPostMap
+    lastPost: LastPostMap,
 ): PerformerSummary[] {
     const copy = list.slice();
     switch (mode) {
         case "name-asc":
             return copy.sort((a, b) =>
-                a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
+                a.name.localeCompare(b.name, undefined, {
+                    sensitivity: "base",
+                }),
             );
         case "name-desc":
             return copy.sort((a, b) =>
-                b.name.localeCompare(a.name, undefined, { sensitivity: "base" })
+                b.name.localeCompare(a.name, undefined, {
+                    sensitivity: "base",
+                }),
             );
         case "scenes-desc":
             return copy.sort(
-                (a, b) => (b.scene_count ?? 0) - (a.scene_count ?? 0)
+                (a, b) => (b.scene_count ?? 0) - (a.scene_count ?? 0),
             );
         case "scenes-asc":
             return copy.sort(
-                (a, b) => (a.scene_count ?? 0) - (b.scene_count ?? 0)
+                (a, b) => (a.scene_count ?? 0) - (b.scene_count ?? 0),
             );
         case "last-post-desc":
             // Performers with NO recent activity sort to the bottom in
@@ -127,13 +128,14 @@ export function Following() {
     // re-runs.
     const filtered = useMemo(() => {
         if (state.kind !== "ready") {
-            return { fav: [] as PerformerSummary[], oth: [] as PerformerSummary[] };
+            return {
+                fav: [] as PerformerSummary[],
+                oth: [] as PerformerSummary[],
+            };
         }
         const q = search.trim().toLowerCase();
         const source = q
-            ? state.performers.filter((p) =>
-                  p.name.toLowerCase().includes(q)
-              )
+            ? state.performers.filter((p) => p.name.toLowerCase().includes(q))
             : state.performers;
         const fav: PerformerSummary[] = [];
         const oth: PerformerSummary[] = [];
@@ -149,7 +151,7 @@ export function Following() {
             favourites: sortPerformers(filtered.fav, sort, lastPost),
             others: sortPerformers(filtered.oth, sort, lastPost),
         }),
-        [filtered, sort, lastPost]
+        [filtered, sort, lastPost],
     );
 
     return (

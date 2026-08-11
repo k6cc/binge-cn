@@ -97,9 +97,7 @@ export function SceneDetailsSheet({ scene, onClose }: SceneDetailsSheetProps) {
                         </a>
                     </h2>
                 )}
-                {details && (
-                    <p className="binge-details-body">{details}</p>
-                )}
+                {details && <p className="binge-details-body">{details}</p>}
                 {scene.tags && scene.tags.length > 0 && (
                     <ul className="binge-hashtag-list">
                         {scene.tags.map((t) => (
@@ -115,13 +113,11 @@ export function SceneDetailsSheet({ scene, onClose }: SceneDetailsSheetProps) {
                 {!displayTitle &&
                     !details &&
                     (!scene.tags || scene.tags.length === 0) && (
-                        <p className="binge-details-empty">
-                            No description.
-                        </p>
+                        <p className="binge-details-empty">No description.</p>
                     )}
             </div>
         </div>,
-        document.body
+        document.body,
     );
 }
 
@@ -140,8 +136,10 @@ function TechSection({ tech }: { tech: SceneFileDetails }) {
     if (dur) rows.push({ label: "Duration", value: dur });
     const size = formatSize(tech.size);
     if (size) rows.push({ label: "Size", value: size });
-    if (tech.video_codec) rows.push({ label: "Video", value: tech.video_codec });
-    if (tech.audio_codec) rows.push({ label: "Audio", value: tech.audio_codec });
+    if (tech.video_codec)
+        rows.push({ label: "Video", value: tech.video_codec });
+    if (tech.audio_codec)
+        rows.push({ label: "Audio", value: tech.audio_codec });
     const fr = formatFrameRate(tech.frame_rate);
     if (fr) rows.push({ label: "Frame rate", value: fr });
     const br = formatBitRate(tech.bit_rate);

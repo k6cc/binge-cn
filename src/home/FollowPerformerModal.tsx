@@ -81,13 +81,11 @@ export function FollowPerformerModal({
         (async () => {
             let detail: StashDBPerformerDetail | null = null;
             try {
-                detail = await getStashDBPerformerForFollow(
-                    stashDBPerformerId
-                );
+                detail = await getStashDBPerformerForFollow(stashDBPerformerId);
             } catch (err) {
                 console.warn(
                     "[binge] getStashDBPerformerForFollow failed",
-                    err
+                    err,
                 );
             }
             if (!alive) return;
@@ -107,7 +105,7 @@ export function FollowPerformerModal({
 
     const updateField = <K extends keyof PerformerCreateForm>(
         key: K,
-        value: PerformerCreateForm[K]
+        value: PerformerCreateForm[K],
     ) => {
         setState((prev) => {
             if (prev.kind !== "ready" && prev.kind !== "error") return prev;
@@ -128,8 +126,7 @@ export function FollowPerformerModal({
         // photo than the first one returned by StashDB.
         const submittedForm = {
             ...form,
-            image:
-                detail?.images[imageIndex]?.url || form.image || "",
+            image: detail?.images[imageIndex]?.url || form.image || "",
         };
         setState({ kind: "submitting", form: submittedForm, detail });
         try {
@@ -153,15 +150,13 @@ export function FollowPerformerModal({
               : state.kind === "submitting"
                 ? state.form
                 : state.form;
-    const detail =
-        state.kind === "scraping" ? null : state.detail;
+    const detail = state.kind === "scraping" ? null : state.detail;
     const isSubmitting = state.kind === "submitting";
     // Image carousel — use the StashDB image array if we have it,
     // otherwise fall back to whatever URL the user typed/inherited.
     const images = detail?.images ?? [];
     const hasMultipleImages = images.length > 1;
-    const currentImage =
-        images[imageIndex]?.url || form?.image || "";
+    const currentImage = images[imageIndex]?.url || form?.image || "";
 
     return createPortal(
         <div
@@ -224,7 +219,7 @@ export function FollowPerformerModal({
                                                     (imageIndex -
                                                         1 +
                                                         images.length) %
-                                                        images.length
+                                                        images.length,
                                                 )
                                             }
                                             aria-label="Previous photo"
@@ -237,7 +232,7 @@ export function FollowPerformerModal({
                                             onClick={() =>
                                                 setImageIndex(
                                                     (imageIndex + 1) %
-                                                        images.length
+                                                        images.length,
                                                 )
                                             }
                                             aria-label="Next photo"
@@ -294,8 +289,10 @@ export function FollowPerformerModal({
                                         className="binge-follow-modal-input"
                                         value={currentImage}
                                         onChange={(
-                                            e: ChangeEvent<HTMLInputElement>
-                                        ) => updateField("image", e.target.value)}
+                                            e: ChangeEvent<HTMLInputElement>,
+                                        ) =>
+                                            updateField("image", e.target.value)
+                                        }
                                         placeholder="https://…"
                                     />
                                 </label>
@@ -319,9 +316,7 @@ export function FollowPerformerModal({
                             <Field
                                 label="Aliases (comma-separated)"
                                 value={form.alias_list}
-                                onChange={(v) =>
-                                    updateField("alias_list", v)
-                                }
+                                onChange={(v) => updateField("alias_list", v)}
                                 fullWidth
                             />
                             <SelectField
@@ -348,9 +343,7 @@ export function FollowPerformerModal({
                                 label="Death date"
                                 value={form.death_date}
                                 type="date"
-                                onChange={(v) =>
-                                    updateField("death_date", v)
-                                }
+                                onChange={(v) => updateField("death_date", v)}
                             />
                             <Field
                                 label="Country"
@@ -387,24 +380,18 @@ export function FollowPerformerModal({
                             <Field
                                 label="Measurements"
                                 value={form.measurements}
-                                onChange={(v) =>
-                                    updateField("measurements", v)
-                                }
+                                onChange={(v) => updateField("measurements", v)}
                             />
                             <Field
                                 label="Fake tits"
                                 value={form.fake_tits}
-                                onChange={(v) =>
-                                    updateField("fake_tits", v)
-                                }
+                                onChange={(v) => updateField("fake_tits", v)}
                             />
                             <Field
                                 label="Penis length (cm)"
                                 value={form.penis_length}
                                 type="number"
-                                onChange={(v) =>
-                                    updateField("penis_length", v)
-                                }
+                                onChange={(v) => updateField("penis_length", v)}
                             />
                             <SelectField
                                 label="Circumcised"
@@ -414,25 +401,19 @@ export function FollowPerformerModal({
                                     ["CUT", "Cut"],
                                     ["UNCUT", "Uncut"],
                                 ]}
-                                onChange={(v) =>
-                                    updateField("circumcised", v)
-                                }
+                                onChange={(v) => updateField("circumcised", v)}
                             />
                             <Field
                                 label="Career start"
                                 value={form.career_start}
                                 type="date"
-                                onChange={(v) =>
-                                    updateField("career_start", v)
-                                }
+                                onChange={(v) => updateField("career_start", v)}
                             />
                             <Field
                                 label="Career end"
                                 value={form.career_end}
                                 type="date"
-                                onChange={(v) =>
-                                    updateField("career_end", v)
-                                }
+                                onChange={(v) => updateField("career_end", v)}
                             />
                             <TextareaField
                                 label="Tattoos"
@@ -470,7 +451,7 @@ export function FollowPerformerModal({
                                     onChange={(e) =>
                                         updateField(
                                             "ignore_auto_tag",
-                                            e.target.checked
+                                            e.target.checked,
                                         )
                                     }
                                 />
@@ -499,9 +480,7 @@ export function FollowPerformerModal({
                         type="button"
                         className="binge-follow-modal-submit"
                         onClick={handleSubmit}
-                        disabled={
-                            state.kind !== "ready" || !form?.name.trim()
-                        }
+                        disabled={state.kind !== "ready" || !form?.name.trim()}
                     >
                         {isSubmitting
                             ? "Adding…"
@@ -512,7 +491,7 @@ export function FollowPerformerModal({
                 </footer>
             </div>
         </div>,
-        document.body
+        document.body,
     );
 }
 
@@ -534,8 +513,7 @@ function Field({
     return (
         <label
             className={
-                "binge-follow-modal-label" +
-                (fullWidth ? " is-full" : "")
+                "binge-follow-modal-label" + (fullWidth ? " is-full" : "")
             }
         >
             <span className="binge-follow-modal-label-text">
@@ -579,8 +557,7 @@ function TextareaField({
     return (
         <label
             className={
-                "binge-follow-modal-label" +
-                (fullWidth ? " is-full" : "")
+                "binge-follow-modal-label" + (fullWidth ? " is-full" : "")
             }
         >
             <span className="binge-follow-modal-label-text">{label}</span>
@@ -612,8 +589,7 @@ function SelectField({
     return (
         <label
             className={
-                "binge-follow-modal-label" +
-                (fullWidth ? " is-full" : "")
+                "binge-follow-modal-label" + (fullWidth ? " is-full" : "")
             }
         >
             <span className="binge-follow-modal-label-text">{label}</span>

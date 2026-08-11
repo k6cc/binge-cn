@@ -70,10 +70,7 @@ export function AddSceneModal({
             try {
                 detail = await getStashDBSceneForCreate(stashDBSceneId);
             } catch (err) {
-                console.warn(
-                    "[binge] getStashDBSceneForCreate failed",
-                    err
-                );
+                console.warn("[binge] getStashDBSceneForCreate failed", err);
             }
             if (!alive) return;
             const form = await buildSceneCreateForm({
@@ -98,7 +95,7 @@ export function AddSceneModal({
 
     const updateField = <K extends keyof SceneCreateForm>(
         key: K,
-        value: SceneCreateForm[K]
+        value: SceneCreateForm[K],
     ) => {
         setState((prev) => {
             if (prev.kind !== "ready" && prev.kind !== "error") return prev;
@@ -138,8 +135,7 @@ export function AddSceneModal({
     const isSubmitting = state.kind === "submitting";
     const images = detail?.images ?? [];
     const hasMultipleImages = images.length > 1;
-    const currentImage =
-        images[imageIndex]?.url || form?.cover_image || "";
+    const currentImage = images[imageIndex]?.url || form?.cover_image || "";
 
     return createPortal(
         <div
@@ -202,7 +198,7 @@ export function AddSceneModal({
                                                     (imageIndex -
                                                         1 +
                                                         images.length) %
-                                                        images.length
+                                                        images.length,
                                                 )
                                             }
                                             aria-label="Previous photo"
@@ -215,7 +211,7 @@ export function AddSceneModal({
                                             onClick={() =>
                                                 setImageIndex(
                                                     (imageIndex + 1) %
-                                                        images.length
+                                                        images.length,
                                                 )
                                             }
                                             aria-label="Next photo"
@@ -250,8 +246,8 @@ export function AddSceneModal({
                                         {form.performerIds.length <
                                             detail.performers.length && (
                                             <span className="binge-follow-modal-not-in-library">
-                                                ({form.performerIds.length}{" "}
-                                                in library)
+                                                ({form.performerIds.length} in
+                                                library)
                                             </span>
                                         )}
                                     </div>
@@ -361,7 +357,7 @@ export function AddSceneModal({
                 </footer>
             </div>
         </div>,
-        document.body
+        document.body,
     );
 }
 
@@ -381,8 +377,7 @@ function Field({
     return (
         <label
             className={
-                "binge-follow-modal-label" +
-                (fullWidth ? " is-full" : "")
+                "binge-follow-modal-label" + (fullWidth ? " is-full" : "")
             }
         >
             <span className="binge-follow-modal-label-text">{label}</span>
@@ -414,8 +409,7 @@ function TextareaField({
     return (
         <label
             className={
-                "binge-follow-modal-label" +
-                (fullWidth ? " is-full" : "")
+                "binge-follow-modal-label" + (fullWidth ? " is-full" : "")
             }
         >
             <span className="binge-follow-modal-label-text">{label}</span>

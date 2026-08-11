@@ -1,8 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import {
-    PERFORMER_SCENE_SORTS,
-    type PerformerSceneSort,
-} from "../api/queries";
+import { PERFORMER_SCENE_SORTS, type PerformerSceneSort } from "../api/queries";
 
 // Subtle sort control for the performer scene grid. Renders as a small
 // muted label ("Recent ⌄") that opens a popover of the sort options —
@@ -48,9 +45,7 @@ export function PerformerSceneSortMenu({
         <div className="binge-scene-sort" ref={rootRef}>
             <button
                 type="button"
-                className={
-                    "binge-scene-sort-btn" + (open ? " is-open" : "")
-                }
+                className={"binge-scene-sort-btn" + (open ? " is-open" : "")}
                 onClick={() => setOpen((o) => !o)}
                 aria-haspopup="menu"
                 aria-expanded={open}

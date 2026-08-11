@@ -21,7 +21,11 @@ function emptySlot<T>(): Slot<T> {
     return { promise: null, key: null, expiresAt: 0 };
 }
 
-function get<T>(slot: Slot<T>, key: string, fetcher: () => Promise<T>): Promise<T> {
+function get<T>(
+    slot: Slot<T>,
+    key: string,
+    fetcher: () => Promise<T>,
+): Promise<T> {
     const now = Date.now();
     if (slot.key === key && slot.promise && now < slot.expiresAt) {
         return slot.promise;
@@ -37,21 +41,23 @@ const storiesSlot: Slot<RedditStoryDigest[] | null> = emptySlot();
 const feedSlots = new Map<number, Slot<RedditPost[] | null>>();
 
 export function getCachedRedditStories(
-    sinceUtc: number
+    sinceUtc: number,
 ): Promise<RedditStoryDigest[] | null> {
     return get(storiesSlot, String(sinceUtc), () => getRedditStories(sinceUtc));
 }
 
 export function getCachedRedditFeed(
     stashId: number,
-    limit = 25
+    limit = 25,
 ): Promise<RedditPost[] | null> {
     let slot = feedSlots.get(stashId);
     if (!slot) {
         slot = emptySlot();
         feedSlots.set(stashId, slot);
     }
-    return get(slot, `${stashId}:${limit}`, () => getRedditFeed(stashId, limit));
+    return get(slot, `${stashId}:${limit}`, () =>
+        getRedditFeed(stashId, limit),
+    );
 }
 
 export function invalidateRedditCaches(): void {

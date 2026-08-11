@@ -130,9 +130,7 @@ export async function getLinkedPerformers(): Promise<LinkedPerformer[]> {
     }>(FIND_LINKED_PERFORMERS);
     const out: LinkedPerformer[] = [];
     for (const p of data.findPerformers.performers) {
-        const link = p.stash_ids.find(
-            (s) => s.endpoint === STASHDB_ENDPOINT
-        );
+        const link = p.stash_ids.find((s) => s.endpoint === STASHDB_ENDPOINT);
         if (!link) continue;
         out.push({
             localId: p.id,
@@ -184,7 +182,7 @@ const MAX_PAGES = 50;
 async function postStashDB<T>(
     apiKey: string,
     query: string,
-    variables: Record<string, unknown>
+    variables: Record<string, unknown>,
 ): Promise<T | null> {
     try {
         const res = await fetch(STASHDB_ENDPOINT, {
@@ -199,7 +197,7 @@ async function postStashDB<T>(
             console.warn(
                 "[binge] stashdb http error",
                 res.status,
-                res.statusText
+                res.statusText,
             );
             return null;
         }
@@ -212,7 +210,7 @@ async function postStashDB<T>(
             // silently swallow themselves.
             console.warn(
                 "[binge] stashdb graphql errors",
-                body.errors.map((e) => e.message).join("; ")
+                body.errors.map((e) => e.message).join("; "),
             );
             return null;
         }
@@ -329,7 +327,7 @@ function shapeScene(s: RawStashDBScene): StashDBScene {
 async function fetchStashDBScenesBatch(
     apiKey: string,
     performerStashIds: string[],
-    sinceIsoDate: string
+    sinceIsoDate: string,
 ): Promise<StashDBScene[]> {
     const out: StashDBScene[] = [];
     let page = 1;
@@ -436,7 +434,7 @@ export interface StashDBPerformerDetail {
 
 export async function getStashDBPerformer(
     stashId: string,
-    apiKey: string
+    apiKey: string,
 ): Promise<StashDBPerformerDetail | null> {
     const data = await postStashDB<{
         findPerformer: {
@@ -490,7 +488,7 @@ export async function getStashDBPerformer(
             p.band_size,
             p.cup_size,
             p.waist_size,
-            p.hip_size
+            p.hip_size,
         ),
         images: p.images ?? [],
         urls: (p.urls ?? []).map((u) => ({
@@ -508,7 +506,7 @@ function formatMeasurements(
     band: number | null,
     cup: string | null,
     waist: number | null,
-    hip: number | null
+    hip: number | null,
 ): string | null {
     const top = band && cup ? `${band}${cup}` : null;
     const parts = [top, waist?.toString(), hip?.toString()].filter(Boolean);
@@ -590,7 +588,7 @@ export interface StashDBSceneDetail {
 
 export async function getStashDBScene(
     sceneId: string,
-    apiKey: string
+    apiKey: string,
 ): Promise<StashDBSceneDetail | null> {
     const data = await postStashDB<{
         findScene: {
@@ -632,9 +630,7 @@ export async function getStashDBScene(
             url: u.url,
             site: u.site?.name ?? "",
         })),
-        studio: s.studio
-            ? { stashId: s.studio.id, name: s.studio.name }
-            : null,
+        studio: s.studio ? { stashId: s.studio.id, name: s.studio.name } : null,
         performers: (s.performers ?? []).map((pa) => ({
             stashId: pa.performer.id,
             name: pa.performer.name,
@@ -701,7 +697,7 @@ export interface StashDBTrendingPerformer {
 export async function getTrendingStashDBPerformers(
     apiKey: string,
     perPage: number = 30,
-    genders: ReadonlyArray<string> = ["FEMALE"]
+    genders: ReadonlyArray<string> = ["FEMALE"],
 ): Promise<StashDBTrendingPerformer[]> {
     if (genders.length === 0) return [];
     // queryPerformers takes a single `gender` enum (or omitted for
@@ -737,11 +733,11 @@ export async function getTrendingStashDBPerformers(
             } catch (err) {
                 console.warn(
                     `[binge] trending performers fetch for ${gender} failed`,
-                    err
+                    err,
                 );
                 return [];
             }
-        })
+        }),
     );
     const seen = new Set<string>();
     const merged: StashDBTrendingPerformer[] = [];
@@ -771,7 +767,7 @@ export async function getStashDBScenesForPerformer(
     performerStashId: string,
     apiKey: string,
     perPage: number = 100,
-    maxPages: number = 5
+    maxPages: number = 5,
 ): Promise<StashDBScene[]> {
     const out: StashDBScene[] = [];
     let page = 1;
@@ -799,7 +795,7 @@ export async function getStashDBScenesForPerformer(
 }
 
 export async function getTrendingStashDBScenes(
-    apiKey: string
+    apiKey: string,
 ): Promise<StashDBScene[]> {
     const data = await postStashDB<{
         queryScenes: { scenes: RawStashDBScene[] };
@@ -818,7 +814,7 @@ export async function getTrendingStashDBScenes(
 export async function getNewStashDBScenesForPerformers(
     performerStashIds: string[],
     sinceIsoDate: string,
-    apiKey: string
+    apiKey: string,
 ): Promise<StashDBScene[]> {
     if (performerStashIds.length === 0) return [];
     const merged: StashDBScene[] = [];
@@ -827,7 +823,7 @@ export async function getNewStashDBScenesForPerformers(
         const scenes = await fetchStashDBScenesBatch(
             apiKey,
             batch,
-            sinceIsoDate
+            sinceIsoDate,
         );
         merged.push(...scenes);
     }
@@ -855,9 +851,7 @@ interface CacheEntry {
     scenes: StashDBScene[];
 }
 
-export function readStashDBCache(
-    sinceIsoDate: string
-): StashDBScene[] | null {
+export function readStashDBCache(sinceIsoDate: string): StashDBScene[] | null {
     try {
         const raw = localStorage.getItem(CACHE_KEY);
         if (!raw) return null;
@@ -872,7 +866,7 @@ export function readStashDBCache(
 
 export function writeStashDBCache(
     sinceIsoDate: string,
-    scenes: StashDBScene[]
+    scenes: StashDBScene[],
 ): void {
     try {
         localStorage.setItem(
@@ -881,7 +875,7 @@ export function writeStashDBCache(
                 sinceIsoDate,
                 fetchedAt: Date.now(),
                 scenes,
-            } satisfies CacheEntry)
+            } satisfies CacheEntry),
         );
     } catch {
         /* quota etc — ignore */

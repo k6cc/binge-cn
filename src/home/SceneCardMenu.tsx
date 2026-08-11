@@ -1,9 +1,4 @@
-import {
-    useEffect,
-    useRef,
-    useState,
-    type ReactNode,
-} from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 export interface SceneCardMenuItem {
@@ -30,9 +25,7 @@ export function SceneCardMenu({ items }: SceneCardMenuProps) {
     const triggerRef = useRef<HTMLButtonElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
     const [open, setOpen] = useState(false);
-    const [pos, setPos] = useState<{ top: number; left: number } | null>(
-        null
-    );
+    const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
 
     useEffect(() => {
         if (!open) return;
@@ -46,10 +39,7 @@ export function SceneCardMenu({ items }: SceneCardMenuProps) {
             const desiredLeft = rect.right - menuWidth;
             const clampedLeft = Math.max(
                 margin,
-                Math.min(
-                    desiredLeft,
-                    window.innerWidth - menuWidth - margin
-                )
+                Math.min(desiredLeft, window.innerWidth - menuWidth - margin),
             );
             setPos({
                 top: rect.bottom + window.scrollY + 6,
@@ -145,7 +135,7 @@ export function SceneCardMenu({ items }: SceneCardMenuProps) {
                             </button>
                         ))}
                     </div>,
-                    document.body
+                    document.body,
                 )}
         </>
     );

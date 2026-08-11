@@ -1,4 +1,8 @@
-import { useFilter, type FilterCategory, type FilterEntry } from "./FilterContext";
+import {
+    useFilter,
+    type FilterCategory,
+    type FilterEntry,
+} from "./FilterContext";
 
 // Slim active-filters strip. Renders nothing when no chips are set; when
 // there are chips, displays them inline (no add/presets/clear chrome) so
@@ -69,18 +73,23 @@ export function FilterBar() {
                                     }
                                 >
                                     {!e.image_path && (
-                                        <span>{e.name.charAt(0).toUpperCase()}</span>
+                                        <span>
+                                            {e.name.charAt(0).toUpperCase()}
+                                        </span>
                                     )}
                                 </span>
                             )}
                             <span className="binge-filter-chip-label">
                                 {e.name}
                             </span>
-                            <span className="binge-filter-chip-x" aria-hidden="true">
+                            <span
+                                className="binge-filter-chip-x"
+                                aria-hidden="true"
+                            >
                                 ×
                             </span>
                         </button>
-                    ))
+                    )),
                 )}
             </div>
         </div>

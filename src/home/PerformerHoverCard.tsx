@@ -1,9 +1,4 @@
-import {
-    useEffect,
-    useRef,
-    useState,
-    type ReactNode,
-} from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { FollowPerformerModal } from "./FollowPerformerModal";
 import { VerifiedIcon } from "../performer/PerformerProfile";
@@ -76,9 +71,7 @@ export function PerformerHoverCard({
     const triggerRef = useRef<HTMLSpanElement>(null);
     const cardRef = useRef<HTMLDivElement>(null);
     const [open, setOpen] = useState(false);
-    const [pos, setPos] = useState<{ top: number; left: number } | null>(
-        null
-    );
+    const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
     const showTimerRef = useRef<number | null>(null);
     const hideTimerRef = useRef<number | null>(null);
 
@@ -115,10 +108,8 @@ export function PerformerHoverCard({
 
     useEffect(() => {
         return () => {
-            if (showTimerRef.current)
-                window.clearTimeout(showTimerRef.current);
-            if (hideTimerRef.current)
-                window.clearTimeout(hideTimerRef.current);
+            if (showTimerRef.current) window.clearTimeout(showTimerRef.current);
+            if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current);
         };
     }, []);
 
@@ -127,9 +118,7 @@ export function PerformerHoverCard({
     // viewport space below (avoids the card running off-screen
     // when the trigger is near the bottom of the viewport — common
     // for performer mentions in the body of feed cards).
-    const [placement, setPlacement] = useState<"below" | "above">(
-        "below"
-    );
+    const [placement, setPlacement] = useState<"below" | "above">("below");
     useEffect(() => {
         if (!open) return;
         const update = () => {
@@ -142,7 +131,7 @@ export function PerformerHoverCard({
             const desiredLeft = rect.left + rect.width / 2 - cardWidth / 2;
             const clampedLeft = Math.max(
                 margin,
-                Math.min(desiredLeft, window.innerWidth - cardWidth - margin)
+                Math.min(desiredLeft, window.innerWidth - cardWidth - margin),
             );
             const spaceBelow = window.innerHeight - rect.bottom;
             const placeAbove =
@@ -199,14 +188,14 @@ export function PerformerHoverCard({
         cancelTimers();
         showTimerRef.current = window.setTimeout(
             () => setOpen(true),
-            SHOW_DELAY_MS
+            SHOW_DELAY_MS,
         );
     };
     const queueHide = () => {
         cancelTimers();
         hideTimerRef.current = window.setTimeout(
             () => setOpen(false),
-            HIDE_DELAY_MS
+            HIDE_DELAY_MS,
         );
     };
 
@@ -287,9 +276,7 @@ export function PerformerHoverCard({
                                         <span
                                             className={
                                                 "binge-feed-card-verified" +
-                                                (favorite
-                                                    ? " is-favorite"
-                                                    : "")
+                                                (favorite ? " is-favorite" : "")
                                             }
                                             aria-label={
                                                 favorite
@@ -362,7 +349,7 @@ export function PerformerHoverCard({
                             </>
                         )}
                     </div>,
-                    document.body
+                    document.body,
                 )}
             {modalOpen && stashDBPerformerId && stashBoxIndex !== undefined && (
                 <FollowPerformerModal

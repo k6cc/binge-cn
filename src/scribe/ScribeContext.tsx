@@ -21,17 +21,17 @@ export function ScribeProvider({ children }: { children: ReactNode }) {
 
     const openScene = useCallback(
         (id: string) => setSubject({ kind: "scene", id }),
-        []
+        [],
     );
     const openPerformer = useCallback(
         (id: string) => setSubject({ kind: "performer", id }),
-        []
+        [],
     );
     const close = useCallback(() => setSubject(null), []);
 
     const value = useMemo<ScribeContextValue>(
         () => ({ openScene, openPerformer }),
-        [openScene, openPerformer]
+        [openScene, openPerformer],
     );
 
     return (

@@ -27,7 +27,7 @@ export function PerformerBio({ performer, nameAccessory }: PerformerBioProps) {
         window.open(
             `/performers/${performer.id}`,
             "_blank",
-            "noopener,noreferrer"
+            "noopener,noreferrer",
         );
     };
 
@@ -76,7 +76,8 @@ function parseBirthYear(birthdate: string | null): number | null {
 function collectUrls(performer: PerformerDetail): string[] {
     const out: string[] = [];
     if (performer.twitter) out.push(expandHandle("twitter", performer.twitter));
-    if (performer.instagram) out.push(expandHandle("instagram", performer.instagram));
+    if (performer.instagram)
+        out.push(expandHandle("instagram", performer.instagram));
     if (performer.url) out.push(performer.url);
     if (performer.urls) out.push(...performer.urls);
     return out;
@@ -84,7 +85,7 @@ function collectUrls(performer: PerformerDetail): string[] {
 
 function expandHandle(
     platform: "twitter" | "instagram",
-    value: string
+    value: string,
 ): string {
     if (/^https?:\/\//i.test(value)) return value;
     const handle = value.replace(/^@/, "");

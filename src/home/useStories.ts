@@ -16,10 +16,7 @@ import {
     type StashDBScene,
     type LinkedPerformer,
 } from "../api/stashdb";
-import {
-    getCachedRedditStories,
-    invalidateRedditCaches,
-} from "./redditCache";
+import { getCachedRedditStories, invalidateRedditCaches } from "./redditCache";
 import {
     rewriteStashAssetUrl,
     getPornhubStories,
@@ -83,9 +80,7 @@ interface RedditStoryPost {
     effectiveAt: string;
 }
 export type StoryScene =
-    | LibraryStoryScene
-    | StashDBStoryScene
-    | RedditStoryPost;
+    LibraryStoryScene | StashDBStoryScene | RedditStoryPost;
 
 // One story = one performer + their list of recent scenes.
 export interface Story {
@@ -147,7 +142,7 @@ export function useStories(): StoriesResult {
     useEffect(() => {
         let alive = true;
         const sinceIso = new Date(
-            Date.now() - lookbackDays * 24 * 3600 * 1000
+            Date.now() - lookbackDays * 24 * 3600 * 1000,
         ).toISOString();
         const sinceIsoDate = sinceIso.slice(0, 10);
 
@@ -228,8 +223,7 @@ export function useStories(): StoriesResult {
                 // ── Reddit merge (toggled by plugin setting) ──────
                 if (includeReddit) {
                     const sinceUtc = Math.floor(
-                        (Date.now() - lookbackDays * 24 * 3600 * 1000) /
-                            1000
+                        (Date.now() - lookbackDays * 24 * 3600 * 1000) / 1000,
                     );
                     await mergeRedditPosts(byPerformer, sinceUtc);
                     if (!alive) return;
@@ -238,8 +232,7 @@ export function useStories(): StoriesResult {
                 // ── PornHub merge (toggled by plugin setting) ─────
                 if (includePornhub) {
                     const sinceUtc = Math.floor(
-                        (Date.now() - lookbackDays * 24 * 3600 * 1000) /
-                            1000
+                        (Date.now() - lookbackDays * 24 * 3600 * 1000) / 1000,
                     );
                     await mergePornhubVideos(byPerformer, sinceUtc);
                     if (!alive) return;
@@ -252,7 +245,7 @@ export function useStories(): StoriesResult {
                 const stories: Story[] = [];
                 const byEffectiveDesc = (
                     a: { effectiveAt: string },
-                    b: { effectiveAt: string }
+                    b: { effectiveAt: string },
                 ) => b.effectiveAt.localeCompare(a.effectiveAt);
                 for (const bucket of byPerformer.values()) {
                     // We own these arrays — sort in place rather than
@@ -295,7 +288,7 @@ export function useStories(): StoriesResult {
                     });
                 }
                 stories.sort((a, b) =>
-                    b.latestEffectiveAt.localeCompare(a.latestEffectiveAt)
+                    b.latestEffectiveAt.localeCompare(a.latestEffectiveAt),
                 );
                 setState({
                     kind: "ready",
@@ -354,7 +347,7 @@ interface PerformerBucket {
 // ever shows performers that already exist in the local library.
 async function mergeStashDBScenes(
     byPerformer: Map<string, PerformerBucket>,
-    sinceIsoDate: string
+    sinceIsoDate: string,
 ): Promise<void> {
     const box = await getStashDBBox();
     if (!box) return; // no API key configured
@@ -373,7 +366,7 @@ async function mergeStashDBScenes(
         scenes = await getNewStashDBScenesForPerformers(
             linkedPerformers.map((p) => p.stashId),
             sinceIsoDate,
-            box.api_key
+            box.api_key,
         );
         writeStashDBCache(sinceIsoDate, scenes);
     }
@@ -425,7 +418,7 @@ async function mergeStashDBScenes(
 // stashdb).
 async function mergeRedditPosts(
     byPerformer: Map<string, PerformerBucket>,
-    sinceUtc: number
+    sinceUtc: number,
 ): Promise<void> {
     const digests = await getCachedRedditStories(sinceUtc);
     if (!digests) return; // daemon down / fetch failed
@@ -441,8 +434,7 @@ async function mergeRedditPosts(
                     // tailscale-IP origin; rewrite to a path so the
                     // browser hits Stash same-origin with cookies.
                     performerImagePath:
-                        rewriteStashAssetUrl(d.performerImagePath) ||
-                        null,
+                        rewriteStashAssetUrl(d.performerImagePath) || null,
                     performerFavorite: d.performerFavorite,
                 },
                 librarySceneIds: new Set(),
@@ -480,9 +472,7 @@ async function mergeRedditPosts(
                 permalink: post.permalink,
                 domain: post.domain,
                 createdUtc: post.createdUtc,
-                effectiveAt: new Date(
-                    post.createdUtc * 1000
-                ).toISOString(),
+                effectiveAt: new Date(post.createdUtc * 1000).toISOString(),
             });
         }
     }
@@ -495,7 +485,7 @@ async function mergeRedditPosts(
 // domain "pornhub.com" (drives the badge/CTA), permalink = the watch page.
 async function mergePornhubVideos(
     byPerformer: Map<string, PerformerBucket>,
-    sinceUtc: number
+    sinceUtc: number,
 ): Promise<void> {
     const digests = await getPornhubStories(sinceUtc);
     if (!digests) return; // daemon down / disabled

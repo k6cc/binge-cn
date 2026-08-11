@@ -64,9 +64,7 @@ export const ALLOWED_TRANSCODE: ReadonlyArray<TranscodeType> = [
 // SettingsPage lookback dropdown. Capped at 90: the Home feed fetches
 // the whole window at once (no infinite-scroll widening), so the
 // window size bounds the fetch.
-export const ALLOWED_LOOKBACK_DAYS: ReadonlyArray<number> = [
-    7, 14, 30, 60, 90,
-];
+export const ALLOWED_LOOKBACK_DAYS: ReadonlyArray<number> = [7, 14, 30, 60, 90];
 const DEFAULT_LOOKBACK_DAYS = 30;
 
 function readBool(key: string, defaultValue: boolean): boolean {
@@ -81,7 +79,7 @@ function readBool(key: string, defaultValue: boolean): boolean {
 function readNumber(
     key: string,
     defaultValue: number,
-    allowed?: ReadonlyArray<number>
+    allowed?: ReadonlyArray<number>,
 ): number {
     try {
         const stored = localStorage.getItem(key);
@@ -98,7 +96,7 @@ function readNumber(
 function readString<T extends string>(
     key: string,
     defaultValue: T,
-    allowed: ReadonlyArray<T>
+    allowed: ReadonlyArray<T>,
 ): T {
     try {
         const stored = localStorage.getItem(key);
@@ -154,7 +152,7 @@ function writeBool(key: string, value: boolean): void {
 
 function useStoredBool(key: string, defaultValue: boolean): boolean {
     const [value, setValue] = useState<boolean>(() =>
-        readBool(key, defaultValue)
+        readBool(key, defaultValue),
     );
     useEffect(() => {
         const update = () => setValue(readBool(key, defaultValue));
@@ -177,10 +175,10 @@ function useStoredBool(key: string, defaultValue: boolean): boolean {
 function useStoredNumber(
     key: string,
     defaultValue: number,
-    allowed?: ReadonlyArray<number>
+    allowed?: ReadonlyArray<number>,
 ): number {
     const [value, setValue] = useState<number>(() =>
-        readNumber(key, defaultValue, allowed)
+        readNumber(key, defaultValue, allowed),
     );
     useEffect(() => {
         const update = () => setValue(readNumber(key, defaultValue, allowed));
@@ -203,10 +201,10 @@ function useStoredNumber(
 function useStoredString<T extends string>(
     key: string,
     defaultValue: T,
-    allowed: ReadonlyArray<T>
+    allowed: ReadonlyArray<T>,
 ): T {
     const [value, setValue] = useState<T>(() =>
-        readString(key, defaultValue, allowed)
+        readString(key, defaultValue, allowed),
     );
     useEffect(() => {
         const update = () => setValue(readString(key, defaultValue, allowed));
@@ -240,7 +238,7 @@ function readFreeString(key: string, defaultValue: string): string {
 
 function useStoredFreeString(key: string, defaultValue: string): string {
     const [value, setValue] = useState<string>(() =>
-        readFreeString(key, defaultValue)
+        readFreeString(key, defaultValue),
     );
     useEffect(() => {
         const update = () => setValue(readFreeString(key, defaultValue));
@@ -297,7 +295,7 @@ function readGenderSet(): Set<Gender> {
             .split(",")
             .map((s) => s.trim())
             .filter((s): s is Gender =>
-                (ALL_GENDERS as ReadonlyArray<string>).includes(s)
+                (ALL_GENDERS as ReadonlyArray<string>).includes(s),
             );
         // Empty stored value is a real user choice ("show nothing").
         // Don't fall through to the default — respect the user's
@@ -367,7 +365,7 @@ function readFeedHidden(): Set<FeedCategory> {
             .split(",")
             .map((s) => s.trim())
             .filter((s): s is FeedCategory =>
-                (ALL_FEED_CATEGORIES as ReadonlyArray<string>).includes(s)
+                (ALL_FEED_CATEGORIES as ReadonlyArray<string>).includes(s),
             );
         return new Set(parts);
     } catch {
@@ -377,7 +375,7 @@ function readFeedHidden(): Set<FeedCategory> {
 
 export function useHiddenFeedCategories(): ReadonlySet<FeedCategory> {
     const [value, setValue] = useState<Set<FeedCategory>>(() =>
-        readFeedHidden()
+        readFeedHidden(),
     );
     useEffect(() => {
         const update = () => setValue(readFeedHidden());
@@ -398,7 +396,7 @@ export function useHiddenFeedCategories(): ReadonlySet<FeedCategory> {
 }
 
 export function setHiddenFeedCategories(
-    values: ReadonlySet<FeedCategory>
+    values: ReadonlySet<FeedCategory>,
 ): void {
     // Preserve canonical order so the stored value is stable.
     const ordered = ALL_FEED_CATEGORIES.filter((c) => values.has(c));
@@ -520,7 +518,7 @@ const seedPromises = new Map<string, Promise<void>>();
 function ensureSeededFromPluginConfig(
     storageKey: string,
     field: string,
-    write: (value: string) => void
+    write: (value: string) => void,
 ): Promise<void> {
     let pending = seedPromises.get(storageKey);
     if (!pending) {
@@ -535,8 +533,7 @@ function ensureSeededFromPluginConfig(
                         >;
                     };
                 }>(`query { configuration { plugins } }`);
-                const value =
-                    data.configuration?.plugins?.["binge"]?.[field];
+                const value = data.configuration?.plugins?.["binge"]?.[field];
                 if (typeof value === "string" && value.trim()) {
                     write(value.trim());
                 }
@@ -553,7 +550,7 @@ export function ensureBingeServerUrlSeeded(): Promise<void> {
     return ensureSeededFromPluginConfig(
         BINGE_SERVER_URL_KEY,
         "serverUrl",
-        setBingeServerUrl
+        setBingeServerUrl,
     );
 }
 
@@ -610,7 +607,7 @@ export function ensureForageUrlSeeded(): Promise<void> {
     return ensureSeededFromPluginConfig(
         FORAGE_URL_KEY,
         "forageUrl",
-        setForageUrl
+        setForageUrl,
     );
 }
 
@@ -618,14 +615,14 @@ export function useForageWatchTarget(): ForageWatchTarget {
     return useStoredString(
         FORAGE_WATCH_TARGET_KEY,
         DEFAULT_FORAGE_TARGET,
-        ALLOWED_FORAGE_TARGETS
+        ALLOWED_FORAGE_TARGETS,
     );
 }
 export function readForageWatchTarget(): ForageWatchTarget {
     return readString(
         FORAGE_WATCH_TARGET_KEY,
         DEFAULT_FORAGE_TARGET,
-        ALLOWED_FORAGE_TARGETS
+        ALLOWED_FORAGE_TARGETS,
     );
 }
 export function setForageWatchTarget(value: ForageWatchTarget): void {
@@ -646,7 +643,7 @@ export function useLookbackDays(): number {
     return useStoredNumber(
         LOOKBACK_DAYS_KEY,
         DEFAULT_LOOKBACK_DAYS,
-        ALLOWED_LOOKBACK_DAYS
+        ALLOWED_LOOKBACK_DAYS,
     );
 }
 

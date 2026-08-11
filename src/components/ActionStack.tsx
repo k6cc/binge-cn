@@ -173,7 +173,7 @@ function HeartButton({
     };
 
     const handlePointerDown: React.PointerEventHandler<HTMLButtonElement> = (
-        e
+        e,
     ) => {
         e.stopPropagation();
         heldDownRef.current = false;
@@ -187,7 +187,7 @@ function HeartButton({
     };
 
     const handlePointerUp: React.PointerEventHandler<HTMLButtonElement> = (
-        e
+        e,
     ) => {
         e.stopPropagation();
         if (heldDownRef.current) {
@@ -204,7 +204,7 @@ function HeartButton({
     };
 
     const suppressContextMenu: React.MouseEventHandler<HTMLButtonElement> = (
-        e
+        e,
     ) => e.preventDefault();
 
     return (
@@ -225,9 +225,7 @@ function HeartButton({
             title="Tap to like · hold to unlike"
         >
             <HeartIcon filled={oCount > 0} />
-            {oCount > 0 && (
-                <span className="binge-action-count">{oCount}</span>
-            )}
+            {oCount > 0 && <span className="binge-action-count">{oCount}</span>}
         </button>
     );
 }
@@ -454,9 +452,7 @@ function BookmarkButton({
                     e.stopPropagation();
                     setSheetOpen(true);
                 }}
-                aria-label={
-                    savedSomewhere ? "Manage saved-to" : "Save scene"
-                }
+                aria-label={savedSomewhere ? "Manage saved-to" : "Save scene"}
                 aria-haspopup="dialog"
                 aria-expanded={sheetOpen}
                 title="Save to..."

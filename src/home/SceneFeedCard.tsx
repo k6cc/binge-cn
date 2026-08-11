@@ -61,10 +61,7 @@ interface SceneFeedCardProps {
 // home feed pre-loaded as a deterministic queue (no filter, no
 // chained algo) — the user keeps walking the home timeline,
 // starting at the tapped scene. Same UX as the iOS port.
-export function SceneFeedCard({
-    item,
-    feedSceneIds,
-}: SceneFeedCardProps) {
+export function SceneFeedCard({ item, feedSceneIds }: SceneFeedCardProps) {
     const videoRef = useRef<HTMLVideoElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [isPlaying, setIsPlaying] = useState(false);
@@ -74,12 +71,8 @@ export function SceneFeedCard({
     const oBusyRef = useRef(false);
 
     const { replace } = useFilter();
-    const {
-        setTab,
-        setPinFirstSceneId,
-        setReelMode,
-        setPinnedQueue,
-    } = useTab();
+    const { setTab, setPinFirstSceneId, setReelMode, setPinnedQueue } =
+        useTab();
     const { openProfile } = usePerformerProfile();
     const { open: openStoryViewer } = useStoryViewer();
     const storiesState = useSharedStories();
@@ -91,11 +84,9 @@ export function SceneFeedCard({
     const storyPerformerIds = useMemo<Set<string>>(
         () =>
             storiesState.state.kind === "ready"
-                ? new Set(
-                      storiesState.state.stories.map((s) => s.performerId)
-                  )
+                ? new Set(storiesState.state.stories.map((s) => s.performerId))
                 : new Set(),
-        [storiesState.state]
+        [storiesState.state],
     );
 
     const hasAdvancedRating = useHasAdvancedRating();
@@ -105,7 +96,9 @@ export function SceneFeedCard({
     const [ratingOpen, setRatingOpen] = useState(false);
     const [saveSheetOpen, setSaveSheetOpen] = useState(false);
     const [inMVQueue, setInMVQueue] = useState(false);
-    const [inCollections, setInCollections] = useState<Record<string, boolean>>({});
+    const [inCollections, setInCollections] = useState<Record<string, boolean>>(
+        {},
+    );
 
     // Multiview queue membership — resynced on every queue change (this
     // tab, other tabs, and other clients via the config poll).
@@ -166,7 +159,7 @@ export function SceneFeedCard({
                 item.sceneId,
                 item.tags.map((t) => t.id),
                 tagName,
-                next
+                next,
             );
             setInCollections((m) => ({ ...m, [tagName]: confirmed }));
         } catch {
@@ -176,9 +169,7 @@ export function SceneFeedCard({
     };
 
     const isPortrait =
-        item.width !== null &&
-        item.height !== null &&
-        item.height > item.width;
+        item.width !== null && item.height !== null && item.height > item.width;
     const primaryPerformer = item.performers[0];
 
     // Auto-play when scrolled into view. Mirrors SceneSlide's IO logic
@@ -204,7 +195,7 @@ export function SceneFeedCard({
                     }
                 }
             },
-            { threshold: [0, 0.6, 1] }
+            { threshold: [0, 0.6, 1] },
         );
         observer.observe(container);
         return () => observer.disconnect();
@@ -294,10 +285,7 @@ export function SceneFeedCard({
         // Clear any stale chained-mode filter so the reel reads
         // the pinned queue cleanly.
         replace({ performers: [], tags: [], studios: [] });
-        const startIndex = Math.max(
-            0,
-            feedSceneIds.indexOf(item.sceneId)
-        );
+        const startIndex = Math.max(0, feedSceneIds.indexOf(item.sceneId));
         setPinFirstSceneId(null);
         setPinnedQueue({ ids: feedSceneIds, startIndex });
         setTab("foryou");
@@ -323,7 +311,7 @@ export function SceneFeedCard({
                             }
                             const list = storiesState.state.stories;
                             const idx = list.findIndex(
-                                (s) => s.performerId === performerId
+                                (s) => s.performerId === performerId,
                             );
                             if (idx >= 0) {
                                 openStoryViewer(list, idx);
@@ -390,9 +378,7 @@ export function SceneFeedCard({
                             </button>
                         </PerformerHoverCard>
                     ) : (
-                        <span className="binge-feed-card-name">
-                            Unknown
-                        </span>
+                        <span className="binge-feed-card-name">Unknown</span>
                     )}
                 </div>
                 <span className="binge-feed-card-time">
@@ -407,7 +393,7 @@ export function SceneFeedCard({
                                 window.open(
                                     `/scenes/${item.sceneId}`,
                                     "_blank",
-                                    "noopener,noreferrer"
+                                    "noopener,noreferrer",
                                 ),
                         },
                     ]}

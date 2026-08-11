@@ -88,7 +88,7 @@ const MAX_SCENES_PER_PRIMARY = 2;
 const MAX_TRENDING_ITEMS = 12;
 
 export async function fetchDiscoveryFeedItems(
-    sinceIsoDate: string
+    sinceIsoDate: string,
 ): Promise<DiscoveryFeedItem[]> {
     const box = await getStashDBBox();
     if (!box) return [];
@@ -126,9 +126,7 @@ export async function fetchDiscoveryFeedItems(
     try {
         // Pulls the same scene set that powers stashdb.org's
         // homepage "Trending" section (sort: TRENDING).
-        const trendingScenes = await getTrendingStashDBScenes(
-            box.api_key
-        );
+        const trendingScenes = await getTrendingStashDBScenes(box.api_key);
         for (const s of trendingScenes.slice(0, MAX_TRENDING_ITEMS)) {
             if (owned.has(s.id)) continue;
             if (!scenesById.has(s.id)) {
@@ -144,7 +142,7 @@ export async function fetchDiscoveryFeedItems(
             const costarScenes = await getNewStashDBScenesForPerformers(
                 linkedPerformers.map((p) => p.stashId),
                 sinceIsoDate,
-                box.api_key
+                box.api_key,
             );
             for (const s of costarScenes) {
                 if (owned.has(s.id)) continue;
@@ -178,12 +176,12 @@ export async function fetchDiscoveryFeedItems(
         }
 
         const candidates = (scene.performers ?? []).filter((p) =>
-            isAllowedGender(p.gender)
+            isAllowedGender(p.gender),
         );
         if (candidates.length === 0) continue;
 
         const libraryPerformer = candidates.find((p) =>
-            stashIdToLocal.has(p.id)
+            stashIdToLocal.has(p.id),
         );
         // Most popular unfollowed candidate (highest scene_count;
         // ties broken by alphabetical name for determinism).
@@ -247,8 +245,7 @@ export async function fetchDiscoveryFeedItems(
             coverUrl: scene.coverUrl,
             releaseDate: scene.releaseDate,
             effectiveAt:
-                scene.releaseDate ??
-                new Date().toISOString().slice(0, 10),
+                scene.releaseDate ?? new Date().toISOString().slice(0, 10),
             stashboxUrl: `https://stashdb.org/scenes/${scene.id}`,
             stashBoxIndex: box.index,
             primaryPerformer: {

@@ -45,7 +45,7 @@ export function StoriesRow({ stories }: { stories: StoriesResult }) {
     const handleClick = (s: StoryData) => {
         if (state.kind !== "ready") return;
         const idx = state.stories.findIndex(
-            (x) => x.performerId === s.performerId
+            (x) => x.performerId === s.performerId,
         );
         storyViewer.open(state.stories, idx >= 0 ? idx : 0);
     };
@@ -90,10 +90,7 @@ export function StoriesRow({ stories }: { stories: StoriesResult }) {
                             <ChevronLeft />
                         </button>
                     )}
-                    <div
-                        className="binge-stories-scroller"
-                        ref={scrollerRef}
-                    >
+                    <div className="binge-stories-scroller" ref={scrollerRef}>
                         {list.map((s) => (
                             <Story
                                 key={s.performerId}

@@ -13,45 +13,45 @@
 name: Sync to plugins repo
 
 on:
-  push:
-    branches: [main]
+    push:
+        branches: [main]
 
 jobs:
-  sync:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+    sync:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 20
+                  cache: npm
 
-      - run: npm ci
+            - run: npm ci
 
-      - run: npm run build
+            - run: npm run build
 
-      - name: Clone plugins repo
-        run: |
-          git clone https://x-access-token:${{ secrets.PLUGINS_REPO_TOKEN }}@github.com/ordureconnoisseur/plugins.git plugins-repo
+            - name: Clone plugins repo
+              run: |
+                  git clone https://x-access-token:${{ secrets.PLUGINS_REPO_TOKEN }}@github.com/ordureconnoisseur/plugins.git plugins-repo
 
-      - name: Stage plugin files
-        run: |
-          rm -rf plugins-repo/plugins/binge
-          mkdir -p plugins-repo/plugins/binge
-          # Three files: manifest, the Stash-side entry shim, and the
-          # SPA bundle. Same set npm run push:pc deploys to a local
-          # Stash install.
-          cp binge.yml plugins-repo/plugins/binge/
-          cp dist/binge.entry.js plugins-repo/plugins/binge/
-          cp dist/index.html plugins-repo/plugins/binge/
+            - name: Stage plugin files
+              run: |
+                  rm -rf plugins-repo/plugins/binge
+                  mkdir -p plugins-repo/plugins/binge
+                  # Three files: manifest, the Stash-side entry shim, and the
+                  # SPA bundle. Same set npm run push:pc deploys to a local
+                  # Stash install.
+                  cp binge.yml plugins-repo/plugins/binge/
+                  cp dist/binge.entry.js plugins-repo/plugins/binge/
+                  cp dist/index.html plugins-repo/plugins/binge/
 
-      - name: Commit and push
-        run: |
-          cd plugins-repo
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add plugins/binge/
-          git diff --cached --quiet && echo "No changes" && exit 0
-          git commit -m "sync: binge $(git -C .. rev-parse --short HEAD)"
-          git push
+            - name: Commit and push
+              run: |
+                  cd plugins-repo
+                  git config user.name "github-actions[bot]"
+                  git config user.email "github-actions[bot]@users.noreply.github.com"
+                  git add plugins/binge/
+                  git diff --cached --quiet && echo "No changes" && exit 0
+                  git commit -m "sync: binge $(git -C .. rev-parse --short HEAD)"
+                  git push

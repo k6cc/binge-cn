@@ -29,10 +29,18 @@ const X_STORY_LOOKBACK_DAYS = 7;
 // so the StoryViewer renders it with zero new branches; the x.com domain
 // drives the "X" badge. Filtered to the lookback window, newest first.
 function xMediaToStoryScenes(
-    media: { tweetId: string; tweetUrl: string; kind: "image" | "video"; mediaUrl: string; text?: string; createdUtc: number }[],
-    handle: string
+    media: {
+        tweetId: string;
+        tweetUrl: string;
+        kind: "image" | "video";
+        mediaUrl: string;
+        text?: string;
+        createdUtc: number;
+    }[],
+    handle: string,
 ): StoryScene[] {
-    const cutoff = Math.floor(Date.now() / 1000) - X_STORY_LOOKBACK_DAYS * 86400;
+    const cutoff =
+        Math.floor(Date.now() / 1000) - X_STORY_LOOKBACK_DAYS * 86400;
     return media
         .filter((m) => m.createdUtc >= cutoff && m.mediaUrl)
         .map((m) => ({
@@ -73,9 +81,7 @@ export function PerformerProfile() {
     if (!currentProfile) return null;
     if (currentProfile.kind === "stashdb") {
         return (
-            <StashDBPerformerProfile
-                stashDBPerformerId={currentProfile.id}
-            />
+            <StashDBPerformerProfile stashDBPerformerId={currentProfile.id} />
         );
     }
     return <LocalPerformerProfile localId={currentProfile.id} />;
@@ -109,9 +115,8 @@ function LocalPerformerProfile({ localId }: { localId: string }) {
     // This performer's existing story (library / reddit / stashdb), if any.
     const sharedStory =
         stories.state.kind === "ready" && currentId
-            ? stories.state.stories.find(
-                  (s) => s.performerId === currentId
-              ) ?? null
+            ? (stories.state.stories.find((s) => s.performerId === currentId) ??
+              null)
             : null;
     // Recent (≤7d) X media for this performer, fetched on demand when the
     // profile opens. Folded into the story so the ring lights up and the
@@ -123,7 +128,7 @@ function LocalPerformerProfile({ localId }: { localId: string }) {
     const openStory = () => {
         const base = sharedStory?.scenes ?? [];
         const merged = [...base, ...xScenes].sort((a, b) =>
-            b.effectiveAt.localeCompare(a.effectiveAt)
+            b.effectiveAt.localeCompare(a.effectiveAt),
         );
         if (merged.length === 0 || state.kind !== "ready") return;
         // Open ONLY this performer's story — the user is already on their
@@ -132,8 +137,7 @@ function LocalPerformerProfile({ localId }: { localId: string }) {
             performerId: sharedStory?.performerId ?? state.performer.id,
             performerName: sharedStory?.performerName ?? state.performer.name,
             performerImagePath:
-                sharedStory?.performerImagePath ??
-                state.performer.image_path,
+                sharedStory?.performerImagePath ?? state.performer.image_path,
             performerFavorite: sharedStory?.performerFavorite ?? favorite,
             scenes: merged,
             latestEffectiveAt: merged[0].effectiveAt,
@@ -161,7 +165,9 @@ function LocalPerformerProfile({ localId }: { localId: string }) {
         getXFeed(stashId)
             .then((res) => {
                 if (!alive || !res) return;
-                setXScenes(xMediaToStoryScenes(res.media, res.handle || handle));
+                setXScenes(
+                    xMediaToStoryScenes(res.media, res.handle || handle),
+                );
             })
             .catch(() => {
                 /* daemon down / blocked — leave the ring to other sources */
@@ -227,8 +233,8 @@ function LocalPerformerProfile({ localId }: { localId: string }) {
         const timeout = new Promise<never>((_, reject) =>
             setTimeout(
                 () => reject(new Error("setPerformerFavorite timeout (8s)")),
-                8000
-            )
+                8000,
+            ),
         );
         try {
             const confirmed = (await Promise.race([
@@ -245,11 +251,14 @@ function LocalPerformerProfile({ localId }: { localId: string }) {
     };
 
     return createPortal(
-        <div className="binge-profile-root" role="dialog" aria-label="Performer profile">
+        <div
+            className="binge-profile-root"
+            role="dialog"
+            aria-label="Performer profile"
+        >
             <header
                 className={
-                    "binge-profile-topbar" +
-                    (scrolled ? " is-scrolled" : "")
+                    "binge-profile-topbar" + (scrolled ? " is-scrolled" : "")
                 }
             >
                 <button
@@ -268,9 +277,7 @@ function LocalPerformerProfile({ localId }: { localId: string }) {
                                 "binge-profile-verified" +
                                 (favorite ? " is-favorite" : "")
                             }
-                            aria-label={
-                                favorite ? "Favourited" : "In library"
-                            }
+                            aria-label={favorite ? "Favourited" : "In library"}
                             title={favorite ? "Favourited" : "In library"}
                         >
                             <VerifiedIcon />
@@ -351,9 +358,7 @@ function LocalPerformerProfile({ localId }: { localId: string }) {
                         {moreOpen && state.kind === "ready" && (
                             <PerformerMoreSheet
                                 performerId={state.performer.id}
-                                onRefresh={() =>
-                                    setRefreshTick((n) => n + 1)
-                                }
+                                onRefresh={() => setRefreshTick((n) => n + 1)}
                                 onClose={() => setMoreOpen(false)}
                             />
                         )}
@@ -399,7 +404,7 @@ function LocalPerformerProfile({ localId }: { localId: string }) {
                 )}
             </div>
         </div>,
-        document.body
+        document.body,
     );
 }
 
@@ -422,9 +427,7 @@ function ProfileAvatar({
         <span
             className="binge-profile-avatar"
             style={
-                imagePath
-                    ? { backgroundImage: `url(${imagePath})` }
-                    : undefined
+                imagePath ? { backgroundImage: `url(${imagePath})` } : undefined
             }
         >
             {!imagePath && (

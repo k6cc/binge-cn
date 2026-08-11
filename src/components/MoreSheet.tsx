@@ -29,11 +29,7 @@ export function MoreSheet({ sceneId, onClose }: MoreSheetProps) {
     };
 
     return createPortal(
-        <div
-            className={
-                "binge-sheet-root" + (isExiting ? " is-exiting" : "")
-            }
-        >
+        <div className={"binge-sheet-root" + (isExiting ? " is-exiting" : "")}>
             <div className="binge-sheet-backdrop" onClick={beginClose} />
             <div
                 className="binge-sheet binge-more-sheet"
@@ -52,8 +48,8 @@ export function MoreSheet({ sceneId, onClose }: MoreSheetProps) {
                             <span className="binge-more-sheet-row-label">
                                 <span>Auto-scroll</span>
                                 <small className="binge-more-sheet-row-sub">
-                                    advance to next scene when the
-                                    current one ends
+                                    advance to next scene when the current one
+                                    ends
                                 </small>
                             </span>
                             <span
@@ -82,7 +78,7 @@ export function MoreSheet({ sceneId, onClose }: MoreSheetProps) {
                 </ul>
             </div>
         </div>,
-        document.body
+        document.body,
     );
 }
 

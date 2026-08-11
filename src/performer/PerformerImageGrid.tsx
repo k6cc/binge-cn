@@ -40,7 +40,7 @@ export function PerformerImageGrid({ performer }: PerformerImageGridProps) {
                 if (!alive) return;
                 setCount(res.count);
                 setImages((prev) =>
-                    page === 1 ? res.images : [...prev, ...res.images]
+                    page === 1 ? res.images : [...prev, ...res.images],
                 );
             })
             .catch((err: Error) => {
@@ -73,7 +73,7 @@ export function PerformerImageGrid({ performer }: PerformerImageGridProps) {
                     }
                 }
             },
-            { rootMargin: `0px 0px ${NEAR_BOTTOM_PX}px 0px` }
+            { rootMargin: `0px 0px ${NEAR_BOTTOM_PX}px 0px` },
         );
         observer.observe(sentinel);
         return () => observer.disconnect();

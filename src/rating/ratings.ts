@@ -22,7 +22,7 @@ export interface TagMin {
 // in the modal).
 export function parseRatingsFromTags(
     tags: ReadonlyArray<TagMin>,
-    criteria: ReadonlyArray<Criterion>
+    criteria: ReadonlyArray<Criterion>,
 ): Record<string, number> {
     const byPrefix = new Map<string, Criterion>();
     for (const c of criteria) byPrefix.set(criterionTagPrefix(c), c);
@@ -51,7 +51,7 @@ export function buildUpdatedTagIds(
     currentTags: ReadonlyArray<TagMin>,
     criterion: Criterion,
     newScore: number | null,
-    newScoreTagId: string | null
+    newScoreTagId: string | null,
 ): string[] | null {
     const prefix = criterionTagPrefix(criterion);
     const filtered = currentTags.filter((t) => {
@@ -73,7 +73,7 @@ export function buildUpdatedTagIds(
 export function computeRating100(
     ratings: Readonly<Record<string, number>>,
     config: RatingConfig,
-    precision: number = 20
+    precision: number = 20,
 ): number | null {
     const groupContrib: { groupWeight: number; groupAvg: number }[] = [];
     const criteriaByGroup = new Map<string, Criterion[]>();
@@ -110,7 +110,7 @@ export function computeRating100(
     const final05 = num / den;
     const safePrecision = precision > 0 ? precision : 20;
     let rating100 = Math.round(
-        Math.round((final05 * 20) / safePrecision) * safePrecision
+        Math.round((final05 * 20) / safePrecision) * safePrecision,
     );
     rating100 = Math.max(safePrecision, Math.min(100, rating100));
     return rating100;
@@ -119,7 +119,7 @@ export function computeRating100(
 // Number of criteria visible (enabled) per group — for the modal's
 // per-group section header.
 export function countCriteriaPerGroup(
-    config: RatingConfig
+    config: RatingConfig,
 ): Map<string, Criterion[]> {
     const out = new Map<string, Criterion[]>();
     for (const c of config.criteria) {
@@ -133,7 +133,7 @@ export function countCriteriaPerGroup(
 // Convenience: how many criteria are rated vs total.
 export function ratingProgress(
     ratings: Readonly<Record<string, number>>,
-    criteria: ReadonlyArray<Criterion>
+    criteria: ReadonlyArray<Criterion>,
 ): { rated: number; total: number } {
     let rated = 0;
     for (const c of criteria) {

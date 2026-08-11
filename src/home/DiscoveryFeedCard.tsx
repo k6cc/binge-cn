@@ -1,9 +1,6 @@
 import { Fragment, useEffect, useState } from "react";
 import { usePerformerProfile } from "../performer/PerformerProfileContext";
-import {
-    PerformerHoverCard,
-    type FollowState,
-} from "./PerformerHoverCard";
+import { PerformerHoverCard, type FollowState } from "./PerformerHoverCard";
 import { FollowPerformerModal } from "./FollowPerformerModal";
 import { AddSceneModal } from "./AddSceneModal";
 import { SceneCardMenu, type SceneCardMenuItem } from "./SceneCardMenu";
@@ -146,16 +143,12 @@ export function DiscoveryFeedCard({
                             favorite={item.primaryPerformer.favorite}
                             onOpenProfile={() =>
                                 item.primaryPerformer.localId
-                                    ? openProfile(
-                                          item.primaryPerformer.localId
-                                      )
+                                    ? openProfile(item.primaryPerformer.localId)
                                     : openStashDBProfile(
-                                          item.primaryPerformer.stashId
+                                          item.primaryPerformer.stashId,
                                       )
                             }
-                            stashDBPerformerId={
-                                item.primaryPerformer.stashId
-                            }
+                            stashDBPerformerId={item.primaryPerformer.stashId}
                             stashBoxIndex={item.stashBoxIndex}
                             onFollowed={onFollowed}
                             controlledFollow={
@@ -246,9 +239,7 @@ export function DiscoveryFeedCard({
                                     ? "DISCOVER"
                                     : "TRENDING"}
                             </span>
-                            {item.releaseDate && (
-                                <> · {item.releaseDate}</>
-                            )}
+                            {item.releaseDate && <> · {item.releaseDate}</>}
                         </span>
                     </span>
                 </span>
@@ -258,9 +249,7 @@ export function DiscoveryFeedCard({
                         className={
                             "binge-discovery-card-follow" +
                             (isFollowed ? " is-followed" : "") +
-                            (followState.kind === "error"
-                                ? " is-error"
-                                : "")
+                            (followState.kind === "error" ? " is-error" : "")
                         }
                         onClick={handleFollow}
                         disabled={isBusy || isFollowed}
@@ -293,7 +282,7 @@ export function DiscoveryFeedCard({
                                           window.open(
                                               item.stashboxUrl,
                                               "_blank",
-                                              "noopener,noreferrer"
+                                              "noopener,noreferrer",
                                           ),
                                   },
                               ]
@@ -311,7 +300,7 @@ export function DiscoveryFeedCard({
                                           window.open(
                                               item.stashboxUrl,
                                               "_blank",
-                                              "noopener,noreferrer"
+                                              "noopener,noreferrer",
                                           ),
                                   },
                               ]
@@ -355,7 +344,7 @@ export function DiscoveryFeedCard({
                     people always show as icons, never as @s). */}
                 {(() => {
                     const unlinked = item.coPerformers.filter(
-                        (cp) => cp.localId === null
+                        (cp) => cp.localId === null,
                     );
                     if (unlinked.length === 0) return null;
                     return (
@@ -498,9 +487,7 @@ function HeaderNames({ item }: { item: DiscoveryFeedItemWrapped }) {
                             aria-label={
                                 p.favorite ? "Favourited" : "In library"
                             }
-                            title={
-                                p.favorite ? "Favourited" : "In library"
-                            }
+                            title={p.favorite ? "Favourited" : "In library"}
                         >
                             <VerifiedIcon />
                         </span>

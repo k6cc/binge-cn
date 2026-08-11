@@ -39,7 +39,7 @@ export function getFavouriteTagId(): Promise<string> {
 export async function setSceneFavourited(
     sceneId: string,
     currentTagIds: string[],
-    next: boolean
+    next: boolean,
 ): Promise<boolean> {
     const favTagId = await getFavouriteTagId();
     const has = currentTagIds.includes(favTagId);

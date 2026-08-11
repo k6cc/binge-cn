@@ -20,9 +20,7 @@ export function BottomNav() {
 
     return (
         <nav
-            className={
-                "binge-bottom-nav" + (tabBarVisible ? "" : " is-hidden")
-            }
+            className={"binge-bottom-nav" + (tabBarVisible ? "" : " is-hidden")}
             role="tablist"
             aria-label="Sections"
         >
@@ -120,10 +118,7 @@ const HOME_FILLED =
 
 function HomeIcon({ filled }: { filled: boolean }) {
     return (
-        <svg
-            {...ICON_PROPS}
-            {...(filled ? SOLID_FILL : EVENODD_FILL)}
-        >
+        <svg {...ICON_PROPS} {...(filled ? SOLID_FILL : EVENODD_FILL)}>
             <path d={filled ? HOME_FILLED : HOME_OUTLINED} />
         </svg>
     );

@@ -14,7 +14,11 @@ export interface BingeScene {
         screenshot: string;
         preview: string | null;
     };
-    sceneStreams: { url: string; mime_type: string | null; label: string | null }[];
+    sceneStreams: {
+        url: string;
+        mime_type: string | null;
+        label: string | null;
+    }[];
     files: { duration: number; path: string }[];
     performers: {
         id: string;
@@ -58,7 +62,7 @@ export interface FindScenesVariables {
 export function buildSceneFilter(
     performerIds: string[],
     tagIds: string[],
-    studioIds: string[]
+    studioIds: string[],
 ): FindScenesVariables["scene_filter"] {
     const sf: FindScenesVariables["scene_filter"] = {};
     if (performerIds.length)
@@ -70,10 +74,7 @@ export function buildSceneFilter(
 }
 
 const FIND_SCENES = /* GraphQL */ `
-    query FindScenes(
-        $filter: FindFilterType
-        $scene_filter: SceneFilterType
-    ) {
+    query FindScenes($filter: FindFilterType, $scene_filter: SceneFilterType) {
         findScenes(filter: $filter, scene_filter: $scene_filter) {
             count
             scenes {
@@ -118,7 +119,7 @@ const FIND_SCENES = /* GraphQL */ `
 `;
 
 export async function findScenes(
-    variables: FindScenesVariables = {}
+    variables: FindScenesVariables = {},
 ): Promise<FindScenesResult> {
     const merged: FindScenesVariables = {
         filter: {
@@ -137,7 +138,7 @@ export async function findScenes(
     // — the GraphQL server validates against the schema.
     const data = await gql<FindScenesResult>(
         FIND_SCENES,
-        merged as unknown as Record<string, unknown>
+        merged as unknown as Record<string, unknown>,
     );
     return data;
 }
@@ -175,11 +176,9 @@ const FIND_SAVED_FILTERS = /* GraphQL */ `
     }
 `;
 
-export async function findSavedFiltersForScenes(): Promise<
-    StashSavedFilter[]
-> {
+export async function findSavedFiltersForScenes(): Promise<StashSavedFilter[]> {
     const data = await gql<{ findSavedFilters: StashSavedFilter[] }>(
-        FIND_SAVED_FILTERS
+        FIND_SAVED_FILTERS,
     );
     return data.findSavedFilters;
 }
@@ -262,9 +261,7 @@ export async function findTagByName(name: string): Promise<{
 const FIND_RECENTLY_LIKED_SCENES = /* GraphQL */ `
     query FindRecentlyLikedScenes($perPage: Int!) {
         findScenes(
-            scene_filter: {
-                o_counter: { value: 0, modifier: GREATER_THAN }
-            }
+            scene_filter: { o_counter: { value: 0, modifier: GREATER_THAN } }
             filter: {
                 page: 1
                 per_page: $perPage
@@ -285,7 +282,7 @@ const FIND_RECENTLY_LIKED_SCENES = /* GraphQL */ `
 
 export async function findRecentlyLikedTags(
     sceneSampleSize: number,
-    topN: number
+    topN: number,
 ): Promise<{ id: string; name: string }[]> {
     const data = await gql<{
         findScenes: {
@@ -336,7 +333,7 @@ const FIND_TAGS_CONTAINING = /* GraphQL */ `
 `;
 
 export async function findTagsContaining(
-    needle: string
+    needle: string,
 ): Promise<{ id: string; name: string }[]> {
     const data = await gql<{
         findTags: { tags: { id: string; name: string }[] };
@@ -349,14 +346,8 @@ export async function findTagsContaining(
 const FIND_RECENT_SCENES_FOR_TAG = /* GraphQL */ `
     query RecentScenesForTag($tagId: ID!, $perPage: Int!) {
         findScenes(
-            scene_filter: {
-                tags: { value: [$tagId], modifier: INCLUDES }
-            }
-            filter: {
-                per_page: $perPage
-                sort: "created_at"
-                direction: DESC
-            }
+            scene_filter: { tags: { value: [$tagId], modifier: INCLUDES } }
+            filter: { per_page: $perPage, sort: "created_at", direction: DESC }
         ) {
             count
             scenes {
@@ -381,7 +372,7 @@ export interface CollectionCover {
 
 export async function findRecentScenesForTag(
     tagId: string,
-    limit = 4
+    limit = 4,
 ): Promise<CollectionCover> {
     const data = await gql<{
         findScenes: {
@@ -409,7 +400,9 @@ const FIND_STUDIOS = /* GraphQL */ `
     }
 `;
 
-export async function findPerformersForPicker(q: string): Promise<PickerResult[]> {
+export async function findPerformersForPicker(
+    q: string,
+): Promise<PickerResult[]> {
     const data = await gql<{
         findPerformers: { performers: PickerResult[] };
     }>(FIND_PERFORMERS, {
@@ -419,12 +412,9 @@ export async function findPerformersForPicker(q: string): Promise<PickerResult[]
 }
 
 export async function findTagsForPicker(q: string): Promise<PickerResult[]> {
-    const data = await gql<{ findTags: { tags: PickerResult[] } }>(
-        FIND_TAGS,
-        {
-            filter: { q, page: 1, per_page: 12, sort: "name", direction: "ASC" },
-        }
-    );
+    const data = await gql<{ findTags: { tags: PickerResult[] } }>(FIND_TAGS, {
+        filter: { q, page: 1, per_page: 12, sort: "name", direction: "ASC" },
+    });
     return data.findTags.tags;
 }
 
@@ -490,7 +480,7 @@ const FIND_RANDOM_PERFORMERS = /* GraphQL */ `
 // Small unpaginated sample for Explore's horizontal discover scroller.
 // We pass a fresh random seed every call so refreshes really refresh.
 export async function findRandomPerformers(
-    count = 24
+    count = 24,
 ): Promise<PerformerSummary[]> {
     const data = await gql<{
         findPerformers: { performers: PerformerSummary[] };
@@ -546,7 +536,7 @@ const FIND_POPULAR_TAGS = /* GraphQL */ `
 
 export async function findPopularTags(): Promise<PopularTag[]> {
     const data = await gql<{ findTags: { tags: PopularTag[] } }>(
-        FIND_POPULAR_TAGS
+        FIND_POPULAR_TAGS,
     );
     return data.findTags.tags;
 }
@@ -657,11 +647,7 @@ export interface PerformerSceneCard {
 // "recent" is release-date with a client-side fallback to created_at
 // (see PerformerSceneGrid's effectiveAt comparator).
 export type PerformerSceneSort =
-    | "recent"
-    | "views"
-    | "orgasms"
-    | "rating"
-    | "added";
+    "recent" | "views" | "orgasms" | "rating" | "added";
 
 export const PERFORMER_SCENE_SORTS: {
     key: PerformerSceneSort;
@@ -689,9 +675,7 @@ const FIND_SCENES_BY_PERFORMER = /* GraphQL */ `
         $sort: String!
     ) {
         findScenes(
-            scene_filter: {
-                performers: { value: [$id], modifier: INCLUDES }
-            }
+            scene_filter: { performers: { value: [$id], modifier: INCLUDES } }
             filter: {
                 page: $page
                 per_page: $per_page
@@ -726,7 +710,7 @@ export async function findScenesByPerformer(
     performerId: string,
     page: number,
     perPage: number,
-    sort: PerformerSceneSort = "recent"
+    sort: PerformerSceneSort = "recent",
 ): Promise<{ count: number; scenes: PerformerSceneCard[] }> {
     // "recent" = release-date with a created_at fallback. Stash can't sort
     // by that effective date server-side (it sorts by `date` alone, which
@@ -751,9 +735,7 @@ export async function findScenesByPerformer(
 const FIND_SCENES_BY_TAG = /* GraphQL */ `
     query TagScenes($id: ID!, $page: Int!, $per_page: Int!) {
         findScenes(
-            scene_filter: {
-                tags: { value: [$id], modifier: INCLUDES }
-            }
+            scene_filter: { tags: { value: [$id], modifier: INCLUDES } }
             filter: {
                 page: $page
                 per_page: $per_page
@@ -784,7 +766,7 @@ const FIND_SCENES_BY_TAG = /* GraphQL */ `
 export async function findScenesByTag(
     tagId: string,
     page: number,
-    perPage: number
+    perPage: number,
 ): Promise<{ count: number; scenes: PerformerSceneCard[] }> {
     const data = await gql<{
         findScenes: { count: number; scenes: PerformerSceneCard[] };
@@ -865,7 +847,7 @@ export interface SceneFileDetails {
 }
 
 export async function fetchSceneFileDetails(
-    sceneId: string
+    sceneId: string,
 ): Promise<SceneFileDetails | null> {
     const data = await gql<{
         findScene: {
@@ -889,7 +871,7 @@ export async function fetchSceneFileDetails(
                 }
             }
         `,
-        { id: sceneId }
+        { id: sceneId },
     );
     return data.findScene?.files?.[0] ?? null;
 }
@@ -902,9 +884,7 @@ export async function fetchSceneFileDetails(
 // Stash's findScenes filter doesn't accept an `ids` array cleanly,
 // so we parallelize single-fetches. For a typical performer grid
 // (~24-60 ids) that's well within reasonable network budgets.
-export async function findScenesByIds(
-    ids: string[]
-): Promise<BingeScene[]> {
+export async function findScenesByIds(ids: string[]): Promise<BingeScene[]> {
     if (ids.length === 0) return [];
     const results = await Promise.all(ids.map((id) => findSceneById(id)));
     const out: BingeScene[] = [];
@@ -944,47 +924,47 @@ export interface RecentSceneRow {
 
 function buildFindRecentScenesQuery(): string {
     return /* GraphQL */ `
-    query RecentScenes($since: String!, $per_page: Int!) {
-        findScenes(
-            scene_filter: {
-                created_at: { value: $since, modifier: GREATER_THAN }
-            }
-            filter: {
-                page: 1
-                per_page: $per_page
-                sort: "created_at"
-                direction: DESC
-            }
-        ) {
-            scenes {
-                id
-                title
-                details
-                created_at
-                date
-                files {
-                    width
-                    height
+        query RecentScenes($since: String!, $per_page: Int!) {
+            findScenes(
+                scene_filter: {
+                    created_at: { value: $since, modifier: GREATER_THAN }
                 }
-                paths {
-                    screenshot
-                    preview
+                filter: {
+                    page: 1
+                    per_page: $per_page
+                    sort: "created_at"
+                    direction: DESC
                 }
-                performers {
+            ) {
+                scenes {
                     id
-                    name
-                    image_path
-                    favorite
-                    gender
-                }
-                tags {
-                    id
-                    name
+                    title
+                    details
+                    created_at
+                    date
+                    files {
+                        width
+                        height
+                    }
+                    paths {
+                        screenshot
+                        preview
+                    }
+                    performers {
+                        id
+                        name
+                        image_path
+                        favorite
+                        gender
+                    }
+                    tags {
+                        id
+                        name
+                    }
                 }
             }
         }
-    }
-`;
+    `;
 }
 
 // Same row shape, but filtered by scene release date instead of
@@ -993,47 +973,47 @@ function buildFindRecentScenesQuery(): string {
 // the created_at-filtered query above. We run both and merge by id.
 function buildFindScenesByDateQuery(): string {
     return /* GraphQL */ `
-    query ScenesByDate($since: String!, $per_page: Int!) {
-        findScenes(
-            scene_filter: {
-                date: { value: $since, modifier: GREATER_THAN }
-            }
-            filter: {
-                page: 1
-                per_page: $per_page
-                sort: "date"
-                direction: DESC
-            }
-        ) {
-            scenes {
-                id
-                title
-                details
-                created_at
-                date
-                files {
-                    width
-                    height
+        query ScenesByDate($since: String!, $per_page: Int!) {
+            findScenes(
+                scene_filter: {
+                    date: { value: $since, modifier: GREATER_THAN }
                 }
-                paths {
-                    screenshot
-                    preview
+                filter: {
+                    page: 1
+                    per_page: $per_page
+                    sort: "date"
+                    direction: DESC
                 }
-                performers {
+            ) {
+                scenes {
                     id
-                    name
-                    image_path
-                    favorite
-                    gender
-                }
-                tags {
-                    id
-                    name
+                    title
+                    details
+                    created_at
+                    date
+                    files {
+                        width
+                        height
+                    }
+                    paths {
+                        screenshot
+                        preview
+                    }
+                    performers {
+                        id
+                        name
+                        image_path
+                        favorite
+                        gender
+                    }
+                    tags {
+                        id
+                        name
+                    }
                 }
             }
         }
-    }
-`;
+    `;
 }
 
 // Fetch scenes added to the library newer than `sinceIso`, regardless of
@@ -1101,11 +1081,11 @@ function flattenSceneNodes(scenes: RawSceneNode[]): RecentSceneRow[] {
 
 export async function findRecentScenes(
     sinceIso: string,
-    perPage = 500
+    perPage = 500,
 ): Promise<RecentSceneRow[]> {
     const data = await gql<{ findScenes: { scenes: RawSceneNode[] } }>(
         buildFindRecentScenesQuery(),
-        { since: sinceIso, per_page: perPage }
+        { since: sinceIso, per_page: perPage },
     );
     return flattenSceneNodes(data.findScenes.scenes);
 }
@@ -1117,11 +1097,11 @@ export async function findRecentScenes(
 // imported a year ago would be invisible to the Home feed.
 export async function findScenesByDate(
     sinceDate: string,
-    perPage = 500
+    perPage = 500,
 ): Promise<RecentSceneRow[]> {
     const data = await gql<{ findScenes: { scenes: RawSceneNode[] } }>(
         buildFindScenesByDateQuery(),
-        { since: sinceDate, per_page: perPage }
+        { since: sinceDate, per_page: perPage },
     );
     return flattenSceneNodes(data.findScenes.scenes);
 }
@@ -1143,9 +1123,7 @@ export interface PerformerImageCard {
 const FIND_IMAGES_BY_PERFORMER = /* GraphQL */ `
     query PerformerImages($id: ID!, $page: Int!, $per_page: Int!) {
         findImages(
-            image_filter: {
-                performers: { value: [$id], modifier: INCLUDES }
-            }
+            image_filter: { performers: { value: [$id], modifier: INCLUDES } }
             filter: {
                 page: $page
                 per_page: $per_page
@@ -1176,7 +1154,7 @@ const FIND_IMAGES_BY_PERFORMER = /* GraphQL */ `
 export async function findImagesByPerformer(
     performerId: string,
     page: number,
-    perPage: number
+    perPage: number,
 ): Promise<{ count: number; images: PerformerImageCard[] }> {
     const data = await gql<{
         findImages: { count: number; images: PerformerImageCard[] };
@@ -1293,7 +1271,7 @@ function mapGalleryNodes(galleries: RawGalleryNode[]): RecentGalleryRow[] {
 
 export async function findRecentGalleries(
     sinceIso: string,
-    perPage = 50
+    perPage = 50,
 ): Promise<RecentGalleryRow[]> {
     const data = await gql<{
         findGalleries: { galleries: RawGalleryNode[] };
@@ -1304,9 +1282,7 @@ export async function findRecentGalleries(
 const FIND_GALLERIES_BY_DATE = /* GraphQL */ `
     query GalleriesByDate($since: String!, $per_page: Int!) {
         findGalleries(
-            gallery_filter: {
-                date: { value: $since, modifier: GREATER_THAN }
-            }
+            gallery_filter: { date: { value: $since, modifier: GREATER_THAN } }
             filter: {
                 page: 1
                 per_page: $per_page
@@ -1347,7 +1323,7 @@ const FIND_GALLERIES_BY_DATE = /* GraphQL */ `
 // manually-tagged date even if they were imported long ago.
 export async function findGalleriesByDate(
     sinceDate: string,
-    perPage = 50
+    perPage = 50,
 ): Promise<RecentGalleryRow[]> {
     const data = await gql<{
         findGalleries: { galleries: RawGalleryNode[] };
@@ -1358,9 +1334,7 @@ export async function findGalleriesByDate(
 const FIND_IMAGES_BY_GALLERY = /* GraphQL */ `
     query GalleryImages($id: ID!, $per_page: Int!) {
         findImages(
-            image_filter: {
-                galleries: { value: [$id], modifier: INCLUDES }
-            }
+            image_filter: { galleries: { value: [$id], modifier: INCLUDES } }
             filter: {
                 page: 1
                 per_page: $per_page
@@ -1393,7 +1367,7 @@ const FIND_IMAGES_BY_GALLERY = /* GraphQL */ `
 // so existing ImageLightbox accepts the result without adaptation.
 export async function findImagesByGallery(
     galleryId: string,
-    perPage: number
+    perPage: number,
 ): Promise<PerformerImageCard[]> {
     const data = await gql<{
         findImages: { images: PerformerImageCard[] };

@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import {
+    useCallback,
+    useEffect,
+    useRef,
+    useState,
+    type RefObject,
+} from "react";
 import { createPortal } from "react-dom";
 import { useStoryViewer } from "./StoryViewerContext";
 import { StoryProgressStrip } from "./StoryProgressStrip";
@@ -33,13 +39,8 @@ const TEXT_LINK_CAP_MS = 8_000;
 // performer's `scenes` array; auto-advances on `ended` or on the cap
 // timer, whichever fires first.
 export function StoryViewer() {
-    const {
-        isOpen,
-        stories,
-        activeIndex,
-        setActiveIndex,
-        close,
-    } = useStoryViewer();
+    const { isOpen, stories, activeIndex, setActiveIndex, close } =
+        useStoryViewer();
     const { replace } = useFilter();
     const { setTab, setPinFirstSceneId, setReelMode } = useTab();
     const { openProfile } = usePerformerProfile();
@@ -135,7 +136,14 @@ export function StoryViewer() {
             return;
         }
         close();
-    }, [activeStory, sceneIndex, activeIndex, stories.length, setActiveIndex, close]);
+    }, [
+        activeStory,
+        sceneIndex,
+        activeIndex,
+        stories.length,
+        setActiveIndex,
+        close,
+    ]);
 
     const goPrev = useCallback(() => {
         if (sceneIndex > 0) {
@@ -238,7 +246,7 @@ export function StoryViewer() {
             window.open(
                 currentScene.stashboxUrl,
                 "_blank",
-                "noopener,noreferrer"
+                "noopener,noreferrer",
             );
             close();
             return;
@@ -249,7 +257,7 @@ export function StoryViewer() {
             window.open(
                 currentScene.permalink,
                 "_blank",
-                "noopener,noreferrer"
+                "noopener,noreferrer",
             );
             close();
             return;
@@ -333,7 +341,9 @@ export function StoryViewer() {
                             story={p}
                             distance={leftPeeks.length - idx}
                             onClick={() =>
-                                setActiveIndex(activeIndex - (leftPeeks.length - idx))
+                                setActiveIndex(
+                                    activeIndex - (leftPeeks.length - idx),
+                                )
                             }
                         />
                     ))}
@@ -558,13 +568,15 @@ export function StoryViewer() {
                             key={p.performerId}
                             story={p}
                             distance={idx + 1}
-                            onClick={() => setActiveIndex(activeIndex + idx + 1)}
+                            onClick={() =>
+                                setActiveIndex(activeIndex + idx + 1)
+                            }
                         />
                     ))}
                 </div>
             </div>
         </div>,
-        document.body
+        document.body,
     );
 }
 
@@ -613,7 +625,7 @@ function ChevronRight() {
 // (the daemon derives them otherwise).
 function buildSaveRequest(
     scene: StoryScene,
-    performerId: string
+    performerId: string,
 ): SaveToStashRequest | null {
     if (scene.source !== "reddit") return null;
     if (!scene.mediaUrl || (scene.kind !== "image" && scene.kind !== "video")) {
@@ -732,7 +744,7 @@ function RedditCardBody({
                         setVideoError(
                             err
                                 ? `MediaError ${err.code} (${err.message || "no message"})`
-                                : "unknown video error"
+                                : "unknown video error",
                         );
                     }}
                 />
@@ -775,9 +787,7 @@ function RedditCardBody({
             className="binge-story-viewer-link"
             key={scene.id}
             style={
-                linkThumb
-                    ? { backgroundImage: `url(${linkThumb})` }
-                    : undefined
+                linkThumb ? { backgroundImage: `url(${linkThumb})` } : undefined
             }
         >
             <div className="binge-story-viewer-link-overlay">
@@ -830,9 +840,7 @@ function Peek({
                 else if (latest.source === "stashdb") bg = latest.cover;
                 else if (latest.source === "reddit")
                     bg = latest.thumbUrl ?? latest.mediaUrl;
-                return bg
-                    ? { backgroundImage: `url(${bg})` }
-                    : undefined;
+                return bg ? { backgroundImage: `url(${bg})` } : undefined;
             })()}
         >
             <span className="binge-story-viewer-peek-name">

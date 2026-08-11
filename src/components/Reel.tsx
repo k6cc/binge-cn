@@ -61,7 +61,7 @@ export function Reel() {
         (sceneId: string, value: number | null) => {
             setRatingOverrides((prev) => ({ ...prev, [sceneId]: value }));
         },
-        []
+        [],
     );
     // Collection memberships keyed first by sceneId, then by tagName.
     // Generalises the old single-favourite override so the bookmark
@@ -76,7 +76,7 @@ export function Reel() {
                 [sceneId]: { ...(prev[sceneId] ?? {}), [tagName]: value },
             }));
         },
-        []
+        [],
     );
     const { filter, activeSavedFilter } = useFilter();
     const {
@@ -123,8 +123,7 @@ export function Reel() {
         getScrollElement: () => scrollRef.current,
         estimateSize: () => window.innerHeight,
         overscan: OVERSCAN,
-        getItemKey: (i) =>
-            state.kind === "ready" ? state.scenes[i].id : i,
+        getItemKey: (i) => (state.kind === "ready" ? state.scenes[i].id : i),
     });
 
     // Hide the tab/header chrome when scrolling down, reveal it on any
@@ -180,7 +179,7 @@ export function Reel() {
     const sortSeed = useMemo(
         () => `random_${Math.floor(Math.random() * 1e9)}`,
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [filter, activeSavedFilter]
+        [filter, activeSavedFilter],
     );
 
     // scene_filter — either binge's chip-derived filter or the saved
@@ -194,7 +193,7 @@ export function Reel() {
         return buildSceneFilter(
             filter.performers.map((p) => p.id),
             filter.tags.map((t) => t.id),
-            filter.studios.map((s) => s.id)
+            filter.studios.map((s) => s.id),
         );
     }, [filter, activeSavedFilter]);
 
@@ -257,15 +256,13 @@ export function Reel() {
                     // missing earlier scene shifts everything and the
                     // reel opens on the wrong scene.
                     const targetId = queue.ids[queue.startIndex];
-                    const found = scenes.findIndex(
-                        (s) => s.id === targetId
-                    );
+                    const found = scenes.findIndex((s) => s.id === targetId);
                     const idx =
                         found >= 0
                             ? found
                             : Math.min(
                                   Math.max(0, queue.startIndex),
-                                  Math.max(0, scenes.length - 1)
+                                  Math.max(0, scenes.length - 1),
                               );
                     setActiveIndex(idx);
                     setOOverrides({});
@@ -420,7 +417,7 @@ export function Reel() {
                         if (s.kind !== "ready") return s;
                         const existingIds = new Set(s.scenes.map((x) => x.id));
                         const deduped = fresh.filter(
-                            (x) => !existingIds.has(x.id)
+                            (x) => !existingIds.has(x.id),
                         );
                         return {
                             ...s,
@@ -438,7 +435,7 @@ export function Reel() {
                     // in DevTools so the failure is debuggable.
                     console.error(
                         "[binge] chained-mode pagination failed",
-                        err
+                        err,
                     );
                 })
                 .finally(() => {
@@ -465,7 +462,7 @@ export function Reel() {
                     // Dedup by id — safety against random sort edge cases.
                     const existingIds = new Set(s.scenes.map((x) => x.id));
                     const fresh = data.findScenes.scenes.filter(
-                        (x) => !existingIds.has(x.id)
+                        (x) => !existingIds.has(x.id),
                     );
                     return {
                         ...s,

@@ -36,10 +36,7 @@ export function PackDetailSheet({
         // the reel starts at the tap target and walks the rest
         // of the pack in order.
         const ids = pack.scenes.map((s) => s.sceneId);
-        const startIndex = Math.max(
-            0,
-            ids.indexOf(scene.sceneId)
-        );
+        const startIndex = Math.max(0, ids.indexOf(scene.sceneId));
         // Clear any stale single-scene pin — the reel consumes the
         // queue here (startIndex starts it at the tapped scene), and
         // a leftover pin would otherwise resurface in chained mode.
@@ -87,6 +84,6 @@ export function PackDetailSheet({
                 </div>
             </div>
         </div>,
-        document.body
+        document.body,
     );
 }

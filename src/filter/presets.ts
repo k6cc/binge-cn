@@ -24,7 +24,7 @@ export function loadPresets(): FilterPreset[] {
                 p.filter &&
                 Array.isArray(p.filter.performers) &&
                 Array.isArray(p.filter.tags) &&
-                Array.isArray(p.filter.studios)
+                Array.isArray(p.filter.studios),
         );
     } catch {
         return [];

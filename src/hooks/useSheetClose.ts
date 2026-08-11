@@ -12,7 +12,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 // `.is-exiting` selectors take effect.
 export function useSheetClose(
     onClose: () => void,
-    durationMs = 280
+    durationMs = 280,
 ): { isExiting: boolean; beginClose: () => void } {
     const [isExiting, setIsExiting] = useState(false);
     const timer = useRef<number | null>(null);

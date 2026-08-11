@@ -119,12 +119,12 @@ Hover (desktop) or tap (mobile) any performer name or avatar → mini-profile po
 
 Out of the box binge talks to nothing but your own Stash. [binge-server](https://github.com/ordureconnoisseur/binge-server) is a small Go daemon you can run beside it that follows the same performers off-site, using the social links already on their Stash records. It adds four things:
 
-| Pillar | Where it shows up |
-|-|-|
-| **Reddit** | New posts from a performer's subreddit or user account, in the stories row |
-| **X (Twitter)** | Their last 7 days of media, folded into their profile's story ring. Fetched when you open the profile, not polled. Needs your own X cookies, pasted into Settings |
-| **PornHub** | New uploads in the stories row, plus their back catalogue as extra tiles in the profile scenes grid with hover previews and inline playback |
-| **Save to Stash** | A save button in the story viewer and the PornHub player. Hands the original source URL to the daemon, which downloads it into a library folder you pick |
+| Pillar            | Where it shows up                                                                                                                                                 |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Reddit**        | New posts from a performer's subreddit or user account, in the stories row                                                                                        |
+| **X (Twitter)**   | Their last 7 days of media, folded into their profile's story ring. Fetched when you open the profile, not polled. Needs your own X cookies, pasted into Settings |
+| **PornHub**       | New uploads in the stories row, plus their back catalogue as extra tiles in the profile scenes grid with hover previews and inline playback                       |
+| **Save to Stash** | A save button in the story viewer and the PornHub player. Hands the original source URL to the daemon, which downloads it into a library folder you pick          |
 
 Every pillar has its own Settings toggle, and each one fails quiet: with no daemon reachable the fetches no-op and binge behaves exactly as it does without one.
 
@@ -151,14 +151,14 @@ At ≤720px:
 
 Detected at runtime — install whichever you want; binge degrades gracefully when they're absent.
 
-| Plugin | What it adds |
-|-|-|
-| [Refract](https://github.com/ordureconnoisseur/stash-refract) | Tints binge's accent to match your refract palette (opt-in toggle) |
-| [stash-multiview](https://github.com/ordureconnoisseur/stash-multiview) | 4-cell grid button in the action stack — tap to queue, hold to open |
-| [stash-advanced-rating](https://github.com/ordureconnoisseur/stash-advanced-rating) | Per-criterion 0–5 rating modal in reel + profile |
-| stash-scribe (not public yet) | Scribe pencil → LLM-powered review writing |
-| [binge-server](https://github.com/ordureconnoisseur/binge-server) | Reddit, X and PornHub posts, and Save to Stash (separate Go daemon, installable from Settings) |
-| [forage](https://github.com/ordureconnoisseur/forage) | "Send to forage" on discovery scenes, adding them to that daemon's watchlist. Hidden until you set its URL |
+| Plugin                                                                              | What it adds                                                                                               |
+| ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| [Refract](https://github.com/ordureconnoisseur/stash-refract)                       | Tints binge's accent to match your refract palette (opt-in toggle)                                         |
+| [stash-multiview](https://github.com/ordureconnoisseur/stash-multiview)             | 4-cell grid button in the action stack — tap to queue, hold to open                                        |
+| [stash-advanced-rating](https://github.com/ordureconnoisseur/stash-advanced-rating) | Per-criterion 0–5 rating modal in reel + profile                                                           |
+| stash-scribe (not public yet)                                                       | Scribe pencil → LLM-powered review writing                                                                 |
+| [binge-server](https://github.com/ordureconnoisseur/binge-server)                   | Reddit, X and PornHub posts, and Save to Stash (separate Go daemon, installable from Settings)             |
+| [forage](https://github.com/ordureconnoisseur/forage)                               | "Send to forage" on discovery scenes, adding them to that daemon's watchlist. Hidden until you set its URL |
 
 ---
 
@@ -189,25 +189,25 @@ Preferences live in `localStorage` under `binge.*`. The only things binge writes
 
 Open binge → ⋯ → Settings (desktop) or Menu → Settings (mobile).
 
-| Setting | Default | Notes |
-|-|-|-|
-| Genders to surface | All five | Drives the discovery feed + Discover Performers row. Nothing is hidden that you haven't unticked here. |
-| Stream type | Auto | Auto / Direct / MP4 / WebM / HLS |
-| Show galleries in feed | On | Mix galleries into Home |
-| Recent window | 30 days | How far back "new" means. 7 / 14 / 30 / 60 / 90 |
-| Include StashDB new releases | On | In stories + Home. No-op without a StashDB API key. |
-| Mix StashDB into profiles | Off | Also flip-able per-profile from the scenes-heading pill |
-| Include Reddit posts | On | Needs binge-server. Silent no-op otherwise. |
-| Include X (Twitter) media | On | Needs binge-server and X cookies. Fetched on demand when you open a profile. |
-| Include PornHub videos | On | Needs binge-server. Stories row + profile scenes grid. |
-| binge-server | n/a | Install card while no daemon answers; status, Reddit login and X login once one does. |
-| binge-server URL | `http://<stash host>:7878` | Derived from the address you're browsing Stash on, not hardcoded to localhost. Override for a remote daemon. |
-| forage server URL | empty | Optional. Blank keeps "Send to forage" hidden. Authenticates with your Stash API key automatically. |
-| forage watch quality | Any | What a queued watch waits for: any / 720p / 1080p / 4k |
-| Follow refract accent | Off | Mirror refract's accent palette into binge |
-| Privacy blur | Off | Blurs every image and video app-wide so the UI can be screen-shared or captured safely. `\|` hotkey. |
-| Auto-scroll | Off | Advance to next scene when current ends (reel ⋯ menu) |
-| Show debug overlay | Off | Per-slide debug HUD; `\` hotkey in reel |
+| Setting                      | Default                    | Notes                                                                                                        |
+| ---------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Genders to surface           | All five                   | Drives the discovery feed + Discover Performers row. Nothing is hidden that you haven't unticked here.       |
+| Stream type                  | Auto                       | Auto / Direct / MP4 / WebM / HLS                                                                             |
+| Show galleries in feed       | On                         | Mix galleries into Home                                                                                      |
+| Recent window                | 30 days                    | How far back "new" means. 7 / 14 / 30 / 60 / 90                                                              |
+| Include StashDB new releases | On                         | In stories + Home. No-op without a StashDB API key.                                                          |
+| Mix StashDB into profiles    | Off                        | Also flip-able per-profile from the scenes-heading pill                                                      |
+| Include Reddit posts         | On                         | Needs binge-server. Silent no-op otherwise.                                                                  |
+| Include X (Twitter) media    | On                         | Needs binge-server and X cookies. Fetched on demand when you open a profile.                                 |
+| Include PornHub videos       | On                         | Needs binge-server. Stories row + profile scenes grid.                                                       |
+| binge-server                 | n/a                        | Install card while no daemon answers; status, Reddit login and X login once one does.                        |
+| binge-server URL             | `http://<stash host>:7878` | Derived from the address you're browsing Stash on, not hardcoded to localhost. Override for a remote daemon. |
+| forage server URL            | empty                      | Optional. Blank keeps "Send to forage" hidden. Authenticates with your Stash API key automatically.          |
+| forage watch quality         | Any                        | What a queued watch waits for: any / 720p / 1080p / 4k                                                       |
+| Follow refract accent        | Off                        | Mirror refract's accent palette into binge                                                                   |
+| Privacy blur                 | Off                        | Blurs every image and video app-wide so the UI can be screen-shared or captured safely. `\|` hotkey.         |
+| Auto-scroll                  | Off                        | Advance to next scene when current ends (reel ⋯ menu)                                                        |
+| Show debug overlay           | Off                        | Per-slide debug HUD; `\` hotkey in reel                                                                      |
 
 ---
 

@@ -1,8 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import {
-    findAllPerformers,
-    type PerformerSummary,
-} from "../api/queries";
+import { findAllPerformers, type PerformerSummary } from "../api/queries";
 import { usePerformerProfile } from "../performer/PerformerProfileContext";
 import { BingeLoading } from "../components/BingeLoading";
 
@@ -60,9 +57,7 @@ export function AllPerformersModal({ onClose }: AllPerformersModalProps) {
         state.kind === "ready"
             ? query.trim()
                 ? state.performers.filter((p) =>
-                      p.name
-                          .toLowerCase()
-                          .includes(query.trim().toLowerCase())
+                      p.name.toLowerCase().includes(query.trim().toLowerCase()),
                   )
                 : state.performers
             : [];
@@ -99,9 +94,7 @@ export function AllPerformersModal({ onClose }: AllPerformersModalProps) {
                     {state.kind === "ready" && (
                         <span className="binge-modal-count">
                             {filtered.length}{" "}
-                            {filtered.length === 1
-                                ? "performer"
-                                : "performers"}
+                            {filtered.length === 1 ? "performer" : "performers"}
                         </span>
                     )}
                 </div>

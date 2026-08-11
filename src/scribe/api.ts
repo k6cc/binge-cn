@@ -127,7 +127,9 @@ interface PluginConfigResp {
 }
 
 export async function getScribeConfig(): Promise<ScribeConfig> {
-    const data = await gql<PluginConfigResp>(`query { configuration { plugins } }`);
+    const data = await gql<PluginConfigResp>(
+        `query { configuration { plugins } }`,
+    );
     const cfg = data.configuration?.plugins?.[SCRIBE_PLUGIN_ID] ?? {};
     let tone = String(cfg.defaultTone ?? "filthy").toLowerCase() as VoiceMode;
     if ((tone as string) === "vulgar") tone = "filthy";
@@ -142,7 +144,10 @@ export async function getScribeConfig(): Promise<ScribeConfig> {
             DEFAULT_VOICES.filthy,
     };
     return {
-        ollamaUrl: String(cfg.ollamaUrl ?? DEFAULT_OLLAMA_URL).replace(/\/+$/, ""),
+        ollamaUrl: String(cfg.ollamaUrl ?? DEFAULT_OLLAMA_URL).replace(
+            /\/+$/,
+            "",
+        ),
         model: String(cfg.model ?? DEFAULT_MODEL),
         voicePrompts,
         defaultTone: tone,
@@ -198,18 +203,20 @@ const FIND_SCENE_FOR_SCRIBE = /* GraphQL */ `
 `;
 
 export async function fetchSceneForScribe(
-    sceneId: string
+    sceneId: string,
 ): Promise<SceneForScribe | null> {
     const data = await gql<{ findScene: SceneForScribe | null }>(
         FIND_SCENE_FOR_SCRIBE,
-        { id: sceneId }
+        { id: sceneId },
     );
     return data.findScene;
 }
 
 // ── Review extraction / formatting ──────────────────────────────────
 
-export function extractReviewFromDetails(details: string | null): string | null {
+export function extractReviewFromDetails(
+    details: string | null,
+): string | null {
     if (!details) return null;
     const s = details.indexOf(REVIEW_MARKER_START);
     if (s === -1) return null;
@@ -225,7 +232,9 @@ export function stripReviewBlock(details: string | null): string {
     const e = details.indexOf(REVIEW_MARKER_END, s);
     if (e === -1) return details;
     const before = details.slice(0, s).replace(/\s+$/, "");
-    const after = details.slice(e + REVIEW_MARKER_END.length).replace(/^\s+/, "");
+    const after = details
+        .slice(e + REVIEW_MARKER_END.length)
+        .replace(/^\s+/, "");
     if (!before && !after) return "";
     if (!before) return after;
     if (!after) return before;
@@ -270,13 +279,14 @@ export function describeSceneForLLM(scene: SceneForScribe): string {
     if (tags.length) lines.push(`Tags: ${tags.slice(0, 25).join(", ")}`);
 
     const cleanDetails = stripReviewBlock(scene.details).trim();
-    if (cleanDetails) lines.push(`Scene synopsis / existing notes: ${cleanDetails}`);
+    if (cleanDetails)
+        lines.push(`Scene synopsis / existing notes: ${cleanDetails}`);
     return lines.join("\n");
 }
 
 function describePerformerInScene(
     p: ScenePerformer,
-    sceneDate: string | null
+    sceneDate: string | null,
 ): string {
     if (!p?.name) return "";
     const bits = [p.name];
@@ -289,7 +299,7 @@ function describePerformerInScene(
     if (p.measurements) tail.push(p.measurements);
     if (p.fake_tits)
         tail.push(
-            p.fake_tits.toLowerCase() === "yes" ? "fake tits" : "natural tits"
+            p.fake_tits.toLowerCase() === "yes" ? "fake tits" : "natural tits",
         );
     if (p.tattoos) tail.push("tattooed");
     if (p.piercings) tail.push("pierced");
@@ -299,7 +309,7 @@ function describePerformerInScene(
 
 function ageAtDate(
     birthdate: string | null,
-    atDate: string | null
+    atDate: string | null,
 ): number | null {
     if (!birthdate || !atDate) return null;
     const bd = new Date(birthdate);
@@ -317,7 +327,7 @@ export function buildSceneContextStrip(scene: SceneForScribe): string {
     const names = (scene.performers ?? []).map((p) => p.name).filter(Boolean);
     if (names.length) bits.push(names.join(" · "));
     const tagCount = (scene.tags ?? []).filter(
-        (t) => !RATING_TAG_RE.test(t.name)
+        (t) => !RATING_TAG_RE.test(t.name),
     ).length;
     if (tagCount) bits.push(`${tagCount} tags`);
     return bits.join(" — ");
@@ -326,7 +336,7 @@ export function buildSceneContextStrip(scene: SceneForScribe): string {
 // Pre-fill sliders from existing tags.
 export function extractScoresFromTags(
     scene: SceneForScribe,
-    criteria: Criterion[]
+    criteria: Criterion[],
 ): Record<string, number> {
     const scores: Record<string, number> = {};
     for (const t of scene.tags ?? []) {
@@ -335,7 +345,7 @@ export function extractScoresFromTags(
         const criterionName = m[1].trim();
         const score = parseInt(m[2], 10);
         const c = criteria.find(
-            (cc) => cc.name.toLowerCase() === criterionName.toLowerCase()
+            (cc) => cc.name.toLowerCase() === criterionName.toLowerCase(),
         );
         if (c) scores[c.id] = score;
     }
@@ -351,12 +361,16 @@ const RUN_PLUGIN_OP = /* GraphQL */ `
 `;
 
 interface RunOpResp {
-    runPluginOperation: { content?: string; models?: string[]; error?: string } | null;
+    runPluginOperation: {
+        content?: string;
+        models?: string[];
+        error?: string;
+    } | null;
 }
 
 export async function callLLM(
     messages: LLMMessage[],
-    cfg: Pick<ScribeConfig, "ollamaUrl" | "model">
+    cfg: Pick<ScribeConfig, "ollamaUrl" | "model">,
 ): Promise<string> {
     const data = await gql<RunOpResp>(RUN_PLUGIN_OP, {
         plugin_id: SCRIBE_PLUGIN_ID,
@@ -376,7 +390,7 @@ export async function callLLM(
 }
 
 export async function listModels(
-    cfg: Pick<ScribeConfig, "ollamaUrl">
+    cfg: Pick<ScribeConfig, "ollamaUrl">,
 ): Promise<string[]> {
     const data = await gql<RunOpResp>(RUN_PLUGIN_OP, {
         plugin_id: SCRIBE_PLUGIN_ID,
@@ -394,9 +408,11 @@ export interface ParsedReview {
 
 export function parseGenerated(
     body: string,
-    criteria: Criterion[]
+    criteria: Criterion[],
 ): ParsedReview {
-    const reviewMatch = body.match(/REVIEW:\s*([\s\S]*?)(?=\n\s*SCORES\s*:|$)/i);
+    const reviewMatch = body.match(
+        /REVIEW:\s*([\s\S]*?)(?=\n\s*SCORES\s*:|$)/i,
+    );
     const review = reviewMatch ? reviewMatch[1].trim() : body.trim();
     const scores: Record<string, number> = {};
     const scoresBlock = body.split(/SCORES\s*:/i)[1] ?? "";
@@ -406,7 +422,7 @@ export function parseGenerated(
         const rawName = m[1].trim();
         const rawScore = Math.max(0, Math.min(5, Math.round(parseFloat(m[2]))));
         const c = criteria.find(
-            (cc) => cc.name.toLowerCase() === rawName.toLowerCase()
+            (cc) => cc.name.toLowerCase() === rawName.toLowerCase(),
         );
         if (c) scores[c.id] = rawScore;
     }
@@ -429,7 +445,7 @@ async function getTagIdByName(name: string): Promise<string | null> {
                 }
             }
         `,
-        { tag_filter: { name: { value: name, modifier: "EQUALS" } } }
+        { tag_filter: { name: { value: name, modifier: "EQUALS" } } },
     );
     return data.findTags.tags[0]?.id ?? null;
 }
@@ -445,7 +461,7 @@ async function findOrCreateTag(name: string): Promise<string> {
                 }
             }
         `,
-        { input: { name, ignore_auto_tag: true } }
+        { input: { name, ignore_auto_tag: true } },
     );
     if (!data.tagCreate?.id) throw new Error(`Failed to create tag: ${name}`);
     return data.tagCreate.id;
@@ -455,7 +471,7 @@ async function buildUpdatedTagIds(
     scene: SceneForScribe,
     criteria: Criterion[],
     scoresByCriterion: Record<string, number>,
-    autoCreate: boolean
+    autoCreate: boolean,
 ): Promise<string[]> {
     const existingTags = scene.tags ?? [];
     const keep = existingTags.filter((t) => {
@@ -473,7 +489,7 @@ async function buildUpdatedTagIds(
         if (!tagId) {
             if (!autoCreate) {
                 throw new Error(
-                    `Tag "${tagName}" does not exist. Open the Advanced Rating plugin's settings panel once so it creates the level tags, or enable "Auto-create missing criterion tags" in Stash Scribe settings.`
+                    `Tag "${tagName}" does not exist. Open the Advanced Rating plugin's settings panel once so it creates the level tags, or enable "Auto-create missing criterion tags" in Stash Scribe settings.`,
                 );
             }
             tagId = await findOrCreateTag(tagName);
@@ -507,7 +523,7 @@ export async function saveSceneReview(args: {
             scene,
             criteria,
             scoresByCriterion,
-            autoCreate
+            autoCreate,
         );
     }
     await gql(
@@ -518,7 +534,7 @@ export async function saveSceneReview(args: {
                 }
             }
         `,
-        { input }
+        { input },
     );
 }
 
@@ -587,16 +603,14 @@ const FIND_SCENES_FOR_PERFORMER_AGG = /* GraphQL */ `
 // fetch (per_page: -1), but only fires when the user opens Scribe
 // on a performer; cached by browser GraphQL semantics for the
 // session, and we don't refetch unless the modal is reopened.
-export async function fetchPerformerForScribe(
-    performerId: string
-): Promise<{
+export async function fetchPerformerForScribe(performerId: string): Promise<{
     performer: PerformerForScribe;
     aggregates: PerformerAggregates;
 } | null> {
     const [profileResp, scenesResp] = await Promise.all([
         gql<{ findPerformer: PerformerForScribe | null }>(
             FIND_PERFORMER_FOR_SCRIBE,
-            { id: performerId }
+            { id: performerId },
         ),
         gql<{
             findScenes: {
@@ -621,12 +635,12 @@ function aggregatePerformerScenes(list: {
     const sceneCount = list.count ?? scenes.length;
     const totalOCounter = scenes.reduce(
         (sum, s) => sum + (s.o_counter ?? 0),
-        0
+        0,
     );
     const rated = scenes.filter((s) => s.rating100 != null);
     const avgRating = rated.length
         ? Math.round(
-              rated.reduce((a, s) => a + (s.rating100 ?? 0), 0) / rated.length
+              rated.reduce((a, s) => a + (s.rating100 ?? 0), 0) / rated.length,
           )
         : null;
 
@@ -657,7 +671,7 @@ function aggregatePerformerScenes(list: {
     function topN(
         arr: PerformerSceneSummary[],
         key: "rating100" | "o_counter" | "play_count",
-        n: number
+        n: number,
     ): PerformerSceneSummary[] {
         return arr
             .filter((s) => (s[key] ?? 0) > 0)
@@ -738,18 +752,19 @@ function summarizeNotableScene(s: PerformerSceneSummary): string {
 
 export function describePerformerForLLM(
     performer: PerformerForScribe,
-    aggregates: PerformerAggregates
+    aggregates: PerformerAggregates,
 ): string {
     const lines: string[] = [];
     lines.push(`Name: ${performer.name}`);
     const aliases = (performer.alias_list ?? []).filter(
-        (a) => a && a !== performer.name
+        (a) => a && a !== performer.name,
     );
     if (aliases.length) lines.push(`Aliases: ${aliases.join(", ")}`);
     const demo: string[] = [];
     if (performer.gender) demo.push(performer.gender.toLowerCase());
     const age = ageFromBirthdate(performer.birthdate);
-    if (age != null) demo.push(performer.death_date ? `was age ${age}` : `age ${age}`);
+    if (age != null)
+        demo.push(performer.death_date ? `was age ${age}` : `age ${age}`);
     if (performer.ethnicity) demo.push(performer.ethnicity);
     if (performer.country) demo.push(performer.country);
     if (demo.length) lines.push(`Demographics: ${demo.join(", ")}`);
@@ -763,23 +778,24 @@ export function describePerformerForLLM(
         phys.push(
             performer.fake_tits.toLowerCase() === "yes"
                 ? "fake tits"
-                : "natural tits"
+                : "natural tits",
         );
     if (phys.length) lines.push(`Physical: ${phys.join(", ")}`);
     if (performer.tattoos) lines.push(`Tattoos: ${performer.tattoos}`);
     if (performer.piercings) lines.push(`Piercings: ${performer.piercings}`);
-    if (performer.career_length) lines.push(`Career: ${performer.career_length}`);
+    if (performer.career_length)
+        lines.push(`Career: ${performer.career_length}`);
 
     const a = aggregates;
     const stats: string[] = [`${a.sceneCount} scenes in library`];
     if (a.totalOCounter > 0) {
         stats.push(
-            `Stash o-counter total ${a.totalOCounter} (sum across her scenes — a single scene can contribute multiple)`
+            `Stash o-counter total ${a.totalOCounter} (sum across her scenes — a single scene can contribute multiple)`,
         );
     }
     if (a.avgRating != null)
         stats.push(
-            `average rating ${a.avgRating}/100 across ${a.ratedCount} scenes you have rated`
+            `average rating ${a.avgRating}/100 across ${a.ratedCount} scenes you have rated`,
         );
     lines.push(`Library stats: ${stats.join("; ")}`);
     if (a.topStudios.length)
@@ -788,7 +804,7 @@ export function describePerformerForLLM(
     if (a.notableScenes.length) {
         lines.push("");
         lines.push(
-            "Notable scenes (top by rating / o-count / play-count — reference these specifically in the review):"
+            "Notable scenes (top by rating / o-count / play-count — reference these specifically in the review):",
         );
         for (const s of a.notableScenes) lines.push(summarizeNotableScene(s));
     }
@@ -800,7 +816,7 @@ export function describePerformerForLLM(
 
 export function buildPerformerContextStrip(
     performer: PerformerForScribe,
-    a: PerformerAggregates
+    a: PerformerAggregates,
 ): string {
     const bits: string[] = [performer.name];
     if (a.sceneCount) bits.push(`${a.sceneCount} scenes`);
@@ -814,7 +830,7 @@ export function buildPerformerContextStrip(
 // SceneForScribe-typed; rather than widen its signature we wrap.)
 export function extractScoresFromTagsGeneric(
     subject: { tags: SceneTag[] },
-    criteria: Criterion[]
+    criteria: Criterion[],
 ): Record<string, number> {
     return extractScoresFromTags(subject as SceneForScribe, criteria);
 }
@@ -857,7 +873,7 @@ export async function savePerformerReview(args: {
             performer,
             criteria,
             scoresByCriterion,
-            autoCreate
+            autoCreate,
         );
     }
     const cleanedDetails = stripReviewBlock(performer.details);
@@ -868,9 +884,7 @@ export async function savePerformerReview(args: {
     try {
         await gql(
             /* GraphQL */ `
-                mutation PerformerUpdateScribe(
-                    $input: PerformerUpdateInput!
-                ) {
+                mutation PerformerUpdateScribe($input: PerformerUpdateInput!) {
                     performerUpdate(input: $input) {
                         id
                     }
@@ -884,7 +898,7 @@ export async function savePerformerReview(args: {
                     },
                     ...detailsPatch,
                 },
-            }
+            },
         );
     } catch (e) {
         const msg = (e as Error).message ?? "";
@@ -892,13 +906,11 @@ export async function savePerformerReview(args: {
         // Older Stash: fall back to details-sentinel block.
         console.warn(
             "[binge-scribe] PerformerUpdateInput.custom_fields rejected — falling back to details sentinel block",
-            e
+            e,
         );
         await gql(
             /* GraphQL */ `
-                mutation PerformerUpdateScribe(
-                    $input: PerformerUpdateInput!
-                ) {
+                mutation PerformerUpdateScribe($input: PerformerUpdateInput!) {
                     performerUpdate(input: $input) {
                         id
                     }
@@ -909,7 +921,7 @@ export async function savePerformerReview(args: {
                     ...baseInput,
                     details: appendReviewBlock(cleanedDetails, reviewText),
                 },
-            }
+            },
         );
     }
 }
@@ -921,20 +933,17 @@ async function buildUpdatedTagIdsForSubject(
     subject: { tags: SceneTag[] },
     criteria: Criterion[],
     scoresByCriterion: Record<string, number>,
-    autoCreate: boolean
+    autoCreate: boolean,
 ): Promise<string[]> {
     return buildUpdatedTagIds(
         subject as SceneForScribe,
         criteria,
         scoresByCriterion,
-        autoCreate
+        autoCreate,
     );
 }
 
-function appendReviewBlock(
-    details: string,
-    reviewText: string
-): string {
+function appendReviewBlock(details: string, reviewText: string): string {
     const stripped = stripReviewBlock(details);
     const review = (reviewText || "").trim();
     if (!review) return stripped;

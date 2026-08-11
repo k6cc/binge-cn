@@ -11,19 +11,21 @@ import type { TranscodeType } from "../config";
 // then mime_type as a fallback.
 export function pickStreamUrl(
     scene: BingeScene,
-    preference: TranscodeType
+    preference: TranscodeType,
 ): string {
     if (preference === "auto") return scene.paths.stream;
 
     const streams = scene.sceneStreams ?? [];
-    const match = streams.find((s) => matches(s.label, s.mime_type, preference));
+    const match = streams.find((s) =>
+        matches(s.label, s.mime_type, preference),
+    );
     return match?.url ?? scene.paths.stream;
 }
 
 function matches(
     label: string | null,
     mime: string | null,
-    pref: TranscodeType
+    pref: TranscodeType,
 ): boolean {
     const l = (label ?? "").toLowerCase();
     const m = (mime ?? "").toLowerCase();
@@ -31,11 +33,18 @@ function matches(
         case "direct":
             return l.includes("direct");
         case "mp4":
-            return (l.includes("mp4") && !l.includes("direct")) || m === "video/mp4";
+            return (
+                (l.includes("mp4") && !l.includes("direct")) ||
+                m === "video/mp4"
+            );
         case "webm":
             return l.includes("webm") || m === "video/webm";
         case "hls":
-            return l.includes("hls") || m.includes("mpegurl") || m.includes("x-mpegurl");
+            return (
+                l.includes("hls") ||
+                m.includes("mpegurl") ||
+                m.includes("x-mpegurl")
+            );
         default:
             return false;
     }

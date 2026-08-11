@@ -61,10 +61,10 @@ declare global {
 }
 
 interface RefractTheme {
-    accent: string;       // hex like "#f97316"
+    accent: string; // hex like "#f97316"
     accentBright: string; // hex
-    accentTint: string;   // hex
-    accentRgb: string;    // "r, g, b"
+    accentTint: string; // hex
+    accentRgb: string; // "r, g, b"
 }
 
 function readRefractTheme(): RefractTheme | null {
@@ -74,7 +74,8 @@ function readRefractTheme(): RefractTheme | null {
         if (!accent || !accentRgb) return null;
         return {
             accent,
-            accentBright: localStorage.getItem("mv.theme.accentBright") || accent,
+            accentBright:
+                localStorage.getItem("mv.theme.accentBright") || accent,
             accentTint: localStorage.getItem("mv.theme.accentTint") || accent,
             accentRgb,
         };
@@ -85,8 +86,8 @@ function readRefractTheme(): RefractTheme | null {
 
 function App() {
     const refractEnabled = useRefractIntegration();
-    const [refractTheme, setRefractTheme] = useState<RefractTheme | null>(
-        () => readRefractTheme()
+    const [refractTheme, setRefractTheme] = useState<RefractTheme | null>(() =>
+        readRefractTheme(),
     );
 
     // Re-read on `storage` events so a user changing refract's accent
@@ -149,47 +150,48 @@ function App() {
                 <TabProvider>
                     <PerformerProfileProvider>
                         <StoriesProvider>
-                        <StoryViewerProvider>
-                            <ScribeProvider>
-                            {/* First-paint splash. Self-dismissing
+                            <StoryViewerProvider>
+                                <ScribeProvider>
+                                    {/* First-paint splash. Self-dismissing
                                 via internal timers — see
                                 BingeStartupSplash. */}
-                            <BingeStartupSplash />
-                            <div
-                                className={
-                                    refractActive
-                                        ? "binge-app refract"
-                                        : "binge-app"
-                                }
-                                // Inline overrides for refract's accent
-                                // tokens — flows through every existing
-                                // rgba(var(--accent-rgb), …) rule in
-                                // global.css without needing to rewrite
-                                // any of them.
-                                style={
-                                    activeTheme
-                                        ? ({
-                                              "--accent": activeTheme.accent,
-                                              "--accent-bright":
-                                                  activeTheme.accentBright,
-                                              "--accent-tint":
-                                                  activeTheme.accentTint,
-                                              "--accent-rgb":
-                                                  activeTheme.accentRgb,
-                                          } as React.CSSProperties)
-                                        : undefined
-                                }
-                            >
-                                <TopHeader />
-                                <TabContent />
-                                <MobileBottomNav />
-                            </div>
-                            <PerformerProfile />
-                            <StoryViewer />
-                            <DebugMaybe />
-                            <FilterAutoClear />
-                            </ScribeProvider>
-                        </StoryViewerProvider>
+                                    <BingeStartupSplash />
+                                    <div
+                                        className={
+                                            refractActive
+                                                ? "binge-app refract"
+                                                : "binge-app"
+                                        }
+                                        // Inline overrides for refract's accent
+                                        // tokens — flows through every existing
+                                        // rgba(var(--accent-rgb), …) rule in
+                                        // global.css without needing to rewrite
+                                        // any of them.
+                                        style={
+                                            activeTheme
+                                                ? ({
+                                                      "--accent":
+                                                          activeTheme.accent,
+                                                      "--accent-bright":
+                                                          activeTheme.accentBright,
+                                                      "--accent-tint":
+                                                          activeTheme.accentTint,
+                                                      "--accent-rgb":
+                                                          activeTheme.accentRgb,
+                                                  } as React.CSSProperties)
+                                                : undefined
+                                        }
+                                    >
+                                        <TopHeader />
+                                        <TabContent />
+                                        <MobileBottomNav />
+                                    </div>
+                                    <PerformerProfile />
+                                    <StoryViewer />
+                                    <DebugMaybe />
+                                    <FilterAutoClear />
+                                </ScribeProvider>
+                            </StoryViewerProvider>
                         </StoriesProvider>
                     </PerformerProfileProvider>
                 </TabProvider>
@@ -219,9 +221,7 @@ function TopHeader() {
     if (isMobile) return <MobileFloatingControls />;
     return (
         <header
-            className={
-                "binge-top-header" + (tabBarVisible ? "" : " is-hidden")
-            }
+            className={"binge-top-header" + (tabBarVisible ? "" : " is-hidden")}
         >
             <BingeLogo className="binge-header-brand" title="binge" />
             <TabBar />
@@ -413,9 +413,7 @@ function HomeBurger() {
                                 <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 008.91 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33h.01a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v.01a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
                             </svg>
                         </span>
-                        <span className="binge-home-menu-label">
-                            Settings
-                        </span>
+                        <span className="binge-home-menu-label">Settings</span>
                     </button>
                 </div>
             )}

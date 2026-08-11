@@ -23,7 +23,7 @@ export interface RedditStoryDigest {
 }
 
 export interface RedditPost {
-    id: string;                          // "t3_<base36>"
+    id: string; // "t3_<base36>"
     kind: "image" | "video" | "text" | "link";
     title: string | null;
     body: string | null;
@@ -169,13 +169,26 @@ export function isTrustedDaemonUrl(raw: string): boolean {
 // reserved path segments. Used client-side only to decide whether to
 // show the X tab (the actual fetch resolves the handle server-side).
 const X_RESERVED = new Set([
-    "home", "search", "explore", "notifications", "messages", "i",
-    "intent", "share", "hashtag", "settings", "compose",
+    "home",
+    "search",
+    "explore",
+    "notifications",
+    "messages",
+    "i",
+    "intent",
+    "share",
+    "hashtag",
+    "settings",
+    "compose",
 ]);
-export function xHandleFromUrls(urls: string[] | null | undefined): string | null {
+export function xHandleFromUrls(
+    urls: string[] | null | undefined,
+): string | null {
     if (!urls) return null;
     for (const u of urls) {
-        const m = u.match(/(?:twitter|x)\.com\/([A-Za-z0-9_]{1,15})(?:[/?#]|$)/i);
+        const m = u.match(
+            /(?:twitter|x)\.com\/([A-Za-z0-9_]{1,15})(?:[/?#]|$)/i,
+        );
         if (m && !X_RESERVED.has(m[1].toLowerCase())) return m[1];
     }
     return null;
@@ -224,7 +237,7 @@ function withKey(url: string): string {
 async function fetchJSON<T>(
     path: string,
     init?: RequestInit,
-    timeoutMs = 8000
+    timeoutMs = 8000,
 ): Promise<T | null> {
     await ensureBingeServerUrlSeeded();
     const key = await ensureStashKey();
@@ -245,7 +258,12 @@ async function fetchJSON<T>(
         if (!resp.ok) {
             // 4xx/5xx — log once but don't throw.
             console.warn(
-                "[bingeServer] " + resp.status + " " + resp.statusText + " for " + path
+                "[bingeServer] " +
+                    resp.status +
+                    " " +
+                    resp.statusText +
+                    " for " +
+                    path,
             );
             return null;
         }
@@ -261,20 +279,18 @@ async function fetchJSON<T>(
 // distinguish these — "daemon down" needs a different UI message than
 // "daemon reachable but no posts".
 export async function getRedditStories(
-    sinceUtc: number
+    sinceUtc: number,
 ): Promise<RedditStoryDigest[] | null> {
     return fetchJSON<RedditStoryDigest[]>(
-        `/reddit/stories?sinceUtc=${sinceUtc}`
+        `/reddit/stories?sinceUtc=${sinceUtc}`,
     );
 }
 
 export async function getRedditFeed(
     stashId: number,
-    limit = 25
+    limit = 25,
 ): Promise<RedditPost[] | null> {
-    return fetchJSON<RedditPost[]>(
-        `/reddit/feed/${stashId}?limit=${limit}`
-    );
+    return fetchJSON<RedditPost[]>(`/reddit/feed/${stashId}?limit=${limit}`);
 }
 
 // getXFeed pulls a performer's X media tab on demand. Returns null on a
@@ -283,7 +299,7 @@ export async function getRedditFeed(
 // media array. `limit` caps how deep gallery-dl scrolls.
 export async function getXFeed(
     stashId: number,
-    limit = 40
+    limit = 40,
 ): Promise<XFeedResponse | null> {
     // A cold fetch shells out to gallery-dl + round-trips X through the
     // Mullvad funnel — well over the default 8s budget from a slow
@@ -292,7 +308,7 @@ export async function getXFeed(
     return fetchJSON<XFeedResponse>(
         `/x/feed/${stashId}?limit=${limit}`,
         undefined,
-        25_000
+        25_000,
     );
 }
 
@@ -303,8 +319,10 @@ export async function getXFeed(
 // on failure (daemon down, not configured, upstream block) so the UI can
 // surface it.
 export async function saveToStash(
-    req: SaveToStashRequest
-): Promise<{ ok: true; result: SaveToStashResult } | { ok: false; error: string }> {
+    req: SaveToStashRequest,
+): Promise<
+    { ok: true; result: SaveToStashResult } | { ok: false; error: string }
+> {
     const base = readBingeServerUrl();
     try {
         const key = await ensureStashKey();
@@ -318,8 +336,7 @@ export async function saveToStash(
             signal: AbortSignal.timeout(30_000),
         });
         const body = (await resp.json().catch(() => ({}))) as
-            | SaveToStashResult
-            | { error?: string };
+            SaveToStashResult | { error?: string };
         if (!resp.ok) {
             return {
                 ok: false,
@@ -362,16 +379,16 @@ export interface PornhubStoryDigest {
 
 export async function getPornhubFeed(
     stashId: number,
-    limit = 60
+    limit = 60,
 ): Promise<PornhubVideo[] | null> {
     return fetchJSON<PornhubVideo[]>(`/pornhub/feed/${stashId}?limit=${limit}`);
 }
 
 export async function getPornhubStories(
-    sinceUtc: number
+    sinceUtc: number,
 ): Promise<PornhubStoryDigest[] | null> {
     return fetchJSON<PornhubStoryDigest[]>(
-        `/pornhub/stories?sinceUtc=${sinceUtc}`
+        `/pornhub/stories?sinceUtc=${sinceUtc}`,
     );
 }
 
@@ -379,14 +396,20 @@ export async function getPornhubStories(
 // locked and on adult CDNs (UK-blocked), so they all route through
 // binge-server, which extracts + relays them from its Mullvad exit.
 export function pornhubStreamUrl(videoId: string): string {
-    return withKey(`${readBingeServerUrl()}/pornhub/stream/${encodeURIComponent(videoId)}`);
+    return withKey(
+        `${readBingeServerUrl()}/pornhub/stream/${encodeURIComponent(videoId)}`,
+    );
 }
 export function pornhubPreviewUrl(videoId: string): string {
-    return withKey(`${readBingeServerUrl()}/pornhub/preview/${encodeURIComponent(videoId)}`);
+    return withKey(
+        `${readBingeServerUrl()}/pornhub/preview/${encodeURIComponent(videoId)}`,
+    );
 }
 export function pornhubThumbUrl(raw: string | null): string | null {
     if (!raw) return raw;
-    return withKey(`${readBingeServerUrl()}/pornhub/thumb?url=${encodeURIComponent(raw)}`);
+    return withKey(
+        `${readBingeServerUrl()}/pornhub/thumb?url=${encodeURIComponent(raw)}`,
+    );
 }
 
 export async function getBingeServerHealth(): Promise<BingeServerHealth | null> {
@@ -403,7 +426,7 @@ export async function getBingeServerConfig(): Promise<BingeServerConfigState | n
 // On validation failure the daemon returns 400 with {error:"…"}; we
 // surface that to the caller so the UI can render an inline message.
 export async function setBingeServerConfig(
-    payload: BingeServerConfigPayload
+    payload: BingeServerConfigPayload,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
     const base = readBingeServerUrl();
     // Never send the Stash API key / Reddit cookie over cleartext to a

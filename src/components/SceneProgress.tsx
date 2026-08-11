@@ -50,16 +50,17 @@ export function SceneProgress({ videoRef, duration }: SceneProgressProps) {
                   : 0;
         if (d <= 0) return;
         const rect = e.currentTarget.getBoundingClientRect();
-        const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        const ratio = Math.max(
+            0,
+            Math.min(1, (e.clientX - rect.left) / rect.width),
+        );
         video.currentTime = ratio * d;
         setProgress(ratio);
     };
 
     return (
         <div
-            className={
-                "binge-progress" + (hovering ? " is-hovering" : "")
-            }
+            className={"binge-progress" + (hovering ? " is-hovering" : "")}
             onMouseEnter={() => setHovering(true)}
             onMouseLeave={() => setHovering(false)}
             onClick={handleSeek}

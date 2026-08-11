@@ -98,7 +98,7 @@ export function PerformerSceneGrid({
     const includePornhub = useIncludePornhub();
     const [pornhubVideos, setPornhubVideos] = useState<PornhubVideo[]>([]);
     const [pornhubPlayFor, setPornhubPlayFor] = useState<PornhubVideo | null>(
-        null
+        null,
     );
     useEffect(() => {
         setPornhubVideos([]);
@@ -117,7 +117,7 @@ export function PerformerSceneGrid({
     // entry — gates the toggle pill in the heading. No link →
     // nothing to fetch, so hide the control entirely.
     const isStashDBLinked = Boolean(
-        performer.stash_ids?.some((s) => s.endpoint === STASHDB_ENDPOINT)
+        performer.stash_ids?.some((s) => s.endpoint === STASHDB_ENDPOINT),
     );
 
     // Reset when the performer changes (re-opening the profile for another
@@ -154,7 +154,7 @@ export function PerformerSceneGrid({
             return;
         }
         const sdb = performer.stash_ids?.find(
-            (s) => s.endpoint === STASHDB_ENDPOINT
+            (s) => s.endpoint === STASHDB_ENDPOINT,
         );
         if (!sdb) {
             setStashDBScenes([]);
@@ -171,13 +171,11 @@ export function PerformerSceneGrid({
                 ]);
                 if (!alive) return;
                 setStashBoxIndex(box.index);
-                setStashDBScenes(
-                    list.filter((s) => !owned.has(s.id))
-                );
+                setStashDBScenes(list.filter((s) => !owned.has(s.id)));
             } catch (err) {
                 console.warn(
                     "[binge] performer-profile stashdb mixin failed",
-                    err
+                    err,
                 );
             }
         })();
@@ -195,7 +193,7 @@ export function PerformerSceneGrid({
                 if (!alive) return;
                 setCount(res.count);
                 setScenes((prev) =>
-                    page === 1 ? res.scenes : [...prev, ...res.scenes]
+                    page === 1 ? res.scenes : [...prev, ...res.scenes],
                 );
             })
             .catch((err: Error) => {
@@ -237,7 +235,7 @@ export function PerformerSceneGrid({
             {
                 root: scrollRoot,
                 rootMargin: `0px 0px ${NEAR_BOTTOM_PX}px 0px`,
-            }
+            },
         );
         observer.observe(sentinel);
         return () => observer.disconnect();
@@ -282,9 +280,7 @@ export function PerformerSceneGrid({
                             (includeStashDBInProfile ? " is-on" : "")
                         }
                         onClick={() =>
-                            setIncludeStashDBInProfile(
-                                !includeStashDBInProfile
-                            )
+                            setIncludeStashDBInProfile(!includeStashDBInProfile)
                         }
                         title="Mix StashDB scenes into this performer's grid"
                     >
@@ -313,7 +309,7 @@ export function PerformerSceneGrid({
                         effectiveStashDBScenes,
                         pornhubVideos,
                         stashBoxIndex,
-                        sort
+                        sort,
                     ).map((cell) => {
                         if (cell.kind === "library") {
                             return (
@@ -330,9 +326,7 @@ export function PerformerSceneGrid({
                                 <PornhubTile
                                     key={`p:${cell.video.id}`}
                                     video={cell.video}
-                                    onPick={() =>
-                                        setPornhubPlayFor(cell.video)
-                                    }
+                                    onPick={() => setPornhubPlayFor(cell.video)}
                                 />
                             );
                         }
@@ -379,9 +373,7 @@ export function PerformerSceneGrid({
                         // also surface it via the library path on
                         // the next refresh).
                         setStashDBScenes((prev) =>
-                            prev.filter(
-                                (s) => s.id !== sceneModalFor.sceneId
-                            )
+                            prev.filter((s) => s.id !== sceneModalFor.sceneId),
                         );
                         setSceneModalFor(null);
                     }}
@@ -404,40 +396,32 @@ function buildCells(
     stashDB: StashDBScene[],
     pornhub: PornhubVideo[],
     stashBoxIndex: number | null,
-    sort: PerformerSceneSort
+    sort: PerformerSceneSort,
 ): GridCell[] {
-    const libCells: GridCell[] = library.map(
-        (s): GridCell => ({
-            kind: "library",
-            date: s.date || s.created_at || "",
-            scene: s,
-        })
-    );
+    const libCells: GridCell[] = library.map((s): GridCell => ({
+        kind: "library",
+        date: s.date || s.created_at || "",
+        scene: s,
+    }));
     const sdbCells: GridCell[] =
         stashBoxIndex !== null
-            ? stashDB.map(
-                  (s): GridCell => ({
-                      kind: "stashdb",
-                      date: s.releaseDate ?? "",
-                      scene: s,
-                      stashBoxIndex,
-                  })
-              )
+            ? stashDB.map((s): GridCell => ({
+                  kind: "stashdb",
+                  date: s.releaseDate ?? "",
+                  scene: s,
+                  stashBoxIndex,
+              }))
             : [];
-    const phCells: GridCell[] = pornhub.map(
-        (v): GridCell => ({
-            kind: "pornhub",
-            date:
-                v.createdUtc > 0
-                    ? new Date(v.createdUtc * 1000).toISOString()
-                    : "",
-            video: v,
-        })
-    );
+    const phCells: GridCell[] = pornhub.map((v): GridCell => ({
+        kind: "pornhub",
+        date:
+            v.createdUtc > 0 ? new Date(v.createdUtc * 1000).toISOString() : "",
+        video: v,
+    }));
 
     if (sort === "recent") {
         return [...libCells, ...sdbCells, ...phCells].sort((a, b) =>
-            b.date.localeCompare(a.date)
+            b.date.localeCompare(a.date),
         );
     }
     // Non-date sorts only apply to library scenes — append the discovery
@@ -713,7 +697,7 @@ function sortStatBadge(
     scene: PerformerSceneCard,
     sort: PerformerSceneSort,
     oCount: number,
-    viewCount: number
+    viewCount: number,
 ): { icon: React.ReactNode; text: string; like?: boolean } | null {
     switch (sort) {
         case "views":
@@ -755,8 +739,18 @@ function compactMonthYear(raw: string | null): string | null {
         return /^\d{4}$/.test(y) ? y : null;
     }
     const months = [
-        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
     ];
     const mi = parseInt(m[2], 10);
     return mi >= 1 && mi <= 12 ? `${months[mi - 1]} ${m[1]}` : m[1];

@@ -24,13 +24,14 @@ export function MenuPage() {
                         className="binge-menu-row"
                         onClick={() => setTab("saved")}
                     >
-                        <span className="binge-menu-row-icon" aria-hidden="true">
+                        <span
+                            className="binge-menu-row-icon"
+                            aria-hidden="true"
+                        >
                             <BookmarkIcon />
                         </span>
                         <span className="binge-menu-row-text">
-                            <span className="binge-menu-row-title">
-                                Saved
-                            </span>
+                            <span className="binge-menu-row-title">Saved</span>
                             <span className="binge-menu-row-desc">
                                 Custom collections of bookmarked scenes.
                             </span>
@@ -49,7 +50,10 @@ export function MenuPage() {
                         className="binge-menu-row"
                         onClick={() => setTab("settings")}
                     >
-                        <span className="binge-menu-row-icon" aria-hidden="true">
+                        <span
+                            className="binge-menu-row-icon"
+                            aria-hidden="true"
+                        >
                             <GearIcon />
                         </span>
                         <span className="binge-menu-row-text">

@@ -56,7 +56,7 @@ export function PerformerSheet({
                 </ul>
             </div>
         </div>,
-        document.body
+        document.body,
     );
 }
 

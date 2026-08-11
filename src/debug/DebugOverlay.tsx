@@ -72,8 +72,7 @@ export function DebugOverlay() {
                 <span className="binge-debug-label">videos</span>
                 <span
                     className={
-                        "binge-debug-value" +
-                        (videoCount > 8 ? " is-warn" : "")
+                        "binge-debug-value" + (videoCount > 8 ? " is-warn" : "")
                     }
                 >
                     {videoCount}
@@ -107,8 +106,7 @@ export function DebugOverlay() {
                         (stats.avgMs > 500 ? " is-warn" : "")
                     }
                 >
-                    avg {stats.avgMs.toFixed(0)} · max{" "}
-                    {stats.maxMs.toFixed(0)}
+                    avg {stats.avgMs.toFixed(0)} · max {stats.maxMs.toFixed(0)}
                 </span>
             </div>
             {recent.length > 0 && (

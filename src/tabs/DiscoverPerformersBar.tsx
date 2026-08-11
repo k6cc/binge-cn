@@ -49,7 +49,7 @@ export function DiscoverPerformersBar() {
                     getTrendingStashDBPerformers(
                         box.api_key,
                         30,
-                        orderedGenders(allowedGenders)
+                        orderedGenders(allowedGenders),
                     ),
                     getLinkedPerformers(),
                 ]);
@@ -81,7 +81,7 @@ export function DiscoverPerformersBar() {
         const update = () => {
             setCanScrollLeft(el.scrollLeft > 4);
             setCanScrollRight(
-                el.scrollLeft + el.clientWidth < el.scrollWidth - 4
+                el.scrollLeft + el.clientWidth < el.scrollWidth - 4,
             );
         };
         update();
@@ -117,10 +117,7 @@ export function DiscoverPerformersBar() {
                 >
                     <ChevronLeft />
                 </button>
-                <div
-                    className="binge-discover-bar-scroll"
-                    ref={scrollerRef}
-                >
+                <div className="binge-discover-bar-scroll" ref={scrollerRef}>
                     {state.kind === "loading"
                         ? Array.from({ length: 8 }).map((_, i) => (
                               <span
@@ -132,9 +129,7 @@ export function DiscoverPerformersBar() {
                               <PerformerBubble
                                   key={p.id}
                                   performer={p}
-                                  onOpenStashDB={() =>
-                                      openStashDBProfile(p.id)
-                                  }
+                                  onOpenStashDB={() => openStashDBProfile(p.id)}
                                   onOpenLocal={(localId) =>
                                       openProfile(localId)
                                   }
@@ -190,9 +185,7 @@ function PerformerBubble({
                 <span
                     className={
                         "binge-discover-bubble-img" +
-                        (performer.localId !== null
-                            ? " is-in-library"
-                            : "")
+                        (performer.localId !== null ? " is-in-library" : "")
                     }
                     style={
                         performer.image

@@ -33,16 +33,12 @@ export function PackFeedCard({ item }: { item: PackFeedItem }) {
 
     const hasStory =
         storiesState.state.kind === "ready" &&
-        storiesState.state.stories.some(
-            (s) => s.performerId === primary.id
-        );
+        storiesState.state.stories.some((s) => s.performerId === primary.id);
 
     const handleAvatarTap = () => {
         if (hasStory && storiesState.state.kind === "ready") {
             const list = storiesState.state.stories;
-            const idx = list.findIndex(
-                (s) => s.performerId === primary.id
-            );
+            const idx = list.findIndex((s) => s.performerId === primary.id);
             if (idx >= 0) {
                 openStoryViewer(list, idx);
                 return;

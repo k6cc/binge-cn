@@ -57,8 +57,7 @@ export function FeedFilterMenu() {
             <button
                 type="button"
                 className={
-                    "binge-feed-filter-btn" +
-                    (anyHidden ? " is-active" : "")
+                    "binge-feed-filter-btn" + (anyHidden ? " is-active" : "")
                 }
                 onClick={() => setOpen((o) => !o)}
                 aria-label="Filter feed"

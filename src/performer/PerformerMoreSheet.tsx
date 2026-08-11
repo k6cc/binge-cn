@@ -45,7 +45,7 @@ export function PerformerMoreSheet({
         window.open(
             `/performers/${performerId}`,
             "_blank",
-            "noopener,noreferrer"
+            "noopener,noreferrer",
         );
         beginClose();
     };
@@ -106,7 +106,7 @@ export function PerformerMoreSheet({
                 </ul>
             </div>
         </div>,
-        document.body
+        document.body,
     );
 }
 

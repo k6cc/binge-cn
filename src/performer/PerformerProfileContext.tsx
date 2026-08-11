@@ -17,8 +17,7 @@ import {
 //                        Stash library yet; profile renders from StashDB
 //                        data + their StashDB scenes)
 export type ProfileTarget =
-    | { kind: "local"; id: string }
-    | { kind: "stashdb"; id: string };
+    { kind: "local"; id: string } | { kind: "stashdb"; id: string };
 
 interface PerformerProfileContextValue {
     currentProfile: ProfileTarget | null;
@@ -62,7 +61,7 @@ export function PerformerProfileProvider({
     children: React.ReactNode;
 }) {
     const [currentProfile, setCurrentProfile] = useState<ProfileTarget | null>(
-        () => readProfileFromHash()
+        () => readProfileFromHash(),
     );
 
     useEffect(() => {
@@ -111,7 +110,7 @@ export function usePerformerProfile() {
     const ctx = useContext(PerformerProfileContext);
     if (!ctx) {
         throw new Error(
-            "usePerformerProfile must be used within PerformerProfileProvider"
+            "usePerformerProfile must be used within PerformerProfileProvider",
         );
     }
     return ctx;
