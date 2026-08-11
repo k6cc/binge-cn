@@ -842,7 +842,8 @@ export async function getNewStashDBScenesForPerformers(
 // v4: performers now include scene_count for the "most popular"
 // poster fallback. Old v3 entries lack the field, so reads should
 // return null and force a refetch.
-const CACHE_KEY = "binge.stashdb.newScenes.v4";
+const CACHE_PREFIX = "binge.stashdb.newScenes.";
+const CACHE_KEY = CACHE_PREFIX + "v4";
 const CACHE_TTL_MS = 12 * 60 * 60 * 1000;
 
 interface CacheEntry {
@@ -857,10 +858,40 @@ export function readStashDBCache(sinceIsoDate: string): StashDBScene[] | null {
         if (!raw) return null;
         const entry = JSON.parse(raw) as CacheEntry;
         if (entry.sinceIsoDate !== sinceIsoDate) return null;
-        if (Date.now() - entry.fetchedAt > CACHE_TTL_MS) return null;
+        // Valid JSON is not the same as our JSON. A truncated or
+        // hand-edited entry parses fine and then hands the caller
+        // something it iterates, so the stories row dies with a
+        // TypeError until the cache happens to be invalidated.
+        if (!Array.isArray(entry.scenes)) return null;
+        const age = Date.now() - entry.fetchedAt;
+        // Negative age means the entry claims to be from the future,
+        // which happens when the clock moves backwards. Treat it as
+        // stale rather than valid until the clock catches up.
+        if (age < 0 || age > CACHE_TTL_MS) return null;
         return entry.scenes;
     } catch {
         return null;
+    }
+}
+
+// Drop entries written by older versions of this cache. The version
+// lives in the key, so a bumped version silently orphans the previous
+// payload instead of replacing it: those are hundreds of KB of scenes
+// each, they are never read again, and they count against the origin's
+// quota. Once that quota is reached the write below fails, and it fails
+// silently, so the cache simply stops working.
+function pruneOldCacheVersions(): void {
+    try {
+        const stale: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith(CACHE_PREFIX) && key !== CACHE_KEY) {
+                stale.push(key);
+            }
+        }
+        for (const key of stale) localStorage.removeItem(key);
+    } catch {
+        /* storage unavailable — nothing to prune */
     }
 }
 
@@ -868,6 +899,7 @@ export function writeStashDBCache(
     sinceIsoDate: string,
     scenes: StashDBScene[],
 ): void {
+    pruneOldCacheVersions();
     try {
         localStorage.setItem(
             CACHE_KEY,
