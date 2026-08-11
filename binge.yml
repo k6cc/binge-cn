@@ -31,5 +31,5 @@ settings:
         type: STRING
     forageUrl:
         displayName: forage server URL
-        description: Optional. Base URL of your forage daemon, if you run one (github.com/ordureconnoisseur/forage). Seeds the in-app setting on first load; leave blank to keep "Send to forage" hidden. Use https if Stash is served over https.
+        description: Optional. Base URL of your forage daemon, if you run one. Seeds the in-app setting on first load; leave blank to keep "Send to forage" hidden. Use https if Stash is served over https.
         type: STRING

@@ -158,7 +158,7 @@ Detected at runtime — install whichever you want; binge degrades gracefully wh
 | [stash-advanced-rating](https://github.com/ordureconnoisseur/stash-advanced-rating) | Per-criterion 0–5 rating modal in reel + profile                                                           |
 | stash-scribe (not public yet)                                                       | Scribe pencil → LLM-powered review writing                                                                 |
 | [binge-server](https://github.com/ordureconnoisseur/binge-server)                   | Reddit, X and PornHub posts, and Save to Stash (separate Go daemon, installable from Settings)             |
-| [forage](https://github.com/ordureconnoisseur/forage)                               | "Send to forage" on discovery scenes, adding them to that daemon's watchlist. Hidden until you set its URL |
+| forage (not public yet)                                                             | "Send to forage" on discovery scenes, adding them to that daemon's watchlist. Hidden until you set its URL |
 
 ---
 
