@@ -67,6 +67,19 @@ export function buildUpdatedTagIds(
     return result;
 }
 
+// Python's round() is round-half-to-even; JavaScript's Math.round rounds
+// halves away from zero. The plugin's hook does the rounding that actually
+// gets stored, so the preview has to match it or an average landing exactly
+// on an odd half (two criteria scored 2 and 3, say) previews 60 and is then
+// rewritten to 40 the moment the hook runs.
+function roundHalfToEven(value: number): number {
+    const floor = Math.floor(value);
+    const remainder = value - floor;
+    if (remainder > 0.5) return floor + 1;
+    if (remainder < 0.5) return floor;
+    return floor % 2 === 0 ? floor : floor + 1;
+}
+
 // Replicates ASR/APR's weighted formula for the preview shown in the
 // modal. Stash's Python hook is the source of truth — this is for UI
 // feedback only.
@@ -108,9 +121,10 @@ export function computeRating100(
     }
     if (den === 0) return null;
     const final05 = num / den;
-    const safePrecision = precision > 0 ? precision : 20;
-    let rating100 = Math.round(
-        Math.round((final05 * 20) / safePrecision) * safePrecision,
+    // rating_core.py clamps with max(1, precision), not to a default of 20.
+    const safePrecision = Math.max(1, precision);
+    let rating100 = roundHalfToEven(
+        roundHalfToEven((final05 * 20) / safePrecision) * safePrecision,
     );
     rating100 = Math.max(safePrecision, Math.min(100, rating100));
     return rating100;
