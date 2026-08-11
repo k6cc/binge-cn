@@ -1053,6 +1053,11 @@ function flattenSceneNodes(scenes: RawSceneNode[]): RecentSceneRow[] {
     for (const s of scenes) {
         const firstFile = s.files?.[0];
         const sceneTags = s.tags ?? [];
+        // `paths` gets the same treatment as files/tags/performers below.
+        // It was the one sibling dereferenced outright, so the partial
+        // write this function already guards against elsewhere would
+        // still have thrown here and taken the whole feed with it.
+        const paths = s.paths ?? { screenshot: null, preview: null };
         // Stash can occasionally return a scene with null `performers`
         // during partial writes — guard so one bad row doesn't crash
         // the whole feed flatten.
@@ -1061,8 +1066,8 @@ function flattenSceneNodes(scenes: RawSceneNode[]): RecentSceneRow[] {
                 sceneId: s.id,
                 sceneTitle: s.title,
                 sceneDetails: s.details,
-                sceneScreenshot: s.paths.screenshot,
-                scenePreview: s.paths.preview,
+                sceneScreenshot: paths.screenshot,
+                scenePreview: paths.preview,
                 sceneCreatedAt: s.created_at,
                 sceneDate: s.date,
                 sceneWidth: firstFile?.width ?? null,
@@ -1259,12 +1264,15 @@ function mapGalleryNodes(galleries: RawGalleryNode[]): RecentGalleryRow[] {
         return {
             galleryId: g.id,
             title: g.title,
-            coverPath: g.cover?.paths.thumbnail ?? null,
+            // `cover?.paths.thumbnail` only guards the first hop: a
+            // cover whose paths are absent threw. Same for performers,
+            // which the feed maps over without checking.
+            coverPath: g.cover?.paths?.thumbnail ?? null,
             imageCount: g.image_count,
             createdAt: g.created_at,
             date: g.date,
             paths,
-            performers: g.performers,
+            performers: g.performers ?? [],
         };
     });
 }
