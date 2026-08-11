@@ -1,6 +1,6 @@
 name: Binge
 description: Instagram-shaped social + discovery layer for Stash — stories, vertical reel, performer profiles, and StashDB-powered Follow/Discover.
-version: 0.4.0
+version: 0.5.0
 url: https://github.com/ordureconnoisseur/binge
 # Runs the binge-server installer on the machine hosting Stash. A browser
 # can't install software, so the Settings button calls runPluginTask and
@@ -31,5 +31,5 @@ settings:
     type: STRING
   forageUrl:
     displayName: forage server URL
-    description: Optional. Base URL of your forage daemon, if you run one (github.com/ordureconnoisseur/forager). Seeds the in-app setting on first load; leave blank to keep "Send to forage" hidden. Use https if Stash is served over https.
+    description: Optional. Base URL of your forage daemon, if you run one (github.com/ordureconnoisseur/forage). Seeds the in-app setting on first load; leave blank to keep "Send to forage" hidden. Use https if Stash is served over https.
     type: STRING
