@@ -132,6 +132,8 @@ Every pillar has its own Settings toggle, and each one fails quiet: with no daem
 
 If you run the daemon somewhere else, set **binge-server URL** in Settings. A deployment can also set it once server-side, in Stash's own plugin settings for binge, and every browser will pick it up.
 
+**Where binge will send your Stash API key.** The daemon is authenticated with that key, and it is only ever sent over https, or over plain http to loopback, a LAN machine, a private address or a tailnet host. A plain-http public address still gets the request, but without the key, and with one warning in the browser console: that key opens your whole library, and it would otherwise travel in cleartext and sit in access logs and browser history. ("Send to forage" is stricter, since it is a deliberate action rather than background polling: it refuses outright and tells you why.) If you want a daemon reachable from the open internet, put it behind https, for which a Tailscale Funnel URL is the easy answer.
+
 ---
 
 ## Mobile
@@ -202,7 +204,7 @@ Open binge → ⋯ → Settings (desktop) or Menu → Settings (mobile).
 | Include PornHub videos       | On                         | Needs binge-server. Stories row + profile scenes grid.                                                       |
 | binge-server                 | n/a                        | Install card while no daemon answers; status, Reddit login and X login once one does.                        |
 | binge-server URL             | `http://<stash host>:7878` | Derived from the address you're browsing Stash on, not hardcoded to localhost. Override for a remote daemon. |
-| forage server URL            | empty                      | Optional. Blank keeps "Send to forage" hidden. Authenticates with your Stash API key automatically.          |
+| forage server URL            | empty                      | Optional. Blank keeps "Send to forage" hidden. Same key rule as above, but refuses the send with an error.   |
 | forage watch quality         | Any                        | What a queued watch waits for: any / 720p / 1080p / 4k                                                       |
 | Follow refract accent        | Off                        | Mirror refract's accent palette into binge                                                                   |
 | Privacy blur                 | Off                        | Blurs every image and video app-wide so the UI can be screen-shared or captured safely. `\|` hotkey.         |
@@ -214,7 +216,7 @@ Open binge → ⋯ → Settings (desktop) or Menu → Settings (mobile).
 ## Architecture
 
 - **Vite + React 19 + TypeScript** bundled to a single-file SPA (`dist/index.html`) that Stash serves from `/plugin/binge/assets/index.html`. `binge.entry.js` injects the nav button through `PluginApi.patch`.
-- **All Stash data via GraphQL** (`/graphql`, same-origin cookie auth). binge has no backend of its own; binge-server is optional and separate, and binge authenticates to it with your Stash API key.
+- **All Stash data via GraphQL** (`/graphql`, same-origin cookie auth). binge has no backend of its own; binge-server is optional and separate, and binge authenticates to it with your Stash API key, but only over https or to a local/tailnet address (see below).
 - **Server-side seeding**: `serverUrl` and `forageUrl` can be set once in Stash's plugin settings for binge, and every browser picks them up on first load. A value you type in Settings always wins.
 - **Daemon install as a plugin task**: `binge-install.py` (standard library only) runs on the Stash host via `runPluginTask`, because a browser can't install software.
 - **StashDB direct** — queries `https://stashdb.org/graphql` with the user's API key (read from Stash's stashbox config). 12h localStorage cache.
@@ -229,22 +231,28 @@ Open binge → ⋯ → Settings (desktop) or Menu → Settings (mobile).
 git clone https://github.com/ordureconnoisseur/binge.git
 cd binge
 npm install
-npm run dev     # Vite dev (SPA only — no Stash data)
-npm run build   # produces dist/index.html
-npm test        # Vitest unit suite (no Stash needed)
-npm run lint    # eslint
-npm run push    # build + deploy via scripts/push.sh (write your own)
+npm run dev          # Vite dev (SPA only — no Stash data)
+npm run build        # tsc -b + produces dist/index.html
+npm test             # Vitest unit suite (no Stash needed)
+npm run test:watch   # the same, watching
+npm run lint         # eslint
+npm run format       # Prettier, pinned config
+npm run smoke        # browser checks against a real Stash (see below)
+npm run push         # build + deploy via scripts/push.sh (write your own)
 ```
 
 Stack: Vite · React 19 · TypeScript · TanStack Virtual (reel virtualization).
 
 ### Testing
 
-`npm test` covers the parts that are logic: the rating replica and its
-plugin-config parser, the chain recommender, the collections tag layer, the
-shared Multiview queue, the daemon-URL credential guard, and the Home feed,
-stories and discovery hooks. It needs no Stash and runs in a few seconds. CI
-runs it, along with lint, formatting and the build, on every push.
+`npm test` covers everything in binge that is logic rather than markup: the
+rating replica and the plugin-config parser behind it, the saved-filter
+transform, the chain recommender, the collections tag layer, the shared
+Multiview queue, the StashDB client and its cache, the response flatteners,
+the daemon-URL credential guard, the Home feed, stories and discovery hooks,
+the filter modes, and the story viewer's navigation. Around 280 tests, no
+Stash needed, a few seconds to run. CI runs it alongside lint, formatting and
+the build on every push.
 
 `npm run smoke` is the other half, and needs a real Stash:
 
