@@ -122,6 +122,19 @@ export interface XFeedResponse {
     media: XMedia[];
 }
 
+// Loopback, unique-local (fc00::/7) and link-local (fe80::/10) only.
+// Anything else, including an address with an embedded IPv4 part, is
+// treated as public. The URL parser has already lowercased and compressed
+// the address by the time this sees it.
+function isPrivateIPv6(addr: string): boolean {
+    if (addr === "::1") return true;
+    const firstHextet = addr.split(":")[0];
+    if (!firstHextet) return false; // leading "::", i.e. not one of ours
+    if (firstHextet.startsWith("fc") || firstHextet.startsWith("fd"))
+        return true;
+    return /^fe[89ab]/.test(firstHextet);
+}
+
 // Whether it's safe to transmit credentials (Stash API key / Reddit
 // cookie) to this binge-server URL. https is always fine; plain http is
 // allowed only to loopback / private / tailnet hosts (a self-hosted
@@ -147,6 +160,14 @@ export function isTrustedDaemonUrl(raw: string): boolean {
         host.endsWith(".ts.net")
     )
         return true;
+    // IPv6 literal, which the URL parser hands back in brackets. This has
+    // to be settled BEFORE the bare-hostname rule below: an IPv6 address
+    // contains no dots, so "no dot means LAN name" would wave a public
+    // address like [2001:4860:4860::8888] straight through and post the
+    // credentials to it in cleartext.
+    if (host.startsWith("[") && host.endsWith("]")) {
+        return isPrivateIPv6(host.slice(1, -1));
+    }
     // Bare hostname (no dot) is a LAN/tailnet machine name, not public.
     if (!host.includes(".")) return true;
     // RFC1918 private + Tailscale CGNAT (100.64/10) IPv4 literals.
