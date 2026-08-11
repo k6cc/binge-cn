@@ -245,12 +245,31 @@ async function ensureStashKey(): Promise<string> {
     return stashKeyPromise;
 }
 
+// Warn once rather than per media URL, of which there are hundreds.
+let warnedUntrusted = false;
+function warnUntrusted(base: string): void {
+    if (warnedUntrusted) return;
+    warnedUntrusted = true;
+    console.warn(
+        "[binge] not sending the Stash API key to " +
+            base +
+            " — plain http to a public host would expose it. Use https, or a " +
+            "local/tailnet address.",
+    );
+}
+
 /// Appends the key as a query parameter. Needed for URLs handed to <img>
 /// and <video>, which cannot carry headers — the same reason Stash accepts
 /// `apikey` on its own media routes. Returns the URL untouched when no key
-/// is configured.
+/// is configured, or when the daemon is not somewhere the key may go: a
+/// query string is the worst place to put a secret, since it lands in
+/// access logs, Referer headers and history.
 function withKey(url: string): string {
     if (!cachedStashKey) return url;
+    if (!isTrustedDaemonUrl(url)) {
+        warnUntrusted(url);
+        return url;
+    }
     const sep = url.includes("?") ? "&" : "?";
     return `${url}${sep}apikey=${encodeURIComponent(cachedStashKey)}`;
 }
@@ -263,12 +282,20 @@ async function fetchJSON<T>(
     await ensureBingeServerUrlSeeded();
     const key = await ensureStashKey();
     const base = readBingeServerUrl();
+    // Same rule as the credential POST in setBingeServerConfig, applied
+    // here because this is the path that actually carries the key most
+    // often: every feed, story and health call. A daemon URL can be set
+    // by the user, seeded from Stash's plugin config, or rewritten by
+    // anything with same-origin access, so trust is checked per request
+    // rather than assumed from wherever the value came from.
+    const trusted = isTrustedDaemonUrl(base);
+    if (key && !trusted) warnUntrusted(base);
     try {
         const resp = await fetch(base + path, {
             ...init,
             headers: {
                 ...(init?.headers ?? {}),
-                ...(key ? { ApiKey: key } : {}),
+                ...(key && trusted ? { ApiKey: key } : {}),
             },
             // Tailscale Funnel + Mullvad NL adds latency vs a local
             // daemon. 8s is enough for the fast (DB-backed) endpoints;
@@ -347,11 +374,13 @@ export async function saveToStash(
     const base = readBingeServerUrl();
     try {
         const key = await ensureStashKey();
+        const trusted = isTrustedDaemonUrl(base);
+        if (key && !trusted) warnUntrusted(base);
         const resp = await fetch(base + "/save", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                ...(key ? { ApiKey: key } : {}),
+                ...(key && trusted ? { ApiKey: key } : {}),
             },
             body: JSON.stringify(req),
             signal: AbortSignal.timeout(30_000),
