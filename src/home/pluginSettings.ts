@@ -283,9 +283,8 @@ export const ALL_GENDERS: ReadonlyArray<Gender> = [
 const DEFAULT_ALLOWED_GENDERS: ReadonlySet<Gender> = new Set(ALL_GENDERS);
 
 // The user's allowed genders in canonical order. The "Genders to surface"
-// setting is the only gate — no gender is silently hidden. (The tag-based
-// content exclusion in src/api/queries.ts, HIDDEN_TAG_IDS, is separate and
-// still applies.)
+// setting is the only gate — no gender is silently hidden, and no tag-based
+// exclusion runs alongside it.
 export function orderedGenders(genders: ReadonlySet<Gender>): Gender[] {
     return ALL_GENDERS.filter((g) => genders.has(g));
 }

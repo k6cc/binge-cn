@@ -1,6 +1,8 @@
 # Binge
 
-An Instagram-shaped social + discovery layer for [Stash](https://github.com/stashapp/stash). Vertical reel, stories, performer profiles, StashDB-powered discovery — all backed by Stash's existing GraphQL API. Web plugin; native [iOS port](https://github.com/ordureconnoisseur/binge-ios) tracks feature-parity.
+An Instagram-shaped social + discovery layer for [Stash](https://github.com/stashapp/stash). Vertical reel, stories, performer profiles, StashDB-powered discovery — all backed by Stash's existing GraphQL API. Web plugin; a native iOS port tracks feature-parity but isn't public yet.
+
+An optional companion daemon, [binge-server](https://github.com/ordureconnoisseur/binge-server), extends the same surfaces past your library: new Reddit, X and PornHub posts from the performers you already follow, and a one-tap save back into Stash. It installs from binge's own Settings page.
 
 <p align="center"><img src="screenshots/hero.png" alt="binge — reels, stories, and discovery for your Stash library" width="840" /></p>
 
@@ -9,16 +11,17 @@ An Instagram-shaped social + discovery layer for [Stash](https://github.com/stas
 ## Highlights
 
 - **Vertical reel** — swipe-through scenes, double-tap-to-like, action stack (rating, multiview, scribe, save, ⋯).
-- **Home stories + feed** — IG-style stories row of performers with new content (library + StashDB + optional Reddit) above a paginated scene feed. Bulk imports collapse into single pack cards.
+- **Home stories + feed** — IG-style stories row of performers with new content (library + StashDB, plus off-site posts when binge-server is running) above a paginated scene feed. Bulk imports collapse into single pack cards.
 - **Performer profiles** — bio, stats, scene grid, image grid, social-link strip with branded icons for Twitter / Instagram / TikTok / Reddit / OnlyFans / Fansly + a 🔗 popup for the rest. Library + StashDB-only variants share the layout.
 - **StashDB discovery** — DISCOVER + TRENDING cards in Home; Follow performers + Add scenes you don't have, both via Stash-style scrape modals.
+- **Beyond your library** (needs binge-server): a performer's new Reddit, X and PornHub posts join the same stories row and profile, and anything you like there saves straight into Stash.
 - **Mobile-first** — bottom nav, hover-card mini-profiles, performer `@mention` links. Touch + desktop parity.
 
 ---
 
 ## What it does
 
-> Screenshots are **demo-mode** captures — fictional placeholder content (gradients + performer first names), so nothing real is shown. The StashDB discovery surfaces (Follow/Add modals, Discover bar, social links) need live data and aren't pictured.
+> Screenshots show **placeholder content**: gradient artwork and invented performer names, so nothing real appears. Surfaces that need live data (Follow/Add modals, Discover bar, social links) aren't pictured.
 
 ### Reel · For You
 
@@ -34,11 +37,13 @@ Vertical swipe through scenes. Tap to play/pause, double-tap to like, swipe to a
 
 <img align="right" width="440" src="screenshots/home.png" alt="Home — stories row over a scene feed with a collapsed pack card" />
 
-**Stories row** of performers with fresh content (library scenes within your lookback + StashDB new releases + Reddit posts when binge-server is reachable). Tap a bubble → IG-style story viewer with auto-advance and a "Watch full scene" CTA into the reel.
+**Stories row** of performers with fresh content: library scenes within your lookback, StashDB new releases, and (with binge-server running) their latest Reddit posts and PornHub uploads. Tap a bubble → IG-style story viewer with auto-advance and a "Watch full scene" CTA into the reel. Off-site posts carry a source badge, a link out, and a **Save to Stash** button.
 
 **Scene feed** of IG-style cards: preview video, performer header (avatar + hover-card), title + expandable description + hashtags, action row. Bulk imports of one performer collapse into a single **Pack card** with a 3×3 mosaic — keeps one prolific performer from dominating the feed.
 
 **Discovery cards** mix in. StashDB scenes you don't own appear with a coloured **DISCOVER** (co-stars) or **TRENDING** pill, an avatar stack of library performers on the scene, and `@mention` text links for unfollowed co-performers. Tap **+ Follow** for one-tap onboarding or **⋯ → Add scene to library** to scrape + create locally.
+
+The filter menu beside the Home title hides whole card categories (Discover, Trending, Posts, Reposts) when you want a quieter feed.
 
 <br clear="all" />
 
@@ -75,6 +80,8 @@ Following lists performers you've favourited, sorted by recent activity. Saved h
 
 Full-screen page mirroring Instagram's profile layout: avatar (with binge's pink→purple→blue story ring on new content), bio, stats, **social-link row**, Favourite/Follow action, Scenes + Images tabs. StashDB-only profiles get a **+ Follow** button instead of the favourite toggle, plus a Stash-style scrape modal. Hash-routed: `#/p/<localId>` and `#/sdbp/<stashDBId>` — both deep-linkable.
 
+The scenes grid sorts by Recent, Most views, Most orgasms, Highest rated or Recently added, and each tile carries a badge showing the stat you sorted by. With binge-server running, that performer's PornHub videos join the grid as extra tiles (hover to preview, tap for inline playback) and their last week of X media folds into their story ring.
+
 <br clear="all" />
 
 <!-- TODO (live data): profile-stashdb (Follow + badged tiles) · profile-mixin -->
@@ -108,6 +115,25 @@ Hover (desktop) or tap (mobile) any performer name or avatar → mini-profile po
 
 ---
 
+## binge-server (optional)
+
+Out of the box binge talks to nothing but your own Stash. [binge-server](https://github.com/ordureconnoisseur/binge-server) is a small Go daemon you can run beside it that follows the same performers off-site, using the social links already on their Stash records. It adds four things:
+
+| Pillar | Where it shows up |
+|-|-|
+| **Reddit** | New posts from a performer's subreddit or user account, in the stories row |
+| **X (Twitter)** | Their last 7 days of media, folded into their profile's story ring. Fetched when you open the profile, not polled. Needs your own X cookies, pasted into Settings |
+| **PornHub** | New uploads in the stories row, plus their back catalogue as extra tiles in the profile scenes grid with hover previews and inline playback |
+| **Save to Stash** | A save button in the story viewer and the PornHub player. Hands the original source URL to the daemon, which downloads it into a library folder you pick |
+
+Every pillar has its own Settings toggle, and each one fails quiet: with no daemon reachable the fetches no-op and binge behaves exactly as it does without one.
+
+**Installing it.** Settings has an install card. Press **Install binge-server** and Stash runs the installer on its own host, preferring Docker and falling back to the release binary. A browser can't install software, so this goes through a Stash plugin task (it needs `python` on the Stash host; nothing else in binge does). If Stash itself runs in a container, the card offers a compose service to paste instead. Once the daemon answers, the card turns into a status row and the Reddit and X login fields appear, which accept a `cookies.txt` export as well as pasted values.
+
+If you run the daemon somewhere else, set **binge-server URL** in Settings. A deployment can also set it once server-side, in Stash's own plugin settings for binge, and every browser will pick it up.
+
+---
+
 ## Mobile
 
 At ≤720px:
@@ -130,8 +156,9 @@ Detected at runtime — install whichever you want; binge degrades gracefully wh
 | [Refract](https://github.com/ordureconnoisseur/stash-refract) | Tints binge's accent to match your refract palette (opt-in toggle) |
 | [stash-multiview](https://github.com/ordureconnoisseur/stash-multiview) | 4-cell grid button in the action stack — tap to queue, hold to open |
 | [stash-advanced-rating](https://github.com/ordureconnoisseur/stash-advanced-rating) | Per-criterion 0–5 rating modal in reel + profile |
-| [stash-scribe](https://github.com/ordureconnoisseur/stash-scribe) | Scribe pencil → LLM-powered review writing |
-| [binge-server](https://github.com/ordureconnoisseur/binge-server) | Reddit posts in the stories row (separate Go daemon) |
+| stash-scribe (not public yet) | Scribe pencil → LLM-powered review writing |
+| [binge-server](https://github.com/ordureconnoisseur/binge-server) | Reddit, X and PornHub posts, and Save to Stash (separate Go daemon, installable from Settings) |
+| [forage](https://github.com/ordureconnoisseur/forage) | "Send to forage" on discovery scenes, adding them to that daemon's watchlist. Hidden until you set its URL |
 
 ---
 
@@ -152,7 +179,9 @@ unzip binge-vX.Y.Z.zip -d ~/.stash/plugins/binge/
 # then: Stash → Settings → Plugins → Reload Plugins
 ```
 
-Preferences live in `localStorage` under `binge.*` — nothing in Stash's own config gets touched.
+That's the whole install. The optional [binge-server](#binge-server-optional) daemon is a separate step, and you can start it from binge's Settings page whenever you want it.
+
+Preferences live in `localStorage` under `binge.*`. The only things binge writes into Stash's own config are its `serverUrl` (after a successful daemon install, so other browsers find it) and the multiview queue, which is shared with the multiview plugin by design.
 
 ---
 
@@ -162,16 +191,21 @@ Open binge → ⋯ → Settings (desktop) or Menu → Settings (mobile).
 
 | Setting | Default | Notes |
 |-|-|-|
-| Genders to surface | All | Five toggles. Drives discovery feed + Discover Performers row. |
+| Genders to surface | All five | Drives the discovery feed + Discover Performers row. Nothing is hidden that you haven't unticked here. |
 | Stream type | Auto | Auto / Direct / MP4 / WebM / HLS |
 | Show galleries in feed | On | Mix galleries into Home |
-| Recent window | 30 days | How far back "new" means. 7 / 14 / 30 / 60 / 90 / 180 / 365 |
+| Recent window | 30 days | How far back "new" means. 7 / 14 / 30 / 60 / 90 |
 | Include StashDB new releases | On | In stories + Home. No-op without a StashDB API key. |
 | Mix StashDB into profiles | Off | Also flip-able per-profile from the scenes-heading pill |
-| Include Reddit posts | On | Requires binge-server reachable (silent no-op otherwise) |
-| binge-server URL | `http://localhost:7878` | Override if remote |
-| binge-server configuration | — | Auto-detects your Stash API key + accepts a Reddit cookie. Visible only when binge-server is reachable. |
+| Include Reddit posts | On | Needs binge-server. Silent no-op otherwise. |
+| Include X (Twitter) media | On | Needs binge-server and X cookies. Fetched on demand when you open a profile. |
+| Include PornHub videos | On | Needs binge-server. Stories row + profile scenes grid. |
+| binge-server | n/a | Install card while no daemon answers; status, Reddit login and X login once one does. |
+| binge-server URL | `http://<stash host>:7878` | Derived from the address you're browsing Stash on, not hardcoded to localhost. Override for a remote daemon. |
+| forage server URL | empty | Optional. Blank keeps "Send to forage" hidden. Authenticates with your Stash API key automatically. |
+| forage watch quality | Any | What a queued watch waits for: any / 720p / 1080p / 4k |
 | Follow refract accent | Off | Mirror refract's accent palette into binge |
+| Privacy blur | Off | Blurs every image and video app-wide so the UI can be screen-shared or captured safely. `\|` hotkey. |
 | Auto-scroll | Off | Advance to next scene when current ends (reel ⋯ menu) |
 | Show debug overlay | Off | Per-slide debug HUD; `\` hotkey in reel |
 
@@ -179,8 +213,10 @@ Open binge → ⋯ → Settings (desktop) or Menu → Settings (mobile).
 
 ## Architecture
 
-- **Vite + React 19 + TypeScript** bundled to a single-file SPA (`dist/index.html`) that Stash serves from `/plugin/binge/assets/index.html`. `binge.entry.js` injects the nav button.
-- **All Stash data via GraphQL** (`/graphql`, same-origin cookie auth). No backend of binge's own.
+- **Vite + React 19 + TypeScript** bundled to a single-file SPA (`dist/index.html`) that Stash serves from `/plugin/binge/assets/index.html`. `binge.entry.js` injects the nav button through `PluginApi.patch`.
+- **All Stash data via GraphQL** (`/graphql`, same-origin cookie auth). binge has no backend of its own; binge-server is optional and separate, and binge authenticates to it with your Stash API key.
+- **Server-side seeding**: `serverUrl` and `forageUrl` can be set once in Stash's plugin settings for binge, and every browser picks them up on first load. A value you type in Settings always wins.
+- **Daemon install as a plugin task**: `binge-install.py` (standard library only) runs on the Stash host via `runPluginTask`, because a browser can't install software.
 - **StashDB direct** — queries `https://stashdb.org/graphql` with the user's API key (read from Stash's stashbox config). 12h localStorage cache.
 - **Hash routing** — `#/home`, `#/foryou`, `#/explore`, `#/following`, `#/saved`, `#/settings`, `#/menu`, `#/p/<id>`, `#/sdbp/<id>`. Direct deep-links + browser back.
 - **Runtime plugin detection** — ASR / scribe / multiview / refract presence queried at boot, gated through React context.
@@ -215,13 +251,13 @@ scp binge.yml dist/binge.entry.js dist/index.html \
 
 AGPL-3.0. See [LICENSE](./LICENSE). (Matches Stash's own license.)
 
-<!-- Screenshots/ holds demo-mode captures (npm run walkthrough with
-     SHOTS=1): hero/reel, home, story, profile, explore, following, saved,
-     collection.
+<!-- screenshots/ holds placeholder-content captures: hero/reel, home,
+     story, profile, explore, following, saved, collection.
 
-     STILL TODO — these need LIVE data (demo mode can't show them), so
-     capture with Showcase blur on for SFW hosting:
+     STILL MISSING (these surfaces need live data, so capture them with
+     Privacy blur on before hosting):
        discovery-card · profile-stashdb · profile-mixin · other-links-popup
        explore-discover-bar · follow-modal · add-scene-modal · hovercard
        settings · reel-more-menu · mobile (home/reel/menu/nav, ≤720px)
+       binge-server install card · story viewer with a Save button
 -->
