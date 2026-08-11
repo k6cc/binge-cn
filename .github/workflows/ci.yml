@@ -1,0 +1,32 @@
+# Lint, format and typecheck every push and pull request.
+#
+# The release and sync workflows both run `npm run build`, so type errors
+# have always been caught before anything shipped. Nothing checked lint or
+# formatting, which is why both had drifted. This is the gate for that.
+name: ci
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+
+jobs:
+    check:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v7
+
+            - uses: actions/setup-node@v7
+              with:
+                  node-version: 22
+                  cache: npm
+
+            - run: npm ci
+
+            - run: npm run lint
+
+            - run: npm run format:check
+
+            # tsc -b runs as the first half of `npm run build`, so this
+            # covers typechecking as well as proving the bundle builds.
+            - run: npm run build
