@@ -231,10 +231,34 @@ cd binge
 npm install
 npm run dev     # Vite dev (SPA only — no Stash data)
 npm run build   # produces dist/index.html
+npm test        # Vitest unit suite (no Stash needed)
+npm run lint    # eslint
 npm run push    # build + deploy via scripts/push.sh (write your own)
 ```
 
 Stack: Vite · React 19 · TypeScript · TanStack Virtual (reel virtualization).
+
+### Testing
+
+`npm test` covers the parts that are logic: the rating replica and its
+plugin-config parser, the chain recommender, the collections tag layer, the
+shared Multiview queue, the daemon-URL credential guard, and the Home feed,
+stories and discovery hooks. It needs no Stash and runs in a few seconds. CI
+runs it, along with lint, formatting and the build, on every push.
+
+`npm run smoke` is the other half, and needs a real Stash:
+
+```bash
+STASH_API_KEY=... npm run smoke          # defaults to http://localhost:9999
+BINGE_URL=http://nas:9999 npm run smoke  # or point it somewhere else
+```
+
+It drives headless Chrome over the DevTools protocol and checks what unit
+tests structurally cannot: that the plugin mounts inside Stash, that each
+route renders against a real library, and that the reel genuinely plays, by
+watching a video's `currentTime` advance in a real decoder. It is read-only,
+so it never likes, rates, saves or queues anything, and it exits non-zero so
+it can gate a deploy.
 
 Minimal `scripts/push.sh`:
 

@@ -10,6 +10,7 @@
         "lint": "eslint .",
         "test": "vitest run",
         "test:watch": "vitest",
+        "smoke": "node tools/smoke.mjs",
         "preview": "vite preview",
         "push": "npm run build && bash scripts/push.sh",
         "format": "prettier --write .",
