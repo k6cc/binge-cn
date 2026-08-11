@@ -48,12 +48,37 @@ export function SavedPage() {
     const [submitBusy, setSubmitBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
     // tag-name of the row currently showing the delete confirm sheet
-    const [confirmDelete, setConfirmDelete] =
-        useState<CollectionDef | null>(null);
+    const [confirmDelete, setConfirmDelete] = useState<CollectionDef | null>(
+        null,
+    );
     // When set, the page shows the collection's scene grid instead of
     // the tile overview. Cleared by the in-detail Back button.
-    const [openCollection, setOpenCollection] =
-        useState<CollectionDef | null>(null);
+    const [openCollection, setOpenCollection] = useState<CollectionDef | null>(
+        null,
+    );
+
+    // Tag id per collection, learned as each cover query resolves. State
+    // rather than a ref because the detail view reads it while rendering:
+    // a ref written after the covers land wouldn't re-render the page, so
+    // the grid could sit there with an empty tag id.
+    const [tagIds, setTagIds] = useState<ReadonlyMap<string, string>>(
+        new Map(),
+    );
+    function tagIdFromCachedCovers(tagName: string): string {
+        return tagIds.get(tagName) ?? "";
+    }
+
+    async function resolveCover(
+        tagName: string,
+    ): Promise<CollectionCover | null> {
+        // The collections module owns the tag-id map. Defer to it.
+        const { getCollectionTagIds } = await import("../api/collections");
+        const map = await getCollectionTagIds();
+        const id = map.get(tagName);
+        if (!id) return null;
+        setTagIds((prev) => new Map(prev).set(tagName, id));
+        return await findRecentScenesForTag(id, 4);
+    }
 
     // Load collections + each cover. Subscribes so create/delete
     // mutations trigger a re-render with the fresh list.
@@ -71,19 +96,18 @@ export function SavedPage() {
                         // Use the cached tag-id map indirectly via the
                         // collection module's own lookup so we don't
                         // refetch tag ids per call.
-                        resolveCover(c.tagName)
-                    )
+                        resolveCover(c.tagName),
+                    ),
                 );
                 if (!alive) return;
                 setItems(
                     collections.map((def, i) => ({
                         def,
                         cover: covers[i],
-                    }))
+                    })),
                 );
             } catch (e) {
-                if (alive)
-                    setError(e instanceof Error ? e.message : String(e));
+                if (alive) setError(e instanceof Error ? e.message : String(e));
             }
         };
         void reload();
@@ -104,10 +128,7 @@ export function SavedPage() {
     // Picked from inside the collection detail. Replaces the filter
     // with this collection's tag + pins the picked scene, then drops
     // into the reel.
-    const handlePickSceneInCollection = (
-        c: CollectionDef,
-        sceneId: string
-    ) => {
+    const handlePickSceneInCollection = (c: CollectionDef, sceneId: string) => {
         replace({
             performers: [],
             tags: [{ id: tagIdFromCachedCovers(c.tagName), name: c.name }],
@@ -116,28 +137,6 @@ export function SavedPage() {
         setPinFirstSceneId(sceneId);
         setTab("foryou");
     };
-
-    // Look up the tag id from the latest cover-query result. The
-    // findLatestSceneForTag query already fetched it; we cache the
-    // collection tag-id map separately via getCollectionTagIds, but
-    // we don't need to round-trip — keep a local map populated as
-    // covers resolve.
-    const tagIdsRef = useRef<Map<string, string>>(new Map());
-    function tagIdFromCachedCovers(tagName: string): string {
-        return tagIdsRef.current.get(tagName) ?? "";
-    }
-
-    async function resolveCover(
-        tagName: string
-    ): Promise<CollectionCover | null> {
-        // The collections module owns the tag-id map. Defer to it.
-        const { getCollectionTagIds } = await import("../api/collections");
-        const map = await getCollectionTagIds();
-        const id = map.get(tagName);
-        if (!id) return null;
-        tagIdsRef.current.set(tagName, id);
-        return await findRecentScenesForTag(id, 4);
-    }
 
     const handleCreate = async () => {
         const trimmed = newName.trim();
@@ -183,9 +182,7 @@ export function SavedPage() {
                     >
                         <ChevronLeft />
                     </button>
-                    <h1 className="binge-saved-title">
-                        {openCollection.name}
-                    </h1>
+                    <h1 className="binge-saved-title">{openCollection.name}</h1>
                     <span className="binge-saved-spacer" />
                 </header>
                 {tagId ? (
@@ -197,7 +194,7 @@ export function SavedPage() {
                         onPick={(scene) =>
                             handlePickSceneInCollection(
                                 openCollection,
-                                scene.id
+                                scene.id,
                             )
                         }
                         emptyMessage="No scenes saved to this collection yet."
@@ -424,14 +421,9 @@ function DeleteConfirm({
 
     return (
         <div className="binge-saved-confirm-root">
-            <div
-                className="binge-saved-confirm-backdrop"
-                onClick={onCancel}
-            />
+            <div className="binge-saved-confirm-backdrop" onClick={onCancel} />
             <div className="binge-saved-confirm-card" role="dialog">
-                <h3 className="binge-saved-confirm-title">
-                    Delete "{name}"?
-                </h3>
+                <h3 className="binge-saved-confirm-title">Delete "{name}"?</h3>
                 <p className="binge-saved-confirm-body">
                     {isProtected
                         ? "This collection is shared with ASR and can't be deleted from binge. Use Stash's tag manager if you really want to remove it."

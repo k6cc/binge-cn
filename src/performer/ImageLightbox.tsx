@@ -19,20 +19,23 @@ export function ImageLightbox({
     const [index, setIndex] = useState(startIndex);
     const current = images[index];
 
+    const goPrev = () => setIndex((i) => (i > 0 ? i - 1 : i));
+    const goNext = () => setIndex((i) => (i < images.length - 1 ? i + 1 : i));
+
+    // The handler steps the index itself rather than calling goPrev/goNext,
+    // which are rebuilt every render and would re-bind the listener on each
+    // one. Functional updates mean the effect only needs the image count.
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
             if (e.key === "Escape") onClose();
-            else if (e.key === "ArrowLeft") goPrev();
-            else if (e.key === "ArrowRight") goNext();
+            else if (e.key === "ArrowLeft")
+                setIndex((i) => (i > 0 ? i - 1 : i));
+            else if (e.key === "ArrowRight")
+                setIndex((i) => (i < images.length - 1 ? i + 1 : i));
         };
         document.addEventListener("keydown", handler);
         return () => document.removeEventListener("keydown", handler);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [images.length]);
-
-    const goPrev = () => setIndex((i) => (i > 0 ? i - 1 : i));
-    const goNext = () =>
-        setIndex((i) => (i < images.length - 1 ? i + 1 : i));
+    }, [images.length, onClose]);
 
     if (!current) return null;
 
@@ -89,7 +92,7 @@ export function ImageLightbox({
                 {index + 1} / {images.length}
             </div>
         </div>,
-        document.body
+        document.body,
     );
 }
 

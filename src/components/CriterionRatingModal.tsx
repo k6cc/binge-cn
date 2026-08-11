@@ -22,7 +22,11 @@ import {
     fetchSceneTagsAndRating,
     findScoreTag,
 } from "../rating/mutations";
-import { scoreTagName, type Criterion, type RatingConfig } from "../rating/types";
+import {
+    scoreTagName,
+    type Criterion,
+    type RatingConfig,
+} from "../rating/types";
 
 // Shared criterion-rating modal. Renders the Advanced Rating plugin's
 // data model (groups → criteria → 0-5 stars) for either the scene or
@@ -31,8 +35,7 @@ import { scoreTagName, type Criterion, type RatingConfig } from "../rating/types
 // each update; we re-fetch tags + rating100 to reflect it.
 
 export type RatingTarget =
-    | { kind: "scene"; id: string }
-    | { kind: "performer"; id: string };
+    { kind: "scene"; id: string } | { kind: "performer"; id: string };
 
 interface Props {
     target: RatingTarget;
@@ -61,12 +64,12 @@ export function CriterionRatingModal({
 }: Props) {
     const domain = target.kind;
     const [state, setState] = useState<LoadState>({ kind: "loading" });
-    const [pendingCriterionId, setPendingCriterionId] = useState<
-        string | null
-    >(null);
-    const [missingTagWarning, setMissingTagWarning] = useState<
-        string | null
-    >(null);
+    const [pendingCriterionId, setPendingCriterionId] = useState<string | null>(
+        null,
+    );
+    const [missingTagWarning, setMissingTagWarning] = useState<string | null>(
+        null,
+    );
     const { isExiting, beginClose } = useSheetClose(onClose);
 
     // Load config + precision + current tags in parallel on mount.
@@ -93,15 +96,14 @@ export function CriterionRatingModal({
                 if (!alive) return;
                 setState({
                     kind: "error",
-                    message:
-                        err instanceof Error ? err.message : String(err),
+                    message: err instanceof Error ? err.message : String(err),
                 });
             }
         })();
         return () => {
             alive = false;
         };
-    }, [domain, target.id]);
+    }, [domain, target.id, target.kind]);
 
     // Esc closes (via the same beginClose path so the exit animation plays).
     useEffect(() => {
@@ -114,7 +116,7 @@ export function CriterionRatingModal({
 
     async function setScore(
         criterion: Criterion,
-        newScore: number | null
+        newScore: number | null,
     ): Promise<void> {
         if (state.kind !== "ready") return;
         setPendingCriterionId(criterion.id);
@@ -129,7 +131,7 @@ export function CriterionRatingModal({
                     // the parent-tag hierarchy.
                     const name = scoreTagName(criterion, newScore);
                     setMissingTagWarning(
-                        `Score tag "${name}" doesn't exist yet. Open the Advanced Rating plugin's settings panel in Stash once — it'll create the tag hierarchy under the right parent. Then try again here.`
+                        `Score tag "${name}" doesn't exist yet. Open the Advanced Rating plugin's settings panel in Stash once — it'll create the tag hierarchy under the right parent. Then try again here.`,
                     );
                     return;
                 }
@@ -138,7 +140,7 @@ export function CriterionRatingModal({
                 state.tags,
                 criterion,
                 newScore,
-                newTagId
+                newTagId,
             );
             if (newIds === null) {
                 throw new Error("could not resolve score tag id");
@@ -180,17 +182,12 @@ export function CriterionRatingModal({
                 (isExiting ? " is-exiting" : "")
             }
         >
-            <div
-                className="binge-sheet-backdrop"
-                onClick={beginClose}
-            />
+            <div className="binge-sheet-backdrop" onClick={beginClose} />
             <div
                 className="binge-sheet binge-rating-modal"
                 role="dialog"
                 aria-label={
-                    target.kind === "scene"
-                        ? "Rate scene"
-                        : "Rate performer"
+                    target.kind === "scene" ? "Rate scene" : "Rate performer"
                 }
             >
                 <div className="binge-sheet-handle" aria-hidden="true" />
@@ -207,40 +204,30 @@ export function CriterionRatingModal({
                 />
             </div>
         </div>,
-        document.body
+        document.body,
     );
 }
 
-function Header({
-    state,
-    target,
-}: {
-    state: LoadState;
-    target: RatingTarget;
-}) {
+function Header({ state, target }: { state: LoadState; target: RatingTarget }) {
     if (state.kind !== "ready") {
         return (
             <header className="binge-rating-modal-header">
                 <h2>
-                    {target.kind === "scene"
-                        ? "Rate scene"
-                        : "Rate performer"}
+                    {target.kind === "scene" ? "Rate scene" : "Rate performer"}
                 </h2>
             </header>
         );
     }
     const { rated, total } = ratingProgress(
         parseRatingsFromTags(state.tags, state.config.criteria),
-        state.config.criteria
+        state.config.criteria,
     );
     const rating100 = state.rating100;
     const ratingDisplay =
         rating100 !== null ? Math.round(rating100) + " / 100" : "unrated";
     return (
         <header className="binge-rating-modal-header">
-            <h2>
-                {target.kind === "scene" ? "Rate scene" : "Rate performer"}
-            </h2>
+            <h2>{target.kind === "scene" ? "Rate scene" : "Rate performer"}</h2>
             <div className="binge-rating-modal-summary">
                 <span className="binge-rating-modal-rating">
                     {ratingDisplay}
@@ -311,9 +298,7 @@ function Body({
             {previewRating !== null && (
                 <footer className="binge-rating-modal-footer">
                     preview · {Math.round(previewRating)} / 100
-                    <small>
-                        Stash's plugin hook will lock this in.
-                    </small>
+                    <small>Stash's plugin hook will lock this in.</small>
                 </footer>
             )}
         </div>

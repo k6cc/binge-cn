@@ -79,7 +79,10 @@ export function createChainAlgo(opts: ChainAlgoOptions = {}): ChainAlgo {
     const randomSeed = `random_${Math.floor(rng() * 1e9)}`;
     let randomPage = 1;
 
-    function dominantOf(map: Map<string, number>, prefix: string): {
+    function dominantOf(
+        map: Map<string, number>,
+        prefix: string,
+    ): {
         key: string;
         weight: number;
     } | null {
@@ -91,14 +94,15 @@ export function createChainAlgo(opts: ChainAlgoOptions = {}): ChainAlgo {
                 bestWeight = w;
             }
         }
-        return bestKey ? { key: `${prefix}:${bestKey}`, weight: bestWeight } : null;
+        return bestKey
+            ? { key: `${prefix}:${bestKey}`, weight: bestWeight }
+            : null;
     }
 
     function recomputeDominant(): void {
         const p = dominantOf(ctx.performers, "p");
         const t = dominantOf(ctx.tags, "t");
-        const winner =
-            !p ? t : !t ? p : p.weight >= t.weight ? p : t;
+        const winner = !p ? t : !t ? p : p.weight >= t.weight ? p : t;
         const next = winner?.key ?? null;
         if (next === ctx.lastDominantKey && next !== null) {
             ctx.sameDominantStreak += 1;
@@ -129,8 +133,7 @@ export function createChainAlgo(opts: ChainAlgoOptions = {}): ChainAlgo {
         let score = 0;
         for (const p of scene.performers) {
             score +=
-                (ctx.performers.get(p.id) ?? 0) *
-                PERFORMER_SCORE_MULTIPLIER;
+                (ctx.performers.get(p.id) ?? 0) * PERFORMER_SCORE_MULTIPLIER;
         }
         for (const t of scene.tags) {
             score += ctx.tags.get(t.id) ?? 0;
@@ -165,9 +168,7 @@ export function createChainAlgo(opts: ChainAlgoOptions = {}): ChainAlgo {
             },
         });
         randomPage += 1;
-        return data.findScenes.scenes.filter(
-            (s) => !ctx.visited.has(s.id)
-        );
+        return data.findScenes.scenes.filter((s) => !ctx.visited.has(s.id));
     }
 
     async function fetchChainedCandidates(): Promise<BingeScene[]> {
@@ -188,7 +189,7 @@ export function createChainAlgo(opts: ChainAlgoOptions = {}): ChainAlgo {
                             modifier: "INCLUDES",
                         },
                     },
-                })
+                }),
             );
         }
         if (tags.length > 0) {
@@ -202,7 +203,7 @@ export function createChainAlgo(opts: ChainAlgoOptions = {}): ChainAlgo {
                     scene_filter: {
                         tags: { value: tags, modifier: "INCLUDES" },
                     },
-                })
+                }),
             );
         }
         if (queries.length === 0) return [];
@@ -228,10 +229,7 @@ export function createChainAlgo(opts: ChainAlgoOptions = {}): ChainAlgo {
             decay(ctx.performers);
             decay(ctx.tags);
             for (const p of scene.performers) {
-                ctx.performers.set(
-                    p.id,
-                    (ctx.performers.get(p.id) ?? 0) + 1
-                );
+                ctx.performers.set(p.id, (ctx.performers.get(p.id) ?? 0) + 1);
             }
             for (const t of scene.tags) {
                 ctx.tags.set(t.id, (ctx.tags.get(t.id) ?? 0) + 1);
@@ -244,7 +242,7 @@ export function createChainAlgo(opts: ChainAlgoOptions = {}): ChainAlgo {
             // Fetch a chained candidate pool ONCE per batch — most picks
             // will draw from this. Random injections share the same
             // sort seed so they paginate cleanly across batches.
-            let chainedPool = await fetchChainedCandidates();
+            const chainedPool = await fetchChainedCandidates();
             // Pre-sort by score so weightedPick can take a top slice.
             chainedPool.sort((a, b) => scoreCandidate(b) - scoreCandidate(a));
             const localPicked = new Set<string>();
@@ -262,8 +260,7 @@ export function createChainAlgo(opts: ChainAlgoOptions = {}): ChainAlgo {
                 // Branch-forcing — drop dominant attribute streak via
                 // forced random injection. Reset the streak so we don't
                 // force-inject again immediately.
-                const forceRandom =
-                    ctx.sameDominantStreak >= branchThreshold;
+                const forceRandom = ctx.sameDominantStreak >= branchThreshold;
                 const wantChain =
                     !forceRandom &&
                     ctx.performers.size + ctx.tags.size > 0 &&
@@ -273,7 +270,7 @@ export function createChainAlgo(opts: ChainAlgoOptions = {}): ChainAlgo {
                     // Filter chainedPool against locally-picked (avoid
                     // dup within the same batch).
                     const filteredPool = chainedPool.filter(
-                        (s) => !localPicked.has(s.id)
+                        (s) => !localPicked.has(s.id),
                     );
                     const picked = weightedPick(filteredPool);
                     if (picked) {

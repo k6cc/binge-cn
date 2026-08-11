@@ -7,10 +7,7 @@ import { DiscoveryFeedCard } from "./DiscoveryFeedCard";
 import { invalidateStashDBCache } from "../api/stashdb";
 import { BingeLoading } from "../components/BingeLoading";
 import { PackFeedCard } from "./PackFeedCard";
-import {
-    useHiddenFeedCategories,
-    type FeedCategory,
-} from "./pluginSettings";
+import { useHiddenFeedCategories, type FeedCategory } from "./pluginSettings";
 
 // Maps a feed item to the filter category the Home filter menu
 // controls. Galleries return null — they're governed by the separate
@@ -47,14 +44,16 @@ export function Feed({ scrollContainerRef }: FeedProps) {
     const feedRef = useRef<HTMLElement>(null);
     const [scrollMargin, setScrollMargin] = useState(0);
 
-    const rawItems = state.kind === "ready" ? state.items : [];
+    // Derived inside the memo, not above it: `state.items` is only there
+    // in the ready state, and the `[]` stand-in used otherwise was a fresh
+    // array each render, so the memo recomputed on every paint.
     const items = useMemo(
         () =>
-            rawItems.filter((it) => {
+            (state.kind === "ready" ? state.items : []).filter((it) => {
                 const cat = feedCategory(it);
                 return cat === null || !hidden.has(cat);
             }),
-        [rawItems, hidden]
+        [state, hidden],
     );
 
     // Date-ordered list of every scene id in the home feed (skips
@@ -66,11 +65,12 @@ export function Feed({ scrollContainerRef }: FeedProps) {
     const feedSceneIds = useMemo(
         () =>
             items
-                .filter((it): it is Extract<typeof it, { kind: "scene" }> =>
-                    it.kind === "scene"
+                .filter(
+                    (it): it is Extract<typeof it, { kind: "scene" }> =>
+                        it.kind === "scene",
                 )
                 .map((it) => it.sceneId),
-        [items]
+        [items],
     );
 
     // The feed isn't at the top of its scroll container — there's a
@@ -142,7 +142,7 @@ export function Feed({ scrollContainerRef }: FeedProps) {
         return (
             <section className="binge-feed">
                 <div className="binge-feed-empty">
-                    {rawItems.length > 0
+                    {state.kind === "ready" && state.items.length > 0
                         ? "everything's filtered out — adjust the filter."
                         : "nothing new in your recent window."}
                 </div>

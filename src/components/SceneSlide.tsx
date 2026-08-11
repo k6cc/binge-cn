@@ -29,10 +29,7 @@ import { HeartBurst } from "./HeartBurst";
 import { SceneDetailsSheet } from "./SceneDetailsSheet";
 import { CriterionRatingModal } from "./CriterionRatingModal";
 import { MoreSheet } from "./MoreSheet";
-import {
-    useAutoScroll,
-    useTranscodeType,
-} from "../home/pluginSettings";
+import { useAutoScroll, useTranscodeType } from "../home/pluginSettings";
 import { useScribeModal } from "../scribe/ScribeContext";
 
 interface SceneSlideProps {
@@ -60,7 +57,7 @@ interface SceneSlideProps {
     onCollectionChange?: (
         sceneId: string,
         tagName: string,
-        next: boolean
+        next: boolean,
     ) => void;
     // True while the parent Reel is mid-scroll. We defer assigning
     // video.src until scroll settles — without this, every transient
@@ -123,7 +120,7 @@ export function SceneSlide({
     // (oCountOverride) so a remount after scroll-away inherits the
     // user's most recent like rather than the stale server value.
     const [oCount, setOCount] = useState<number>(
-        oCountOverride ?? scene.o_counter ?? 0
+        oCountOverride ?? scene.o_counter ?? 0,
     );
     const [oError, setOError] = useState(false);
     const [bursts, setBursts] = useState<Burst[]>([]);
@@ -132,7 +129,7 @@ export function SceneSlide({
     // Rating (0–100). Same lifted-override pattern as oCount — Reel
     // owns the canonical value across virtualizer mount/unmount.
     const [rating100, setRating100Local] = useState<number | null>(
-        ratingOverride !== undefined ? ratingOverride : scene.rating100
+        ratingOverride !== undefined ? ratingOverride : scene.rating100,
     );
     useEffect(() => {
         if (ratingOverride !== undefined && ratingOverride !== rating100) {
@@ -147,9 +144,9 @@ export function SceneSlide({
     // can create new ones via the SaveSheet) — we subscribe to the
     // collections module so a new collection's row appears here
     // unchecked the moment it's created.
-    const [inCollections, setInCollections] = useState<
-        Record<string, boolean>
-    >(() => collectionsOverride ?? {});
+    const [inCollections, setInCollections] = useState<Record<string, boolean>>(
+        () => collectionsOverride ?? {},
+    );
     useEffect(() => {
         if (collectionsOverride) {
             setInCollections(collectionsOverride);
@@ -188,13 +185,13 @@ export function SceneSlide({
     // every queue change (this tab, other tabs, AND other clients via the
     // config poll started by startMultiviewSync).
     const [inMVQueue, setInMVQueue] = useState<boolean>(() =>
-        isInMultiviewQueue(scene.id)
+        isInMultiviewQueue(scene.id),
     );
     useEffect(() => {
         startMultiviewSync();
         setInMVQueue(isInMultiviewQueue(scene.id));
         return subscribeMultiviewQueue(() =>
-            setInMVQueue(isInMultiviewQueue(scene.id))
+            setInMVQueue(isInMultiviewQueue(scene.id)),
         );
     }, [scene.id]);
 
@@ -257,6 +254,11 @@ export function SceneSlide({
         if (isActive && video.paused) {
             playPreferred(video);
         }
+        // `scene` and `playPreferred` are deliberately absent: the effect
+        // only cares about the scene's identity (any other field changing
+        // must not reassign src mid-playback), and playPreferred is rebuilt
+        // every render, which would reload the video on every paint.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentlyScrolling, scene.id, isActive, transcodeType]);
 
     // Explicit decoder cleanup on unmount. The browser doesn't release
@@ -402,7 +404,7 @@ export function SceneSlide({
             scene.id,
             scene.tags.map((t) => t.id),
             tagName,
-            next
+            next,
         )
             .then((confirmed) => {
                 setInCollections((prev) => ({
@@ -495,11 +497,14 @@ export function SceneSlide({
                     }
                 }
             },
-            { threshold: [0, 0.6, 1] }
+            { threshold: [0, 0.6, 1] },
         );
 
         observer.observe(container);
         return () => observer.disconnect();
+        // playPreferred is rebuilt every render; listing it here would tear
+        // down and re-attach the observer on each one.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [scene.id]);
 
     // Track playing state for the tap indicator + accessibility
@@ -550,7 +555,7 @@ export function SceneSlide({
             scene.title ||
             scene.performers.map((p) => p.name).join(", ") ||
             `Scene ${scene.id}`,
-        [scene.id, scene.title, scene.performers]
+        [scene.id, scene.title, scene.performers],
     );
     const detailsLine = scene.details?.trim() || "";
 
@@ -605,8 +610,7 @@ export function SceneSlide({
                 Instagram-style. Both fade in/out together on play state. */}
             <div
                 className={
-                    "binge-paused-overlay" +
-                    (isPlaying ? " is-hidden" : "")
+                    "binge-paused-overlay" + (isPlaying ? " is-hidden" : "")
                 }
             >
                 <MuteToggle muted={muted} onToggle={() => setMuted(!muted)} />

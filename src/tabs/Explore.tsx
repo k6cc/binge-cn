@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { findScenes, findRecentlyLikedTags } from "../api/queries";
 import { getTopInteractedTags, type TagScore } from "../api/interactedTags";
 import { DiscoverPerformersBar } from "./DiscoverPerformersBar";
@@ -25,11 +25,18 @@ const MAX_CHIPS = 25;
 // long enough that a typed word coalesces into one request.
 const SEARCH_DEBOUNCE_MS = 280;
 
+// Kept outside the component so the randomness sits in a plain module
+// function rather than in render.
+function randomSeed(): number {
+    return Math.floor(Math.random() * 1e9);
+}
+
 export function Explore() {
-    const sortSeed = useMemo(
-        () => `random_${Math.floor(Math.random() * 1e9)}`,
-        []
-    );
+    // One random sort seed per mount, so revisiting Explore reshuffles but
+    // paginating within a visit stays consistent. Held in state rather than
+    // a useMemo: a memo is allowed to be recomputed, and re-rolling the seed
+    // mid-session would make the next page overlap the one on screen.
+    const [sortSeed] = useState(() => `random_${randomSeed()}`);
     const [tiles, setTiles] = useState<ExploreTile[]>([]);
     // Page is a ref, not state — the observer reads it on each fire,
     // and we don't want the observer effect to tear down + re-attach
@@ -99,7 +106,7 @@ export function Explore() {
                         tagName: t.name,
                         score: 0,
                         lastSeenAt: 0,
-                    }))
+                    })),
                 );
             })
             .catch(() => {
@@ -125,8 +132,7 @@ export function Explore() {
 
     // Choose which list to render in the chip row: personal first,
     // library fallback only when personal is too small to be useful.
-    const chipsToRender =
-        topTags.length >= 3 ? topTags : fallbackTags;
+    const chipsToRender = topTags.length >= 3 ? topTags : fallbackTags;
 
     // Track scroll position so the chevrons fade in/out. Refreshed on
     // scroll, on resize, and when the chip set changes (so the
@@ -185,7 +191,7 @@ export function Explore() {
                     fresh.push({ id: s.id, screenshot: s.paths.screenshot });
                 }
                 setTiles((prev) =>
-                    nextPage === 1 ? fresh : [...prev, ...fresh]
+                    nextPage === 1 ? fresh : [...prev, ...fresh],
                 );
                 pageRef.current = nextPage;
                 if (data.findScenes.scenes.length < PAGE_SIZE) {
@@ -194,16 +200,14 @@ export function Explore() {
                     setHasMore(true);
                 }
             } catch (err) {
-                setError(
-                    err instanceof Error ? err.message : String(err)
-                );
+                setError(err instanceof Error ? err.message : String(err));
                 setHasMore(false);
             } finally {
                 loadingRef.current = false;
                 setIsLoading(false);
             }
         },
-        [sortSeed, activeTag, searchQuery]
+        [sortSeed, activeTag, searchQuery],
     );
 
     // Reset + reload when filter (tag or search) changes. Wiping
@@ -231,7 +235,7 @@ export function Explore() {
                     void loadPage(pageRef.current + 1);
                 }
             },
-            { rootMargin: "800px 0px", root: scrollRef.current }
+            { rootMargin: "800px 0px", root: scrollRef.current },
         );
         observer.observe(el);
         return () => observer.disconnect();
@@ -284,10 +288,7 @@ export function Explore() {
                     >
                         <ChevronLeft />
                     </button>
-                    <div
-                        className="binge-explore-chips"
-                        ref={chipScrollerRef}
-                    >
+                    <div className="binge-explore-chips" ref={chipScrollerRef}>
                         <button
                             type="button"
                             className={
@@ -460,4 +461,3 @@ function PlayIcon() {
         </svg>
     );
 }
-

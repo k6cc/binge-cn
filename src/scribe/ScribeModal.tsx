@@ -8,11 +8,7 @@ import {
     type LLMMessage,
     type ScribeConfig,
 } from "./api";
-import {
-    VOICE_LABELS,
-    VOICE_MODES,
-    type VoiceMode,
-} from "./prompts";
+import { VOICE_LABELS, VOICE_MODES, type VoiceMode } from "./prompts";
 import { clearSession, loadSession, saveSession } from "./session";
 import { loadSubject, type LoadedSubject, type SubjectRef } from "./subject";
 
@@ -32,10 +28,7 @@ interface Generated {
     scores: Record<string, number>;
 }
 
-function buildFreshSystem(
-    loaded: LoadedState,
-    tone: VoiceMode
-): LLMMessage {
+function buildFreshSystem(loaded: LoadedState, tone: VoiceMode): LLMMessage {
     const voice = loaded.config.voicePrompts[tone];
     const criteria = loaded.subject.criteria;
     const criteriaBlock =
@@ -95,7 +88,7 @@ export function ScribeModal({
                     setError(
                         subjectRef.kind === "performer"
                             ? "Performer not found"
-                            : "Scene not found"
+                            : "Scene not found",
                     );
                     setPhase("error");
                     return;
@@ -139,6 +132,10 @@ export function ScribeModal({
         return () => {
             alive = false;
         };
+        // Keyed on what identifies the subject, not the prop object itself:
+        // callers rebuild that object each render, and depending on it would
+        // restart the LLM run on every paint.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [subjectRef.kind, subjectRef.id]);
 
     // Auto-scroll the transcript to the bottom as messages arrive.
@@ -159,7 +156,7 @@ export function ScribeModal({
                 generated: gen,
             });
         },
-        [loaded]
+        [loaded],
     );
 
     // Fires the first LLM call to seed the interview. Shared by the
@@ -183,7 +180,7 @@ export function ScribeModal({
                                 "Begin the interview with your first question.",
                         },
                     ],
-                    loaded.config
+                    loaded.config,
                 );
                 const updated: LLMMessage[] = [
                     sys,
@@ -201,7 +198,7 @@ export function ScribeModal({
                 setBusyMsg("");
             }
         },
-        [loaded]
+        [loaded],
     );
 
     const startLLMInterview = useCallback(() => {
@@ -224,7 +221,10 @@ export function ScribeModal({
         if (!loaded || busy) return;
         const text = userInput.trim();
         if (!text) return;
-        const next = [...messages, { role: "user", content: text } as LLMMessage];
+        const next = [
+            ...messages,
+            { role: "user", content: text } as LLMMessage,
+        ];
         setMessages(next);
         setUserInput("");
         persist(next, null);
@@ -255,16 +255,16 @@ export function ScribeModal({
             const criteriaList =
                 loaded.subject.criteria.length > 0
                     ? "Criteria to score (give an integer 0–5 for each):\n" +
-                      loaded.subject.criteria.map((c) => `- ${c.name}`).join("\n")
+                      loaded.subject.criteria
+                          .map((c) => `- ${c.name}`)
+                          .join("\n")
                     : "No rating criteria configured — output the REVIEW section only and skip SCORES.";
             const genMessages: LLMMessage[] = [
                 ...messages,
                 {
                     role: "system",
                     content:
-                        loaded.subject.reviewContract +
-                        "\n\n" +
-                        criteriaList,
+                        loaded.subject.reviewContract + "\n\n" + criteriaList,
                 },
                 { role: "user", content: "Generate the review now." },
             ];
@@ -290,7 +290,7 @@ export function ScribeModal({
         if (editMode) {
             if (
                 !confirm(
-                    "Discard this edit and start a fresh interview? The currently saved review stays on the scene until you save a new one."
+                    "Discard this edit and start a fresh interview? The currently saved review stays on the scene until you save a new one.",
                 )
             )
                 return;
@@ -312,7 +312,7 @@ export function ScribeModal({
         if (!loaded) return;
         if (
             !confirm(
-                "Discard this interview/draft? Saved reviews on the scene are not touched."
+                "Discard this interview/draft? Saved reviews on the scene are not touched.",
             )
         )
             return;
@@ -347,7 +347,7 @@ export function ScribeModal({
                 setBusyMsg("");
             }
         },
-        [loaded, busy, reviewText, scores, onClose]
+        [loaded, busy, reviewText, scores, onClose],
     );
 
     return createPortal(
@@ -422,8 +422,8 @@ export function ScribeModal({
                 {phase === "intro" && loaded && (
                     <div className="binge-scribe-intro">
                         <p className="binge-scribe-intro-lead">
-                            No review yet for this scene. Pick how you
-                            want to write it.
+                            No review yet for this scene. Pick how you want to
+                            write it.
                         </p>
                         <div className="binge-scribe-intro-tone">
                             <label
@@ -466,10 +466,9 @@ export function ScribeModal({
                             </button>
                         </div>
                         <p className="binge-scribe-intro-note">
-                            LLM mode runs an interview via the Stash
-                            Scribe plugin → Ollama. If Ollama is
-                            offline, use Write manually — same save
-                            target, just no LLM assist.
+                            LLM mode runs an interview via the Stash Scribe
+                            plugin → Ollama. If Ollama is offline, use Write
+                            manually — same save target, just no LLM assist.
                         </p>
                     </div>
                 )}
@@ -613,7 +612,7 @@ export function ScribeModal({
                 )}
             </div>
         </div>,
-        document.body
+        document.body,
     );
 }
 
@@ -624,7 +623,7 @@ function friendlyError(e: unknown): string {
     const msg = (e as Error)?.message ?? String(e);
     if (
         /connection refused|ECONNREFUSED|connect.*refused|failed to (?:fetch|connect)|connection error/i.test(
-            msg
+            msg,
         )
     ) {
         return (
@@ -646,7 +645,10 @@ function ScoreRow({
 }) {
     return (
         <div className="binge-scribe-score-row">
-            <div className="binge-scribe-score-name" title={criterion.description}>
+            <div
+                className="binge-scribe-score-name"
+                title={criterion.description}
+            >
                 {criterion.name}
             </div>
             <input

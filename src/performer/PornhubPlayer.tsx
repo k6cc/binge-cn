@@ -88,7 +88,6 @@ export function PornhubPlayer({
                         ✕
                     </button>
                 </div>
-                {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
                 <video
                     className="binge-ph-player-video"
                     src={pornhubStreamUrl(video.id)}
@@ -98,6 +97,6 @@ export function PornhubPlayer({
                 />
             </div>
         </div>,
-        document.body
+        document.body,
     );
 }
