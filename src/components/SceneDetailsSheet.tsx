@@ -70,59 +70,61 @@ export function SceneDetailsSheet({ scene, onClose }: SceneDetailsSheetProps) {
                 aria-label={t("nav.scene_details")}
             >
                 <div className="binge-sheet-handle" aria-hidden="true" />
-                <div className="binge-details-meta">
-                    {studioName && (
-                        <span className="binge-details-studio">
-                            {studioName}
-                        </span>
-                    )}
-                    {studioName && dateLabel && (
-                        <span className="binge-details-dot">·</span>
-                    )}
-                    {dateLabel && (
-                        <span className="binge-details-date">{dateLabel}</span>
-                    )}
-                </div>
-                {displayTitle && (
-                    <h2
-                        className={
-                            "binge-details-title" +
-                            (filenameTitle ? " is-filename" : "")
-                        }
-                    >
-                        <a
-                            href={`/scenes/${scene.id}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="binge-details-title-link"
-                            title={t("action.open_in_stash")}
+                <div className="binge-details-body-scroll">
+                    <div className="binge-details-meta">
+                        {studioName && (
+                            <span className="binge-details-studio">
+                                {studioName}
+                            </span>
+                        )}
+                        {studioName && dateLabel && (
+                            <span className="binge-details-dot">·</span>
+                        )}
+                        {dateLabel && (
+                            <span className="binge-details-date">{dateLabel}</span>
+                        )}
+                    </div>
+                    {displayTitle && (
+                        <h2
+                            className={
+                                "binge-details-title" +
+                                (filenameTitle ? " is-filename" : "")
+                            }
                         >
-                            {displayTitle}
-                        </a>
-                    </h2>
-                )}
-                {details && (
-                    <p className="binge-details-body">{details}</p>
-                )}
-                {scene.tags && scene.tags.length > 0 && (
-                    <ul className="binge-hashtag-list">
-                        {scene.tags.map((t) => (
-                            <li key={t.id}>
-                                <span className="binge-hashtag">
-                                    #{toHashtag(t.name)}
-                                </span>
-                            </li>
-                        ))}
-                    </ul>
-                )}
-                {tech && <TechSection tech={tech} />}
-                {!displayTitle &&
-                    !details &&
-                    (!scene.tags || scene.tags.length === 0) && (
-                        <p className="binge-details-empty">
-                            {t("status.no_description")}
-                        </p>
+                            <a
+                                href={`/scenes/${scene.id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="binge-details-title-link"
+                                title={t("action.open_in_stash")}
+                            >
+                                {displayTitle}
+                            </a>
+                        </h2>
                     )}
+                    {details && (
+                        <p className="binge-details-body">{details}</p>
+                    )}
+                    {scene.tags && scene.tags.length > 0 && (
+                        <ul className="binge-hashtag-list">
+                            {scene.tags.map((t) => (
+                                <li key={t.id}>
+                                    <span className="binge-hashtag">
+                                        #{toHashtag(t.name)}
+                                    </span>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                    {tech && <TechSection tech={tech} />}
+                    {!displayTitle &&
+                        !details &&
+                        (!scene.tags || scene.tags.length === 0) && (
+                            <p className="binge-details-empty">
+                                {t("status.no_description")}
+                            </p>
+                        )}
+                </div>
             </div>
         </div>,
         document.body

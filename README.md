@@ -52,40 +52,18 @@ v0.4.17 将原硬编码中文迁移为基于 `react-i18next` 的动态多语言�
 - **详情卡片 handle 始终可见**：sticky 顶部，与其他 sheet 一致
 - **社交 tab 重试按钮**：error/empty 态末尾加 `⟳ 重试` 按钮，覆盖网络瞬时失败场景
 
-#### v0.5.6
+#### v0.5.0–v0.5.6
 
-- **StashDB 网络降级优化**：`postStashDB` 加超时（AbortController），Stories/Feed 链路 10s、发现页头像 20s，断网时快速降级，不再几分钟卡死
-- **Feed discovery 12h 缓存**：trending + costar 查询结果独立缓存（`binge.discovery.seeds.v1`），对齐 Stories 链路，避免每次冷启动打 stashdb
-- **发现页头像 12h 缓存**：trending performers 查询结果独立缓存（`binge.stashdb.trendingPerformers.v1.*`），12h 内再进发现页秒出
-- **空结果不覆盖缓存**：fetch 失败（超时/断网）返回空数组时不写入缓存，保留上一次成功拉取的数据
-- **隐藏分类控制 fetch**：Feed 筛选菜单隐藏"热门"后 trending 查询完全不发，不再"先 fetch 再过滤"
-- **trending/costar 并行拉取**：两条独立 stashdb 查询改并行（Promise.all），断网时总等待从 20s 降到 10s
-- **刷新按钮联动全链路**：首页右上角刷新按钮现在同时清 Stories + Feed + 发现页头像的 stashdb 缓存并重拉
-
-#### v0.5.5
-
-- **合并上游 752df50..3da7524**（14 个提交，26 个文件，+1355/-717 行）
-- **binge-server API Key 认证**（配合新版 daemon）：所有 daemon 请求携带 Stash API Key，媒体 URL 追加 `?apikey=` 查询参数（fork 改用 query param 避免 CORS preflight，上游用 header）
-- **binge-server URL 派生**：`defaultBingeServerUrl()` 用 `window.location.hostname` 派生 `http://{host}:7878`，解决非 localhost 访问场景
-- **一键安装 binge-server**：Stash 任务面板触发 `binge-install.py`，docker 优先（含 gallery-dl/yt-dlp/ffmpeg），失败回退 release 二进制；容器内无 docker socket 时拒绝并提示 compose 兄弟服务
-- **cookies.txt 一键导入**：Netscape cookies.txt 浏览器内解析，提取媒体平台登录态，文件不上传
-- **forage 默认 URL 清空**：不再探测陌生人 daemon，需手动设置或 Stash 配置下发
-- **导航按钮改用 PluginApi.patch**：SPA 重渲染无需重注入，用户可在 Stash Settings → Interface → Menu Items 勾选显隐
-- **Feed 失败重试**：error 态显示"重试"按钮
-- **隐私模糊**（原"展示模式"）：文案从"截图/演示录制"改"屏幕共享/公共场合"
-- **移除 demo 模式**：删除 `src/demo/demoContent.ts`（459 行），清理 11 个文件的 demo 分支
-- **移除隐藏标签**：删除 `HIDDEN_TAG_IDS`/`withHiddenTagsExcluded`，所有内容按 gender 设置正常展示
-- **演员分页放宽**：`PAGE_SIZE` 24→60，`NEAR_BOTTOM_PX` 600→1400
-- **锁定 Prettier 配置**：`.prettierrc.json`（`tabWidth:4, endOfLine:auto`）+ `.prettierignore`
-
-#### v0.5.0–v0.5.4
-
-- **全屏体验**：操作栈全屏按钮、UI 3 秒自动隐藏、进度条残留细条常驻、水平滑动快进快退、长按 2× 倍速；全屏下隐藏次要按钮、禁用 overlay 交互、横屏视频自动旋转（Android Chrome）
-- **全屏稳定性修复**：进入前固定 `.binge-reel` height 防止 virtualizer 卸载卡片；退出时 pause video + 等 `orientationchange` 完成再 `scrollToIndex`，避免跳错影片
-- **移动端容器高度**：`100dvh` + `estimateSize` 用 `.binge-reel` 的 `clientHeight`，解决 mobile Chrome 上 100vh 与 innerHeight 不一致导致的 wrapper 错位、标题/进度条被地址栏遮挡
-- **字幕**：自动加载 Stash sidecar `.srt`/`.vtt`，`text-shadow` 描边替代黑底，位置随 `object-fit: contain` 内容区，字体随视频宽度缩放
-- **UI 细节**：移动端地址栏背景色统一、回到顶部按钮（三页 720px 缩放）、演员图库无图占位符、Stories 行头像缩小、顶部导航放大 50%、Discover chevron 浮于两侧、Lightbox 箭头描边 + 720px 缩放、设置页最大宽度 1100px、窄屏断点统一 720px
-- **其他修复**：退出全屏顶部空白底部截断（三重 rAF + `scrollToIndex` 对齐）、影片详情标签只显示"#"（`toHashtag` 正则 bug）
+- **StashDB 网络降级**：`postStashDB` 加超时（Stories/Feed 10s、发现页头像 20s）+ 12h 缓存 + 刷新按钮联动清缓存，断网时快速降级不再卡死
+- **全屏体验**：操作栈全屏按钮、UI 3 秒自动隐藏、水平滑动快进快退、长按 2× 倍速；进入前固定 height 防止 virtualizer 卸载，退出时等 `orientationchange` 完成再 `scrollToIndex`
+- **移动端容器高度**：`100dvh` + `estimateSize` 用 `clientHeight`，解决 mobile Chrome 地址栏遮挡
+- **字幕**：自动加载 Stash sidecar `.srt`/`.vtt`，`text-shadow` 描边替代黑底，位置随 `object-fit:contain` 内容区，字体随视频宽度缩放
+- **binge-server 集成**：API Key 认证（query param）、URL 派生、一键安装（docker 优先）、cookies.txt 导入
+- **UI 细节**：移动端地址栏背景色、回到顶部按钮、Stories 头像缩小、顶部导航放大、Lightbox 箭头描边、设置页 max-width 1100px、窄屏断点统一 720px
+- **移除 demo 模式 + 隐藏标签**：清理 459 行 demoContent + `HIDDEN_TAG_IDS`
+- **导航按钮改用 PluginApi.patch**：SPA 重渲染无需重注入，可在 Stash 设置勾选显隐
+- **演员分页放宽**：`PAGE_SIZE` 24→60
+- **锁定 Prettier 配置**：`.prettierrc.json` + `.prettierignore`
 
 #### v0.4.17–v0.4.19
 
