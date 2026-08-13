@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { i18n as I18nInstance } from "i18next";
 import {
     findScenesByPerformer,
     type PerformerDetail,
@@ -720,7 +721,7 @@ function sortStatBadge(
     sort: PerformerSceneSort,
     oCount: number,
     viewCount: number,
-    i18n: any
+    i18n: I18nInstance
 ): { icon: React.ReactNode; text: string; like?: boolean } | null {
     switch (sort) {
         case "views":
@@ -754,7 +755,7 @@ function sortStatBadge(
 
 // "2026年6月" from a "YYYY-MM-DD" or ISO date; falls back to the bare
 // year, then null when unparseable.
-function compactMonthYear(raw: string | null, i18n: any): string | null {
+function compactMonthYear(raw: string | null, i18n: I18nInstance): string | null {
     if (!raw) return null;
     const m = /^(\d{4})-(\d{2})/.exec(raw);
     if (!m) {

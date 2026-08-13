@@ -16,6 +16,7 @@ import {
 import { clearSession, loadSession, saveSession } from "./session";
 import { loadSubject, type LoadedSubject, type SubjectRef } from "./subject";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 
 // "intro" — choice screen when there's no existing review + no
 //          resumable session. User picks LLM-interview or manual.
@@ -618,7 +619,7 @@ export function ScribeModal({
 // Surface a clearer hint for the most common failure mode (Ollama
 // not running). Everything else falls through unchanged. Used in
 // the error banner above the modal phases.
-function friendlyError(e: unknown, t: any): string {
+function friendlyError(e: unknown, t: TFunction): string {
     const msg = (e as Error)?.message ?? String(e);
     if (
         /connection refused|ECONNREFUSED|connect.*refused|failed to (?:fetch|connect)|connection error/i.test(
@@ -639,7 +640,7 @@ function ScoreRow({
     criterion: Criterion;
     value: number | null;
     onChange: (v: number | null) => void;
-    t: any;
+    t: TFunction;
 }) {
     return (
         <div className="binge-scribe-score-row">

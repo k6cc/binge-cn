@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { useEffect, useRef, useState } from "react";
 import { getXFeed, xHandleFromUrls, type XMedia } from "../api/bingeServer";
 import { useFetchBlobUrl } from "../hooks/useFetchBlobUrl";
@@ -189,7 +190,7 @@ function XCell({
     media: XMedia;
     performerStashId: string;
     onOpen: () => void;
-    t: any;
+    t: TFunction;
 }) {
     const isVideo = media.kind === "video";
     const [saveState, setSaveState] = useState<

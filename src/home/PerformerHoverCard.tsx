@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { FollowPerformerModal } from "./FollowPerformerModal";
 import { VerifiedIcon } from "../performer/PerformerProfile";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 
 export type FollowState =
     | { kind: "idle" }
@@ -382,7 +383,7 @@ function computeAge(birthDate: string): number {
     return age;
 }
 
-function formatGender(g: string | null, t: any): string | null {
+function formatGender(g: string | null, t: TFunction): string | null {
     if (!g) return null;
     switch (g) {
         case "FEMALE":

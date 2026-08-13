@@ -1,3 +1,4 @@
+import type { i18n as I18nInstance } from "i18next";
 
 export function formatDuration(seconds: number | null): string {
     if (seconds === null) return "";
@@ -13,7 +14,7 @@ function pad(n: number): string {
     return n.toString().padStart(2, "0");
 }
 
-export function formatDate(raw: string | null, i18n: any): string {
+export function formatDate(raw: string | null, i18n: I18nInstance): string {
     if (!raw) return "";
     const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
     if (!m) return "";

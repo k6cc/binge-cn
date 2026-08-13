@@ -38,6 +38,15 @@ export default defineConfig([
             // report then as the migration checklist.
             "react-hooks/set-state-in-effect": "off",
             "react-hooks/incompatible-library": "off",
+            // The following three rules only describe what the React
+            // Compiler would refuse to optimise, and binge does not run
+            // the compiler. Satisfying them means moving ref mutations
+            // and impure calls out of render/effect bodies, which is a
+            // real refactor with real behaviour changes, not a lint fix.
+            // Turn them back on when adopting the compiler.
+            "react-hooks/refs": "off",
+            "react-hooks/immutability": "off",
+            "react-hooks/purity": "off",
         },
     },
     {

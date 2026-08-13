@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import {
     getStashDBBox,
     getOwnedStashDBSceneIds,
@@ -366,7 +367,7 @@ function parseBirthYear(birthDate: string): number | null {
     return m ? Number(m[1]) : null;
 }
 
-function genderLabel(g: string, t: any): string {
+function genderLabel(g: string, t: TFunction): string {
     switch (g) {
         case "FEMALE":
             return t("gender.female");
