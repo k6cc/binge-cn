@@ -47,23 +47,18 @@ jobs:
           node-version: 22
           cache: npm
 
-      # npm install (not ci) because rolldown's native bindings are
-      # platform-specific optionalDependencies. The lockfile is generated
-      # on Windows and only locks win32 bindings; npm install resolves
-      # the Linux bindings on the CI runner automatically.
-      - run: npm install --no-audit --no-fund
+      # rolldown (vite 8's bundler) ships platform-specific native
+      # bindings as optionalDependencies. npm has a known bug
+      # (npm/cli#4828): a lockfile generated on Windows won't install
+      # Linux bindings on CI, even with `npm install`. Workaround:
+      # delete the lockfile so npm resolves all platform deps fresh.
+      - run: rm -f package-lock.json && npm install --no-audit --no-fund
 
       - name: Type check (tsc)
         run: npx tsc -b
 
       - name: Bundle (vite)
-        run: npx vite build 2>&1 || true
-
-      - name: Check dist
-        run: ls -la dist/ || echo "dist not found"
-
-      - name: Check rolldown binding
-        run: ls node_modules/@rolldown/ || echo "no rolldown bindings"
+        run: npx vite build
 
       - name: Resolve version
         id: ver
