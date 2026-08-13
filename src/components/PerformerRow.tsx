@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { BingeScene } from "../api/queries";
 import { PerformerSheet } from "./PerformerSheet";
 import { usePerformerProfile } from "../performer/PerformerProfileContext";
+import { useTranslation } from "react-i18next";
 
 interface PerformerRowProps {
     performers: BingeScene["performers"];
@@ -18,9 +19,10 @@ export function PerformerRow({ performers }: PerformerRowProps) {
     // Mirror the primary's favorite state for the inline button. Updated
     // optimistically from the sheet via onFavoriteChange.
     const [primaryFav, setPrimaryFav] = useState<boolean>(
-        primary?.favorite ?? false,
+        primary?.favorite ?? false
     );
     const [sheetOpen, setSheetOpen] = useState(false);
+    const { t } = useTranslation();
 
     useEffect(() => {
         setPrimaryFav(primary?.favorite ?? false);
@@ -114,11 +116,11 @@ export function PerformerRow({ performers }: PerformerRowProps) {
                     "binge-follow-btn" + (primaryFav ? " is-following" : "")
                 }
                 onClick={() => setSheetOpen(true)}
-                title="Manage follows"
+                title={t("action.manage_follows")}
                 aria-haspopup="dialog"
                 aria-expanded={sheetOpen}
             >
-                {primaryFav ? "Favourited" : "Favourite"}
+                {primaryFav ? t("status.favorite") : t("action.favorite")}
             </button>
             {sheetOpen && (
                 <PerformerSheet

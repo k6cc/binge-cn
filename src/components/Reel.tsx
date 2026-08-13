@@ -15,6 +15,8 @@ import { createChainAlgo, type ChainAlgo } from "../reel/chainAlgo";
 import { useAutoHideTabBar } from "../hooks/useAutoHideTabBar";
 import { BingeLoading } from "./BingeLoading";
 
+import { useTranslation } from "react-i18next";
+
 type LoadState =
     | { kind: "loading" }
     | {
@@ -61,7 +63,7 @@ export function Reel() {
         (sceneId: string, value: number | null) => {
             setRatingOverrides((prev) => ({ ...prev, [sceneId]: value }));
         },
-        [],
+        []
     );
     // Collection memberships keyed first by sceneId, then by tagName.
     // Generalises the old single-favourite override so the bookmark
@@ -76,7 +78,7 @@ export function Reel() {
                 [sceneId]: { ...(prev[sceneId] ?? {}), [tagName]: value },
             }));
         },
-        [],
+        []
     );
     const { filter, activeSavedFilter } = useFilter();
     const {
@@ -179,7 +181,7 @@ export function Reel() {
     const sortSeed = useMemo(
         () => `random_${Math.floor(Math.random() * 1e9)}`,
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [filter, activeSavedFilter],
+        [filter, activeSavedFilter]
     );
 
     // scene_filter — either binge's chip-derived filter or the saved
@@ -193,7 +195,7 @@ export function Reel() {
         return buildSceneFilter(
             filter.performers.map((p) => p.id),
             filter.tags.map((t) => t.id),
-            filter.studios.map((s) => s.id),
+            filter.studios.map((s) => s.id)
         );
     }, [filter, activeSavedFilter]);
 
@@ -218,12 +220,13 @@ export function Reel() {
     // Random mode (the default — current behaviour): fetch a random
     // page 1 plus the pinned scene if one is set; hoist the pinned
     // scene to position 0.
-    //
+    // 
     // Chained mode (set by an Explore tile tap): fetch ONLY the pinned
     // scene. Build a fresh ChainAlgo seeded with that scene id in the
     // `visited` set so the algo never picks it again. Subsequent
     // scenes are produced by algoRef.nextBatch() in the pagination
     // effect below.
+    const { t } = useTranslation();
     useEffect(() => {
         const token = ++fetchTokenRef.current;
         setState({ kind: "loading" });
@@ -262,7 +265,7 @@ export function Reel() {
                             ? found
                             : Math.min(
                                   Math.max(0, queue.startIndex),
-                                  Math.max(0, scenes.length - 1),
+                                  Math.max(0, scenes.length - 1)
                               );
                     setActiveIndex(idx);
                     setOOverrides({});
@@ -306,7 +309,7 @@ export function Reel() {
                     if (!pinnedScene) {
                         setState({
                             kind: "error",
-                            message: "pinned scene not found",
+                            message: t("status.pinned_scene_not_found"),
                         });
                         return;
                     }
@@ -417,7 +420,7 @@ export function Reel() {
                         if (s.kind !== "ready") return s;
                         const existingIds = new Set(s.scenes.map((x) => x.id));
                         const deduped = fresh.filter(
-                            (x) => !existingIds.has(x.id),
+                            (x) => !existingIds.has(x.id)
                         );
                         return {
                             ...s,
@@ -435,7 +438,7 @@ export function Reel() {
                     // in DevTools so the failure is debuggable.
                     console.error(
                         "[binge] chained-mode pagination failed",
-                        err,
+                        err
                     );
                 })
                 .finally(() => {
@@ -462,7 +465,7 @@ export function Reel() {
                     // Dedup by id — safety against random sort edge cases.
                     const existingIds = new Set(s.scenes.map((x) => x.id));
                     const fresh = data.findScenes.scenes.filter(
-                        (x) => !existingIds.has(x.id),
+                        (x) => !existingIds.has(x.id)
                     );
                     return {
                         ...s,
@@ -517,9 +520,9 @@ export function Reel() {
     const scenes = state.kind === "ready" ? state.scenes : [];
     const errorOrEmpty =
         state.kind === "error"
-            ? `error: ${state.message}`
+            ? t("status.error_message", { message: state.message })
             : state.kind === "ready" && state.scenes.length === 0
-              ? "no scenes matched. (any saved filters or chips active?)"
+              ? t("status.no_scenes_matched")
               : null;
     return (
         <div className="binge-reel" ref={scrollRef}>

@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { FollowPerformerModal } from "./FollowPerformerModal";
 import { VerifiedIcon } from "../performer/PerformerProfile";
+import { useTranslation } from "react-i18next";
+import i18n from "i18next";
 
 export type FollowState =
     | { kind: "idle" }
@@ -84,6 +86,7 @@ export function PerformerHoverCard({
     });
     const followState = controlledFollow?.state ?? internalFollow;
     const [modalOpen, setModalOpen] = useState(false);
+    const { t } = useTranslation();
 
     // Tap Follow → open the confirm modal. The modal owns the
     // actual performerCreate call so the user can edit the scraped
@@ -131,7 +134,7 @@ export function PerformerHoverCard({
             const desiredLeft = rect.left + rect.width / 2 - cardWidth / 2;
             const clampedLeft = Math.max(
                 margin,
-                Math.min(desiredLeft, window.innerWidth - cardWidth - margin),
+                Math.min(desiredLeft, window.innerWidth - cardWidth - margin)
             );
             const spaceBelow = window.innerHeight - rect.bottom;
             const placeAbove =
@@ -188,14 +191,14 @@ export function PerformerHoverCard({
         cancelTimers();
         showTimerRef.current = window.setTimeout(
             () => setOpen(true),
-            SHOW_DELAY_MS,
+            SHOW_DELAY_MS
         );
     };
     const queueHide = () => {
         cancelTimers();
         hideTimerRef.current = window.setTimeout(
             () => setOpen(false),
-            HIDE_DELAY_MS,
+            HIDE_DELAY_MS
         );
     };
 
@@ -209,12 +212,12 @@ export function PerformerHoverCard({
     const followError =
         followState.kind === "error" ? followState.message : null;
     const followLabel = followBusy
-        ? "Following…"
+        ? t("status.following")
         : followedAlready
-          ? "Following"
+          ? t("status.followed")
           : followError
-            ? `Retry · Follow ${name}`
-            : `Follow ${name}`;
+            ? t("action.retry_follow_name", { name })
+            : t("action.follow_performer_name", { name });
 
     return (
         <>
@@ -280,13 +283,13 @@ export function PerformerHoverCard({
                                             }
                                             aria-label={
                                                 favorite
-                                                    ? "Favourited"
-                                                    : "In library"
+                                                    ? t("status.favorite")
+                                                    : t("status.in_library")
                                             }
                                             title={
                                                 favorite
-                                                    ? "Favourited"
-                                                    : "In library"
+                                                    ? t("status.favorite")
+                                                    : t("status.in_library")
                                             }
                                         >
                                             <VerifiedIcon />
@@ -299,7 +302,7 @@ export function PerformerHoverCard({
                                         age !== null ? `${age}` : null,
                                     ]
                                         .filter(Boolean)
-                                        .join(" · ") || "Performer"}
+                                        .join(" · ") || t("performer.performer")}
                                 </span>
                                 <span
                                     className={
@@ -309,7 +312,7 @@ export function PerformerHoverCard({
                                             : " is-stashdb")
                                     }
                                 >
-                                    {inLibrary ? "In library" : "StashDB"}
+                                    {inLibrary ? t("status.in_library") : "StashDB"}
                                 </span>
                             </div>
                         </div>
@@ -322,7 +325,7 @@ export function PerformerHoverCard({
                                     setOpen(false);
                                 }}
                             >
-                                Open profile
+                                {t("action.open_profile")}
                             </button>
                         )}
                         {!inLibrary && (
@@ -349,7 +352,7 @@ export function PerformerHoverCard({
                             </>
                         )}
                     </div>,
-                    document.body,
+                    document.body
                 )}
             {modalOpen && stashDBPerformerId && stashBoxIndex !== undefined && (
                 <FollowPerformerModal
@@ -384,17 +387,17 @@ function formatGender(g: string | null): string | null {
     if (!g) return null;
     switch (g) {
         case "FEMALE":
-            return "Female";
+            return i18n.t("settings.gender.female");
         case "TRANSGENDER_FEMALE":
-            return "Trans female";
+            return i18n.t("settings.gender.trans_female");
         case "MALE":
-            return "Male";
+            return i18n.t("settings.gender.male");
         case "TRANSGENDER_MALE":
-            return "Trans male";
+            return i18n.t("settings.gender.trans_male");
         case "INTERSEX":
-            return "Intersex";
+            return i18n.t("settings.gender.intersex");
         case "NON_BINARY":
-            return "Non-binary";
+            return i18n.t("settings.gender.non_binary");
         default:
             return g
                 .replace(/_/g, " ")

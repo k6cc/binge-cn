@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
 import { findPerformer, type PerformerDetail } from "../api/queries";
 import { setPerformerFavorite } from "../api/mutations";
 import { useHasAdvancedRating } from "../plugins/PluginContext";
@@ -88,6 +89,7 @@ export function PerformerProfile() {
 }
 
 function LocalPerformerProfile({ localId }: { localId: string }) {
+                                   const { t } = useTranslation();
     const currentId = localId;
     const { close } = usePerformerProfile();
     const [state, setState] = useState<LoadState>({ kind: "idle" });
@@ -128,7 +130,7 @@ function LocalPerformerProfile({ localId }: { localId: string }) {
     const openStory = () => {
         const base = sharedStory?.scenes ?? [];
         const merged = [...base, ...xScenes].sort((a, b) =>
-            b.effectiveAt.localeCompare(a.effectiveAt),
+            b.effectiveAt.localeCompare(a.effectiveAt)
         );
         if (merged.length === 0 || state.kind !== "ready") return;
         // Open ONLY this performer's story — the user is already on their
@@ -233,8 +235,8 @@ function LocalPerformerProfile({ localId }: { localId: string }) {
         const timeout = new Promise<never>((_, reject) =>
             setTimeout(
                 () => reject(new Error("setPerformerFavorite timeout (8s)")),
-                8000,
-            ),
+                8000
+            )
         );
         try {
             const confirmed = (await Promise.race([
@@ -251,11 +253,7 @@ function LocalPerformerProfile({ localId }: { localId: string }) {
     };
 
     return createPortal(
-        <div
-            className="binge-profile-root"
-            role="dialog"
-            aria-label="Performer profile"
-        >
+        <div className="binge-profile-root" role="dialog" aria-label={t("performer.profile_aria_label")}>
             <header
                 className={
                     "binge-profile-topbar" + (scrolled ? " is-scrolled" : "")
@@ -265,7 +263,7 @@ function LocalPerformerProfile({ localId }: { localId: string }) {
                     type="button"
                     className="binge-profile-back"
                     onClick={close}
-                    aria-label="Close profile"
+                    aria-label={t("performer.close_profile")}
                 >
                     <BackIcon />
                 </button>
@@ -287,8 +285,8 @@ function LocalPerformerProfile({ localId }: { localId: string }) {
                 <button
                     type="button"
                     className="binge-profile-more"
-                    aria-label="More actions"
-                    title="More"
+                    aria-label={t("performer.more_actions")}
+                    title={t("action.more")}
                     onClick={() => setMoreOpen(true)}
                 >
                     <MoreIcon />
@@ -298,7 +296,7 @@ function LocalPerformerProfile({ localId }: { localId: string }) {
                 {state.kind === "loading" && <BingeLoading minHeight="50vh" />}
                 {state.kind === "error" && (
                     <div className="binge-status binge-status-error">
-                        error: {state.message}
+                        {t("status.error_message", { message: state.message })}
                     </div>
                 )}
                 {state.kind === "ready" && (
@@ -324,8 +322,8 @@ function LocalPerformerProfile({ localId }: { localId: string }) {
                                         type="button"
                                         className="binge-profile-rate"
                                         onClick={() => setRatingOpen(true)}
-                                        aria-label="Rate performer"
-                                        title="Rate (advanced)"
+                                        aria-label={t("performer.rate")}
+                                        title={t("performer.rate_advanced")}
                                     >
                                         ★
                                     </button>
@@ -342,8 +340,10 @@ function LocalPerformerProfile({ localId }: { localId: string }) {
                                 onClick={handleFollow}
                                 disabled={busy}
                                 aria-pressed={favorite}
+                                title={t("action.manage_follows")}
+                                aria-label={favorite ? t("performer.unfollow") : t("performer.follow")}
                             >
-                                {favorite ? "Favourited" : "Favourite"}
+                                {favorite ? t("performer.favorited") : t("performer.follow")}
                             </button>
                         </div>
                         {ratingOpen && state.kind === "ready" && (
@@ -365,7 +365,7 @@ function LocalPerformerProfile({ localId }: { localId: string }) {
                         <div
                             className="binge-profile-tabs"
                             role="tablist"
-                            aria-label="Profile content"
+                            aria-label={t("nav.profile_content")}
                         >
                             <button
                                 type="button"
@@ -377,7 +377,7 @@ function LocalPerformerProfile({ localId }: { localId: string }) {
                                 }
                                 onClick={() => setTab("scenes")}
                             >
-                                Scenes
+                                {t("nav.scenes")}
                             </button>
                             <button
                                 type="button"
@@ -389,7 +389,7 @@ function LocalPerformerProfile({ localId }: { localId: string }) {
                                 }
                                 onClick={() => setTab("photos")}
                             >
-                                Photos
+                                {t("nav.gallery")}
                             </button>
                         </div>
                         {tab === "scenes" ? (
@@ -404,7 +404,7 @@ function LocalPerformerProfile({ localId }: { localId: string }) {
                 )}
             </div>
         </div>,
-        document.body,
+        document.body
     );
 }
 
@@ -423,6 +423,7 @@ function ProfileAvatar({
     hasStory: boolean;
     onOpenStory: () => void;
 }) {
+    const { t } = useTranslation();
     const inner = (
         <span
             className="binge-profile-avatar"
@@ -443,8 +444,8 @@ function ProfileAvatar({
             type="button"
             className="binge-profile-avatar-ring"
             onClick={onOpenStory}
-            aria-label={`View ${name}'s story`}
-            title="View story"
+            aria-label={t("performer.view_story_for", { name })}
+            title={t("performer.view_story")}
         >
             {inner}
         </button>

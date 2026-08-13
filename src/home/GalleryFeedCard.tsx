@@ -3,6 +3,7 @@ import type { GalleryFeedItem } from "./useFeed";
 import { ImageLightbox } from "../performer/ImageLightbox";
 import { usePerformerProfile } from "../performer/PerformerProfileContext";
 import { timeAgo } from "./timeAgo";
+import { useTranslation } from "react-i18next";
 
 interface GalleryFeedCardProps {
     item: GalleryFeedItem;
@@ -16,6 +17,7 @@ interface GalleryFeedCardProps {
 // Tap any image → lightbox at that index. Tap the end panel → lightbox
 // at index 0.
 export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
+                                    const { t } = useTranslation();
     const carouselRef = useRef<HTMLDivElement>(null);
     const [activeIndex, setActiveIndex] = useState(0);
     const [lightboxOpenAt, setLightboxOpenAt] = useState<number | null>(null);
@@ -103,7 +105,7 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                     ref={carouselRef}
                     role="region"
                     aria-roledescription="carousel"
-                    aria-label={item.title ?? "Gallery images"}
+                    aria-label={item.title ?? t("gallery.gallery_image")}
                 >
                     {item.images.length === 0 ? (
                         // Empty image list — typically means the gallery
@@ -120,7 +122,7 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                                     : undefined
                             }
                             onClick={() => setLightboxOpenAt(0)}
-                            aria-label={`Open ${item.title ?? "gallery"}`}
+                            aria-label={t("gallery.open_gallery_title", { title: item.title ?? t("gallery.gallery") })}
                         />
                     ) : (
                         item.images.map((img, idx) => {
@@ -137,9 +139,7 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                                             : undefined
                                     }
                                     onClick={() => setLightboxOpenAt(idx)}
-                                    aria-label={`Image ${idx + 1} of ${
-                                        item.imageCount
-                                    }`}
+                                    aria-label={t("gallery.slide_position", { current: idx + 1, total: item.imageCount })}
                                 />
                             );
                         })
@@ -155,11 +155,10 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                     >
                         <span className="binge-gallery-end-inner">
                             <span className="binge-gallery-end-label">
-                                View gallery
+                                {t("gallery.view_gallery")}
                             </span>
                             <span className="binge-gallery-end-sub">
-                                {item.imageCount}{" "}
-                                {item.imageCount === 1 ? "photo" : "photos"}
+                                {t("gallery.image_count", { count: item.imageCount })}
                             </span>
                             <ChevronRight />
                         </span>
@@ -178,7 +177,7 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                 <div
                     className="binge-gallery-dots"
                     role="tablist"
-                    aria-label="Gallery position"
+                    aria-label={t("nav.gallery_position")}
                 >
                     {Array.from({ length: slideCount }).map((_, i) => (
                         <button
@@ -192,7 +191,7 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                             }
                             onClick={() => scrollToSlide(i)}
                             tabIndex={-1}
-                            aria-label={`Go to slide ${i + 1}`}
+                            aria-label={t("gallery.jump_to_slide", { current: i + 1 })}
                         />
                     ))}
                 </div>

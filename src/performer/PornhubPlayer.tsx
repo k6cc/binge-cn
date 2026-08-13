@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
 import {
     pornhubStreamUrl,
     saveToStash,
@@ -21,6 +22,7 @@ export function PornhubPlayer({
     const [saveState, setSaveState] = useState<
         "idle" | "saving" | "saved" | "error"
     >("idle");
+    const { t } = useTranslation();
 
     const handleSave = async () => {
         if (saveState === "saving" || saveState === "saved") return;
@@ -43,7 +45,7 @@ export function PornhubPlayer({
         <div
             className="binge-ph-player-root"
             role="dialog"
-            aria-label="PornHub video"
+            aria-label={t("status.pornhub_video")}
             onClick={onClose}
         >
             <div
@@ -67,23 +69,23 @@ export function PornhubPlayer({
                         }
                         title={
                             saveState === "error"
-                                ? "Save failed — tap to retry"
-                                : "Download into Stash"
+                                ? t("action.save_failed_retry")
+                                : t("action.download_to_stash")
                         }
                     >
                         {saveState === "saved"
-                            ? "✓ Saved"
+                            ? t("status.saved_with_check")
                             : saveState === "saving"
-                              ? "Saving…"
+                              ? t("action.saving")
                               : saveState === "error"
-                                ? "Retry"
-                                : "Save to Stash"}
+                                ? t("action.retry")
+                                : t("action.save_to_stash")}
                     </button>
                     <button
                         type="button"
                         className="binge-ph-player-close"
                         onClick={onClose}
-                        aria-label="Close"
+                        aria-label={t("action.close")}
                     >
                         ✕
                     </button>
@@ -97,6 +99,6 @@ export function PornhubPlayer({
                 />
             </div>
         </div>,
-        document.body,
+        document.body
     );
 }

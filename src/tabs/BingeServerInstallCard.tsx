@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { getBingeServerHealth } from "../api/bingeServer";
 import { readBingeServerUrl } from "../home/pluginSettings";
 import {
@@ -25,6 +26,7 @@ type InstallState =
 // you deliberately run the daemon elsewhere. Hence the note in the copy,
 // and the manual command for everyone the button can't serve.
 export function BingeServerInstallCard() {
+    const { t } = useTranslation();
     const [state, setState] = useState<InstallState>({ kind: "checking" });
     const [showManual, setShowManual] = useState(false);
     const [copied, setCopied] = useState<"compose" | "run" | null>(null);
@@ -84,14 +86,12 @@ export function BingeServerInstallCard() {
             return;
         }
         const up = await waitForServer(300_000, (elapsed) =>
-            setState({ kind: "installing", elapsed }),
+            setState({ kind: "installing", elapsed })
         );
         if (!up) {
             setState({
                 kind: "failed",
-                message:
-                    "The task ran but nothing answered on port 7878. " +
-                    "Settings, then Tasks, has its log.",
+                message: t("settings.install_card.failed_no_answer"),
                 canInstall: true,
             });
             setShowManual(true);
@@ -119,10 +119,7 @@ export function BingeServerInstallCard() {
             <div className="binge-settings-row-text">
                 <div className="binge-settings-row-title">binge-server</div>
                 <div className="binge-settings-row-desc">
-                    Optional daemon that adds Reddit, X and PornHub posts to
-                    your stories, plus Save-to-Stash. binge works fine without
-                    it. Installs onto the machine running Stash — if you run the
-                    daemon somewhere else, set its URL below instead.
+                    {t("settings.install_card.desc")}
                 </div>
             </div>
 
@@ -133,7 +130,7 @@ export function BingeServerInstallCard() {
 
                 {state.kind === "running" && (
                     <div className="binge-install-status is-ok">
-                        Installed and running
+                        {t("settings.install_card.running")}
                         {state.version ? ` (${state.version})` : ""}
                     </div>
                 )}
@@ -161,8 +158,8 @@ export function BingeServerInstallCard() {
                                     onClick={install}
                                 >
                                     {state.kind === "failed"
-                                        ? "Try again"
-                                        : "Install binge-server"}
+                                        ? t("settings.install_card.try_again")
+                                        : t("settings.install_card.install")}
                                 </button>
                             )}
                             <button
@@ -171,16 +168,13 @@ export function BingeServerInstallCard() {
                                 onClick={() => setShowManual((v) => !v)}
                             >
                                 {showManual
-                                    ? "Hide command"
-                                    : "Install manually"}
+                                    ? t("settings.install_card.hide_command")
+                                    : t("settings.install_card.install_manually")}
                             </button>
                         </div>
                         {!state.canInstall && (
                             <div className="binge-install-status">
-                                One-click install isn't offered here — Stash has
-                                no install task registered. Reload plugins in
-                                Stash if you just updated binge; otherwise use
-                                one of the options below.
+                                {t("settings.install_card.no_task")}
                             </div>
                         )}
                         {showManual && (
@@ -201,8 +195,8 @@ export function BingeServerInstallCard() {
                                     }
                                 >
                                     {copied === "compose"
-                                        ? "Copied"
-                                        : "Copy compose service"}
+                                        ? t("settings.install_card.copied")
+                                        : t("settings.install_card.copy_compose")}
                                 </button>
                                 <div className="binge-install-status">
                                     <strong>Otherwise</strong> — run this on the
@@ -218,8 +212,8 @@ export function BingeServerInstallCard() {
                                     }
                                 >
                                     {copied === "run"
-                                        ? "Copied"
-                                        : "Copy docker run"}
+                                        ? t("settings.install_card.copied")
+                                        : t("settings.install_card.copy_run")}
                                 </button>
                             </div>
                         )}

@@ -1,4 +1,5 @@
 import { useEffect, useState, type RefObject } from "react";
+import { useTranslation } from "react-i18next";
 
 interface SceneProgressProps {
     videoRef: RefObject<HTMLVideoElement | null>;
@@ -13,6 +14,7 @@ interface SceneProgressProps {
 // known duration so it shows real progress through a 2-hour scene, not
 // just how far the buffer has loaded.
 export function SceneProgress({ videoRef, duration }: SceneProgressProps) {
+                                  const { t } = useTranslation();
     const [progress, setProgress] = useState(0);
     const [hovering, setHovering] = useState(false);
 
@@ -68,7 +70,7 @@ export function SceneProgress({ videoRef, duration }: SceneProgressProps) {
             aria-valuemin={0}
             aria-valuemax={1}
             aria-valuenow={progress}
-            aria-label="Scene progress"
+            aria-label={t("scene.progress")}
         >
             <div
                 className="binge-progress-fill"

@@ -5,6 +5,7 @@ import {
     type PerformerImageCard,
 } from "../api/queries";
 import { ImageLightbox } from "./ImageLightbox";
+import { useTranslation } from "react-i18next";
 
 interface PerformerImageGridProps {
     performer: PerformerDetail;
@@ -17,6 +18,7 @@ const NEAR_BOTTOM_PX = 600;
 // lightbox positioned at that index; the lightbox itself handles
 // prev/next nav.
 export function PerformerImageGrid({ performer }: PerformerImageGridProps) {
+                                       const { t } = useTranslation();
     const [images, setImages] = useState<PerformerImageCard[]>([]);
     const [count, setCount] = useState<number | null>(null);
     const [page, setPage] = useState(1);
@@ -73,7 +75,7 @@ export function PerformerImageGrid({ performer }: PerformerImageGridProps) {
                     }
                 }
             },
-            { rootMargin: `0px 0px ${NEAR_BOTTOM_PX}px 0px` },
+            { rootMargin: `0px 0px ${NEAR_BOTTOM_PX}px 0px` }
         );
         observer.observe(sentinel);
         return () => observer.disconnect();
@@ -83,7 +85,7 @@ export function PerformerImageGrid({ performer }: PerformerImageGridProps) {
         <section className="binge-profile-photos">
             {error && (
                 <div className="binge-status binge-status-error">
-                    error: {error}
+                    {t("status.error_message", { message: error })}
                 </div>
             )}
             {images.length === 0 && loading && (
@@ -120,7 +122,7 @@ export function PerformerImageGrid({ performer }: PerformerImageGridProps) {
             <div ref={sentinelRef} aria-hidden="true" />
             {loading && images.length > 0 && (
                 <div className="binge-status binge-profile-scenes-loading">
-                    loading more…
+                    {t("status.loading")}
                 </div>
             )}
             {lightboxIndex != null && (

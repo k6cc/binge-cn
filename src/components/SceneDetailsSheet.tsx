@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
 import {
     fetchSceneFileDetails,
     type BingeScene,
@@ -19,6 +20,7 @@ interface SceneDetailsSheetProps {
 // PerformerSheet — the slide's `.binge-overlay` would otherwise cap
 // our z-index beneath the action stack.
 export function SceneDetailsSheet({ scene, onClose }: SceneDetailsSheetProps) {
+    const { t } = useTranslation();
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
             if (e.key === "Escape") onClose();
@@ -63,7 +65,7 @@ export function SceneDetailsSheet({ scene, onClose }: SceneDetailsSheetProps) {
             <div
                 className="binge-sheet binge-details-sheet"
                 role="dialog"
-                aria-label="Scene details"
+                aria-label={t("nav.scene_details")}
             >
                 <div className="binge-sheet-handle" aria-hidden="true" />
                 <div className="binge-details-meta">
@@ -91,7 +93,7 @@ export function SceneDetailsSheet({ scene, onClose }: SceneDetailsSheetProps) {
                             target="_blank"
                             rel="noopener noreferrer"
                             className="binge-details-title-link"
-                            title="Open scene in Stash"
+                            title={t("action.open_in_stash")}
                         >
                             {displayTitle}
                         </a>
@@ -117,7 +119,7 @@ export function SceneDetailsSheet({ scene, onClose }: SceneDetailsSheetProps) {
                     )}
             </div>
         </div>,
-        document.body,
+        document.body
     );
 }
 
@@ -126,28 +128,27 @@ export function SceneDetailsSheet({ scene, onClose }: SceneDetailsSheetProps) {
 // Mirrors the iOS SceneDetailsSheet's tech block: path, resolution,
 // duration, size, codecs, frame rate, bit rate.
 function TechSection({ tech }: { tech: SceneFileDetails }) {
+    const { t } = useTranslation();
     const rows: { label: string; value: string; mono?: boolean }[] = [];
     if (tech.path) {
-        rows.push({ label: "Path", value: tech.path, mono: true });
+        rows.push({ label: t("scene.path"), value: tech.path, mono: true });
     }
     const res = formatResolution(tech);
-    if (res) rows.push({ label: "Resolution", value: res });
+    if (res) rows.push({ label: t("scene.resolution"), value: res });
     const dur = formatDuration(tech.duration);
-    if (dur) rows.push({ label: "Duration", value: dur });
+    if (dur) rows.push({ label: t("scene.duration"), value: dur });
     const size = formatSize(tech.size);
-    if (size) rows.push({ label: "Size", value: size });
-    if (tech.video_codec)
-        rows.push({ label: "Video", value: tech.video_codec });
-    if (tech.audio_codec)
-        rows.push({ label: "Audio", value: tech.audio_codec });
+    if (size) rows.push({ label: t("scene.size"), value: size });
+    if (tech.video_codec) rows.push({ label: t("scene.video"), value: tech.video_codec });
+    if (tech.audio_codec) rows.push({ label: t("scene.audio"), value: tech.audio_codec });
     const fr = formatFrameRate(tech.frame_rate);
-    if (fr) rows.push({ label: "Frame rate", value: fr });
+    if (fr) rows.push({ label: t("scene.frame_rate"), value: fr });
     const br = formatBitRate(tech.bit_rate);
-    if (br) rows.push({ label: "Bit rate", value: br });
+    if (br) rows.push({ label: t("scene.bit_rate"), value: br });
     if (rows.length === 0) return null;
     return (
         <div className="binge-details-tech">
-            <div className="binge-details-tech-heading">TECHNICAL</div>
+            <div className="binge-details-tech-heading">{t("scene.technical_info")}</div>
             <dl className="binge-details-tech-list">
                 {rows.map((row) => (
                     <div key={row.label} className="binge-details-tech-row">

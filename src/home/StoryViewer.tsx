@@ -23,6 +23,8 @@ import {
     type SaveToStashRequest,
 } from "../api/bingeServer";
 import type { StoryScene } from "./useStories";
+import { useTranslation } from "react-i18next";
+import i18n from "i18next";
 
 type RedditStoryScene = Extract<StoryScene, { source: "reddit" }>;
 
@@ -44,6 +46,7 @@ export function StoryViewer() {
     const { replace } = useFilter();
     const { setTab, setPinFirstSceneId, setReelMode } = useTab();
     const { openProfile } = usePerformerProfile();
+    const { t } = useTranslation();
 
     const [sceneIndex, setSceneIndex] = useState(0);
     const [paused, setPaused] = useState(false);
@@ -246,7 +249,7 @@ export function StoryViewer() {
             window.open(
                 currentScene.stashboxUrl,
                 "_blank",
-                "noopener,noreferrer",
+                "noopener,noreferrer"
             );
             close();
             return;
@@ -257,7 +260,7 @@ export function StoryViewer() {
             window.open(
                 currentScene.permalink,
                 "_blank",
-                "noopener,noreferrer",
+                "noopener,noreferrer"
             );
             close();
             return;
@@ -297,18 +300,18 @@ export function StoryViewer() {
         <div
             className="binge-story-viewer-root"
             role="dialog"
-            aria-label="Story viewer"
+            aria-label={t("nav.story_viewer")}
         >
             <div
                 className="binge-story-viewer-backdrop"
                 onClick={close}
-                aria-hidden="true"
+                aria-label={t("action.close")}
             />
             <button
                 type="button"
                 className="binge-story-viewer-close"
                 onClick={close}
-                aria-label="Close"
+                aria-label={t("action.close")}
             >
                 ×
             </button>
@@ -320,7 +323,7 @@ export function StoryViewer() {
                 type="button"
                 className="binge-story-viewer-chevron binge-story-viewer-chevron-prev"
                 onClick={goPrev}
-                aria-label="Previous"
+                aria-label={t("action.previous")}
                 disabled={activeIndex === 0 && sceneIndex === 0}
             >
                 <ChevronLeft />
@@ -329,7 +332,7 @@ export function StoryViewer() {
                 type="button"
                 className="binge-story-viewer-chevron binge-story-viewer-chevron-next"
                 onClick={advance}
-                aria-label="Next"
+                aria-label={t("action.next")}
             >
                 <ChevronRight />
             </button>
@@ -374,7 +377,7 @@ export function StoryViewer() {
                             className="binge-story-viewer-image"
                             key={currentScene.id}
                             src={currentScene.cover ?? undefined}
-                            alt={currentScene.title ?? "StashDB scene"}
+                            alt={currentScene.title ?? t("scene.stashdb_scene")}
                         />
                     )}
                     {currentScene.source === "reddit" && (
@@ -401,8 +404,8 @@ export function StoryViewer() {
                                     openProfile(activeStory.performerId);
                                     close();
                                 }}
-                                aria-label={`Open ${activeStory.performerName}'s profile`}
-                                title="Open profile"
+                                aria-label={t("action.open_profile_name", { name: activeStory.performerName })}
+                                title={t("action.open_profile")}
                             >
                                 <span
                                     className="binge-story-viewer-avatar"
@@ -426,13 +429,13 @@ export function StoryViewer() {
                                         }
                                         aria-label={
                                             activeStory.performerFavorite
-                                                ? "Favourited"
-                                                : "In library"
+                                                ? t("status.favorite")
+                                                : t("status.in_library")
                                         }
                                         title={
                                             activeStory.performerFavorite
-                                                ? "Favourited"
-                                                : "In library"
+                                                ? t("status.favorite")
+                                                : t("status.in_library")
                                         }
                                     >
                                         <VerifiedIcon />
@@ -445,7 +448,7 @@ export function StoryViewer() {
                             {currentScene.source === "stashdb" && (
                                 <span
                                     className="binge-story-viewer-source-badge"
-                                    title="From StashDB — not in your library"
+                                    title={t("status.from_stashdb_not_in_library")}
                                 >
                                     StashDB
                                 </span>
@@ -469,8 +472,8 @@ export function StoryViewer() {
                                     e.stopPropagation();
                                     setMuted(!muted);
                                 }}
-                                aria-label={muted ? "Unmute" : "Mute"}
-                                title={muted ? "Unmute" : "Mute"}
+                                aria-label={muted ? t("action.unmute") : t("action.mute")}
+                                title={muted ? t("action.unmute") : t("action.mute")}
                             >
                                 {muted ? <MutedIcon /> : <UnmutedIcon />}
                             </button>
@@ -496,17 +499,17 @@ export function StoryViewer() {
                                     }
                                     title={
                                         saveState[savableKey] === "error"
-                                            ? "Save failed — tap to retry"
-                                            : "Save to Stash"
+                                            ? t("action.save_failed_retry")
+                                            : t("action.save_to_stash")
                                     }
                                 >
                                     {saveState[savableKey] === "saved"
-                                        ? "✓ Saved"
+                                        ? t("status.saved_with_check")
                                         : saveState[savableKey] === "saving"
-                                          ? "Saving…"
+                                          ? t("status.saving")
                                           : saveState[savableKey] === "error"
-                                            ? "Retry"
-                                            : "Save"}
+                                            ? t("action.retry")
+                                            : t("action.save")}
                                 </button>
                             )}
                         </div>
@@ -519,21 +522,21 @@ export function StoryViewer() {
                         type="button"
                         className="binge-story-viewer-tap binge-story-viewer-tap-left"
                         onClick={goPrev}
-                        aria-label="Previous"
+                        aria-label={t("action.previous")}
                         tabIndex={-1}
                     />
                     <button
                         type="button"
                         className="binge-story-viewer-tap binge-story-viewer-tap-center"
                         onClick={() => setPaused((p) => !p)}
-                        aria-label={paused ? "Resume" : "Pause"}
+                        aria-label={paused ? t("action.continue") : t("action.pause")}
                         tabIndex={-1}
                     />
                     <button
                         type="button"
                         className="binge-story-viewer-tap binge-story-viewer-tap-right"
                         onClick={advance}
-                        aria-label="Next"
+                        aria-label={t("action.next")}
                         tabIndex={-1}
                     />
 
@@ -549,15 +552,15 @@ export function StoryViewer() {
                             onClick={handleCta}
                         >
                             {currentScene.source === "stashdb"
-                                ? "View on StashDB →"
+                                ? t("action.view_on_stashdb_arrow")
                                 : currentScene.source === "reddit"
                                   ? currentScene.domain === "x.com" ||
                                     currentScene.domain === "twitter.com"
-                                      ? "Open on X →"
+                                      ? t("action.open_on_x_arrow")
                                       : currentScene.domain === "pornhub.com"
-                                        ? "Open on PornHub →"
-                                        : "Open on Reddit →"
-                                  : "Watch full scene →"}
+                                        ? t("action.open_on_pornhub_arrow")
+                                        : t("action.open_on_reddit_arrow")
+                                  : t("action.watch_full_scene_arrow")}
                         </button>
                     </div>
                 </div>
@@ -576,7 +579,7 @@ export function StoryViewer() {
                 </div>
             </div>
         </div>,
-        document.body,
+        document.body
     );
 }
 
@@ -625,7 +628,7 @@ function ChevronRight() {
 // (the daemon derives them otherwise).
 function buildSaveRequest(
     scene: StoryScene,
-    performerId: string,
+    performerId: string
 ): SaveToStashRequest | null {
     if (scene.source !== "reddit") return null;
     if (!scene.mediaUrl || (scene.kind !== "image" && scene.kind !== "video")) {
@@ -663,15 +666,15 @@ function redditBadgeLabel(scene: RedditStoryScene): string {
     if (d === "pornhub.com") return "PornHub";
     if (scene.kind === "video") {
         if (d.includes("redgifs")) return "redgifs";
-        if (d === "v.redd.it") return "reddit video";
-        return d || "video";
+        if (d === "v.redd.it") return i18n.t("status.reddit_video");
+        return d || i18n.t("status.video");
     }
     if (scene.kind === "image") {
-        if (d === "i.redd.it") return "reddit image";
-        return d || "image";
+        if (d === "i.redd.it") return i18n.t("status.reddit_image");
+        return d || i18n.t("status.image");
     }
-    if (scene.kind === "text") return "reddit text";
-    return d || "reddit link";
+    if (scene.kind === "text") return i18n.t("status.reddit_text");
+    return d || i18n.t("status.reddit_link");
 }
 
 // Reddit card body: switches on `kind` to render image / video / text /
@@ -689,6 +692,7 @@ function RedditCardBody({
     onEnded: () => void;
 }) {
     const [videoError, setVideoError] = useState<string | null>(null);
+    const { t } = useTranslation();
 
     // Reset error when scene id changes (next slide).
     useEffect(() => {
@@ -723,7 +727,7 @@ function RedditCardBody({
                 key={scene.id}
                 src={imgSrc}
                 referrerPolicy="no-referrer"
-                alt={scene.title ?? "Reddit image"}
+                alt={scene.title ?? t("status.reddit_image")}
             />
         );
     }
@@ -743,14 +747,14 @@ function RedditCardBody({
                         const err = v.error;
                         setVideoError(
                             err
-                                ? `MediaError ${err.code} (${err.message || "no message"})`
-                                : "unknown video error",
+                                ? `MediaError ${err.code} (${err.message || t("status.no_message")})`
+                                : t("status.unknown_video_error")
                         );
                     }}
                 />
                 {videoError && (
                     <div className="binge-story-viewer-video-error">
-                        <div>Video playback failed</div>
+                        <div>{t("status.video_play_failed")}</div>
                         <code>{videoError}</code>
                         <code style={{ wordBreak: "break-all" }}>
                             {scene.mediaUrl}
@@ -765,7 +769,7 @@ function RedditCardBody({
             <div
                 className="binge-story-viewer-text"
                 key={scene.id}
-                aria-label={scene.title ?? "Reddit text post"}
+                aria-label={scene.title ?? t("status.reddit_text_post")}
             >
                 {scene.title && (
                     <h2 className="binge-story-viewer-text-title">
@@ -789,6 +793,7 @@ function RedditCardBody({
             style={
                 linkThumb ? { backgroundImage: `url(${linkThumb})` } : undefined
             }
+            aria-label={scene.title ?? t("status.reddit_link_post")}
         >
             <div className="binge-story-viewer-link-overlay">
                 {scene.domain && (
@@ -823,12 +828,13 @@ function Peek({
     onClick: () => void;
 }) {
     const latest = story.scenes[0];
+    const { t } = useTranslation();
     return (
         <button
             type="button"
             className={`binge-story-viewer-peek is-distance-${distance}`}
             onClick={onClick}
-            aria-label={`View ${story.performerName}'s story`}
+            aria-label={t("action.view_story_name", { name: story.performerName })}
             style={(() => {
                 if (!latest) return undefined;
                 // Library scenes have `screenshot`; StashDB scenes have

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
 import {
     getStashDBBox,
     getOwnedStashDBSceneIds,
@@ -13,6 +14,7 @@ import { FollowPerformerModal } from "../home/FollowPerformerModal";
 import { AddSceneModal } from "../home/AddSceneModal";
 import { PerformerLinks } from "./PerformerLinks";
 import { BingeLoading } from "../components/BingeLoading";
+import i18n from "i18next";
 
 // Profile page for a StashDB performer the user hasn't added to their
 // library yet. **Reuses the exact same class names and layout** as
@@ -41,6 +43,7 @@ export function StashDBPerformerProfile({
 }: {
     stashDBPerformerId: string;
 }) {
+    const { t } = useTranslation();
     const { close } = usePerformerProfile();
     const [state, setState] = useState<State>({ kind: "loading" });
     const [followOpen, setFollowOpen] = useState(false);
@@ -62,20 +65,20 @@ export function StashDBPerformerProfile({
                 const box = await getStashDBBox();
                 if (!box) {
                     throw new Error(
-                        "StashDB isn't configured in Stash → Settings → Metadata Providers.",
+                        t("performer.stashdb_config_error")
                     );
                 }
                 const [performer, scenes, ownedSceneIds] = await Promise.all([
                     getStashDBPerformer(stashDBPerformerId, box.api_key),
                     getStashDBScenesForPerformer(
                         stashDBPerformerId,
-                        box.api_key,
+                        box.api_key
                     ),
                     getOwnedStashDBSceneIds(),
                 ]);
                 if (!alive) return;
                 if (!performer) {
-                    throw new Error("Performer not found on StashDB.");
+                    throw new Error(t("performer.stashdb_not_found"));
                 }
                 setState({
                     kind: "ready",
@@ -118,7 +121,7 @@ export function StashDBPerformerProfile({
         <div
             className="binge-profile-root"
             role="dialog"
-            aria-label="StashDB performer profile"
+            aria-label={t("performer.stashdb_profile_aria_label")}
         >
             <header
                 className={
@@ -129,7 +132,7 @@ export function StashDBPerformerProfile({
                     type="button"
                     className="binge-profile-back"
                     onClick={close}
-                    aria-label="Close profile"
+                    aria-label={t("performer.close_profile")}
                 >
                     <BackIcon />
                 </button>
@@ -137,10 +140,10 @@ export function StashDBPerformerProfile({
                     {state.kind === "ready" ? state.performer.name : ""}
                     <span
                         className="binge-profile-stashdb-pill"
-                        aria-label="StashDB"
-                        title="StashDB"
+                        aria-label={t("common.stashdb")}
+                        title={t("common.stashdb")}
                     >
-                        StashDB
+                        {t("common.stashdb")}
                     </span>
                 </span>
                 <span className="binge-profile-more" aria-hidden="true" />
@@ -150,7 +153,7 @@ export function StashDBPerformerProfile({
                 {state.kind === "loading" && <BingeLoading minHeight="50vh" />}
                 {state.kind === "error" && (
                     <div className="binge-status binge-status-error">
-                        error: {state.message}
+                        {t("status.error_message", { message: state.message })}
                     </div>
                 )}
                 {state.kind === "ready" && (
@@ -177,18 +180,18 @@ export function StashDBPerformerProfile({
                             <ul className="binge-profile-stats">
                                 <Stat
                                     value={state.performer.sceneCount}
-                                    label="scenes"
+                                    label={t("performer.stat_scenes")}
                                 />
                                 <Stat
                                     value={countOwned(
                                         state.scenes,
-                                        state.ownedSceneIds,
+                                        state.ownedSceneIds
                                     )}
-                                    label="in library"
+                                    label={t("performer.stat_in_library")}
                                 />
                                 <Stat
                                     value={state.performer.aliases.length}
-                                    label="aliases"
+                                    label={t("performer.stat_aliases")}
                                 />
                             </ul>
                         </section>
@@ -201,7 +204,7 @@ export function StashDBPerformerProfile({
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="binge-profile-name-link"
-                                        title="Open on StashDB"
+                                        title={t("performer.open_stashdb")}
                                     >
                                         {state.performer.name}
                                     </a>
@@ -228,17 +231,19 @@ export function StashDBPerformerProfile({
                                 onClick={() => !followed && setFollowOpen(true)}
                                 disabled={followed}
                                 aria-pressed={followed}
+                                title={followed ? t("performer.unfollow") : t("action.follow")}
+                                aria-label={followed ? t("performer.unfollow") : t("action.follow")}
                             >
-                                {followed ? "Following" : "+ Follow"}
+                                {followed ? t("performer.followed") : t("performer.follow")}
                             </button>
                         </div>
 
                         <section className="binge-profile-scenes">
                             <h2 className="binge-profile-scenes-heading">
-                                Scenes ({state.scenes.length})
+                                {t("performer.scenes")} ({state.scenes.length})
                             </h2>
                             {state.scenes.length === 0 ? (
-                                <div className="binge-status">no scenes</div>
+                                <div className="binge-status">{t("status.no_scenes")}</div>
                             ) : (
                                 <ul className="binge-profile-scene-grid">
                                     {state.scenes.map((s) => (
@@ -246,7 +251,7 @@ export function StashDBPerformerProfile({
                                             key={s.id}
                                             scene={s}
                                             owned={state.ownedSceneIds.has(
-                                                s.id,
+                                                s.id
                                             )}
                                             onOpenAddModal={() =>
                                                 setSceneModalFor({
@@ -291,7 +296,7 @@ export function StashDBPerformerProfile({
                             setState((prev) =>
                                 prev.kind === "ready"
                                     ? { ...prev, ownedSceneIds: ids }
-                                    : prev,
+                                    : prev
                             );
                         });
                     }}
@@ -299,7 +304,7 @@ export function StashDBPerformerProfile({
                 />
             )}
         </div>,
-        document.body,
+        document.body
     );
 }
 
@@ -348,17 +353,17 @@ function parseBirthYear(birthDate: string): number | null {
 function genderLabel(g: string): string {
     switch (g) {
         case "FEMALE":
-            return "female";
+            return i18n.t("gender.female");
         case "TRANSGENDER_FEMALE":
-            return "trans female";
+            return i18n.t("gender.trans_female");
         case "MALE":
-            return "male";
+            return i18n.t("gender.male");
         case "TRANSGENDER_MALE":
-            return "trans male";
+            return i18n.t("gender.trans_male");
         case "INTERSEX":
-            return "intersex";
+            return i18n.t("gender.intersex");
         case "NON_BINARY":
-            return "non-binary";
+            return i18n.t("gender.non_binary");
         default:
             return g.toLowerCase();
     }
@@ -379,13 +384,14 @@ function StashDBSceneTile({
     owned: boolean;
     onOpenAddModal: () => void;
 }) {
+    const { t } = useTranslation();
     return (
         <li className="binge-profile-scene-cell is-landscape-thumb">
             <button
                 type="button"
                 className="binge-profile-scene-card"
                 onClick={onOpenAddModal}
-                title={scene.title ?? "StashDB scene"}
+                title={scene.title ?? t("performer.stashdb_scene")}
             >
                 <span
                     className="binge-profile-scene-poster"
@@ -403,7 +409,7 @@ function StashDBSceneTile({
                         (owned ? " is-owned" : "")
                     }
                 >
-                    {owned ? "In library" : "StashDB"}
+                    {owned ? t("performer.in_library") : t("common.stashdb")}
                 </span>
                 <span className="binge-profile-scene-hover">
                     <span className="binge-profile-scene-hover-stats">

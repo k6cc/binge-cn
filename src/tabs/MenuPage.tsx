@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useTab } from "./TabContext";
 
 // "More" page reached via the bottom-nav burger slot on mobile. Just
@@ -10,11 +11,12 @@ import { useTab } from "./TabContext";
 // route — direct-linking `#/menu` still works.
 export function MenuPage() {
     const { setTab } = useTab();
+    const { t } = useTranslation();
     return (
         <div className="binge-tab-scroll">
             <header className="binge-saved-header">
                 <span className="binge-saved-spacer" />
-                <h1 className="binge-saved-title">More</h1>
+                <h1 className="binge-saved-title">{t("nav.menu")}</h1>
                 <span className="binge-saved-spacer" />
             </header>
             <ul className="binge-menu-list">
@@ -33,7 +35,7 @@ export function MenuPage() {
                         <span className="binge-menu-row-text">
                             <span className="binge-menu-row-title">Saved</span>
                             <span className="binge-menu-row-desc">
-                                Custom collections of bookmarked scenes.
+                                {t("desc_saved")}
                             </span>
                         </span>
                         <span
@@ -58,11 +60,10 @@ export function MenuPage() {
                         </span>
                         <span className="binge-menu-row-text">
                             <span className="binge-menu-row-title">
-                                Settings
+                                {t("nav.settings")}
                             </span>
                             <span className="binge-menu-row-desc">
-                                Stream type, lookback window, binge-server
-                                configuration, theme integration.
+                                {t("desc_settings")}
                             </span>
                         </span>
                         <span

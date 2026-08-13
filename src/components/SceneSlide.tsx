@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { BingeScene } from "../api/queries";
 import { ActionStack } from "./ActionStack";
 import { PerformerRow } from "./PerformerRow";
@@ -57,7 +58,7 @@ interface SceneSlideProps {
     onCollectionChange?: (
         sceneId: string,
         tagName: string,
-        next: boolean,
+        next: boolean
     ) => void;
     // True while the parent Reel is mid-scroll. We defer assigning
     // video.src until scroll settles — without this, every transient
@@ -102,6 +103,7 @@ export function SceneSlide({
     currentlyScrolling = false,
     onAutoAdvance,
 }: SceneSlideProps) {
+    const { t } = useTranslation();
     const autoScroll = useAutoScroll();
     // Reactive — re-points mounted <video> src when the user changes
     // the stream type in Settings (the old getTranscodeType() read was
@@ -120,7 +122,7 @@ export function SceneSlide({
     // (oCountOverride) so a remount after scroll-away inherits the
     // user's most recent like rather than the stale server value.
     const [oCount, setOCount] = useState<number>(
-        oCountOverride ?? scene.o_counter ?? 0,
+        oCountOverride ?? scene.o_counter ?? 0
     );
     const [oError, setOError] = useState(false);
     const [bursts, setBursts] = useState<Burst[]>([]);
@@ -129,7 +131,7 @@ export function SceneSlide({
     // Rating (0–100). Same lifted-override pattern as oCount — Reel
     // owns the canonical value across virtualizer mount/unmount.
     const [rating100, setRating100Local] = useState<number | null>(
-        ratingOverride !== undefined ? ratingOverride : scene.rating100,
+        ratingOverride !== undefined ? ratingOverride : scene.rating100
     );
     useEffect(() => {
         if (ratingOverride !== undefined && ratingOverride !== rating100) {
@@ -185,13 +187,13 @@ export function SceneSlide({
     // every queue change (this tab, other tabs, AND other clients via the
     // config poll started by startMultiviewSync).
     const [inMVQueue, setInMVQueue] = useState<boolean>(() =>
-        isInMultiviewQueue(scene.id),
+        isInMultiviewQueue(scene.id)
     );
     useEffect(() => {
         startMultiviewSync();
         setInMVQueue(isInMultiviewQueue(scene.id));
         return subscribeMultiviewQueue(() =>
-            setInMVQueue(isInMultiviewQueue(scene.id)),
+            setInMVQueue(isInMultiviewQueue(scene.id))
         );
     }, [scene.id]);
 
@@ -404,7 +406,7 @@ export function SceneSlide({
             scene.id,
             scene.tags.map((t) => t.id),
             tagName,
-            next,
+            next
         )
             .then((confirmed) => {
                 setInCollections((prev) => ({
@@ -554,8 +556,8 @@ export function SceneSlide({
         () =>
             scene.title ||
             scene.performers.map((p) => p.name).join(", ") ||
-            `Scene ${scene.id}`,
-        [scene.id, scene.title, scene.performers],
+            t("scene.scene_id", { id: scene.id }),
+        [scene.id, scene.title, scene.performers]
     );
     const detailsLine = scene.details?.trim() || "";
 
@@ -629,7 +631,7 @@ export function SceneSlide({
                     type="button"
                     className="binge-caption"
                     onClick={() => setDetailsOpen(true)}
-                    aria-label="Show details"
+                    aria-label={t("action.view_details")}
                 >
                     <span className="binge-caption-line">
                         <span className="binge-caption-title">

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import {
     useFilter,
     type FilterCategory,
@@ -9,6 +10,7 @@ import {
 // they sit alongside the TabBar inside the shared top header gradient.
 // Each chip is removable via its trailing × (or by clicking the chip body).
 export function FilterBar() {
+    const { t } = useTranslation();
     const { filter, remove, isEmpty, activeSavedFilter, clearSavedFilter } =
         useFilter();
 
@@ -22,8 +24,8 @@ export function FilterBar() {
                         type="button"
                         className="binge-filter-chip binge-filter-chip-saved"
                         onClick={() => clearSavedFilter()}
-                        title={`Clear "${activeSavedFilter.name}" filter`}
-                        aria-label={`Clear ${activeSavedFilter.name} filter`}
+                        title={t("action.clear_saved_filter", { name: activeSavedFilter.name })}
+                        aria-label={t("action.clear_saved_filter", { name: activeSavedFilter.name })}
                     >
                         <span className="binge-filter-chip-label">
                             {activeSavedFilter.name}
@@ -58,8 +60,8 @@ export function FilterBar() {
                             type="button"
                             className={`binge-filter-chip binge-filter-chip-${category}`}
                             onClick={() => remove(category, e.id)}
-                            title={`Remove ${e.name}`}
-                            aria-label={`Remove ${e.name} from filter`}
+                            title={t("action.remove_item", { name: e.name })}
+                            aria-label={t("action.remove_filter_item", { name: e.name })}
                         >
                             {category === "performers" && (
                                 <span
@@ -89,7 +91,7 @@ export function FilterBar() {
                                 ×
                             </span>
                         </button>
-                    )),
+                    ))
                 )}
             </div>
         </div>

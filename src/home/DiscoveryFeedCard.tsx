@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { usePerformerProfile } from "../performer/PerformerProfileContext";
 import { PerformerHoverCard, type FollowState } from "./PerformerHoverCard";
 import { FollowPerformerModal } from "./FollowPerformerModal";
@@ -74,6 +75,7 @@ export function DiscoveryFeedCard({
         kind: "idle",
     });
     const forageReady = useForageAvailable();
+    const { t } = useTranslation();
 
     const isBusy = followState.kind === "following";
     const isFollowed = followState.kind === "followed";
@@ -101,16 +103,16 @@ export function DiscoveryFeedCard({
     const forageMenuItem: SceneCardMenuItem = {
         label:
             forageState.kind === "sending"
-                ? "Sending to forage…"
+                ? t("status.sending_to_forage")
                 : forageState.kind === "sent"
-                  ? "On forage watchlist ✓"
-                  : "Send to forage",
+                  ? t("status.in_forage_watchlist")
+                  : t("action.send_to_forage"),
         sub:
             forageState.kind === "sent"
                 ? forageState.target === "any"
-                    ? "Watching for any release"
-                    : `Watching for a ${forageState.target} copy`
-                : "Add to your forage watchlist",
+                    ? t("status.watching_any_version")
+                    : t("status.watching_target_version", { target: forageState.target })
+                : t("status.add_to_forage_watchlist"),
         onClick: () => void handleSendToForage(),
     };
 
@@ -145,7 +147,7 @@ export function DiscoveryFeedCard({
                                 item.primaryPerformer.localId
                                     ? openProfile(item.primaryPerformer.localId)
                                     : openStashDBProfile(
-                                          item.primaryPerformer.stashId,
+                                          item.primaryPerformer.stashId
                                       )
                             }
                             stashDBPerformerId={item.primaryPerformer.stashId}
@@ -236,8 +238,8 @@ export function DiscoveryFeedCard({
                                 }
                             >
                                 {item.source === "costar"
-                                    ? "DISCOVER"
-                                    : "TRENDING"}
+                                    ? t("status.discover")
+                                    : t("status.trending")}
                             </span>
                             {item.releaseDate && <> · {item.releaseDate}</>}
                         </span>
@@ -255,19 +257,19 @@ export function DiscoveryFeedCard({
                         disabled={isBusy || isFollowed}
                         title={
                             isBusy
-                                ? "Following…"
+                                ? t("status.following")
                                 : isFollowed
-                                  ? "Followed — added to your library"
-                                  : `Follow ${item.primaryPerformer.name} — adds to your library`
+                                  ? t("status.followed_in_library")
+                                  : t("action.follow_performer_to_library", { name: item.primaryPerformer.name })
                         }
                     >
                         {isBusy
-                            ? "…"
+                            ? t("status.following")
                             : isFollowed
-                              ? "Following"
+                              ? t("status.followed")
                               : followState.kind === "error"
-                                ? "Retry"
-                                : "+ Follow"}
+                                ? t("action.retry")
+                                : t("action.follow")}
                     </button>
                 )}
                 <SceneCardMenu
@@ -276,31 +278,31 @@ export function DiscoveryFeedCard({
                             ? [
                                   ...(forageReady ? [forageMenuItem] : []),
                                   {
-                                      label: "View on StashDB",
-                                      sub: "Opens in a new tab",
+                                      label: t("action.view_on_stashdb"),
+                                      sub: t("nav.open_in_new_tab"),
                                       onClick: () =>
                                           window.open(
                                               item.stashboxUrl,
                                               "_blank",
-                                              "noopener,noreferrer",
+                                              "noopener,noreferrer"
                                           ),
                                   },
                               ]
                             : [
                                   {
-                                      label: "Add scene to library",
-                                      sub: "Create the scene in Stash + link to StashDB",
+                                      label: t("action.add_scene_to_library"),
+                                      sub: t("action.create_scene_link"),
                                       onClick: () => setSceneModalOpen(true),
                                   },
                                   ...(forageReady ? [forageMenuItem] : []),
                                   {
-                                      label: "View on StashDB",
-                                      sub: "Opens in a new tab",
+                                      label: t("action.view_on_stashdb"),
+                                      sub: t("nav.open_in_new_tab"),
                                       onClick: () =>
                                           window.open(
                                               item.stashboxUrl,
                                               "_blank",
-                                              "noopener,noreferrer",
+                                              "noopener,noreferrer"
                                           ),
                                   },
                               ]
@@ -316,13 +318,13 @@ export function DiscoveryFeedCard({
                     className="binge-discovery-card-cover"
                     aria-label={
                         item.title
-                            ? `Open "${item.title}" on StashDB`
-                            : "Open scene on StashDB"
+                            ? t("action.open_on_stashdb_title", { title: item.title })
+                            : t("action.open_on_stashdb_scene")
                     }
                 >
                     <img
                         src={item.coverUrl}
-                        alt={item.title ?? "StashDB scene"}
+                        alt={item.title ?? t("scene.stashdb_scene")}
                         loading="lazy"
                     />
                 </a>
@@ -344,13 +346,13 @@ export function DiscoveryFeedCard({
                     people always show as icons, never as @s). */}
                 {(() => {
                     const unlinked = item.coPerformers.filter(
-                        (cp) => cp.localId === null,
+                        (cp) => cp.localId === null
                     );
                     if (unlinked.length === 0) return null;
                     return (
                         <div className="binge-discovery-card-coperformers">
                             <span className="binge-discovery-card-with">
-                                with
+                                {t("status.with")}
                             </span>
                             {unlinked.map((cp, idx) => (
                                 <span
@@ -391,7 +393,7 @@ export function DiscoveryFeedCard({
                     rel="noopener noreferrer"
                     className="binge-discovery-card-stashdb-link"
                 >
-                    View on StashDB →
+                    {t("action.view_on_stashdb")} →
                 </a>
 
                 {followState.kind === "error" && (
@@ -402,12 +404,12 @@ export function DiscoveryFeedCard({
 
                 {forageState.kind === "sending" && (
                     <div className="binge-discovery-card-forage-status">
-                        Sending to forage…
+                        {t("status.sending_to_forage")}
                     </div>
                 )}
                 {forageState.kind === "sent" && (
                     <div className="binge-discovery-card-forage-ok">
-                        On forage watchlist
+                        {t("status.in_forage_watchlist")}
                         {forageState.target !== "any"
                             ? ` · ${forageState.target}`
                             : ""}{" "}
@@ -459,6 +461,7 @@ export function DiscoveryFeedCard({
 // feed card's name row so the chrome is consistent across
 // library + StashDB-sourced cards.
 function HeaderNames({ item }: { item: DiscoveryFeedItemWrapped }) {
+    const { t } = useTranslation();
     const libraryCo = item.coPerformers.filter((cp) => cp.localId !== null);
     const all = [
         {
@@ -485,7 +488,7 @@ function HeaderNames({ item }: { item: DiscoveryFeedItemWrapped }) {
                                 (p.favorite ? " is-favorite" : "")
                             }
                             aria-label={
-                                p.favorite ? "Favourited" : "In library"
+                                p.favorite ? t("status.favorite") : t("status.in_library")
                             }
                             title={p.favorite ? "Favourited" : "In library"}
                         >

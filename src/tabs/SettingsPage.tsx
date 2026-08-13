@@ -49,6 +49,7 @@ import { getForageHealth } from "../api/forageServer";
 import { parseCookiesTxt, describeParse } from "../api/cookiesTxt";
 import { BingeServerInstallCard } from "./BingeServerInstallCard";
 import { fetchStashApiKey } from "../api/queries";
+import { useTranslation } from "react-i18next";
 
 // In-app settings page — all preferences that used to live in Stash's
 // plugin settings UI now live here. Same localStorage keys + pubsub,
@@ -56,6 +57,7 @@ import { fetchStashApiKey } from "../api/queries";
 export function SettingsPage() {
     const { setTab } = useTab();
     const scrollRef = useRef<HTMLDivElement>(null);
+    const { t } = useTranslation();
     useAutoHideTabBar(scrollRef);
 
     return (
@@ -65,12 +67,12 @@ export function SettingsPage() {
                     type="button"
                     className="binge-saved-back"
                     onClick={() => setTab("home")}
-                    aria-label="Back to Home"
-                    title="Back"
+                    aria-label={t("nav.back_to_home")}
+                    title={t("nav.back")}
                 >
                     <ChevronLeft />
                 </button>
-                <h1 className="binge-saved-title">Settings</h1>
+                <h1 className="binge-saved-title">{t("nav.settings")}</h1>
                 <span className="binge-saved-spacer" />
             </header>
 
@@ -101,25 +103,26 @@ export function SettingsPage() {
 
 function TranscodeRow() {
     const value = useTranscodeType();
+    const { t } = useTranslation();
     return (
         <SettingRow
-            title="Stream type"
-            description="How videos are delivered to the binge reel. Auto follows Stash's transcode rules. Direct skips transcoding (best for already-compatible formats). MP4/WebM force a transcoded output. HLS uses chunked streaming."
+            title={t("settings.transcode.title")}
+            description={t("settings.transcode.desc")}
         >
             <select
                 className="binge-settings-select"
                 value={value}
                 onChange={(e) =>
                     setTranscodeType(
-                        e.target.value as (typeof ALLOWED_TRANSCODE)[number],
+                        e.target.value as (typeof ALLOWED_TRANSCODE)[number]
                     )
                 }
             >
-                <option value="auto">Auto (Stash decides)</option>
-                <option value="direct">Direct (no transcode)</option>
-                <option value="mp4">Transcoded MP4</option>
-                <option value="webm">Transcoded WebM</option>
-                <option value="hls">HLS streaming</option>
+                <option value="auto">{t("settings.transcode.auto")}</option>
+                <option value="direct">{t("settings.transcode.direct")}</option>
+                <option value="mp4">{t("settings.transcode.mp4")}</option>
+                <option value="webm">{t("settings.transcode.webm")}</option>
+                <option value="hls">{t("settings.transcode.hls")}</option>
             </select>
         </SettingRow>
     );
@@ -127,6 +130,7 @@ function TranscodeRow() {
 
 function GenderRow() {
     const allowed = useAllowedGenders();
+    const { t } = useTranslation();
     const toggle = (g: Gender) => {
         const next = new Set(allowed);
         if (next.has(g)) next.delete(g);
@@ -135,13 +139,13 @@ function GenderRow() {
     };
     return (
         <SettingRow
-            title="Genders to surface"
-            description="Performers of these genders appear on the Home discovery feed and Explore's Discover Performers row. Defaults to female + trans female; toggle others to broaden the surface."
+            title={t("settings.gender.title")}
+            description={t("settings.gender.desc")}
         >
             <div
                 className="binge-settings-gender-row"
                 role="group"
-                aria-label="Genders to surface"
+                aria-label={t("settings.gender.title")}
             >
                 {GENDER_OPTIONS.map(({ value, label }) => {
                     const active = allowed.has(value);
@@ -247,15 +251,16 @@ function GenderIcon({ gender }: { gender: Gender }) {
 }
 function GalleriesRow() {
     const value = useShowGalleries();
+    const { t } = useTranslation();
     return (
         <SettingRow
-            title="Show galleries in feed"
-            description="Mix gallery posts (photo sets) into the Home feed alongside scenes. Disable to see scenes only."
+            title={t("settings.galleries.title")}
+            description={t("settings.galleries.desc")}
         >
             <SwitchToggle
                 checked={value}
                 onChange={(v) => setShowGalleries(v)}
-                label="Show galleries"
+                label={t("settings.galleries.label")}
             />
         </SettingRow>
     );
@@ -263,10 +268,11 @@ function GalleriesRow() {
 
 function LookbackRow() {
     const value = useLookbackDays();
+    const { t } = useTranslation();
     return (
         <SettingRow
-            title="Recent window"
-            description='How far back "new" looks on the Home tab. Affects both the stories row and the initial feed load. Shorter windows feel tighter; longer windows surface more content but slow first-load on heavy libraries.'
+            title={t("settings.lookback.title")}
+            description={t("settings.lookback.desc")}
         >
             <select
                 className="binge-settings-select"
@@ -275,7 +281,7 @@ function LookbackRow() {
             >
                 {ALLOWED_LOOKBACK_DAYS.map((days) => (
                     <option key={days} value={String(days)}>
-                        {lookbackLabel(days)}
+                        {days} {t("settings.lookback.days")}
                     </option>
                 ))}
             </select>
@@ -285,10 +291,11 @@ function LookbackRow() {
 
 function StashDBRow() {
     const value = useIncludeStashDB();
+    const { t } = useTranslation();
     return (
         <SettingRow
-            title="Include StashDB new releases in stories"
-            description="Stories row also surfaces new releases on StashDB for performers in your library that you don't already own. Requires a StashDB API key in Stash → Settings → Metadata Providers → StashBox. Results cached for 12h."
+            title={t("settings.stashdb.title")}
+            description={t("settings.stashdb.desc")}
         >
             <SwitchToggle
                 checked={value}
@@ -301,15 +308,16 @@ function StashDBRow() {
 
 function StashDBProfileRow() {
     const value = useIncludeStashDBInProfile();
+    const { t } = useTranslation();
     return (
         <SettingRow
-            title="Mix StashDB scenes into performer profiles"
-            description="When viewing a library performer's profile, also surface scenes from their StashDB catalogue that you don't already own — interleaved with your library scenes by date. Tapping a StashDB-only scene opens the same add-to-library modal as the discovery feed."
+            title={t("settings.stashdb_profile.title")}
+            description={t("settings.stashdb_profile.desc")}
         >
             <SwitchToggle
                 checked={value}
                 onChange={(v) => setIncludeStashDBInProfile(v)}
-                label="StashDB in profiles"
+                label={t("settings.stashdb_profile.label")}
             />
         </SettingRow>
     );
@@ -317,10 +325,11 @@ function StashDBProfileRow() {
 
 function RedditRow() {
     const value = useIncludeReddit();
+    const { t } = useTranslation();
     return (
         <SettingRow
-            title="Include Reddit posts in stories"
-            description="Stories row surfaces new Reddit submissions from performers whose profile has a reddit.com URL. Requires binge-server running (set the URL below) and a configured script-app on reddit.com. Daemon-off cleanly no-ops."
+            title={t("settings.reddit.title")}
+            description={t("settings.reddit.desc")}
         >
             <SwitchToggle
                 checked={value}
@@ -333,10 +342,11 @@ function RedditRow() {
 
 function XRow() {
     const value = useIncludeX();
+    const { t } = useTranslation();
     return (
         <SettingRow
-            title="Include X (Twitter) media on profiles"
-            description="Adds an X tab to performer profiles whose profile has a twitter.com / x.com URL, fetched on demand. Requires binge-server running (URL below) with X cookies configured. Daemon-off or no cookies cleanly no-ops."
+            title={t("settings.x.title")}
+            description={t("settings.x.desc")}
         >
             <SwitchToggle
                 checked={value}
@@ -349,10 +359,11 @@ function XRow() {
 
 function PornhubRow() {
     const value = useIncludePornhub();
+    const { t } = useTranslation();
     return (
         <SettingRow
-            title="Include PornHub videos"
-            description="Folds a performer's PornHub videos into their scenes grid (and new uploads into stories) for performers with a pornhub.com pornstar/model URL. Hover plays the preview; tap streams it; Save downloads into Stash. Requires binge-server. Daemon-off cleanly no-ops."
+            title={t("settings.pornhub.title")}
+            description={t("settings.pornhub.desc")}
         >
             <SwitchToggle
                 checked={value}
@@ -365,6 +376,7 @@ function PornhubRow() {
 
 function BingeServerRow() {
     const stored = useBingeServerUrl();
+    const { t } = useTranslation();
     // Local edit buffer so typing doesn't trigger pubsub on every
     // keystroke. We commit on blur (and resync if the user changes
     // the value in another tab via the storage event).
@@ -375,8 +387,8 @@ function BingeServerRow() {
 
     return (
         <SettingRow
-            title="binge-server URL"
-            description="HTTP address of the binge-server daemon. Default is http://localhost:7878 — change it if you run binge-server on a different host or port. Status dot pings /healthz."
+            title={t("settings.server_url.title")}
+            description={t("settings.server_url.desc")}
         >
             <div className="binge-settings-url-row">
                 <input
@@ -401,6 +413,7 @@ function BingeServerRow() {
 // Pings /healthz on mount + whenever the configured URL changes.
 // Three-state: pending (grey) / ok (green) / unreachable (red).
 function BingeServerHealthDot({ url }: { url: string }) {
+    const { t } = useTranslation();
     const [state, setState] = useState<"pending" | "ok" | "down">("pending");
     useEffect(() => {
         let alive = true;
@@ -421,10 +434,10 @@ function BingeServerHealthDot({ url }: { url: string }) {
 
     const label =
         state === "ok"
-            ? "binge-server reachable"
+            ? t("settings.server_health.ok")
             : state === "down"
-              ? "binge-server unreachable"
-              : "Checking…";
+              ? t("settings.server_health.down")
+              : t("settings.server_health.pending");
     return (
         <span
             className={`binge-settings-status-dot is-${state}`}
@@ -449,9 +462,10 @@ function BingeServerHealthDot({ url }: { url: string }) {
 // /config the first time the daemon comes up without one. The user
 // never sees that step.
 function BingeServerConfigCard() {
+    const { t } = useTranslation();
     const url = useBingeServerUrl();
     const [health, setHealth] = useState<BingeServerHealth | null | "pending">(
-        "pending",
+        "pending"
     );
     const [config, setConfig] = useState<BingeServerConfigState | null>(null);
     const [cookieInput, setCookieInput] = useState("");
@@ -559,7 +573,7 @@ function BingeServerConfigCard() {
         } catch (err) {
             setImportErr(
                 "Couldn't read that file: " +
-                    (err instanceof Error ? err.message : String(err)),
+                    (err instanceof Error ? err.message : String(err))
             );
         } finally {
             setImportBusy(false);
@@ -632,11 +646,11 @@ function BingeServerConfigCard() {
             <div className="binge-settings-card">
                 <div className="binge-settings-card-header">
                     <h3 className="binge-settings-card-title">
-                        binge-server configuration
+                        {t("settings.server_config.title")}
                     </h3>
                     <span className="binge-settings-card-status">
                         <span className="binge-settings-status-dot is-pending" />
-                        Checking…
+                        {t("status.checking")}
                     </span>
                 </div>
             </div>
@@ -648,11 +662,11 @@ function BingeServerConfigCard() {
             <div className="binge-settings-card is-disconnected">
                 <div className="binge-settings-card-header">
                     <h3 className="binge-settings-card-title">
-                        binge-server configuration
+                        {t("settings.server_config.title")}
                     </h3>
                     <span className="binge-settings-card-status">
                         <span className="binge-settings-status-dot is-down" />
-                        Unreachable
+                        {t("settings.server_health.down")}
                     </span>
                 </div>
                 <p className="binge-settings-card-description">
@@ -664,7 +678,7 @@ function BingeServerConfigCard() {
                         rel="noreferrer noopener"
                         className="binge-settings-card-link"
                     >
-                        Set up binge-server →
+                        {t("settings.server_config.setup_link")}
                     </a>
                 </p>
             </div>
@@ -673,8 +687,8 @@ function BingeServerConfigCard() {
 
     // Daemon is reachable — render the full config card.
     const stashKeyState = config?.stashApiKeySet
-        ? "✓ Auto-detected"
-        : "Setting up…";
+        ? t("settings.server_config.auto_detected")
+        : t("settings.server_config.configuring");
     const cookieIsSet = !!config?.redditCookieSet;
     const xCookiesSet = !!config?.xCookiesSet;
 
@@ -682,11 +696,11 @@ function BingeServerConfigCard() {
         <div className="binge-settings-card">
             <div className="binge-settings-card-header">
                 <h3 className="binge-settings-card-title">
-                    binge-server configuration
+                    {t("settings.server_config.title")}
                 </h3>
                 <span className="binge-settings-card-status">
                     <span className="binge-settings-status-dot is-ok" />
-                    Connected
+                    {t("status.connected")}
                     {health.lastPoll && (
                         <span className="binge-settings-card-status-meta">
                             · {health.performerCount} performers · last poll{" "}
@@ -696,15 +710,12 @@ function BingeServerConfigCard() {
                 </span>
             </div>
             <p className="binge-settings-card-description">
-                Credentials the daemon uses to poll Reddit on your behalf. The
-                Stash API key is filled in automatically; the Reddit session
-                cookie has to be pasted (it lives in your browser, not in
-                Stash).
+                {t("settings.server_config.desc")}
             </p>
 
             <div className="binge-settings-card-field">
                 <span className="binge-settings-card-field-label">
-                    Stash API key
+                    {t("settings.server_config.stash_api_key")}
                 </span>
                 <span className="binge-settings-card-field-value">
                     {stashKeyState}
@@ -713,7 +724,7 @@ function BingeServerConfigCard() {
 
             <div className="binge-settings-card-field is-stacked">
                 <span className="binge-settings-card-field-label">
-                    Import cookies.txt
+                    {t("settings.server_config.import_cookies")}
                 </span>
                 <div className="binge-cookies-import">
                     <label className="binge-install-btn is-secondary">
@@ -730,10 +741,7 @@ function BingeServerConfigCard() {
                         />
                     </label>
                     <span className="binge-cookies-import-hint">
-                        Export cookies from a browser signed into Reddit and X,
-                        then pick the file here — it fills both in one step.
-                        Parsed in your browser; only the Reddit and X values are
-                        sent.
+                        {t("settings.server_config.import_cookies_hint")}
                     </span>
                 </div>
                 {importMsg && (
@@ -746,7 +754,7 @@ function BingeServerConfigCard() {
 
             <div className="binge-settings-card-field is-stacked">
                 <span className="binge-settings-card-field-label">
-                    Reddit session cookie
+                    {t("settings.server_config.reddit_cookie")}
                 </span>
                 <div className="binge-server-config-cookie-row">
                     <input
@@ -760,8 +768,8 @@ function BingeServerConfigCard() {
                         }}
                         placeholder={
                             cookieIsSet
-                                ? "✓ Set · paste a new value to rotate"
-                                : "Paste your reddit_session value"
+                                ? t("settings.server_config.cookie_set")
+                                : t("settings.server_config.cookie_placeholder")
                         }
                         spellCheck={false}
                         autoCapitalize="off"
@@ -774,33 +782,30 @@ function BingeServerConfigCard() {
                         onClick={() => void handleSaveCookie()}
                         disabled={cookieBusy || !cookieInput.trim()}
                     >
-                        {cookieBusy ? "Saving…" : "Save"}
+                        {cookieBusy ? t("action.saving") : t("action.save")}
                     </button>
                 </div>
                 {cookieError && (
                     <p className="binge-server-config-error">{cookieError}</p>
                 )}
                 {cookieSaved && (
-                    <p className="binge-server-config-ok">Saved ✓</p>
+                    <p className="binge-server-config-ok">{t("status.saved")}</p>
                 )}
                 <button
                     type="button"
                     className="binge-server-config-help-toggle"
                     onClick={() => setShowHelp((v) => !v)}
                 >
-                    {showHelp ? "▾" : "▸"} How to find your Reddit cookie
+                    {showHelp ? "▾" : "▸"} {t("settings.server_config.how_to_reddit")}
                 </button>
                 {showHelp && (
                     <ol className="binge-server-config-help">
                         <li>In a regular browser tab, log into reddit.com.</li>
                         <li>
-                            Open DevTools (F12) → Application → Cookies →
-                            https://www.reddit.com
+                            {t("settings.server_config.help_reddit_1")}
                         </li>
                         <li>
-                            Find the row named <code>reddit_session</code> and
-                            copy its Value column (a long JWT-looking string).
-                            Paste it above.
+                            {t("settings.server_config.help_reddit_2")}
                         </li>
                         <li>
                             Cookies expire every few months. When stories stop
@@ -812,7 +817,7 @@ function BingeServerConfigCard() {
 
             <div className="binge-settings-card-field is-stacked">
                 <span className="binge-settings-card-field-label">
-                    X (Twitter) cookies
+                    {t("settings.server_config.x_cookies")}
                 </span>
                 <div className="binge-server-config-cookie-row">
                     <input
@@ -826,7 +831,7 @@ function BingeServerConfigCard() {
                         }}
                         placeholder={
                             xCookiesSet
-                                ? "✓ Set · paste auth_token to rotate"
+                                ? t("settings.server_config.x_auth_set")
                                 : "auth_token"
                         }
                         spellCheck={false}
@@ -857,35 +862,31 @@ function BingeServerConfigCard() {
                             xBusy || !xAuthInput.trim() || !xCt0Input.trim()
                         }
                     >
-                        {xBusy ? "Saving…" : "Save"}
+                        {xBusy ? t("action.saving") : t("action.save")}
                     </button>
                 </div>
                 {xError && (
                     <p className="binge-server-config-error">{xError}</p>
                 )}
-                {xSaved && <p className="binge-server-config-ok">Saved ✓</p>}
+                {xSaved && <p className="binge-server-config-ok">{t("status.saved")}</p>}
                 <button
                     type="button"
                     className="binge-server-config-help-toggle"
                     onClick={() => setShowXHelp((v) => !v)}
                 >
-                    {showXHelp ? "▾" : "▸"} How to find your X cookies
+                    {showXHelp ? "▾" : "▸"} {t("settings.server_config.how_to_x")}
                 </button>
                 {showXHelp && (
                     <ol className="binge-server-config-help">
-                        <li>In a regular browser tab, log into x.com.</li>
+                        <li>{t("settings.server_config.help_x_1")}</li>
                         <li>
-                            Open DevTools (F12) → Application → Cookies →
-                            https://x.com
+                            {t("settings.server_config.help_x_2")}
                         </li>
                         <li>
-                            Copy the Value of both <code>auth_token</code> and{" "}
-                            <code>ct0</code> into the fields above, then Save.
+                            {t("settings.server_config.help_x_3")}
                         </li>
                         <li>
-                            Use a secondary X account if you can — automated
-                            access is against X's terms. Cookies expire
-                            periodically; re-paste when X media stops loading.
+                            {t("settings.server_config.help_x_4")}
                         </li>
                     </ol>
                 )}
@@ -893,15 +894,11 @@ function BingeServerConfigCard() {
 
             <div className="binge-settings-card-field is-stacked">
                 <span className="binge-settings-card-field-label">
-                    Save-to-Stash library paths{" "}
+                    {t("settings.server_config.social_save_path")}{" "}
                     {config?.socialSaveConfigured ? "✓" : ""}
                 </span>
                 <p className="binge-settings-card-description">
-                    Where saved X/Reddit/Redgifs posts are written. Two paths
-                    because the daemon and Stash can be on different hosts: the
-                    first is where binge-server writes; the second is the same
-                    folder as Stash sees it (a Stash library path). When they're
-                    the same machine, both are identical.
+                    {t("settings.server_config.social_save_desc")}
                 </p>
                 <input
                     type="text"
@@ -912,7 +909,7 @@ function BingeServerConfigCard() {
                         setSocSaved(false);
                         setSocError(null);
                     }}
-                    placeholder="daemon write path, e.g. /library/social"
+                    placeholder={t("settings.server_config.daemon_write_path")}
                     spellCheck={false}
                     autoCapitalize="off"
                     autoCorrect="off"
@@ -928,7 +925,7 @@ function BingeServerConfigCard() {
                             setSocSaved(false);
                             setSocError(null);
                         }}
-                        placeholder="Stash path, e.g. Z:\Media\social"
+                        placeholder={t("settings.server_config.stash_path")}
                         spellCheck={false}
                         autoCapitalize="off"
                         autoCorrect="off"
@@ -940,7 +937,7 @@ function BingeServerConfigCard() {
                         onClick={() => void handleSaveSocialPaths()}
                         disabled={socBusy}
                     >
-                        {socBusy ? "Saving…" : "Save"}
+                        {socBusy ? t("action.saving") : t("action.save")}
                     </button>
                 </div>
                 {socError && (
@@ -974,14 +971,15 @@ function formatRelative(iso: string): string {
 function ForageUrlRow() {
     const stored = useForageUrl();
     const [draft, setDraft] = useState(stored);
+    const { t } = useTranslation();
     useEffect(() => {
         setDraft(stored);
     }, [stored]);
 
     return (
         <SettingRow
-            title="forage server URL"
-            description='Optional. Base URL of your forage daemon, if you run one. "Send to forage" appears on discovery scenes once this daemon is reachable, and stays hidden while this is blank. Authentication is automatic — binge presents your Stash API key, which forage already trusts; nothing to paste. Status dot pings /healthz. Use https if Stash is served over https, or the browser blocks it as mixed content.'
+            title={t("settings.forage_url.title")}
+            description={t("settings.forage_url.desc")}
         >
             <div className="binge-settings-url-row">
                 <input
@@ -1005,8 +1003,9 @@ function ForageUrlRow() {
 
 // Pings forage /healthz on mount + whenever the URL changes.
 function ForageHealthDot({ url }: { url: string }) {
+    const { t } = useTranslation();
     const [state, setState] = useState<"pending" | "ok" | "down" | "idle">(
-        url ? "pending" : "idle",
+        url ? "pending" : "idle"
     );
     useEffect(() => {
         if (!url) {
@@ -1031,10 +1030,10 @@ function ForageHealthDot({ url }: { url: string }) {
     if (state === "idle") return null;
     const label =
         state === "ok"
-            ? "forage reachable"
+            ? t("settings.forage_health.ok")
             : state === "down"
-              ? "forage unreachable"
-              : "Checking…";
+              ? t("settings.forage_health.down")
+              : t("status.checking");
     return (
         <span
             className={`binge-settings-status-dot is-${state}`}
@@ -1047,10 +1046,11 @@ function ForageHealthDot({ url }: { url: string }) {
 
 function ForageTargetRow() {
     const value = useForageWatchTarget();
+    const { t } = useTranslation();
     return (
         <SettingRow
-            title="forage watch quality"
-            description='When you send a scene to forage, this is the quality it waits for before flagging a release ready to grab. "Any" surfaces the first release of any resolution.'
+            title={t("settings.forage_target.title")}
+            description={t("settings.forage_target.desc")}
         >
             <select
                 className="binge-settings-select"
@@ -1071,15 +1071,16 @@ function ForageTargetRow() {
 
 function RefractRow() {
     const value = useRefractIntegration();
+    const { t } = useTranslation();
     return (
         <SettingRow
-            title="Follow refract accent"
-            description="If you also use the refract theme, binge's accent colour will match the refract accent you've picked in the Stash settings (orange / cyan / pink / yellow / purple / green / teal). Story rings keep Instagram's signature gradient regardless."
+            title={t("settings.refract.title")}
+            description={t("settings.refract.desc")}
         >
             <SwitchToggle
                 checked={value}
                 onChange={(v) => setRefractIntegration(v)}
-                label="Follow refract accent"
+                label={t("settings.refract.label")}
             />
         </SettingRow>
     );
@@ -1087,15 +1088,16 @@ function RefractRow() {
 
 function ShowcaseRow() {
     const value = useShowcaseBlur();
+    const { t } = useTranslation();
     return (
         <SettingRow
-            title="Privacy blur"
-            description="Blurs every image, video, and avatar while leaving the interface sharp — so you can screen-share, take a screenshot, or use binge somewhere public without putting your library on display. Nothing is uploaded or changed; it's a display-only filter in your browser. Toggle it fast with | (Shift + \\)."
+            title={t("settings.showcase.title")}
+            description={t("settings.showcase.desc")}
         >
             <SwitchToggle
                 checked={value}
                 onChange={(v) => setShowcaseBlur(v)}
-                label="Privacy blur"
+                label={t("settings.showcase.label")}
             />
         </SettingRow>
     );
@@ -1103,15 +1105,16 @@ function ShowcaseRow() {
 
 function DebugRow() {
     const value = useShowDebug();
+    const { t } = useTranslation();
     return (
         <SettingRow
-            title="Show debug overlay"
-            description="Pin a small diagnostic panel showing mounted video count, JS heap, scroll/tab state, and recent GraphQL response times. Hotkey: \\"
+            title={t("settings.debug.title")}
+            description={t("settings.debug.desc")}
         >
             <SwitchToggle
                 checked={value}
                 onChange={(v) => setShowDebug(v)}
-                label="Debug overlay"
+                label={t("settings.debug.label")}
             />
         </SettingRow>
     );
@@ -1163,14 +1166,6 @@ function SwitchToggle({
     );
 }
 
-function lookbackLabel(days: number): string {
-    if (days === 7) return "Last 7 days";
-    if (days === 14) return "Last 14 days";
-    if (days === 30) return "Last 30 days";
-    if (days === 60) return "Last 60 days";
-    if (days === 90) return "Last 90 days";
-    return `Last ${days} days`;
-}
 
 function ChevronLeft() {
     return (

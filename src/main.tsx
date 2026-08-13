@@ -10,5 +10,5 @@ createRoot(document.getElementById("root")!).render(
         <TranslatedErrorBoundary>
             <App />
         </TranslatedErrorBoundary>
-    </StrictMode>,
+    </StrictMode>
 );

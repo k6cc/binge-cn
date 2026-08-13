@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
     ALL_FEED_CATEGORIES,
     setHiddenFeedCategories,
@@ -18,6 +19,7 @@ const LABELS: Record<FeedCategory, string> = {
 };
 
 export function FeedFilterMenu() {
+                                     const { t } = useTranslation();
     const hidden = useHiddenFeedCategories();
     const [open, setOpen] = useState(false);
     const rootRef = useRef<HTMLDivElement>(null);
@@ -62,7 +64,7 @@ export function FeedFilterMenu() {
                 onClick={() => setOpen((o) => !o)}
                 aria-label="Filter feed"
                 aria-expanded={open}
-                title="Filter feed"
+                title={t("action.filter_feed")}
             >
                 <FilterIcon />
                 {anyHidden && (
@@ -75,7 +77,7 @@ export function FeedFilterMenu() {
             {open && (
                 <div className="binge-feed-filter-menu" role="menu">
                     <div className="binge-feed-filter-heading">
-                        Show in feed
+                        {t("feed.show_in_feed")}
                     </div>
                     {ALL_FEED_CATEGORIES.map((cat) => {
                         const shown = !hidden.has(cat);

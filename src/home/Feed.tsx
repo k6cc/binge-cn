@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useTranslation } from "react-i18next";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useFeed, type FeedItem } from "./useFeed";
 import { SceneFeedCard } from "./SceneFeedCard";
@@ -43,6 +44,7 @@ export function Feed({ scrollContainerRef }: FeedProps) {
     const hidden = useHiddenFeedCategories();
     const feedRef = useRef<HTMLElement>(null);
     const [scrollMargin, setScrollMargin] = useState(0);
+    const { t } = useTranslation();
 
     // Derived inside the memo, not above it: `state.items` is only there
     // in the ready state, and the `[]` stand-in used otherwise was a fresh
@@ -126,13 +128,13 @@ export function Feed({ scrollContainerRef }: FeedProps) {
         return (
             <section className="binge-feed">
                 <div className="binge-feed-empty binge-status-error">
-                    <div>couldn't load feed: {state.message}</div>
+                    <div>{t("status.feed_load_failed", { message: state.message })}</div>
                     <button
                         type="button"
                         className="binge-feed-retry"
                         onClick={retry}
                     >
-                        Try again
+                        {t("status.try_again")}
                     </button>
                 </div>
             </section>
@@ -153,7 +155,7 @@ export function Feed({ scrollContainerRef }: FeedProps) {
     return (
         <section
             className="binge-feed"
-            aria-label="New scenes and galleries"
+            aria-label={t("nav.new_scenes_and_galleries")}
             ref={feedRef}
             style={{
                 position: "relative",
@@ -217,7 +219,7 @@ export function Feed({ scrollContainerRef }: FeedProps) {
                 }}
             >
                 <div className="binge-feed-empty">
-                    you've reached the end · {items.length} items
+                    {t("status.reached_bottom_count", { count: items.length })}
                 </div>
             </div>
         </section>

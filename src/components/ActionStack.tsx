@@ -44,6 +44,7 @@ interface ActionStackProps {
     // it without touching ActionStack.
     onOpenMore: () => void;
 }
+import { useTranslation } from "react-i18next";
 
 // Heart hold-to-unlike duration. Mirrors common mobile long-press
 // thresholds; 1500 chosen for "long enough to never trigger by accident".
@@ -81,6 +82,7 @@ export function ActionStack({
     const hasAdvancedRating = useHasAdvancedRating();
     const [rateStripOpen, setRateStripOpen] = useState(false);
     const useAdvancedRating = hasAdvancedRating && !!onOpenAdvancedRating;
+    const { t } = useTranslation();
 
     return (
         <aside className="binge-actions" aria-label="scene actions">
@@ -131,8 +133,8 @@ export function ActionStack({
                     e.stopPropagation();
                     onOpenMore();
                 }}
-                aria-label="More actions"
-                title="More"
+                aria-label={t("action.more_actions")}
+                            title={t("action.more")}
             >
                 <MoreIcon />
             </button>
@@ -153,6 +155,7 @@ function HeartButton({
     onLike: () => void;
     onUnlike: () => void;
 }) {
+    const { t } = useTranslation();
     const [holding, setHolding] = useState(false);
     const holdTimerRef = useRef<number | null>(null);
     const heldDownRef = useRef(false);
@@ -173,7 +176,7 @@ function HeartButton({
     };
 
     const handlePointerDown: React.PointerEventHandler<HTMLButtonElement> = (
-        e,
+        e
     ) => {
         e.stopPropagation();
         heldDownRef.current = false;
@@ -187,7 +190,7 @@ function HeartButton({
     };
 
     const handlePointerUp: React.PointerEventHandler<HTMLButtonElement> = (
-        e,
+        e
     ) => {
         e.stopPropagation();
         if (heldDownRef.current) {
@@ -204,7 +207,7 @@ function HeartButton({
     };
 
     const suppressContextMenu: React.MouseEventHandler<HTMLButtonElement> = (
-        e,
+        e
     ) => e.preventDefault();
 
     return (
@@ -221,8 +224,8 @@ function HeartButton({
             onPointerLeave={handlePointerLeave}
             onPointerCancel={handlePointerLeave}
             onContextMenu={suppressContextMenu}
-            aria-label={`O counter ${oCount}. Tap to like, hold to unlike.`}
-            title="Tap to like · hold to unlike"
+            aria-label={t("action.like_unlike_desc", { count: oCount })}
+            title={t("action.like_unlike")}
         >
             <HeartIcon filled={oCount > 0} />
             {oCount > 0 && <span className="binge-action-count">{oCount}</span>}
@@ -247,6 +250,7 @@ function RateButton({
     onSetRating: (stars: number | null) => void;
     onDismiss: () => void;
 }) {
+    const { t } = useTranslation();
     const rated = (ratingStars ?? 0) > 0;
     return (
         <div className="binge-action-rate-wrap">
@@ -270,12 +274,12 @@ function RateButton({
                 }}
                 aria-label={
                     ratingStars
-                        ? `Rated ${ratingStars} stars. Tap to change.`
+                        ? t("action.rated_stars", { count: ratingStars })
                         : advanced
-                          ? "Rate this scene (advanced)"
-                          : "Rate this scene"
+                          ? t("action.rate_advanced")
+                          : t("action.rate_scene")
                 }
-                title={advanced ? "Rate (advanced)" : "Rate"}
+                title={advanced ? t("action.rate_advanced") : t("action.rate")}
             >
                 <StarIcon filled={rated} />
                 {rated && (
@@ -295,6 +299,7 @@ function RateStrip({
     onPick: (stars: number | null) => void;
     onDismiss: () => void;
 }) {
+    const { t } = useTranslation();
     // Tap outside dismisses. The strip's stopPropagation prevents
     // clicks within it from bubbling to this listener.
     useEffect(() => {
@@ -315,7 +320,7 @@ function RateStrip({
             className="binge-rate-strip"
             onClick={(e) => e.stopPropagation()}
             role="radiogroup"
-            aria-label="Rate scene"
+            aria-label={t("action.rate_scene")}
         >
             {[1, 2, 3, 4, 5].map((n) => (
                 <button
@@ -328,9 +333,9 @@ function RateStrip({
                         e.stopPropagation();
                         // Tapping the current rating clears it (toggle).
                         onPick(n === current ? null : n);
-                    }}
-                    aria-label={`${n} star${n === 1 ? "" : "s"}`}
-                    role="radio"
+                }}
+                aria-label={t("action.rate_stars_count", { count: n })}
+                role="radio"
                     aria-checked={n === current}
                 >
                     <StarIcon filled={n <= current} />
@@ -351,6 +356,7 @@ function MultiviewButton({
     onTap: () => void;
     onHold: () => void;
 }) {
+    const { t } = useTranslation();
     const holdTimerRef = useRef<number | null>(null);
     const heldRef = useRef(false);
 
@@ -398,10 +404,10 @@ function MultiviewButton({
             onPointerCancel={onPointerLeave}
             aria-label={
                 inQueue
-                    ? "Remove from Multiview queue. Hold to open player."
-                    : "Add to Multiview queue. Hold to open player."
+                    ? t("multiview.remove_from_queue")
+                    : t("multiview.add_to_queue")
             }
-            title="Tap to queue · hold to open Multiview"
+            title={t("multiview.queue_and_open_player")}
         >
             <GridIcon filled={inQueue} />
         </button>
@@ -411,6 +417,7 @@ function MultiviewButton({
 // ── Scribe ───────────────────────────────────────────────────────────
 
 function ScribeButton({ onTap }: { onTap: () => void }) {
+    const { t } = useTranslation();
     return (
         <button
             type="button"
@@ -419,8 +426,8 @@ function ScribeButton({ onTap }: { onTap: () => void }) {
                 e.stopPropagation();
                 onTap();
             }}
-            aria-label="Write a review with Scribe"
-            title="Write a review"
+            aria-label={t("action.write_scribe_review")}
+            title={t("action.write_review")}
         >
             <PencilIcon />
         </button>
@@ -436,6 +443,7 @@ function BookmarkButton({
     inCollections: Record<string, boolean>;
     onToggleCollection: (tagName: string) => void;
 }) {
+    const { t } = useTranslation();
     const [sheetOpen, setSheetOpen] = useState(false);
     // Filled when in ANY collection — single visual signal that the
     // scene is "saved" without committing to which folder.
@@ -455,7 +463,7 @@ function BookmarkButton({
                 aria-label={savedSomewhere ? "Manage saved-to" : "Save scene"}
                 aria-haspopup="dialog"
                 aria-expanded={sheetOpen}
-                title="Save to..."
+                title={t("action.save_to")}
             >
                 <BookmarkIcon filled={savedSomewhere} />
             </button>

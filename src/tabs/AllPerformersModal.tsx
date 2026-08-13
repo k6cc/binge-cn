@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { findAllPerformers, type PerformerSummary } from "../api/queries";
 import { usePerformerProfile } from "../performer/PerformerProfileContext";
 import { BingeLoading } from "../components/BingeLoading";
+import { useTranslation } from "react-i18next";
 
 interface AllPerformersModalProps {
     onClose: () => void;
@@ -17,6 +18,7 @@ type LoadState =
 // Click a performer → set filter + switch to For You + close modal.
 // Esc or backdrop click closes without picking.
 export function AllPerformersModal({ onClose }: AllPerformersModalProps) {
+    const { t } = useTranslation();
     const [state, setState] = useState<LoadState>({ kind: "loading" });
     const [query, setQuery] = useState("");
     const { openProfile } = usePerformerProfile();
@@ -69,15 +71,15 @@ export function AllPerformersModal({ onClose }: AllPerformersModalProps) {
                 ref={panelRef}
                 onClick={(e) => e.stopPropagation()}
                 role="dialog"
-                aria-label="All performers"
+                aria-label={t("nav.all_performers")}
             >
                 <header className="binge-modal-header">
-                    <h2>All performers</h2>
+                    <h2>{t("nav.all_performers")}</h2>
                     <button
                         type="button"
                         className="binge-modal-close"
                         onClick={onClose}
-                        aria-label="Close"
+                        aria-label={t("action.close")}
                     >
                         ×
                     </button>
@@ -93,8 +95,7 @@ export function AllPerformersModal({ onClose }: AllPerformersModalProps) {
                     />
                     {state.kind === "ready" && (
                         <span className="binge-modal-count">
-                            {filtered.length}{" "}
-                            {filtered.length === 1 ? "performer" : "performers"}
+                            {t("status.performer_count", { count: filtered.length })}
                         </span>
                     )}
                 </div>
@@ -104,11 +105,11 @@ export function AllPerformersModal({ onClose }: AllPerformersModalProps) {
                     )}
                     {state.kind === "error" && (
                         <div className="binge-status binge-status-error">
-                            error: {state.message}
+                            {t("status.error_message", { message: state.message })}
                         </div>
                     )}
                     {state.kind === "ready" && filtered.length === 0 && (
-                        <div className="binge-status">no matches</div>
+                        <div className="binge-status">{t("status.no_match")}</div>
                     )}
                     {state.kind === "ready" && filtered.length > 0 && (
                         <ul className="binge-following-grid">
@@ -146,10 +147,7 @@ export function AllPerformersModal({ onClose }: AllPerformersModalProps) {
                                         {typeof p.scene_count === "number" &&
                                             p.scene_count > 0 && (
                                                 <span className="binge-follow-count">
-                                                    {p.scene_count} scene
-                                                    {p.scene_count === 1
-                                                        ? ""
-                                                        : "s"}
+                                                    {t("status.performer_scenes", { count: p.scene_count })}
                                                 </span>
                                             )}
                                     </button>

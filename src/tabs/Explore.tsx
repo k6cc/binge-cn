@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { findScenes, findRecentlyLikedTags } from "../api/queries";
 import { getTopInteractedTags, type TagScore } from "../api/interactedTags";
+import { useTranslation } from "react-i18next";
 import { DiscoverPerformersBar } from "./DiscoverPerformersBar";
 import { useFilter } from "../filter/FilterContext";
 import { useTab } from "./TabContext";
@@ -32,6 +33,7 @@ function randomSeed(): number {
 }
 
 export function Explore() {
+    const { t } = useTranslation();
     // One random sort seed per mount, so revisiting Explore reshuffles but
     // paginating within a visit stays consistent. Held in state rather than
     // a useMemo: a memo is allowed to be recomputed, and re-rolling the seed
@@ -106,7 +108,7 @@ export function Explore() {
                         tagName: t.name,
                         score: 0,
                         lastSeenAt: 0,
-                    })),
+                    }))
                 );
             })
             .catch(() => {
@@ -191,7 +193,7 @@ export function Explore() {
                     fresh.push({ id: s.id, screenshot: s.paths.screenshot });
                 }
                 setTiles((prev) =>
-                    nextPage === 1 ? fresh : [...prev, ...fresh],
+                    nextPage === 1 ? fresh : [...prev, ...fresh]
                 );
                 pageRef.current = nextPage;
                 if (data.findScenes.scenes.length < PAGE_SIZE) {
@@ -207,7 +209,7 @@ export function Explore() {
                 setIsLoading(false);
             }
         },
-        [sortSeed, activeTag, searchQuery],
+        [sortSeed, activeTag, searchQuery]
     );
 
     // Reset + reload when filter (tag or search) changes. Wiping
@@ -235,7 +237,7 @@ export function Explore() {
                     void loadPage(pageRef.current + 1);
                 }
             },
-            { rootMargin: "800px 0px", root: scrollRef.current },
+            { rootMargin: "800px 0px", root: scrollRef.current }
         );
         observer.observe(el);
         return () => observer.disconnect();
@@ -266,7 +268,7 @@ export function Explore() {
                     <input
                         type="search"
                         className="binge-explore-search"
-                        placeholder="Search scenes"
+                        placeholder={t("nav.search_scenes")}
                         value={searchInput}
                         onChange={(e) => setSearchInput(e.target.value)}
                         aria-label="Search scenes"
@@ -283,7 +285,7 @@ export function Explore() {
                             (canScrollLeft ? "" : " is-hidden")
                         }
                         onClick={() => scrollChips(-280)}
-                        aria-label="Scroll tags left"
+                        aria-label={t("nav.scroll_tags_left")}
                         tabIndex={canScrollLeft ? 0 : -1}
                     >
                         <ChevronLeft />
@@ -297,7 +299,7 @@ export function Explore() {
                             }
                             onClick={() => setActiveTag(null)}
                         >
-                            For you
+                            {t("nav.foryou")}
                         </button>
                         {chipsToRender.map((t) => (
                             <button
@@ -323,7 +325,7 @@ export function Explore() {
                             (canScrollRight ? "" : " is-hidden")
                         }
                         onClick={() => scrollChips(280)}
-                        aria-label="Scroll tags right"
+                        aria-label={t("nav.scroll_tags_right")}
                         tabIndex={canScrollRight ? 0 : -1}
                     >
                         <ChevronRight />
@@ -346,7 +348,7 @@ export function Explore() {
                                       }
                                     : undefined
                             }
-                            aria-label="Open scene"
+                            aria-label={t("action.open_scene")}
                         >
                             <span
                                 className="binge-explore-tile-play"
@@ -360,14 +362,14 @@ export function Explore() {
 
                 {error && (
                     <div className="binge-feed-empty binge-status-error">
-                        couldn't load explore: {error}
+                        {t("status.load_failed", { message: error })}
                     </div>
                 )}
                 {tiles.length === 0 && !isLoading && !error && (
                     <div className="binge-feed-empty">
                         {searchQuery || activeTag
-                            ? "no scenes match this filter."
-                            : "no scenes in your library."}
+                            ? t("status.no_scenes_matched")
+                            : t("status.no_scenes_in_library")}
                     </div>
                 )}
 
@@ -377,12 +379,12 @@ export function Explore() {
                         className="binge-feed-sentinel"
                         aria-hidden="true"
                     >
-                        {isLoading ? "loading…" : ""}
+                        {isLoading ? t("status.loading") : ""}
                     </div>
                 )}
                 {!hasMore && tiles.length > 0 && (
                     <div className="binge-feed-empty">
-                        you've reached the end · {tiles.length} scenes
+                        {t("status.reached_bottom_scenes", { count: tiles.length })}
                     </div>
                 )}
             </div>
@@ -461,3 +463,4 @@ function PlayIcon() {
         </svg>
     );
 }
+

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useTab, type Tab } from "./TabContext";
 
 const TABS: { id: Tab; label: string }[] = [
@@ -12,10 +13,11 @@ const TABS: { id: Tab; label: string }[] = [
 // inside .binge-top-header which owns the shared gradient + auto-hide
 // transform — so this component itself has no fixed positioning.
 export function TabBar() {
+    const { t } = useTranslation();
     const { tab, setTab } = useTab();
 
     return (
-        <nav className="binge-tabbar" role="tablist" aria-label="Reel sections">
+        <nav className="binge-tabbar" role="tablist" aria-label={t("nav.sections")}>
             {TABS.map((t) => (
                 <button
                     key={t.id}

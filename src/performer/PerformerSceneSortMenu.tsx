@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { PERFORMER_SCENE_SORTS, type PerformerSceneSort } from "../api/queries";
+import { useTranslation } from "react-i18next";
 
 // Subtle sort control for the performer scene grid. Renders as a small
 // muted label ("Recent ⌄") that opens a popover of the sort options —
@@ -13,6 +14,7 @@ export function PerformerSceneSortMenu({
     value: PerformerSceneSort;
     onChange: (next: PerformerSceneSort) => void;
 }) {
+    const { t } = useTranslation();
     const [open, setOpen] = useState(false);
     const rootRef = useRef<HTMLDivElement>(null);
 
@@ -49,7 +51,7 @@ export function PerformerSceneSortMenu({
                 onClick={() => setOpen((o) => !o)}
                 aria-haspopup="menu"
                 aria-expanded={open}
-                title="Sort scenes"
+                title={t("action.sort_scenes")}
             >
                 {current.label}
                 <ChevronIcon />

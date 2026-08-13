@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { StoriesRow } from "../home/StoriesRow";
 import { Feed } from "../home/Feed";
 import { FeedFilterMenu } from "../home/FeedFilterMenu";
@@ -13,6 +14,7 @@ import { useAutoHideTabBar } from "../hooks/useAutoHideTabBar";
 // (which lives in the page-title row, away from the bubble strip) can
 // reach the same refresh callback the stories internally use.
 export function Home() {
+    const { t } = useTranslation();
     const scrollRef = useRef<HTMLDivElement>(null);
     useAutoHideTabBar(scrollRef);
     const stories = useSharedStories();
@@ -22,7 +24,7 @@ export function Home() {
             <div className="binge-tab-inner">
                 <div className="binge-tab-title-row">
                     <div className="binge-tab-title-group">
-                        <h1 className="binge-tab-title">Home</h1>
+                        <h1 className="binge-tab-title">{t("nav.home")}</h1>
                         <FeedFilterMenu />
                     </div>
                     <button
@@ -33,8 +35,8 @@ export function Home() {
                         }
                         onClick={stories.refresh}
                         disabled={stories.refreshing}
-                        aria-label="Refresh stories"
-                        title="Refresh stories"
+                        aria-label={t("action.refresh_story")}
+                        title={t("action.refresh_story")}
                     >
                         <RefreshIcon />
                     </button>

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useFilter } from "./FilterContext";
 import {
     loadPresets,
@@ -15,6 +16,7 @@ interface PresetsMenuProps {
 // saves the current filter as a new preset, supports rename + delete.
 export function PresetsMenu({ onClose }: PresetsMenuProps) {
     const { filter, replace, isEmpty } = useFilter();
+    const { t } = useTranslation();
     const [presets, setPresets] = useState<FilterPreset[]>(() => loadPresets());
     const [renameId, setRenameId] = useState<string | null>(null);
     const [renameValue, setRenameValue] = useState("");
@@ -36,11 +38,11 @@ export function PresetsMenu({ onClose }: PresetsMenuProps) {
             filter.performers[0]?.name ||
             filter.tags[0]?.name ||
             filter.studios[0]?.name ||
-            "Preset";
+            t("filter.preset");
         const suffix = total > 1 ? ` +${total - 1}` : "";
         const name = window.prompt(
-            "Name this preset",
-            `${defaultName}${suffix}`,
+            t("filter.name_preset"),
+            `${defaultName}${suffix}`
         );
         if (!name) return;
         const preset: FilterPreset = {
@@ -58,7 +60,7 @@ export function PresetsMenu({ onClose }: PresetsMenuProps) {
     };
 
     const handleDelete = (id: string) => {
-        if (!window.confirm("Delete this preset?")) return;
+        if (!window.confirm(t("filter.delete_preset_confirm"))) return;
         persist(presets.filter((p) => p.id !== id));
     };
 
@@ -76,8 +78,8 @@ export function PresetsMenu({ onClose }: PresetsMenuProps) {
         }
         persist(
             presets.map((p) =>
-                p.id === renameId ? { ...p, name: trimmed } : p,
-            ),
+                p.id === renameId ? { ...p, name: trimmed } : p
+            )
         );
         setRenameId(null);
     };
@@ -91,7 +93,7 @@ export function PresetsMenu({ onClose }: PresetsMenuProps) {
         };
         const t = window.setTimeout(
             () => document.addEventListener("mousedown", handler),
-            0,
+            0
         );
         return () => {
             window.clearTimeout(t);
@@ -117,9 +119,7 @@ export function PresetsMenu({ onClose }: PresetsMenuProps) {
             role="dialog"
         >
             <div className="binge-chip-menu-tabs">
-                <span className="binge-chip-menu-tab is-active">
-                    Saved filters
-                </span>
+                <span className="binge-chip-menu-tab is-active">{t("nav.saved_filters")}</span>
                 <button
                     type="button"
                     className="binge-chip-menu-tab binge-presets-save"
@@ -127,17 +127,17 @@ export function PresetsMenu({ onClose }: PresetsMenuProps) {
                     disabled={isEmpty}
                     title={
                         isEmpty
-                            ? "Add some chips first, then save"
-                            : "Save current filter as a preset"
+                            ? t("filter.add_tags_before_saving")
+                            : t("filter.save_current_preset")
                     }
                 >
-                    + save current
+                    + {t("filter.save_current")}
                 </button>
             </div>
 
             {presets.length === 0 && (
                 <div className="binge-chip-menu-status">
-                    no saved presets yet
+                    {t("filter.no_saved_presets")}
                 </div>
             )}
 
@@ -170,7 +170,7 @@ export function PresetsMenu({ onClose }: PresetsMenuProps) {
                                         type="button"
                                         className="binge-chip-menu-row binge-preset-load"
                                         onClick={() => handleLoad(p)}
-                                        title="Load this preset"
+                                        title={t("filter.load_preset")}
                                     >
                                         <span className="binge-chip-menu-name">
                                             {p.name}
@@ -186,8 +186,8 @@ export function PresetsMenu({ onClose }: PresetsMenuProps) {
                                             type="button"
                                             className="binge-preset-icon-button"
                                             onClick={() => startRename(p)}
-                                            title="Rename"
-                                            aria-label="Rename preset"
+                                            title={t("action.rename")}
+                                            aria-label={t("action.rename_preset")}
                                         >
                                             ✎
                                         </button>
@@ -195,8 +195,8 @@ export function PresetsMenu({ onClose }: PresetsMenuProps) {
                                             type="button"
                                             className="binge-preset-icon-button binge-preset-delete"
                                             onClick={() => handleDelete(p.id)}
-                                            title="Delete"
-                                            aria-label="Delete preset"
+                                            title={t("action.delete")}
+                                            aria-label={t("action.delete_preset")}
                                         >
                                             ×
                                         </button>

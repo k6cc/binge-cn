@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { createPortal } from "react-dom";
 import { useSheetClose } from "../hooks/useSheetClose";
 import { setAutoScroll, useAutoScroll } from "../home/pluginSettings";
@@ -12,6 +13,7 @@ interface MoreSheetProps {
 // + persistent "Auto-scroll" toggle (saved across all slides).
 // Future items slot in as additional rows.
 export function MoreSheet({ sceneId, onClose }: MoreSheetProps) {
+                              const { t } = useTranslation();
     const { isExiting, beginClose } = useSheetClose(onClose);
     const autoScroll = useAutoScroll();
 
@@ -34,7 +36,7 @@ export function MoreSheet({ sceneId, onClose }: MoreSheetProps) {
             <div
                 className="binge-sheet binge-more-sheet"
                 role="dialog"
-                aria-label="More actions"
+                aria-label={t("action.more_actions")}
             >
                 <div className="binge-sheet-handle" aria-hidden="true" />
                 <ul className="binge-more-sheet-list">
@@ -46,10 +48,9 @@ export function MoreSheet({ sceneId, onClose }: MoreSheetProps) {
                             aria-pressed={autoScroll}
                         >
                             <span className="binge-more-sheet-row-label">
-                                <span>Auto-scroll</span>
+                                <span>{t("action.auto_scroll")}</span>
                                 <small className="binge-more-sheet-row-sub">
-                                    advance to next scene when the current one
-                                    ends
+                                    {t("action.auto_scroll_desc")}
                                 </small>
                             </span>
                             <span
@@ -70,7 +71,7 @@ export function MoreSheet({ sceneId, onClose }: MoreSheetProps) {
                             onClick={handleOpenInStash}
                         >
                             <span className="binge-more-sheet-row-label">
-                                Open in Stash
+                                {t("action.open_in_stash")}
                             </span>
                             <ExternalLinkIcon />
                         </button>
@@ -78,7 +79,7 @@ export function MoreSheet({ sceneId, onClose }: MoreSheetProps) {
                 </ul>
             </div>
         </div>,
-        document.body,
+        document.body
     );
 }
 

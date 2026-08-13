@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useTab, type Tab } from "../tabs/TabContext";
 
 // 4-slot fixed bottom nav for mobile viewports (≤720px). Mirrors the
@@ -15,6 +16,7 @@ const SLOTS: { id: Tab; label: string }[] = [
 ];
 
 export function BottomNav() {
+                                const { t } = useTranslation();
     const { tab, setTab, tabBarVisible } = useTab();
     if (tab === "saved" || tab === "settings") return null;
 
@@ -22,7 +24,7 @@ export function BottomNav() {
         <nav
             className={"binge-bottom-nav" + (tabBarVisible ? "" : " is-hidden")}
             role="tablist"
-            aria-label="Sections"
+            aria-label={t("nav.sections")}
         >
             {SLOTS.map((slot) => {
                 const active = tab === slot.id;

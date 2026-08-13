@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 // Known platforms get their own pill with a brand glyph. Everything
 // else is collapsed into a single "link" pill that opens a popup
@@ -16,6 +17,7 @@ interface PerformerLinksProps {
 // detection + popup state. Renders nothing when there are no URLs.
 export function PerformerLinks({ urls }: PerformerLinksProps) {
     const [showOther, setShowOther] = useState(false);
+    const { t } = useTranslation();
 
     const cleaned = dedupe(
         urls.map(normalizeUrl).filter((u): u is string => !!u),
@@ -58,8 +60,8 @@ export function PerformerLinks({ urls }: PerformerLinksProps) {
                     type="button"
                     className="binge-profile-link-chip is-other"
                     onClick={() => setShowOther(true)}
-                    title={`${other.length} other link${other.length === 1 ? "" : "s"}`}
-                    aria-label="Show other links"
+                    title={t("performer.other_links_count", { count: other.length })}
+                    aria-label={t("action.show_other_links")}
                 >
                     <LinkIcon />
                     <span className="binge-profile-link-chip-label">
@@ -154,6 +156,7 @@ function OtherLinksPopup({
     urls: string[];
     onClose: () => void;
 }) {
+    const { t } = useTranslation();
     return (
         <div
             className="binge-other-links-backdrop"
@@ -164,15 +167,15 @@ function OtherLinksPopup({
                 className="binge-other-links-sheet"
                 onClick={(e) => e.stopPropagation()}
                 role="dialog"
-                aria-label="Other links"
+                aria-label={t("performer.other_links")}
             >
                 <div className="binge-other-links-header">
-                    <span>Other links</span>
+                    <span>{t("performer.other_links")}</span>
                     <button
                         type="button"
                         className="binge-other-links-close"
                         onClick={onClose}
-                        aria-label="Close"
+                        aria-label={t("action.close")}
                     >
                         ×
                     </button>

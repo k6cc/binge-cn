@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Reel } from "./components/Reel";
 import { FilterProvider, useFilter } from "./filter/FilterContext";
 import { FilterBar } from "./filter/FilterBar";
@@ -150,9 +151,9 @@ function App() {
                 <TabProvider>
                     <PerformerProfileProvider>
                         <StoriesProvider>
-                            <StoryViewerProvider>
-                                <ScribeProvider>
-                                    {/* First-paint splash. Self-dismissing
+                        <StoryViewerProvider>
+                            <ScribeProvider>
+                            {/* First-paint splash. Self-dismissing
                                 via internal timers — see
                                 BingeStartupSplash. */}
                                     <BingeStartupSplash />
@@ -312,6 +313,7 @@ function ForYouFilterBtn() {
 function HomeBurger() {
     const { setTab } = useTab();
     const [open, setOpen] = useState(false);
+    const { t } = useTranslation();
     useEffect(() => {
         if (!open) return;
         const onClick = () => setOpen(false);
@@ -385,7 +387,7 @@ function HomeBurger() {
                                 <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z" />
                             </svg>
                         </span>
-                        <span className="binge-home-menu-label">Saved</span>
+                        <span className="binge-home-menu-label">{t("status.saved", "已保存")}</span>
                     </button>
                     <button
                         type="button"

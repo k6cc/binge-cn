@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import type { BingeScene } from "../api/queries";
 import { setPerformerFavorite } from "../api/mutations";
 import { usePerformerProfile } from "../performer/PerformerProfileContext";
+import { useTranslation } from "react-i18next";
 
 interface PerformerSheetProps {
     performers: BingeScene["performers"];
@@ -20,6 +21,7 @@ export function PerformerSheet({
     onClose,
     onFavoriteChange,
 }: PerformerSheetProps) {
+    const { t } = useTranslation();
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
             if (e.key === "Escape") onClose();
@@ -38,11 +40,11 @@ export function PerformerSheet({
             <div
                 className="binge-sheet"
                 role="dialog"
-                aria-label="Performers in this scene"
+                aria-label={t("performer.performers_in_scene")}
             >
                 <div className="binge-sheet-handle" aria-hidden="true" />
                 <h2 className="binge-sheet-title">
-                    {performers.length > 1 ? "Performers" : "Performer"}
+                    {performers.length > 1 ? t("performer.performers") : t("performer.performer")}
                 </h2>
                 <ul className="binge-sheet-list">
                     {performers.map((p) => (
@@ -56,7 +58,7 @@ export function PerformerSheet({
                 </ul>
             </div>
         </div>,
-        document.body,
+        document.body
     );
 }
 
@@ -70,6 +72,7 @@ function PerformerSheetRow({ performer, onClose, onFavoriteChange }: RowProps) {
     const [favorite, setFavorite] = useState<boolean>(performer.favorite);
     const [busy, setBusy] = useState(false);
     const { openProfile } = usePerformerProfile();
+    const { t } = useTranslation();
 
     const handleToggle = async (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -106,7 +109,7 @@ function PerformerSheetRow({ performer, onClose, onFavoriteChange }: RowProps) {
                 type="button"
                 className="binge-sheet-row-main"
                 onClick={handlePick}
-                title={`Scroll ${performer.name}'s content`}
+                title={t("action.browse_performer_content", { name: performer.name })}
             >
                 <span
                     className="binge-sheet-avatar"
@@ -135,7 +138,7 @@ function PerformerSheetRow({ performer, onClose, onFavoriteChange }: RowProps) {
                 disabled={busy}
                 aria-pressed={favorite}
             >
-                {favorite ? "Favourited" : "Favourite"}
+                {favorite ? t("status.favorite") : t("action.favorite")}
             </button>
         </li>
     );

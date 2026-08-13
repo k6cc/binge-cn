@@ -41,6 +41,7 @@ import {
 } from "../api/collections";
 import { timeAgo } from "./timeAgo";
 import { useScribeModal } from "../scribe/ScribeContext";
+import { useTranslation } from "react-i18next";
 
 interface SceneFeedCardProps {
     item: SceneFeedItem;
@@ -69,6 +70,7 @@ export function SceneFeedCard({ item, feedSceneIds }: SceneFeedCardProps) {
     const [oCount, setOCount] = useState(0);
     const [liked, setLiked] = useState(false);
     const oBusyRef = useRef(false);
+    const { t } = useTranslation();
 
     const { replace } = useFilter();
     const { setTab, setPinFirstSceneId, setReelMode, setPinnedQueue } =
@@ -86,7 +88,7 @@ export function SceneFeedCard({ item, feedSceneIds }: SceneFeedCardProps) {
             storiesState.state.kind === "ready"
                 ? new Set(storiesState.state.stories.map((s) => s.performerId))
                 : new Set(),
-        [storiesState.state],
+        [storiesState.state]
     );
 
     const hasAdvancedRating = useHasAdvancedRating();
@@ -159,7 +161,7 @@ export function SceneFeedCard({ item, feedSceneIds }: SceneFeedCardProps) {
                 item.sceneId,
                 item.tags.map((t) => t.id),
                 tagName,
-                next,
+                next
             );
             setInCollections((m) => ({ ...m, [tagName]: confirmed }));
         } catch {
@@ -311,7 +313,7 @@ export function SceneFeedCard({ item, feedSceneIds }: SceneFeedCardProps) {
                             }
                             const list = storiesState.state.stories;
                             const idx = list.findIndex(
-                                (s) => s.performerId === performerId,
+                                (s) => s.performerId === performerId
                             );
                             if (idx >= 0) {
                                 openStoryViewer(list, idx);
@@ -361,13 +363,13 @@ export function SceneFeedCard({ item, feedSceneIds }: SceneFeedCardProps) {
                                                 }
                                                 aria-label={
                                                     p.favorite
-                                                        ? "Favourited"
-                                                        : "In library"
+                                                        ? t("status.favorite")
+                                                        : t("status.in_library")
                                                 }
                                                 title={
                                                     p.favorite
-                                                        ? "Favourited"
-                                                        : "In library"
+                                                        ? t("status.favorite")
+                                                        : t("status.in_library")
                                                 }
                                             >
                                                 <VerifiedIcon />
@@ -387,13 +389,13 @@ export function SceneFeedCard({ item, feedSceneIds }: SceneFeedCardProps) {
                 <SceneCardMenu
                     items={[
                         {
-                            label: "Open in Stash",
-                            sub: "Opens the scene in your Stash UI",
+                            label: t("action.open_in_stash"),
+                            sub: t("action.open_in_stash_details"),
                             onClick: () =>
                                 window.open(
                                     `/scenes/${item.sceneId}`,
                                     "_blank",
-                                    "noopener,noreferrer",
+                                    "noopener,noreferrer"
                                 ),
                         },
                     ]}
@@ -422,7 +424,7 @@ export function SceneFeedCard({ item, feedSceneIds }: SceneFeedCardProps) {
                     type="button"
                     className="binge-feed-card-tap"
                     onClick={handleTap}
-                    aria-label={isPlaying ? "Pause" : "Play"}
+                    aria-label={isPlaying ? t("action.pause") : t("action.play")}
                     tabIndex={-1}
                 />
                 {!isPlaying && (
@@ -446,8 +448,8 @@ export function SceneFeedCard({ item, feedSceneIds }: SceneFeedCardProps) {
                         e.stopPropagation();
                         setMuted(!muted);
                     }}
-                    aria-label={muted ? "Unmute" : "Mute"}
-                    title={muted ? "Unmute" : "Mute"}
+                    aria-label={muted ? t("action.unmute") : t("action.mute")}
+                    title={muted ? t("action.unmute") : t("action.mute")}
                 >
                     {muted ? <MutedIcon /> : <UnmutedIcon />}
                 </button>
@@ -461,8 +463,8 @@ export function SceneFeedCard({ item, feedSceneIds }: SceneFeedCardProps) {
                         (liked || oCount > 0 ? " is-liked" : "")
                     }
                     onClick={triggerLike}
-                    aria-label="Like"
-                    title="Like"
+                    aria-label={t("action.like")}
+                    title={t("action.like")}
                 >
                     <HeartIcon filled={liked || oCount > 0} />
                     {oCount > 0 && (
@@ -476,8 +478,8 @@ export function SceneFeedCard({ item, feedSceneIds }: SceneFeedCardProps) {
                         type="button"
                         className="binge-feed-card-iconbtn"
                         onClick={() => setRatingOpen(true)}
-                        aria-label="Rate"
-                        title="Rate (advanced)"
+                        aria-label={t("action.rate")}
+                        title={t("action.rate_advanced")}
                     >
                         <StarIcon filled={false} />
                     </button>
@@ -492,10 +494,10 @@ export function SceneFeedCard({ item, feedSceneIds }: SceneFeedCardProps) {
                         onClick={handleToggleMV}
                         aria-label={
                             inMVQueue
-                                ? "Remove from Multiview"
-                                : "Add to Multiview"
+                                ? t("action.remove_from_multiview")
+                                : t("action.add_to_multiview")
                         }
-                        title="Send to Multiview"
+                        title={t("action.send_to_multiview")}
                     >
                         <GridIcon filled={inMVQueue} />
                     </button>
@@ -505,8 +507,8 @@ export function SceneFeedCard({ item, feedSceneIds }: SceneFeedCardProps) {
                         type="button"
                         className="binge-feed-card-iconbtn"
                         onClick={handleOpenScribe}
-                        aria-label="Write review with Scribe"
-                        title="Write review"
+                        aria-label={t("action.write_scribe_review")}
+                        title={t("action.write_review")}
                     >
                         <PencilIcon />
                     </button>
@@ -518,8 +520,8 @@ export function SceneFeedCard({ item, feedSceneIds }: SceneFeedCardProps) {
                         (savedSomewhere ? " is-active" : "")
                     }
                     onClick={() => setSaveSheetOpen(true)}
-                    aria-label="Save"
-                    title="Save"
+                    aria-label={t("action.save")}
+                    title={t("action.save")}
                 >
                     <BookmarkIcon filled={savedSomewhere} />
                 </button>
@@ -528,7 +530,7 @@ export function SceneFeedCard({ item, feedSceneIds }: SceneFeedCardProps) {
                     className="binge-feed-card-cta"
                     onClick={handleWatchFullScene}
                 >
-                    Watch full scene →
+                    {t("action.watch_full_scene")}
                 </button>
             </div>
 
@@ -581,6 +583,7 @@ function FeedCaption({
     details: string | null;
 }) {
     const [expanded, setExpanded] = useState(false);
+    const { t } = useTranslation();
     const trimmedDetails = details?.trim() || "";
     const hasDetails = trimmedDetails.length > 0;
     return (
@@ -602,7 +605,7 @@ function FeedCaption({
                             className="binge-feed-card-more-btn"
                             onClick={() => setExpanded(true)}
                         >
-                            more
+                            {t("action.more")}
                         </button>
                     </>
                 )}
@@ -615,7 +618,7 @@ function FeedCaption({
                         className="binge-feed-card-more-btn"
                         onClick={() => setExpanded(false)}
                     >
-                        less
+                        {t("action.collapse")}
                     </button>
                 </div>
             )}
@@ -651,6 +654,7 @@ function AvatarStack({
     /// re-adds.
     isRepost?: boolean;
 }) {
+    const { t } = useTranslation();
     if (performers.length === 0) return null;
     const visible = performers.slice(0, 3);
     const overflow = performers.length - visible.length;
@@ -712,8 +716,8 @@ function AvatarStack({
                             {ringedNode}
                             <span
                                 className="binge-feed-card-stack-repost-badge"
-                                aria-label="Reposted"
-                                title="Reposted — back-catalog you re-added"
+                                aria-label={t("status.reposted")}
+                                title={t("status.reposted_details")}
                             >
                                 <RepostIcon />
                             </span>
@@ -757,6 +761,7 @@ function HashtagRow({
     tags: FeedTag[];
     onTap: (tag: FeedTag) => void;
 }) {
+    const { t } = useTranslation();
     const [expanded, setExpanded] = useState(false);
     const INITIAL = 7;
     const shown = expanded ? tags : tags.slice(0, INITIAL);
@@ -778,9 +783,7 @@ function HashtagRow({
                     type="button"
                     className="binge-feed-card-hashtag-more"
                     onClick={() => setExpanded(true)}
-                    aria-label={`Show ${hidden} more tag${
-                        hidden === 1 ? "" : "s"
-                    }`}
+                    aria-label={t("action.show_more_tags", { count: hidden })}
                 >
                     +{hidden} more
                 </button>
@@ -790,9 +793,9 @@ function HashtagRow({
                     type="button"
                     className="binge-feed-card-hashtag-more"
                     onClick={() => setExpanded(false)}
-                    aria-label="Show fewer tags"
+                    aria-label={t("action.show_fewer_tags")}
                 >
-                    less
+                    {t("action.collapse")}
                 </button>
             )}
         </div>

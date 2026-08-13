@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
 
 export interface SceneCardMenuItem {
     label: string;
@@ -22,6 +23,7 @@ interface SceneCardMenuProps {
 // Click outside or Esc dismisses. Portalled to document.body so the
 // feed card's overflow:hidden doesn't clip the dropdown.
 export function SceneCardMenu({ items }: SceneCardMenuProps) {
+                                  const { t } = useTranslation();
     const triggerRef = useRef<HTMLButtonElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
     const [open, setOpen] = useState(false);
@@ -89,8 +91,8 @@ export function SceneCardMenu({ items }: SceneCardMenuProps) {
                 onClick={() => setOpen((v) => !v)}
                 aria-haspopup="menu"
                 aria-expanded={open}
-                aria-label="More actions"
-                title="More"
+                aria-label={t("action.more_actions")}
+                title={t("action.more")}
             >
                 <DotsIcon />
             </button>
@@ -135,7 +137,7 @@ export function SceneCardMenu({ items }: SceneCardMenuProps) {
                             </button>
                         ))}
                     </div>,
-                    document.body,
+                    document.body
                 )}
         </>
     );

@@ -7,6 +7,7 @@ import {
     type CollectionDef,
     type CollectionIconName,
 } from "../api/collections";
+import { useTranslation } from "react-i18next";
 
 interface SaveSheetProps {
     inCollections: Record<string, boolean>;
@@ -31,6 +32,7 @@ export function SaveSheet({
     const [newName, setNewName] = useState("");
     const [submitBusy, setSubmitBusy] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
+    const { t } = useTranslation();
 
     // Initial + on-change reload of the collections list. The
     // subscription fires after a successful createCollection().
@@ -83,11 +85,11 @@ export function SaveSheet({
             <div
                 className="binge-sheet binge-save-sheet"
                 role="dialog"
-                aria-label="Save scene to a collection"
+                aria-label={t("action.save_to_collection")}
             >
                 <div className="binge-sheet-handle" aria-hidden="true" />
                 <div className="binge-save-sheet-header">
-                    <h2 className="binge-save-sheet-title">Save to…</h2>
+                    <h2 className="binge-save-sheet-title">{t("action.save_to")}</h2>
                 </div>
 
                 <ul className="binge-save-sheet-list" role="list">
@@ -143,7 +145,7 @@ export function SaveSheet({
                             <input
                                 type="text"
                                 className="binge-save-sheet-input"
-                                placeholder="Collection name"
+                                placeholder={t("settings.collection_name")}
                                 value={newName}
                                 onChange={(e) => setNewName(e.target.value)}
                                 autoFocus
@@ -155,7 +157,7 @@ export function SaveSheet({
                                 className="binge-save-sheet-create-confirm"
                                 disabled={submitBusy || !newName.trim()}
                             >
-                                Create
+                                {t("action.create")}
                             </button>
                             <button
                                 type="button"
@@ -167,7 +169,7 @@ export function SaveSheet({
                                 }}
                                 disabled={submitBusy}
                             >
-                                Cancel
+                                {t("action.cancel")}
                             </button>
                         </form>
                     ) : (
@@ -176,7 +178,7 @@ export function SaveSheet({
                             className="binge-save-sheet-create-btn"
                             onClick={() => setCreating(true)}
                         >
-                            + New collection
+                            {t("action.new_collection")}
                         </button>
                     )}
                     {submitError && (
@@ -187,7 +189,7 @@ export function SaveSheet({
                 </div>
             </div>
         </div>,
-        document.body,
+        document.body
     );
 }
 

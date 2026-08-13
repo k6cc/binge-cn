@@ -4,6 +4,7 @@ import { useSharedStories } from "../home/StoriesContext";
 import { usePerformerProfile } from "../performer/PerformerProfileContext";
 import { useAutoHideTabBar } from "../hooks/useAutoHideTabBar";
 import { BingeLoading } from "../components/BingeLoading";
+import { useTranslation } from "react-i18next";
 
 type LoadState =
     | { kind: "loading" }
@@ -37,7 +38,7 @@ type LastPostMap = Map<string, string>;
 function sortPerformers(
     list: PerformerSummary[],
     mode: SortMode,
-    lastPost: LastPostMap,
+    lastPost: LastPostMap
 ): PerformerSummary[] {
     const copy = list.slice();
     switch (mode) {
@@ -55,11 +56,11 @@ function sortPerformers(
             );
         case "scenes-desc":
             return copy.sort(
-                (a, b) => (b.scene_count ?? 0) - (a.scene_count ?? 0),
+                (a, b) => (b.scene_count ?? 0) - (a.scene_count ?? 0)
             );
         case "scenes-asc":
             return copy.sort(
-                (a, b) => (a.scene_count ?? 0) - (b.scene_count ?? 0),
+                (a, b) => (a.scene_count ?? 0) - (b.scene_count ?? 0)
             );
         case "last-post-desc":
             // Performers with NO recent activity sort to the bottom in
@@ -86,6 +87,7 @@ function sortPerformers(
 // Performers without scenes are still shown — Stash treats them as
 // "in your library" even when they have zero linked scenes.
 export function Following() {
+                                const { t } = useTranslation();
     const [state, setState] = useState<LoadState>({ kind: "loading" });
     const [search, setSearch] = useState("");
     const [sort, setSort] = useState<SortMode>("name-asc");
@@ -151,13 +153,13 @@ export function Following() {
             favourites: sortPerformers(filtered.fav, sort, lastPost),
             others: sortPerformers(filtered.oth, sort, lastPost),
         }),
-        [filtered, sort, lastPost],
+        [filtered, sort, lastPost]
     );
 
     return (
         <div className="binge-tab-scroll" ref={scrollRef}>
             <div className="binge-tab-inner">
-                <h1 className="binge-tab-title">Following</h1>
+                <h1 className="binge-tab-title">{t("nav.following")}</h1>
 
                 <div className="binge-following-controls">
                     <input
@@ -175,7 +177,7 @@ export function Following() {
                         className="binge-following-sort"
                         value={sort}
                         onChange={(e) => setSort(e.target.value as SortMode)}
-                        aria-label="Sort performers"
+                        aria-label={t("nav.sort_performers")}
                     >
                         {SORT_OPTIONS.map((opt) => (
                             <option key={opt.value} value={opt.value}>
@@ -188,29 +190,29 @@ export function Following() {
                 {state.kind === "loading" && <BingeLoading minHeight="60vh" />}
                 {state.kind === "error" && (
                     <div className="binge-status binge-status-error">
-                        error: {state.message}
+                        {t("status.error_message", { message: state.message })}
                     </div>
                 )}
                 {state.kind === "ready" && (
                     <>
                         <Section
-                            title="Favourites"
+                            title={t("nav.favorites")}
                             count={favourites.length}
                             performers={favourites}
                             onPick={openProfile}
                             emptyHint={
                                 state.performers.some((p) => p.favorite)
-                                    ? "No matches."
-                                    : "Favourite some performers in Stash to see them here."
+                                    ? t("status.no_match")
+                                    : t("status.no_favorites")
                             }
                             favorite
                         />
                         <Section
-                            title="All performers"
+                            title={t("nav.all_performers")}
                             count={others.length}
                             performers={others}
                             onPick={openProfile}
-                            emptyHint="No matches."
+                            emptyHint={t("status.no_match")}
                             favorite={false}
                         />
                     </>
@@ -235,6 +237,7 @@ function Section({
     emptyHint: string;
     favorite: boolean;
 }) {
+    const { t } = useTranslation();
     return (
         <section className="binge-following-section">
             <header className="binge-following-section-head">
@@ -279,8 +282,7 @@ function Section({
                                 {typeof p.scene_count === "number" &&
                                     p.scene_count > 0 && (
                                         <span className="binge-follow-count">
-                                            {p.scene_count} scene
-                                            {p.scene_count === 1 ? "" : "s"}
+                                            {t("status.performer_scenes", { count: p.scene_count })}
                                         </span>
                                     )}
                             </button>

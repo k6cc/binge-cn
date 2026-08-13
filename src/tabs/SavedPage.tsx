@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
     createCollection,
     deleteCollection,
@@ -37,6 +38,7 @@ interface CollectionWithCover {
 }
 
 export function SavedPage() {
+    const { t } = useTranslation();
     const { setTab, setPinFirstSceneId } = useTab();
     const { replace } = useFilter();
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -96,15 +98,15 @@ export function SavedPage() {
                         // Use the cached tag-id map indirectly via the
                         // collection module's own lookup so we don't
                         // refetch tag ids per call.
-                        resolveCover(c.tagName),
-                    ),
+                        resolveCover(c.tagName)
+                    )
                 );
                 if (!alive) return;
                 setItems(
                     collections.map((def, i) => ({
                         def,
                         cover: covers[i],
-                    })),
+                    }))
                 );
             } catch (e) {
                 if (alive) setError(e instanceof Error ? e.message : String(e));
@@ -177,8 +179,8 @@ export function SavedPage() {
                         type="button"
                         className="binge-saved-back"
                         onClick={() => setOpenCollection(null)}
-                        aria-label="Back to Saved"
-                        title="Back"
+                        aria-label={t("nav.back_to_saved")}
+                        title={t("nav.back")}
                     >
                         <ChevronLeft />
                     </button>
@@ -194,10 +196,10 @@ export function SavedPage() {
                         onPick={(scene) =>
                             handlePickSceneInCollection(
                                 openCollection,
-                                scene.id,
+                                scene.id
                             )
                         }
-                        emptyMessage="No scenes saved to this collection yet."
+                        emptyMessage={t("status.no_scenes_in_collection")}
                     />
                 ) : (
                     <BingeLoading minHeight="60vh" />
@@ -213,18 +215,18 @@ export function SavedPage() {
                     type="button"
                     className="binge-saved-back"
                     onClick={() => setTab("home")}
-                    aria-label="Back to Home"
-                    title="Back"
-                >
+                    aria-label={t("nav.back_to_home")}
+                        title={t("nav.back")}
+                    >
                     <ChevronLeft />
                 </button>
-                <h1 className="binge-saved-title">Saved</h1>
+                <h1 className="binge-saved-title">{t("nav.saved")}</h1>
                 <button
                     type="button"
                     className="binge-saved-add"
                     onClick={() => setCreating((v) => !v)}
-                    aria-label="New collection"
-                    title="New collection"
+                    aria-label={t("action.new_collection")}
+                    title={t("action.new_collection")}
                 >
                     <PlusIcon />
                 </button>
@@ -241,7 +243,7 @@ export function SavedPage() {
                     <input
                         type="text"
                         className="binge-saved-create-input"
-                        placeholder="Collection name"
+                        placeholder={t("settings.collection_name")}
                         value={newName}
                         onChange={(e) => setNewName(e.target.value)}
                         autoFocus
@@ -253,7 +255,7 @@ export function SavedPage() {
                         className="binge-saved-create-confirm"
                         disabled={submitBusy || !newName.trim()}
                     >
-                        Create
+                        {t("action.create")}
                     </button>
                     <button
                         type="button"
@@ -265,7 +267,7 @@ export function SavedPage() {
                         }}
                         disabled={submitBusy}
                     >
-                        Cancel
+                        {t("action.cancel")}
                     </button>
                 </form>
             )}
@@ -307,6 +309,7 @@ function CollectionTile({
     onOpen: () => void;
     onLongPress: () => void;
 }) {
+    const { t } = useTranslation();
     const holdRef = useRef<number | null>(null);
     const heldRef = useRef(false);
 
@@ -341,8 +344,8 @@ function CollectionTile({
             onPointerUp={onPointerUp}
             onPointerLeave={onPointerLeave}
             onPointerCancel={onPointerLeave}
-            aria-label={`Open ${def.name}`}
-            title="Tap to open · hold to delete"
+            aria-label={t("action.open_collection", { name: def.name })}
+            title={t("action.click_open_long_press_delete")}
         >
             <div
                 className={
@@ -355,7 +358,7 @@ function CollectionTile({
                 }
             >
                 {scenes.length === 0 ? (
-                    <span className="binge-saved-tile-empty">empty</span>
+                    <span className="binge-saved-tile-empty">{t("status.empty")}</span>
                 ) : scenes.length === 1 ? (
                     <div
                         className="binge-saved-tile-single"
@@ -411,6 +414,7 @@ function DeleteConfirm({
     onConfirm: () => void;
     onCancel: () => void;
 }) {
+    const { t } = useTranslation();
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
             if (e.key === "Escape") onCancel();
@@ -426,8 +430,8 @@ function DeleteConfirm({
                 <h3 className="binge-saved-confirm-title">Delete "{name}"?</h3>
                 <p className="binge-saved-confirm-body">
                     {isProtected
-                        ? "This collection is shared with ASR and can't be deleted from binge. Use Stash's tag manager if you really want to remove it."
-                        : "The collection's Stash tag will be deleted. Scenes inside it stay in your library; only the tag association goes away."}
+                        ? t("status.collection_protected_warning")
+                        : t("status.collection_delete_warning")}
                 </p>
                 <div className="binge-saved-confirm-actions">
                     <button
@@ -435,7 +439,7 @@ function DeleteConfirm({
                         className="binge-saved-confirm-cancel"
                         onClick={onCancel}
                     >
-                        Cancel
+                        {t("action.cancel")}
                     </button>
                     <button
                         type="button"
@@ -443,7 +447,7 @@ function DeleteConfirm({
                         onClick={onConfirm}
                         disabled={isProtected}
                     >
-                        Delete
+                        {t("action.delete")}
                     </button>
                 </div>
             </div>

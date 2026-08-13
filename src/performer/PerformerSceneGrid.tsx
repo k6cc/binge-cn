@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
     findScenesByPerformer,
     type PerformerDetail,
@@ -69,6 +70,7 @@ export function PerformerSceneGrid({
     performer,
     onClose,
 }: PerformerSceneGridProps) {
+    const { t } = useTranslation();
     const [scenes, setScenes] = useState<PerformerSceneCard[]>([]);
     const [count, setCount] = useState<number | null>(null);
     const [page, setPage] = useState(1);
@@ -98,7 +100,7 @@ export function PerformerSceneGrid({
     const includePornhub = useIncludePornhub();
     const [pornhubVideos, setPornhubVideos] = useState<PornhubVideo[]>([]);
     const [pornhubPlayFor, setPornhubPlayFor] = useState<PornhubVideo | null>(
-        null,
+        null
     );
     useEffect(() => {
         setPornhubVideos([]);
@@ -117,7 +119,7 @@ export function PerformerSceneGrid({
     // entry — gates the toggle pill in the heading. No link →
     // nothing to fetch, so hide the control entirely.
     const isStashDBLinked = Boolean(
-        performer.stash_ids?.some((s) => s.endpoint === STASHDB_ENDPOINT),
+        performer.stash_ids?.some((s) => s.endpoint === STASHDB_ENDPOINT)
     );
 
     // Reset when the performer changes (re-opening the profile for another
@@ -154,7 +156,7 @@ export function PerformerSceneGrid({
             return;
         }
         const sdb = performer.stash_ids?.find(
-            (s) => s.endpoint === STASHDB_ENDPOINT,
+            (s) => s.endpoint === STASHDB_ENDPOINT
         );
         if (!sdb) {
             setStashDBScenes([]);
@@ -175,7 +177,7 @@ export function PerformerSceneGrid({
             } catch (err) {
                 console.warn(
                     "[binge] performer-profile stashdb mixin failed",
-                    err,
+                    err
                 );
             }
         })();
@@ -193,7 +195,7 @@ export function PerformerSceneGrid({
                 if (!alive) return;
                 setCount(res.count);
                 setScenes((prev) =>
-                    page === 1 ? res.scenes : [...prev, ...res.scenes],
+                    page === 1 ? res.scenes : [...prev, ...res.scenes]
                 );
             })
             .catch((err: Error) => {
@@ -235,7 +237,7 @@ export function PerformerSceneGrid({
             {
                 root: scrollRoot,
                 rootMargin: `0px 0px ${NEAR_BOTTOM_PX}px 0px`,
-            },
+            }
         );
         observer.observe(sentinel);
         return () => observer.disconnect();
@@ -282,7 +284,7 @@ export function PerformerSceneGrid({
                         onClick={() =>
                             setIncludeStashDBInProfile(!includeStashDBInProfile)
                         }
-                        title="Mix StashDB scenes into this performer's grid"
+                        title={t("performer.stashdb_mixin_title")}
                     >
                         <span className="binge-profile-stashdb-toggle-dot" />
                         StashDB
@@ -291,14 +293,14 @@ export function PerformerSceneGrid({
             </h2>
             {error && (
                 <div className="binge-status binge-status-error">
-                    error: {error}
+                    {t("status.error_message", { message: error })}
                 </div>
             )}
             {scenes.length === 0 && loading && (
                 <BingeLoading minHeight="30vh" />
             )}
-            {scenes.length === 0 && !loading && !error && (
-                <div className="binge-status">no scenes</div>
+                {scenes.length === 0 && !loading && !error && (
+                <div className="binge-status">{t("status.no_scenes")}</div>
             )}
             {(scenes.length > 0 ||
                 effectiveStashDBScenes.length > 0 ||
@@ -309,7 +311,7 @@ export function PerformerSceneGrid({
                         effectiveStashDBScenes,
                         pornhubVideos,
                         stashBoxIndex,
-                        sort,
+                        sort
                     ).map((cell) => {
                         if (cell.kind === "library") {
                             return (
@@ -357,7 +359,7 @@ export function PerformerSceneGrid({
             <div ref={sentinelRef} aria-hidden="true" />
             {loading && scenes.length > 0 && (
                 <div className="binge-status binge-profile-scenes-loading">
-                    loading more…
+                    {t("status.loading")}
                 </div>
             )}
             {sceneModalFor && stashBoxIndex !== null && (
@@ -396,7 +398,7 @@ function buildCells(
     stashDB: StashDBScene[],
     pornhub: PornhubVideo[],
     stashBoxIndex: number | null,
-    sort: PerformerSceneSort,
+    sort: PerformerSceneSort
 ): GridCell[] {
     const libCells: GridCell[] = library.map((s): GridCell => ({
         kind: "library",
@@ -421,7 +423,7 @@ function buildCells(
 
     if (sort === "recent") {
         return [...libCells, ...sdbCells, ...phCells].sort((a, b) =>
-            b.date.localeCompare(a.date),
+            b.date.localeCompare(a.date)
         );
     }
     // Non-date sorts only apply to library scenes — append the discovery
@@ -439,6 +441,7 @@ function StashDBTile({
     scene: StashDBScene;
     onPick: () => void;
 }) {
+    const { t } = useTranslation();
     const sceneTitle = scene.title?.trim() || "";
     return (
         <li className="binge-profile-scene-cell is-landscape-thumb">
@@ -446,7 +449,7 @@ function StashDBTile({
                 type="button"
                 className="binge-profile-scene-card"
                 onClick={onPick}
-                title={sceneTitle || `StashDB scene ${scene.id}`}
+                title={sceneTitle || t("performer.stashdb_scene_id", { id: scene.id })}
             >
                 <span
                     className="binge-profile-scene-poster"
@@ -459,7 +462,7 @@ function StashDBTile({
                     }
                 />
                 <span className="binge-profile-scene-stashdb-badge">
-                    StashDB
+                    {t("common.stashdb")}
                 </span>
                 <span className="binge-profile-scene-hover">
                     <span className="binge-profile-scene-hover-stats">
@@ -494,6 +497,7 @@ function SceneTile({
     sort: PerformerSceneSort;
     onPick: () => void;
 }) {
+    const { t } = useTranslation();
     const file = scene.files?.[0];
     const duration = file?.duration ?? null;
     const isLandscapeThumb =
@@ -549,7 +553,7 @@ function SceneTile({
                 onMouseLeave={handleLeave}
                 onFocus={handleEnter}
                 onBlur={handleLeave}
-                title={sceneTitle || `Scene ${scene.id}`}
+                title={sceneTitle || t("performer.scene_id", { id: scene.id })}
             >
                 <span
                     className="binge-profile-scene-poster"

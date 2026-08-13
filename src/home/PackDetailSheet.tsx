@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { createPortal } from "react-dom";
 import type { PackFeedItem, SceneFeedItem } from "./useFeed";
 import { useTab } from "../tabs/TabContext";
@@ -19,6 +20,7 @@ export function PackDetailSheet({
     pack: PackFeedItem;
     onClose: () => void;
 }) {
+    const { t } = useTranslation();
     const { setTab, setPinFirstSceneId, setPinnedQueue } = useTab();
 
     // Esc dismisses on desktop — matches the rest of the sheets.
@@ -53,7 +55,7 @@ export function PackDetailSheet({
             <div
                 className="binge-sheet binge-pack-sheet"
                 role="dialog"
-                aria-label={`${pack.primaryPerformer.name} — pack`}
+                aria-label={t("action.pack_aria_label", { name: pack.primaryPerformer.name })}
             >
                 <div className="binge-sheet-handle" aria-hidden="true" />
                 <header className="binge-pack-sheet-header">
@@ -61,7 +63,7 @@ export function PackDetailSheet({
                         {pack.primaryPerformer.name}
                     </div>
                     <div className="binge-pack-sheet-sub">
-                        {pack.sceneCount} new scenes
+                        {t("story.new_scenes_count", { count: pack.sceneCount })}
                     </div>
                 </header>
                 <div className="binge-pack-sheet-grid">
@@ -71,7 +73,7 @@ export function PackDetailSheet({
                             key={scene.sceneId}
                             className="binge-pack-sheet-tile"
                             onClick={() => handlePick(scene)}
-                            aria-label={scene.title ?? "Open scene"}
+                            aria-label={scene.title ?? t("action.open_scene")}
                             style={
                                 scene.screenshot
                                     ? {
@@ -84,6 +86,6 @@ export function PackDetailSheet({
                 </div>
             </div>
         </div>,
-        document.body,
+        document.body
     );
 }
