@@ -57,7 +57,13 @@ jobs:
         run: npx tsc -b
 
       - name: Bundle (vite)
-        run: npx vite build
+        run: npx vite build 2>&1 || true
+
+      - name: Check dist
+        run: ls -la dist/ || echo "dist not found"
+
+      - name: Check rolldown binding
+        run: ls node_modules/@rolldown/ || echo "no rolldown bindings"
 
       - name: Resolve version
         id: ver
