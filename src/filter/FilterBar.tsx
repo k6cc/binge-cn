@@ -1,12 +1,14 @@
-import { useFilter, type FilterCategory, type FilterEntry } from "./FilterContext";
-import { useTranslation } from "react-i18next";
+import {
+    useFilter,
+    type FilterCategory,
+    type FilterEntry,
+} from "./FilterContext";
 
 // Slim active-filters strip. Renders nothing when no chips are set; when
 // there are chips, displays them inline (no add/presets/clear chrome) so
 // they sit alongside the TabBar inside the shared top header gradient.
 // Each chip is removable via its trailing × (or by clicking the chip body).
 export function FilterBar() {
-    const { t } = useTranslation();
     const { filter, remove, isEmpty, activeSavedFilter, clearSavedFilter } =
         useFilter();
 
@@ -20,8 +22,8 @@ export function FilterBar() {
                         type="button"
                         className="binge-filter-chip binge-filter-chip-saved"
                         onClick={() => clearSavedFilter()}
-                        title={t("action.clear_saved_filter", { name: activeSavedFilter.name })}
-                        aria-label={t("action.clear_saved_filter", { name: activeSavedFilter.name })}
+                        title={`Clear "${activeSavedFilter.name}" filter`}
+                        aria-label={`Clear ${activeSavedFilter.name} filter`}
                     >
                         <span className="binge-filter-chip-label">
                             {activeSavedFilter.name}
@@ -56,8 +58,8 @@ export function FilterBar() {
                             type="button"
                             className={`binge-filter-chip binge-filter-chip-${category}`}
                             onClick={() => remove(category, e.id)}
-                            title={t("action.remove_item", { name: e.name })}
-                            aria-label={t("action.remove_filter_item", { name: e.name })}
+                            title={`Remove ${e.name}`}
+                            aria-label={`Remove ${e.name} from filter`}
                         >
                             {category === "performers" && (
                                 <span
@@ -71,18 +73,23 @@ export function FilterBar() {
                                     }
                                 >
                                     {!e.image_path && (
-                                        <span>{e.name.charAt(0).toUpperCase()}</span>
+                                        <span>
+                                            {e.name.charAt(0).toUpperCase()}
+                                        </span>
                                     )}
                                 </span>
                             )}
                             <span className="binge-filter-chip-label">
                                 {e.name}
                             </span>
-                            <span className="binge-filter-chip-x" aria-hidden="true">
+                            <span
+                                className="binge-filter-chip-x"
+                                aria-hidden="true"
+                            >
                                 ×
                             </span>
                         </button>
-                    ))
+                    )),
                 )}
             </div>
         </div>

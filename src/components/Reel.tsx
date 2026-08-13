@@ -15,8 +15,6 @@ import { createChainAlgo, type ChainAlgo } from "../reel/chainAlgo";
 import { useAutoHideTabBar } from "../hooks/useAutoHideTabBar";
 import { BingeLoading } from "./BingeLoading";
 
-import { useTranslation } from "react-i18next";
-
 type LoadState =
     | { kind: "loading" }
     | {
@@ -63,7 +61,7 @@ export function Reel() {
         (sceneId: string, value: number | null) => {
             setRatingOverrides((prev) => ({ ...prev, [sceneId]: value }));
         },
-        []
+        [],
     );
     // Collection memberships keyed first by sceneId, then by tagName.
     // Generalises the old single-favourite override so the bookmark
@@ -78,7 +76,7 @@ export function Reel() {
                 [sceneId]: { ...(prev[sceneId] ?? {}), [tagName]: value },
             }));
         },
-        []
+        [],
     );
     const { filter, activeSavedFilter } = useFilter();
     const {
@@ -119,39 +117,13 @@ export function Reel() {
         }
     }, [reelMode, filter, setReelMode, setTab]);
 
-    // 修复：queue 路径下用户点 × 清除 performer 筛选 chip 时，pinnedQueue
-    // 仍然活跃 — Reel 的 queue 路径优先级高于 filter，会继续播放包内场景，
-    // 用户看到筛选 chip 消失但内容没变。这里监听 filter 变化：当 queue 活跃
-    // 且 performers 被清空时，清除 queue 让 Reel 走 random 路径，用空 filter
-    // 重新加载场景（随机推荐）。tags/studios 同理 — 任何筛选维度被清空都
-    // 视为用户想退出包模式。不清除 pinFirstSceneId（chained 模式有自己的
-    // filter-takeover effect 处理）。
-    useEffect(() => {
-        if (!pinnedQueue) return;
-        const empty =
-            filter.performers.length === 0 &&
-            filter.tags.length === 0 &&
-            filter.studios.length === 0;
-        if (empty) {
-            setPinnedQueue(null);
-        }
-    }, [filter, pinnedQueue, setPinnedQueue]);
-
     const sceneCount = state.kind === "ready" ? state.scenes.length : 0;
     const virtualizer = useVirtualizer({
         count: sceneCount,
         getScrollElement: () => scrollRef.current,
-        // 关键：必须用 .binge-reel 的 clientHeight（= 100vh = mobile Chrome
-        // 的 large viewport height），不能用 window.innerHeight（地址栏显示时
-        // 比 100vh 小）。否则 vi.size < .binge-reel height，最后一部 wrapper
-        // 顶部无法完全对齐视口顶部（max scrollTop 不够），导致最后一部
-        // 不能达到 IO active 阈值，activeIndex 不更新，全屏退出会跳到
-        // 倒数第三部。scrollRef.current 在首次 render 时可能为 null，用
-        // window.innerHeight 作 fallback，measure() 后会修正。
-        estimateSize: () => scrollRef.current?.clientHeight ?? window.innerHeight,
+        estimateSize: () => window.innerHeight,
         overscan: OVERSCAN,
-        getItemKey: (i) =>
-            state.kind === "ready" ? state.scenes[i].id : i,
+        getItemKey: (i) => (state.kind === "ready" ? state.scenes[i].id : i),
     });
 
     // Hide the tab/header chrome when scrolling down, reveal it on any
@@ -195,101 +167,6 @@ export function Reel() {
             }
         };
     }, []);
-    // 全屏/退出全屏后修复 scroll position：
-    // 进入全屏：innerHeight 变大 → virtualizer 重新 measure → 卡片位置
-    // 移动 → 当前卡片不在可见范围 → 卸载 → 浏览器检测到全屏元素从 DOM
-    // 移除 → 自动退出全屏（"闪屏"）。
-    // 根本修复：进入全屏前在 SceneSlide.handleToggleFullscreen 中固定
-    // .binge-reel 的 height，防止 virtualizer 重新 measure。
-    // 退出全屏：恢复 height，三重 rAF 等 virtualizer re-measure + React
-    // 重新渲染完成后 scrollToIndex。
-    useEffect(() => {
-        let cancelled = false;
-        const onChange = () => {
-            const el = scrollRef.current;
-            const fs = !!document.fullscreenElement;
-            if (fs) {
-                // 进入全屏：height 已在 SceneSlide.handleToggleFullscreen
-                // 中固定（在 requestFullscreen 之前），无需处理
-            } else {
-                // 退出全屏：恢复 .binge-reel 的 height
-                if (el) {
-                    el.style.height = "";
-                }
-                // A. 立即暂停当前 active video，避免 scrollToIndex 期间
-                //    orientationchange 触发的 IO 误激活上一部（双声/跳上一部）
-                const pauseActive = () => {
-                    const v = el?.querySelector<HTMLVideoElement>(
-                        '.binge-slide[data-active="true"] video'
-                    );
-                    if (v && !v.paused) v.pause();
-                };
-                pauseActive();
-
-                // B. scrollToIndex 必须等 orientationchange 完成（如果横屏 → 竖屏）
-                //    再执行，否则在方向变化中途 measure 会得到错误尺寸
-                const doScroll = () => {
-                    if (cancelled) return;
-                    requestAnimationFrame(() => {
-                        requestAnimationFrame(() => {
-                            if (cancelled) return;
-                            virtualizer.measure();
-                            requestAnimationFrame(() => {
-                                if (cancelled) return;
-                                const el2 = scrollRef.current;
-                                if (!el2) return;
-                                const original = el2.style.scrollBehavior;
-                                el2.style.scrollBehavior = "auto";
-                                virtualizer.scrollToIndex(activeIndex, {
-                                    align: "start",
-                                });
-                                requestAnimationFrame(() => {
-                                    el2.style.scrollBehavior = original;
-                                    // scrollToIndex 完成后让 IO 重新激活。
-                                    // IO 在转换期间可能因 pause 守卫没触发 play，
-                                    // 这里主动恢复当前 active video 播放。
-                                    const v = el2.querySelector<HTMLVideoElement>(
-                                        '.binge-slide[data-active="true"] video'
-                                    );
-                                    if (v && v.paused) {
-                                        v.play().catch(() => {});
-                                    }
-                                });
-                            });
-                        });
-                    });
-                };
-
-                // screen.orientation 解锁会触发 orientationchange（约 300-500ms 后）
-                const orient = screen.orientation;
-                if (orient && typeof orient.addEventListener === "function") {
-                    let orientationChanged = false;
-                    const onOrientChange = () => {
-                        orientationChanged = true;
-                        orient.removeEventListener("change", onOrientChange);
-                        // orientationchange 后 layout 还要 200-300ms 稳定
-                        setTimeout(doScroll, 250);
-                    };
-                    orient.addEventListener("change", onOrientChange);
-                    // 兜底：如果 400ms 内没 orientationchange（非横屏视频或 iOS）
-                    // 直接执行
-                    setTimeout(() => {
-                        if (!orientationChanged) {
-                            orient.removeEventListener("change", onOrientChange);
-                            doScroll();
-                        }
-                    }, 400);
-                } else {
-                    doScroll();
-                }
-            }
-        };
-        document.addEventListener("fullscreenchange", onChange);
-        return () => {
-            cancelled = true;
-            document.removeEventListener("fullscreenchange", onChange);
-        };
-    }, [virtualizer, activeIndex]);
     // Latest in-flight fetch token. Stale responses (from a previous
     // filter set, or duplicate next-page calls) compare and bail.
     const fetchTokenRef = useRef(0);
@@ -302,7 +179,7 @@ export function Reel() {
     const sortSeed = useMemo(
         () => `random_${Math.floor(Math.random() * 1e9)}`,
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [filter, activeSavedFilter]
+        [filter, activeSavedFilter],
     );
 
     // scene_filter — either binge's chip-derived filter or the saved
@@ -316,7 +193,7 @@ export function Reel() {
         return buildSceneFilter(
             filter.performers.map((p) => p.id),
             filter.tags.map((t) => t.id),
-            filter.studios.map((s) => s.id)
+            filter.studios.map((s) => s.id),
         );
     }, [filter, activeSavedFilter]);
 
@@ -341,13 +218,12 @@ export function Reel() {
     // Random mode (the default — current behaviour): fetch a random
     // page 1 plus the pinned scene if one is set; hoist the pinned
     // scene to position 0.
-    // 
+    //
     // Chained mode (set by an Explore tile tap): fetch ONLY the pinned
     // scene. Build a fresh ChainAlgo seeded with that scene id in the
     // `visited` set so the algo never picks it again. Subsequent
     // scenes are produced by algoRef.nextBatch() in the pagination
     // effect below.
-    const { t } = useTranslation();
     useEffect(() => {
         const token = ++fetchTokenRef.current;
         setState({ kind: "loading" });
@@ -380,15 +256,13 @@ export function Reel() {
                     // missing earlier scene shifts everything and the
                     // reel opens on the wrong scene.
                     const targetId = queue.ids[queue.startIndex];
-                    const found = scenes.findIndex(
-                        (s) => s.id === targetId
-                    );
+                    const found = scenes.findIndex((s) => s.id === targetId);
                     const idx =
                         found >= 0
                             ? found
                             : Math.min(
                                   Math.max(0, queue.startIndex),
-                                  Math.max(0, scenes.length - 1)
+                                  Math.max(0, scenes.length - 1),
                               );
                     setActiveIndex(idx);
                     setOOverrides({});
@@ -405,10 +279,7 @@ export function Reel() {
                             behavior: "auto",
                         });
                     });
-                    // Bug 5 修复：不要在这里清除 queue。pinnedQueue 在依赖
-                    // 数组中，清除会立即触发 effect 重跑 → 走 random 路径
-                    // → 用随机场景覆盖 queue 场景。queue 由 setTab 在用户
-                    // 离开时清除。
+                    setPinnedQueue(null);
                 })
                 .catch((err: Error) => {
                     if (token !== fetchTokenRef.current) return;
@@ -435,7 +306,7 @@ export function Reel() {
                     if (!pinnedScene) {
                         setState({
                             kind: "error",
-                            message: t("status.pinned_scene_not_found"),
+                            message: "pinned scene not found",
                         });
                         return;
                     }
@@ -459,24 +330,13 @@ export function Reel() {
                     setRatingOverrides({});
                     setCollectionOverrides({});
                     scrollRef.current?.scrollTo({ top: 0, behavior: "auto" });
-                    // Bug 5 修复：不要在这里清除 pin。pinFirstSceneId 在依赖
-                    // 数组中，清除会立即触发 effect 重跑 → 落入 random 路径
-                    // → 用随机场景覆盖 chained 场景。pin 由 setTab 或
-                    // filter-takeover 在用户离开 chained 模式时清除。
+                    setPinFirstSceneId(null);
                 })
                 .catch((err: Error) => {
                     if (token !== fetchTokenRef.current) return;
                     setState({ kind: "error", message: err.message });
                     setPinFirstSceneId(null);
                 });
-            return;
-        }
-
-        // Bug 5 修复：chained 模式下若 pin 已被清除（例如 chained 路径
-        // 完成后 effect 重跑），不要落入 random 路径，否则会用随机场景
-        // 覆盖已加载的 chained 场景。等待 pin 重新设置或用户退出
-        // chained 模式（filter-takeover 会 setReelMode("random")）。
-        if (reelMode === "chained") {
             return;
         }
 
@@ -518,27 +378,19 @@ export function Reel() {
                 // unrelated scenes.
                 setOOverrides({});
                 scrollRef.current?.scrollTo({ top: 0, behavior: "auto" });
-                // Bug 修复：原先在这里 setPinFirstSceneId(null) 清除 pin，
-                // 但 pinFirstSceneId 在依赖数组中 → 清除会立即触发 effect
-                // 重跑 → 第二次跑时 pin 为 null → 走 random 路径重新拉
-                // 一页随机场景覆盖掉刚放好的 pin 场景 → 用户看到随机影片
-                // 而非点击的影片。改为不清除 pin，让 pin 留在 state 里。
-                // 下次 effect 重跑（filter/tab 变化）时会读到同一个 pin
-                // 并重新 fetch — 结果一致（pin 场景仍在 index 0）。pin
-                // 最终由 setTab（用户切走时）或 chained 模式的 filter-
-                // takeover 清除。
+                if (pin) setPinFirstSceneId(null);
             })
             .catch((err: Error) => {
                 if (token !== fetchTokenRef.current) return;
                 setState({ kind: "error", message: err.message });
                 if (pin) setPinFirstSceneId(null);
             });
-        // 硬约束：依赖数组必须包含 pinnedQueue 和 pinFirstSceneId。
-        // 原实现故意排除它们（通过闭包读取），但当调用方在 setTab 之后
-        // 才设置 pin/queue 时，effect 不会重跑，导致种子场景丢失。
-        // 显式加入依赖可保证任一变化都重新加载。
+        // pinFirstSceneId is intentionally NOT a dependency — we only want
+        // it consumed when the filter/seed/mode changes (which is what
+        // brought the user here). Reading it via closure is fine because
+        // the entry-point handlers all set pin BEFORE calling setTab.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [sortSeed, sceneFilter, findFilterBase, reelMode, pinnedQueue, pinFirstSceneId]);
+    }, [sortSeed, sceneFilter, findFilterBase, reelMode]);
 
     // Auto-paginate: when the active slide is near the tail, fetch the
     // next batch and append. Branches on reelMode — random mode keeps
@@ -565,7 +417,7 @@ export function Reel() {
                         if (s.kind !== "ready") return s;
                         const existingIds = new Set(s.scenes.map((x) => x.id));
                         const deduped = fresh.filter(
-                            (x) => !existingIds.has(x.id)
+                            (x) => !existingIds.has(x.id),
                         );
                         return {
                             ...s,
@@ -583,7 +435,7 @@ export function Reel() {
                     // in DevTools so the failure is debuggable.
                     console.error(
                         "[binge] chained-mode pagination failed",
-                        err
+                        err,
                     );
                 })
                 .finally(() => {
@@ -610,7 +462,7 @@ export function Reel() {
                     // Dedup by id — safety against random sort edge cases.
                     const existingIds = new Set(s.scenes.map((x) => x.id));
                     const fresh = data.findScenes.scenes.filter(
-                        (x) => !existingIds.has(x.id)
+                        (x) => !existingIds.has(x.id),
                     );
                     return {
                         ...s,
@@ -665,9 +517,9 @@ export function Reel() {
     const scenes = state.kind === "ready" ? state.scenes : [];
     const errorOrEmpty =
         state.kind === "error"
-            ? t("status.error_message", { message: state.message })
+            ? `error: ${state.message}`
             : state.kind === "ready" && state.scenes.length === 0
-              ? t("status.no_scenes_matched")
+              ? "no scenes matched. (any saved filters or chips active?)"
               : null;
     return (
         <div className="binge-reel" ref={scrollRef}>

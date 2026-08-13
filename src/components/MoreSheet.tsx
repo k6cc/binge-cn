@@ -1,8 +1,7 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useSheetClose } from "../hooks/useSheetClose";
-import { setAutoScroll, useAutoScroll, setAutoLoadCaptions, useAutoLoadCaptions } from "../home/pluginSettings";
-import { useTranslation } from "react-i18next";
+import { setAutoScroll, useAutoScroll } from "../home/pluginSettings";
 
 interface MoreSheetProps {
     sceneId: string;
@@ -15,8 +14,6 @@ interface MoreSheetProps {
 export function MoreSheet({ sceneId, onClose }: MoreSheetProps) {
     const { isExiting, beginClose } = useSheetClose(onClose);
     const autoScroll = useAutoScroll();
-    const autoLoadCaptions = useAutoLoadCaptions();
-    const { t } = useTranslation();
 
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
@@ -32,16 +29,12 @@ export function MoreSheet({ sceneId, onClose }: MoreSheetProps) {
     };
 
     return createPortal(
-        <div
-            className={
-                "binge-sheet-root" + (isExiting ? " is-exiting" : "")
-            }
-        >
+        <div className={"binge-sheet-root" + (isExiting ? " is-exiting" : "")}>
             <div className="binge-sheet-backdrop" onClick={beginClose} />
             <div
                 className="binge-sheet binge-more-sheet"
                 role="dialog"
-                aria-label={t("action.more_actions")}
+                aria-label="More actions"
             >
                 <div className="binge-sheet-handle" aria-hidden="true" />
                 <ul className="binge-more-sheet-list">
@@ -53,9 +46,10 @@ export function MoreSheet({ sceneId, onClose }: MoreSheetProps) {
                             aria-pressed={autoScroll}
                         >
                             <span className="binge-more-sheet-row-label">
-                                <span>{t("action.auto_scroll")}</span>
+                                <span>Auto-scroll</span>
                                 <small className="binge-more-sheet-row-sub">
-                                    {t("action.auto_scroll_desc")}
+                                    advance to next scene when the current one
+                                    ends
                                 </small>
                             </span>
                             <span
@@ -73,34 +67,10 @@ export function MoreSheet({ sceneId, onClose }: MoreSheetProps) {
                         <button
                             type="button"
                             className="binge-more-sheet-row"
-                            onClick={() => setAutoLoadCaptions(!autoLoadCaptions)}
-                            aria-pressed={autoLoadCaptions}
-                        >
-                            <span className="binge-more-sheet-row-label">
-                                <span>{t("action.auto_load_captions")}</span>
-                                <small className="binge-more-sheet-row-sub">
-                                    {t("action.auto_load_captions_desc")}
-                                </small>
-                            </span>
-                            <span
-                                className={
-                                    "binge-more-sheet-switch" +
-                                    (autoLoadCaptions ? " is-on" : "")
-                                }
-                                aria-hidden="true"
-                            >
-                                <span className="binge-more-sheet-switch-thumb" />
-                            </span>
-                        </button>
-                    </li>
-                    <li>
-                        <button
-                            type="button"
-                            className="binge-more-sheet-row"
                             onClick={handleOpenInStash}
                         >
                             <span className="binge-more-sheet-row-label">
-                                {t("action.open_in_stash")}
+                                Open in Stash
                             </span>
                             <ExternalLinkIcon />
                         </button>
@@ -108,7 +78,7 @@ export function MoreSheet({ sceneId, onClose }: MoreSheetProps) {
                 </ul>
             </div>
         </div>,
-        document.body
+        document.body,
     );
 }
 

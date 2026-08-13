@@ -1,17 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
-import {
-    findAllPerformers,
-    type PerformerSummary,
-} from "../api/queries";
+import { findAllPerformers, type PerformerSummary } from "../api/queries";
 import { useSharedStories } from "../home/StoriesContext";
 import { usePerformerProfile } from "../performer/PerformerProfileContext";
 import { useAutoHideTabBar } from "../hooks/useAutoHideTabBar";
-import { useSearchHistory } from "../hooks/useSearchHistory";
-import { SearchHistoryDropdown } from "../components/SearchHistoryDropdown";
 import { BingeLoading } from "../components/BingeLoading";
-import { useScrollToTop } from "../hooks/useScrollToTop";
-import { ScrollTopButton } from "../components/ScrollTopButton";
 
 type LoadState =
     | { kind: "loading" }
@@ -26,31 +18,48 @@ type SortMode =
     | "last-post-desc"
     | "last-post-asc";
 
-//
+const SORT_OPTIONS: { value: SortMode; label: string }[] = [
+    { value: "name-asc", label: "Name A → Z" },
+    { value: "name-desc", label: "Name Z → A" },
+    { value: "scenes-desc", label: "Most scenes" },
+    { value: "scenes-asc", label: "Fewest scenes" },
+    { value: "last-post-desc", label: "Last post (newest)" },
+    { value: "last-post-asc", label: "Last post (oldest)" },
+];
+
+// Map<performerStashId, lastActivityIso> for the "last post at" sort.
+// Derived from useStories() — the same merged view that powers Home's
+// stories row: library scene.date, library created_at, StashDB
+// release date, AND Reddit created_utc, all collapsed into one
+// per-performer max. Performers with no recent activity are absent.
 type LastPostMap = Map<string, string>;
 
 function sortPerformers(
     list: PerformerSummary[],
     mode: SortMode,
-    lastPost: LastPostMap
+    lastPost: LastPostMap,
 ): PerformerSummary[] {
     const copy = list.slice();
     switch (mode) {
         case "name-asc":
             return copy.sort((a, b) =>
-                a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
+                a.name.localeCompare(b.name, undefined, {
+                    sensitivity: "base",
+                }),
             );
         case "name-desc":
             return copy.sort((a, b) =>
-                b.name.localeCompare(a.name, undefined, { sensitivity: "base" })
+                b.name.localeCompare(a.name, undefined, {
+                    sensitivity: "base",
+                }),
             );
         case "scenes-desc":
             return copy.sort(
-                (a, b) => (b.scene_count ?? 0) - (a.scene_count ?? 0)
+                (a, b) => (b.scene_count ?? 0) - (a.scene_count ?? 0),
             );
         case "scenes-asc":
             return copy.sort(
-                (a, b) => (a.scene_count ?? 0) - (b.scene_count ?? 0)
+                (a, b) => (a.scene_count ?? 0) - (b.scene_count ?? 0),
             );
         case "last-post-desc":
             // Performers with NO recent activity sort to the bottom in
@@ -80,24 +89,9 @@ export function Following() {
     const [state, setState] = useState<LoadState>({ kind: "loading" });
     const [search, setSearch] = useState("");
     const [sort, setSort] = useState<SortMode>("name-asc");
-    const [searchFocused, setSearchFocused] = useState(false);
-    // 输入法合成标记：合成中不保存搜索词，避免预输入误存
-    const composingRef = useRef(false);
     const { openProfile } = usePerformerProfile();
-    const { history: performerSearchHistory, addEntry: addPerformerSearchEntry, removeEntry: removePerformerSearchEntry, scheduleSave: schedulePerformerSave } =
-        useSearchHistory("performers");
     const scrollRef = useRef<HTMLDivElement>(null);
     useAutoHideTabBar(scrollRef);
-    const { show: showScrollTop, scrollToTop } = useScrollToTop(scrollRef);
-    const { t } = useTranslation();
-    const SORT_OPTIONS: { value: SortMode; label: string }[] = useMemo(() => [
-        { value: "name-asc", label: t("sort.name_asc") },
-        { value: "name-desc", label: t("sort.name_desc") },
-        { value: "scenes-desc", label: t("sort.scenes_desc") },
-        { value: "scenes-asc", label: t("sort.scenes_asc") },
-        { value: "last-post-desc", label: t("sort.last_post_desc") },
-        { value: "last-post-asc", label: t("sort.last_post_asc") },
-    ], [t]);
 
     // Re-use the same useStories() data Home renders — already merged
     // (library + StashDB + Reddit) and cached. The per-performer
@@ -134,13 +128,14 @@ export function Following() {
     // re-runs.
     const filtered = useMemo(() => {
         if (state.kind !== "ready") {
-            return { fav: [] as PerformerSummary[], oth: [] as PerformerSummary[] };
+            return {
+                fav: [] as PerformerSummary[],
+                oth: [] as PerformerSummary[],
+            };
         }
         const q = search.trim().toLowerCase();
         const source = q
-            ? state.performers.filter((p) =>
-                  p.name.toLowerCase().includes(q)
-              )
+            ? state.performers.filter((p) => p.name.toLowerCase().includes(q))
             : state.performers;
         const fav: PerformerSummary[] = [];
         const oth: PerformerSummary[] = [];
@@ -156,66 +151,31 @@ export function Following() {
             favourites: sortPerformers(filtered.fav, sort, lastPost),
             others: sortPerformers(filtered.oth, sort, lastPost),
         }),
-        [filtered, sort, lastPost]
+        [filtered, sort, lastPost],
     );
 
     return (
         <div className="binge-tab-scroll" ref={scrollRef}>
             <div className="binge-tab-inner">
-                <h1 className="binge-tab-title">{t("nav.following")}</h1>
+                <h1 className="binge-tab-title">Following</h1>
 
                 <div className="binge-following-controls">
-                    <div className="binge-search-wrap">
-                        <input
-                            type="search"
-                            className="binge-following-search"
-                            placeholder={t("nav.search_performers")}
-                            value={search}
-                            onChange={(e) => {
-                                setSearch(e.target.value);
-                                if (!composingRef.current) {
-                                    schedulePerformerSave(e.target.value);
-                                }
-                            }}
-                            onCompositionStart={() => {
-                                composingRef.current = true;
-                            }}
-                            onCompositionEnd={(e) => {
-                                composingRef.current = false;
-                                // setTimeout(0)：compositionend 触发时 input.value
-                                // 可能还是合成前的旧值，延迟到下一个事件循环读取
-                                const target = e.currentTarget;
-                                window.setTimeout(() => {
-                                    schedulePerformerSave(target.value);
-                                }, 0);
-                            }}
-                            onFocus={() => setSearchFocused(true)}
-                            onBlur={() => {
-                                addPerformerSearchEntry(search);
-                                setSearchFocused(false);
-                            }}
-                            aria-label={t("nav.search_performers")}
-                            autoCorrect="off"
-                            autoCapitalize="off"
-                            spellCheck={false}
-                        />
-                        {searchFocused && (
-                            <SearchHistoryDropdown
-                                history={performerSearchHistory}
-                                query={search}
-                                onPick={(term) => {
-                                    setSearch(term);
-                                    setSearchFocused(false);
-                                }}
-                                onRemove={removePerformerSearchEntry}
-                            />
-                        )}
-                    </div>
+                    <input
+                        type="search"
+                        className="binge-following-search"
+                        placeholder="Search performers"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        aria-label="Search performers"
+                        autoCorrect="off"
+                        autoCapitalize="off"
+                        spellCheck={false}
+                    />
                     <select
                         className="binge-following-sort"
                         value={sort}
                         onChange={(e) => setSort(e.target.value as SortMode)}
-                        aria-label={t("nav.sort_performers")}
+                        aria-label="Sort performers"
                     >
                         {SORT_OPTIONS.map((opt) => (
                             <option key={opt.value} value={opt.value}>
@@ -228,35 +188,34 @@ export function Following() {
                 {state.kind === "loading" && <BingeLoading minHeight="60vh" />}
                 {state.kind === "error" && (
                     <div className="binge-status binge-status-error">
-                        {t("status.error_message", { message: state.message })}
+                        error: {state.message}
                     </div>
                 )}
                 {state.kind === "ready" && (
                     <>
                         <Section
-                            title={t("nav.favorites")}
+                            title="Favourites"
                             count={favourites.length}
                             performers={favourites}
                             onPick={openProfile}
                             emptyHint={
                                 state.performers.some((p) => p.favorite)
-                                    ? t("status.no_match")
-                                    : t("status.no_favorites")
+                                    ? "No matches."
+                                    : "Favourite some performers in Stash to see them here."
                             }
                             favorite
                         />
                         <Section
-                            title={t("nav.all_performers")}
+                            title="All performers"
                             count={others.length}
                             performers={others}
                             onPick={openProfile}
-                            emptyHint={t("status.no_match")}
+                            emptyHint="No matches."
                             favorite={false}
                         />
                     </>
                 )}
             </div>
-            {showScrollTop && <ScrollTopButton onClick={scrollToTop} />}
         </div>
     );
 }
@@ -276,7 +235,6 @@ function Section({
     emptyHint: string;
     favorite: boolean;
 }) {
-    const { t } = useTranslation();
     return (
         <section className="binge-following-section">
             <header className="binge-following-section-head">
@@ -321,7 +279,8 @@ function Section({
                                 {typeof p.scene_count === "number" &&
                                     p.scene_count > 0 && (
                                         <span className="binge-follow-count">
-                                            {t("status.performer_scenes", { count: p.scene_count })}
+                                            {p.scene_count} scene
+                                            {p.scene_count === 1 ? "" : "s"}
                                         </span>
                                     )}
                             </button>

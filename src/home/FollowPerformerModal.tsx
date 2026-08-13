@@ -8,7 +8,6 @@ import {
 } from "../api/mutations";
 import { useSheetClose } from "../hooks/useSheetClose";
 import type { StashDBPerformerDetail } from "../api/stashdb";
-import { useTranslation } from "react-i18next";
 
 interface FollowPerformerModalProps {
     stashDBPerformerId: string;
@@ -59,8 +58,10 @@ export function FollowPerformerModal({
 }: FollowPerformerModalProps) {
     const { isExiting, beginClose } = useSheetClose(onClose);
     const [state, setState] = useState<ModalState>({ kind: "scraping" });
+    // Currently-displayed image in the hero carousel. Resets to 0
+    // whenever the detail load completes; user advances with the
+    // prev/next arrows.
     const [imageIndex, setImageIndex] = useState(0);
-    const { t } = useTranslation();
 
     // Esc closes (matches MoreSheet and other binge sheets).
     useEffect(() => {
@@ -80,13 +81,11 @@ export function FollowPerformerModal({
         (async () => {
             let detail: StashDBPerformerDetail | null = null;
             try {
-                detail = await getStashDBPerformerForFollow(
-                    stashDBPerformerId
-                );
+                detail = await getStashDBPerformerForFollow(stashDBPerformerId);
             } catch (err) {
                 console.warn(
                     "[binge] getStashDBPerformerForFollow failed",
-                    err
+                    err,
                 );
             }
             if (!alive) return;
@@ -106,7 +105,7 @@ export function FollowPerformerModal({
 
     const updateField = <K extends keyof PerformerCreateForm>(
         key: K,
-        value: PerformerCreateForm[K]
+        value: PerformerCreateForm[K],
     ) => {
         setState((prev) => {
             if (prev.kind !== "ready" && prev.kind !== "error") return prev;
@@ -127,8 +126,7 @@ export function FollowPerformerModal({
         // photo than the first one returned by StashDB.
         const submittedForm = {
             ...form,
-            image:
-                detail?.images[imageIndex]?.url || form.image || "",
+            image: detail?.images[imageIndex]?.url || form.image || "",
         };
         setState({ kind: "submitting", form: submittedForm, detail });
         try {
@@ -152,15 +150,13 @@ export function FollowPerformerModal({
               : state.kind === "submitting"
                 ? state.form
                 : state.form;
-    const detail =
-        state.kind === "scraping" ? null : state.detail;
+    const detail = state.kind === "scraping" ? null : state.detail;
     const isSubmitting = state.kind === "submitting";
     // Image carousel — use the StashDB image array if we have it,
     // otherwise fall back to whatever URL the user typed/inherited.
     const images = detail?.images ?? [];
     const hasMultipleImages = images.length > 1;
-    const currentImage =
-        images[imageIndex]?.url || form?.image || "";
+    const currentImage = images[imageIndex]?.url || form?.image || "";
 
     return createPortal(
         <div
@@ -173,15 +169,15 @@ export function FollowPerformerModal({
             <div
                 className="binge-sheet binge-follow-modal"
                 role="dialog"
-                aria-label={t("action.add_performer_to_library")}
+                aria-label="Add performer to library"
             >
                 <header className="binge-follow-modal-header">
-                    <h2>{t("action.add_to_library")}</h2>
+                    <h2>Add to library</h2>
                     <button
                         type="button"
                         className="binge-follow-modal-close"
                         onClick={beginClose}
-                        aria-label={t("action.close")}
+                        aria-label="Close"
                     >
                         ×
                     </button>
@@ -189,7 +185,7 @@ export function FollowPerformerModal({
 
                 {state.kind === "scraping" && (
                     <div className="binge-follow-modal-loading">
-                        {t("status.fetching_stashdb")}
+                        Fetching metadata from StashDB…
                     </div>
                 )}
 
@@ -209,7 +205,7 @@ export function FollowPerformerModal({
                                 >
                                     {!currentImage && (
                                         <span className="binge-follow-modal-hero-empty">
-                                            {t("status.no_image")}
+                                            no image
                                         </span>
                                     )}
                                 </div>
@@ -223,10 +219,10 @@ export function FollowPerformerModal({
                                                     (imageIndex -
                                                         1 +
                                                         images.length) %
-                                                        images.length
+                                                        images.length,
                                                 )
                                             }
-                                            aria-label={t("action.previous_photo")}
+                                            aria-label="Previous photo"
                                         >
                                             <ChevronLeft />
                                         </button>
@@ -236,10 +232,10 @@ export function FollowPerformerModal({
                                             onClick={() =>
                                                 setImageIndex(
                                                     (imageIndex + 1) %
-                                                        images.length
+                                                        images.length,
                                                 )
                                             }
-                                            aria-label={t("action.next_photo")}
+                                            aria-label="Next photo"
                                         >
                                             <ChevronRight />
                                         </button>
@@ -257,12 +253,14 @@ export function FollowPerformerModal({
                                                     onClick={() =>
                                                         setImageIndex(i)
                                                     }
-                                                    aria-label={t("action.photo_count", { current: i + 1, total: images.length })}
+                                                    aria-label={`Photo ${
+                                                        i + 1
+                                                    } of ${images.length}`}
                                                 />
                                             ))}
                                         </div>
                                         <div className="binge-follow-modal-hero-counter">
-                                            {t("status.current_total_image", { current: imageIndex + 1, total: images.length })}
+                                            {imageIndex + 1} / {images.length}
                                         </div>
                                     </>
                                 )}
@@ -270,7 +268,8 @@ export function FollowPerformerModal({
                             <div className="binge-follow-modal-hero-meta">
                                 {detail && (
                                     <div className="binge-follow-modal-stats">
-                                        {t("status.stashdb_scenes_count", { count: detail.sceneCount })}
+                                        <strong>{detail.sceneCount}</strong>{" "}
+                                        scenes on StashDB
                                     </div>
                                 )}
                                 {stashboxUrl && (
@@ -280,18 +279,20 @@ export function FollowPerformerModal({
                                         rel="noopener noreferrer"
                                         className="binge-follow-modal-stashdb-link"
                                     >
-                                        {t("action.view_on_stashdb")} →
+                                        View on StashDB →
                                     </a>
                                 )}
                                 <label className="binge-follow-modal-label">
-                                    {t("performer.image_url")}
+                                    Image URL
                                     <input
                                         type="url"
                                         className="binge-follow-modal-input"
                                         value={currentImage}
                                         onChange={(
-                                            e: ChangeEvent<HTMLInputElement>
-                                        ) => updateField("image", e.target.value)}
+                                            e: ChangeEvent<HTMLInputElement>,
+                                        ) =>
+                                            updateField("image", e.target.value)
+                                        }
                                         placeholder="https://…"
                                     />
                                 </label>
@@ -300,155 +301,139 @@ export function FollowPerformerModal({
 
                         <div className="binge-follow-modal-grid">
                             <Field
-                                label={t("performer.name")}
+                                label="Name"
                                 value={form.name}
                                 required
                                 onChange={(v) => updateField("name", v)}
                             />
                             <Field
-                                label={t("performer.disambiguation")}
+                                label="Disambiguation"
                                 value={form.disambiguation}
                                 onChange={(v) =>
                                     updateField("disambiguation", v)
                                 }
                             />
                             <Field
-                                label={t("performer.alias_list")}
+                                label="Aliases (comma-separated)"
                                 value={form.alias_list}
-                                onChange={(v) =>
-                                    updateField("alias_list", v)
-                                }
+                                onChange={(v) => updateField("alias_list", v)}
                                 fullWidth
                             />
                             <SelectField
-                                label={t("performer.gender")}
+                                label="Gender"
                                 value={form.gender}
                                 options={[
                                     ["", "—"],
-                                    ["FEMALE", t("settings.gender.female")],
-                                    ["TRANSGENDER_FEMALE", t("settings.gender.trans_female")],
-                                    ["MALE", t("settings.gender.male")],
-                                    ["TRANSGENDER_MALE", t("settings.gender.trans_male")],
-                                    ["INTERSEX", t("settings.gender.intersex")],
-                                    ["NON_BINARY", t("settings.gender.non_binary")],
+                                    ["FEMALE", "Female"],
+                                    ["TRANSGENDER_FEMALE", "Trans female"],
+                                    ["MALE", "Male"],
+                                    ["TRANSGENDER_MALE", "Trans male"],
+                                    ["INTERSEX", "Intersex"],
+                                    ["NON_BINARY", "Non-binary"],
                                 ]}
                                 onChange={(v) => updateField("gender", v)}
                             />
                             <Field
-                                label={t("performer.birthdate")}
+                                label="Birthdate"
                                 value={form.birthdate}
                                 type="date"
                                 onChange={(v) => updateField("birthdate", v)}
                             />
                             <Field
-                                label={t("performer.death_date")}
+                                label="Death date"
                                 value={form.death_date}
                                 type="date"
-                                onChange={(v) =>
-                                    updateField("death_date", v)
-                                }
+                                onChange={(v) => updateField("death_date", v)}
                             />
                             <Field
-                                label={t("performer.country")}
+                                label="Country"
                                 value={form.country}
                                 onChange={(v) => updateField("country", v)}
                             />
                             <Field
-                                label={t("performer.ethnicity")}
+                                label="Ethnicity"
                                 value={form.ethnicity}
                                 onChange={(v) => updateField("ethnicity", v)}
                             />
                             <Field
-                                label={t("performer.hair_color")}
+                                label="Hair color"
                                 value={form.hair_color}
                                 onChange={(v) => updateField("hair_color", v)}
                             />
                             <Field
-                                label={t("performer.eye_color")}
+                                label="Eye color"
                                 value={form.eye_color}
                                 onChange={(v) => updateField("eye_color", v)}
                             />
                             <Field
-                                label={t("performer.height")}
+                                label="Height (cm)"
                                 value={form.height_cm}
                                 type="number"
                                 onChange={(v) => updateField("height_cm", v)}
                             />
                             <Field
-                                label={t("performer.weight")}
+                                label="Weight (kg)"
                                 value={form.weight}
                                 type="number"
                                 onChange={(v) => updateField("weight", v)}
                             />
                             <Field
-                                label={t("performer.measurements")}
+                                label="Measurements"
                                 value={form.measurements}
-                                onChange={(v) =>
-                                    updateField("measurements", v)
-                                }
+                                onChange={(v) => updateField("measurements", v)}
                             />
                             <Field
-                                label={t("performer.fake_tits")}
+                                label="Fake tits"
                                 value={form.fake_tits}
-                                onChange={(v) =>
-                                    updateField("fake_tits", v)
-                                }
+                                onChange={(v) => updateField("fake_tits", v)}
                             />
                             <Field
-                                label={t("performer.penis_length")}
+                                label="Penis length (cm)"
                                 value={form.penis_length}
                                 type="number"
-                                onChange={(v) =>
-                                    updateField("penis_length", v)
-                                }
+                                onChange={(v) => updateField("penis_length", v)}
                             />
                             <SelectField
-                                label={t("performer.circumcised")}
+                                label="Circumcised"
                                 value={form.circumcised}
                                 options={[
                                     ["", "—"],
-                                    ["CUT", t("performer.cut")],
-                                    ["UNCUT", t("performer.uncut")],
+                                    ["CUT", "Cut"],
+                                    ["UNCUT", "Uncut"],
                                 ]}
-                                onChange={(v) =>
-                                    updateField("circumcised", v)
-                                }
+                                onChange={(v) => updateField("circumcised", v)}
                             />
                             <Field
-                                label={t("performer.career_start")}
+                                label="Career start"
                                 value={form.career_start}
                                 type="date"
-                                onChange={(v) =>
-                                    updateField("career_start", v)
-                                }
+                                onChange={(v) => updateField("career_start", v)}
                             />
                             <Field
-                                label={t("performer.career_end")}
+                                label="Career end"
                                 value={form.career_end}
                                 type="date"
-                                onChange={(v) =>
-                                    updateField("career_end", v)
-                                }
+                                onChange={(v) => updateField("career_end", v)}
                             />
                             <TextareaField
-                                label={t("performer.tattoos")}
+                                label="Tattoos"
                                 value={form.tattoos}
                                 onChange={(v) => updateField("tattoos", v)}
                             />
                             <TextareaField
-                                label={t("performer.piercings")}
+                                label="Piercings"
                                 value={form.piercings}
                                 onChange={(v) => updateField("piercings", v)}
                             />
                             <TextareaField
-                                label={t("performer.urls")}
+                                label="URLs (one per line)"
                                 value={form.urls}
                                 onChange={(v) => updateField("urls", v)}
                                 fullWidth
                                 rows={3}
                             />
                             <TextareaField
-                                label={t("performer.details")}
+                                label="Details"
                                 value={form.details}
                                 onChange={(v) => updateField("details", v)}
                                 rows={4}
@@ -466,11 +451,11 @@ export function FollowPerformerModal({
                                     onChange={(e) =>
                                         updateField(
                                             "ignore_auto_tag",
-                                            e.target.checked
+                                            e.target.checked,
                                         )
                                     }
                                 />
-                                {t("performer.ignore_auto_tag")}
+                                Ignore auto-tag
                             </label>
                         </div>
 
@@ -489,26 +474,24 @@ export function FollowPerformerModal({
                         onClick={beginClose}
                         disabled={isSubmitting}
                     >
-                        {t("action.cancel")}
+                        Cancel
                     </button>
                     <button
                         type="button"
                         className="binge-follow-modal-submit"
                         onClick={handleSubmit}
-                        disabled={
-                            state.kind !== "ready" || !form?.name.trim()
-                        }
+                        disabled={state.kind !== "ready" || !form?.name.trim()}
                     >
                         {isSubmitting
-                            ? t("status.adding")
+                            ? "Adding…"
                             : state.kind === "error"
-                              ? t("action.retry")
-                              : t("action.add_to_library")}
+                              ? "Retry"
+                              : "Add to library"}
                     </button>
                 </footer>
             </div>
         </div>,
-        document.body
+        document.body,
     );
 }
 
@@ -530,8 +513,7 @@ function Field({
     return (
         <label
             className={
-                "binge-follow-modal-label" +
-                (fullWidth ? " is-full" : "")
+                "binge-follow-modal-label" + (fullWidth ? " is-full" : "")
             }
         >
             <span className="binge-follow-modal-label-text">
@@ -575,8 +557,7 @@ function TextareaField({
     return (
         <label
             className={
-                "binge-follow-modal-label" +
-                (fullWidth ? " is-full" : "")
+                "binge-follow-modal-label" + (fullWidth ? " is-full" : "")
             }
         >
             <span className="binge-follow-modal-label-text">{label}</span>
@@ -608,8 +589,7 @@ function SelectField({
     return (
         <label
             className={
-                "binge-follow-modal-label" +
-                (fullWidth ? " is-full" : "")
+                "binge-follow-modal-label" + (fullWidth ? " is-full" : "")
             }
         >
             <span className="binge-follow-modal-label-text">{label}</span>

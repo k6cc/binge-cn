@@ -7,7 +7,6 @@ import {
     type CollectionDef,
     type CollectionIconName,
 } from "../api/collections";
-import { useTranslation } from "react-i18next";
 
 interface SaveSheetProps {
     inCollections: Record<string, boolean>;
@@ -32,7 +31,6 @@ export function SaveSheet({
     const [newName, setNewName] = useState("");
     const [submitBusy, setSubmitBusy] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
-    const { t } = useTranslation();
 
     // Initial + on-change reload of the collections list. The
     // subscription fires after a successful createCollection().
@@ -73,9 +71,7 @@ export function SaveSheet({
             setNewName("");
             setCreating(false);
         } catch (err) {
-            setSubmitError(
-                err instanceof Error ? err.message : String(err)
-            );
+            setSubmitError(err instanceof Error ? err.message : String(err));
         } finally {
             setSubmitBusy(false);
         }
@@ -87,11 +83,11 @@ export function SaveSheet({
             <div
                 className="binge-sheet binge-save-sheet"
                 role="dialog"
-                aria-label={t("action.save_to_collection")}
+                aria-label="Save scene to a collection"
             >
                 <div className="binge-sheet-handle" aria-hidden="true" />
                 <div className="binge-save-sheet-header">
-                    <h2 className="binge-save-sheet-title">{t("action.save_to")}</h2>
+                    <h2 className="binge-save-sheet-title">Save to…</h2>
                 </div>
 
                 <ul className="binge-save-sheet-list" role="list">
@@ -147,7 +143,7 @@ export function SaveSheet({
                             <input
                                 type="text"
                                 className="binge-save-sheet-input"
-                                placeholder={t("settings.collection_name")}
+                                placeholder="Collection name"
                                 value={newName}
                                 onChange={(e) => setNewName(e.target.value)}
                                 autoFocus
@@ -159,7 +155,7 @@ export function SaveSheet({
                                 className="binge-save-sheet-create-confirm"
                                 disabled={submitBusy || !newName.trim()}
                             >
-                                {t("action.create")}
+                                Create
                             </button>
                             <button
                                 type="button"
@@ -171,7 +167,7 @@ export function SaveSheet({
                                 }}
                                 disabled={submitBusy}
                             >
-                                {t("action.cancel")}
+                                Cancel
                             </button>
                         </form>
                     ) : (
@@ -180,7 +176,7 @@ export function SaveSheet({
                             className="binge-save-sheet-create-btn"
                             onClick={() => setCreating(true)}
                         >
-                            {t("action.new_collection")}
+                            + New collection
                         </button>
                     )}
                     {submitError && (
@@ -191,13 +187,11 @@ export function SaveSheet({
                 </div>
             </div>
         </div>,
-        document.body
+        document.body,
     );
 }
 
-// Requirement: SavedPage's collection cards also reuse the same set of icons to avoid visual inconsistency.
-// Exported for use by SavedPage's CollectionTile.
-export function CollectionIcon({
+function CollectionIcon({
     name,
     filled,
 }: {
@@ -238,25 +232,6 @@ export function CollectionIcon({
             >
                 <circle cx="12" cy="12" r="9" />
                 <path d="M12 7v5l3 2" />
-            </svg>
-        );
-    }
-    // Requirement 3: "My Favorites ❤️" uses a heart icon, distinguishing it from the "Favorites" bookmark icon.
-    if (name === "myFavourite") {
-        return (
-            <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                width="1.4em"
-                height="1.4em"
-                fill={filled ? "currentColor" : "none"}
-                stroke="currentColor"
-                strokeWidth={filled ? 1 : 1.8}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-            >
-                <path d="M12 21s-7.5-4.6-10-9.3C0.6 8.4 2.5 5 6 5c2 0 3.4 1 4 2 0.6-1 2-2 4-2 3.5 0 5.4 3.4 4 6.7C19.5 16.4 12 21 12 21z" />
             </svg>
         );
     }

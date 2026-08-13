@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
 import { getBingeServerHealth } from "../api/bingeServer";
 import { readBingeServerUrl } from "../home/pluginSettings";
 import {
@@ -26,7 +25,6 @@ type InstallState =
 // you deliberately run the daemon elsewhere. Hence the note in the copy,
 // and the manual command for everyone the button can't serve.
 export function BingeServerInstallCard() {
-    const { t } = useTranslation();
     const [state, setState] = useState<InstallState>({ kind: "checking" });
     const [showManual, setShowManual] = useState(false);
     const [copied, setCopied] = useState<"compose" | "run" | null>(null);
@@ -77,21 +75,23 @@ export function BingeServerInstallCard() {
         } catch (err) {
             setState({
                 kind: "failed",
-                message: t("settings.install_card.failed_task", {
-                    error: err instanceof Error ? err.message : String(err),
-                }),
+                message:
+                    "Stash refused to start the install task: " +
+                    (err instanceof Error ? err.message : String(err)),
                 canInstall: true,
             });
             setShowManual(true);
             return;
         }
         const up = await waitForServer(300_000, (elapsed) =>
-            setState({ kind: "installing", elapsed })
+            setState({ kind: "installing", elapsed }),
         );
         if (!up) {
             setState({
                 kind: "failed",
-                message: t("settings.install_card.failed_no_answer"),
+                message:
+                    "The task ran but nothing answered on port 7878. " +
+                    "Settings, then Tasks, has its log.",
                 canInstall: true,
             });
             setShowManual(true);
@@ -117,33 +117,32 @@ export function BingeServerInstallCard() {
     return (
         <div className="binge-settings-row binge-install-card">
             <div className="binge-settings-row-text">
-                <div className="binge-settings-row-title">
-                    {t("settings.install_card.title")}
-                </div>
+                <div className="binge-settings-row-title">binge-server</div>
                 <div className="binge-settings-row-desc">
-                    {t("settings.install_card.desc")}
+                    Optional daemon that adds Reddit, X and PornHub posts to
+                    your stories, plus Save-to-Stash. binge works fine without
+                    it. Installs onto the machine running Stash — if you run the
+                    daemon somewhere else, set its URL below instead.
                 </div>
             </div>
 
             <div className="binge-install-body">
                 {state.kind === "checking" && (
-                    <div className="binge-install-status">
-                        {t("settings.install_card.checking")}
-                    </div>
+                    <div className="binge-install-status">checking…</div>
                 )}
 
                 {state.kind === "running" && (
                     <div className="binge-install-status is-ok">
-                        {t("settings.install_card.running")}
+                        Installed and running
                         {state.version ? ` (${state.version})` : ""}
                     </div>
                 )}
 
                 {state.kind === "installing" && (
                     <div className="binge-install-status">
-                        {t("settings.install_card.installing", {
-                            seconds: Math.round(state.elapsed / 1000),
-                        })}
+                        Installing… the first run can take a few minutes while
+                        Docker pulls the image (
+                        {Math.round(state.elapsed / 1000)}s)
                     </div>
                 )}
 
@@ -162,8 +161,8 @@ export function BingeServerInstallCard() {
                                     onClick={install}
                                 >
                                     {state.kind === "failed"
-                                        ? t("settings.install_card.try_again")
-                                        : t("settings.install_card.install")}
+                                        ? "Try again"
+                                        : "Install binge-server"}
                                 </button>
                             )}
                             <button
@@ -172,51 +171,55 @@ export function BingeServerInstallCard() {
                                 onClick={() => setShowManual((v) => !v)}
                             >
                                 {showManual
-                                    ? t("settings.install_card.hide_command")
-                                    : t("settings.install_card.install_manually")}
+                                    ? "Hide command"
+                                    : "Install manually"}
                             </button>
                         </div>
                         {!state.canInstall && (
                             <div className="binge-install-status">
-                                {t("settings.install_card.no_task")}
+                                One-click install isn't offered here — Stash has
+                                no install task registered. Reload plugins in
+                                Stash if you just updated binge; otherwise use
+                                one of the options below.
                             </div>
                         )}
                         {showManual && (
                             <div className="binge-install-manual">
                                 <div className="binge-install-status">
-                                    <strong>
-                                        {t("settings.install_card.docker_label")}
-                                    </strong>
-                                    {" — "}
-                                    {t("settings.install_card.docker_note")}{" "}
-                                    <code>docker compose up -d</code>.
+                                    <strong>If Stash runs in Docker</strong> —
+                                    add this beside it in the same compose file,
+                                    then <code>docker compose up -d</code>.
+                                    Installing inside the Stash container
+                                    wouldn't be reachable from your browser.
                                 </div>
                                 <pre>{composeSnippet()}</pre>
                                 <button
                                     type="button"
                                     className="binge-install-btn is-secondary"
-                                    onClick={() => void copy(composeSnippet(), "compose")}
+                                    onClick={() =>
+                                        void copy(composeSnippet(), "compose")
+                                    }
                                 >
                                     {copied === "compose"
-                                        ? t("settings.install_card.copied")
-                                        : t("settings.install_card.copy_compose")}
+                                        ? "Copied"
+                                        : "Copy compose service"}
                                 </button>
                                 <div className="binge-install-status">
-                                    <strong>
-                                        {t("settings.install_card.otherwise_label")}
-                                    </strong>
-                                    {" — "}
-                                    {t("settings.install_card.otherwise_note")}
+                                    <strong>Otherwise</strong> — run this on the
+                                    machine hosting Stash, then set the URL
+                                    below if it isn't localhost:
                                 </div>
                                 <pre>{manualInstallCommand()}</pre>
                                 <button
                                     type="button"
                                     className="binge-install-btn is-secondary"
-                                    onClick={() => void copy(manualInstallCommand(), "run")}
+                                    onClick={() =>
+                                        void copy(manualInstallCommand(), "run")
+                                    }
                                 >
                                     {copied === "run"
-                                        ? t("settings.install_card.copied")
-                                        : t("settings.install_card.copy_run")}
+                                        ? "Copied"
+                                        : "Copy docker run"}
                                 </button>
                             </div>
                         )}

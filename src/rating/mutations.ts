@@ -11,7 +11,7 @@ interface GqlResponse<T> {
 
 async function gql<T>(
     query: string,
-    variables: Record<string, unknown> = {}
+    variables: Record<string, unknown> = {},
 ): Promise<T> {
     const resp = await fetch(STASH_GRAPHQL, {
         method: "POST",
@@ -41,7 +41,7 @@ const tagIdCache = new Map<string, string>();
 
 export async function findScoreTag(
     criterion: Criterion,
-    score: number
+    score: number,
 ): Promise<string | null> {
     const name = scoreTagName(criterion, score);
     const cached = tagIdCache.get(name);
@@ -58,7 +58,7 @@ export async function findScoreTag(
                 tags { id name }
             }
         }`,
-        { name }
+        { name },
     );
     const existing = findResp.findTags.tags.find((t) => t.name === name);
     if (existing) {
@@ -73,7 +73,7 @@ export async function findScoreTag(
 // hook will recompute scene.rating100 automatically after this.
 export async function applySceneTagIds(
     sceneId: string,
-    tagIds: ReadonlyArray<string>
+    tagIds: ReadonlyArray<string>,
 ): Promise<TagMin[]> {
     const resp = await gql<{
         sceneUpdate: { id: string; tags: { id: string; name: string }[] };
@@ -84,14 +84,14 @@ export async function applySceneTagIds(
                 tags { id name }
             }
         }`,
-        { input: { id: sceneId, tag_ids: tagIds } }
+        { input: { id: sceneId, tag_ids: tagIds } },
     );
     return resp.sceneUpdate.tags;
 }
 
 export async function applyPerformerTagIds(
     performerId: string,
-    tagIds: ReadonlyArray<string>
+    tagIds: ReadonlyArray<string>,
 ): Promise<TagMin[]> {
     const resp = await gql<{
         performerUpdate: { id: string; tags: { id: string; name: string }[] };
@@ -102,7 +102,7 @@ export async function applyPerformerTagIds(
                 tags { id name }
             }
         }`,
-        { input: { id: performerId, tag_ids: tagIds } }
+        { input: { id: performerId, tag_ids: tagIds } },
     );
     return resp.performerUpdate.tags;
 }
@@ -110,7 +110,7 @@ export async function applyPerformerTagIds(
 // Fetch latest tags + rating100 for a scene/performer. Used after
 // each update to pick up the rating100 the plugin hook computed.
 export async function fetchSceneTagsAndRating(
-    sceneId: string
+    sceneId: string,
 ): Promise<{ tags: TagMin[]; rating100: number | null }> {
     const resp = await gql<{
         findScene: {
@@ -126,7 +126,7 @@ export async function fetchSceneTagsAndRating(
                 tags { id name }
             }
         }`,
-        { id: sceneId }
+        { id: sceneId },
     );
     return {
         tags: resp.findScene?.tags ?? [],
@@ -135,7 +135,7 @@ export async function fetchSceneTagsAndRating(
 }
 
 export async function fetchPerformerTagsAndRating(
-    performerId: string
+    performerId: string,
 ): Promise<{ tags: TagMin[]; rating100: number | null }> {
     const resp = await gql<{
         findPerformer: {
@@ -151,7 +151,7 @@ export async function fetchPerformerTagsAndRating(
                 tags { id name }
             }
         }`,
-        { id: performerId }
+        { id: performerId },
     );
     return {
         tags: resp.findPerformer?.tags ?? [],

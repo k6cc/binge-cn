@@ -1,5 +1,3 @@
-import { useTranslation } from "react-i18next";
-
 interface PerformerStatsRowProps {
     sceneCount: number | null;
     oCounter: number | null;
@@ -16,11 +14,10 @@ export function PerformerStatsRow({
     oCounter,
     rating100,
 }: PerformerStatsRowProps) {
-    const { t } = useTranslation();
     return (
         <ul className="binge-profile-stats">
-            <Stat value={sceneCount} label={t("performer.stat_scenes")} />
-            <Stat value={oCounter} label={t("performer.stat_orgasms")} />
+            <Stat value={sceneCount} label="scenes" />
+            <Stat value={oCounter} label="orgasms" />
             <RatingStat rating100={rating100} />
         </ul>
     );
@@ -29,20 +26,21 @@ export function PerformerStatsRow({
 function Stat({ value, label }: { value: number | null; label: string }) {
     return (
         <li className="binge-profile-stat">
-            <span className="binge-profile-stat-value">{formatStat(value)}</span>
+            <span className="binge-profile-stat-value">
+                {formatStat(value)}
+            </span>
             <span className="binge-profile-stat-label">{label}</span>
         </li>
     );
 }
 
 function RatingStat({ rating100 }: { rating100: number | null }) {
-    const { t } = useTranslation();
     return (
         <li className="binge-profile-stat">
             <span className="binge-profile-stat-value">
                 {formatRating(rating100)}
             </span>
-            <span className="binge-profile-stat-label">{t("performer.stat_rating")}</span>
+            <span className="binge-profile-stat-label">rating</span>
         </li>
     );
 }

@@ -7,11 +7,7 @@ import { DiscoveryFeedCard } from "./DiscoveryFeedCard";
 import { invalidateStashDBCache } from "../api/stashdb";
 import { BingeLoading } from "../components/BingeLoading";
 import { PackFeedCard } from "./PackFeedCard";
-import { useTranslation } from "react-i18next";
-import {
-    useHiddenFeedCategories,
-    type FeedCategory,
-} from "./pluginSettings";
+import { useHiddenFeedCategories, type FeedCategory } from "./pluginSettings";
 
 // Maps a feed item to the filter category the Home filter menu
 // controls. Galleries return null — they're governed by the separate
@@ -47,16 +43,34 @@ export function Feed({ scrollContainerRef }: FeedProps) {
     const hidden = useHiddenFeedCategories();
     const feedRef = useRef<HTMLElement>(null);
     const [scrollMargin, setScrollMargin] = useState(0);
-    const { t } = useTranslation();
 
-    const rawItems = state.kind === "ready" ? state.items : [];
+    // Derived inside the memo, not above it: `state.items` is only there
+    // in the ready state, and the `[]` stand-in used otherwise was a fresh
+    // array each render, so the memo recomputed on every paint.
     const items = useMemo(
         () =>
-            rawItems.filter((it) => {
+            (state.kind === "ready" ? state.items : []).filter((it) => {
                 const cat = feedCategory(it);
                 return cat === null || !hidden.has(cat);
             }),
-        [rawItems, hidden]
+        [state, hidden],
+    );
+
+    // Date-ordered list of every scene id in the home feed (skips
+    // gallery + discovery rows). Passed to SceneFeedCard so the
+    // "Watch full scene" CTA can drop the user into the reel
+    // pre-populated with the home timeline, starting at the tapped
+    // scene — same UX as the iOS port. Memoized so the array stays
+    // referentially stable and doesn't bust every card's props.
+    const feedSceneIds = useMemo(
+        () =>
+            items
+                .filter(
+                    (it): it is Extract<typeof it, { kind: "scene" }> =>
+                        it.kind === "scene",
+                )
+                .map((it) => it.sceneId),
+        [items],
     );
 
     // The feed isn't at the top of its scroll container — there's a
@@ -112,13 +126,13 @@ export function Feed({ scrollContainerRef }: FeedProps) {
         return (
             <section className="binge-feed">
                 <div className="binge-feed-empty binge-status-error">
-                    <div>{t("status.feed_load_failed", { message: state.message })}</div>
+                    <div>couldn't load feed: {state.message}</div>
                     <button
                         type="button"
                         className="binge-feed-retry"
                         onClick={retry}
                     >
-                        {t("status.try_again")}
+                        Try again
                     </button>
                 </div>
             </section>
@@ -128,9 +142,9 @@ export function Feed({ scrollContainerRef }: FeedProps) {
         return (
             <section className="binge-feed">
                 <div className="binge-feed-empty">
-                    {rawItems.length > 0
-                        ? t("status.all_filtered_out")
-                        : t("status.no_new_content")}
+                    {state.kind === "ready" && state.items.length > 0
+                        ? "everything's filtered out — adjust the filter."
+                        : "nothing new in your recent window."}
                 </div>
             </section>
         );
@@ -139,7 +153,7 @@ export function Feed({ scrollContainerRef }: FeedProps) {
     return (
         <section
             className="binge-feed"
-            aria-label={t("nav.new_scenes_and_galleries")}
+            aria-label="New scenes and galleries"
             ref={feedRef}
             style={{
                 position: "relative",
@@ -166,7 +180,10 @@ export function Feed({ scrollContainerRef }: FeedProps) {
                         }}
                     >
                         {item.kind === "scene" ? (
-                            <SceneFeedCard item={item} />
+                            <SceneFeedCard
+                                item={item}
+                                feedSceneIds={feedSceneIds}
+                            />
                         ) : item.kind === "gallery" ? (
                             <GalleryFeedCard item={item} />
                         ) : item.kind === "pack" ? (
@@ -200,7 +217,7 @@ export function Feed({ scrollContainerRef }: FeedProps) {
                 }}
             >
                 <div className="binge-feed-empty">
-                    {t("status.reached_bottom_count", { count: items.length })}
+                    you've reached the end · {items.length} items
                 </div>
             </div>
         </section>

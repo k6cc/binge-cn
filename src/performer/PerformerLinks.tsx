@@ -1,17 +1,11 @@
 import { useState } from "react";
-import { useTranslation } from "react-i18next";
 
 // Known platforms get their own pill with a brand glyph. Everything
 // else is collapsed into a single "link" pill that opens a popup
 // listing the URLs verbatim — keeps the bio row tidy when a
 // performer has half a dozen miscellaneous sites linked.
 type Platform =
-    | "twitter"
-    | "instagram"
-    | "tiktok"
-    | "reddit"
-    | "onlyfans"
-    | "fansly";
+    "twitter" | "instagram" | "tiktok" | "reddit" | "onlyfans" | "fansly";
 
 interface PerformerLinksProps {
     urls: string[];
@@ -22,9 +16,10 @@ interface PerformerLinksProps {
 // detection + popup state. Renders nothing when there are no URLs.
 export function PerformerLinks({ urls }: PerformerLinksProps) {
     const [showOther, setShowOther] = useState(false);
-    const { t } = useTranslation();
 
-    const cleaned = dedupe(urls.map(normalizeUrl).filter((u): u is string => !!u));
+    const cleaned = dedupe(
+        urls.map(normalizeUrl).filter((u): u is string => !!u),
+    );
     if (cleaned.length === 0) return null;
 
     // Bucket: first matching platform wins per URL; remainder go in `other`.
@@ -63,8 +58,8 @@ export function PerformerLinks({ urls }: PerformerLinksProps) {
                     type="button"
                     className="binge-profile-link-chip is-other"
                     onClick={() => setShowOther(true)}
-                    title={t("performer.other_links_count", { count: other.length })}
-                    aria-label={t("action.show_other_links")}
+                    title={`${other.length} other link${other.length === 1 ? "" : "s"}`}
+                    aria-label="Show other links"
                 >
                     <LinkIcon />
                     <span className="binge-profile-link-chip-label">
@@ -113,10 +108,16 @@ function detectPlatform(url: string): Platform | null {
     }
     if (host.startsWith("www.")) host = host.slice(4);
     if (host.startsWith("m.")) host = host.slice(2);
-    if (host === "twitter.com" || host === "x.com" || host === "t.co") return "twitter";
+    if (host === "twitter.com" || host === "x.com" || host === "t.co")
+        return "twitter";
     if (host === "instagram.com" || host === "instagr.am") return "instagram";
     if (host === "tiktok.com" || host === "vm.tiktok.com") return "tiktok";
-    if (host === "reddit.com" || host === "old.reddit.com" || host === "redd.it") return "reddit";
+    if (
+        host === "reddit.com" ||
+        host === "old.reddit.com" ||
+        host === "redd.it"
+    )
+        return "reddit";
     if (host === "onlyfans.com") return "onlyfans";
     if (host === "fansly.com") return "fansly";
     return null;
@@ -153,7 +154,6 @@ function OtherLinksPopup({
     urls: string[];
     onClose: () => void;
 }) {
-    const { t } = useTranslation();
     return (
         <div
             className="binge-other-links-backdrop"
@@ -164,15 +164,15 @@ function OtherLinksPopup({
                 className="binge-other-links-sheet"
                 onClick={(e) => e.stopPropagation()}
                 role="dialog"
-                aria-label={t("performer.other_links")}
+                aria-label="Other links"
             >
                 <div className="binge-other-links-header">
-                    <span>{t("performer.other_links")}</span>
+                    <span>Other links</span>
                     <button
                         type="button"
                         className="binge-other-links-close"
                         onClick={onClose}
-                        aria-label={t("action.close")}
+                        aria-label="Close"
                     >
                         ×
                     </button>
@@ -252,7 +252,13 @@ function InstagramIcon() {
         >
             <rect x="3" y="3" width="18" height="18" rx="5" />
             <circle cx="12" cy="12" r="4" />
-            <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
+            <circle
+                cx="17.5"
+                cy="6.5"
+                r="1"
+                fill="currentColor"
+                stroke="none"
+            />
         </svg>
     );
 }

@@ -1,5 +1,11 @@
-import { useTranslation } from "react-i18next";
 import { useTab, type Tab } from "./TabContext";
+
+const TABS: { id: Tab; label: string }[] = [
+    { id: "home", label: "Home" },
+    { id: "following", label: "Following" },
+    { id: "foryou", label: "For You" },
+    { id: "explore", label: "Explore" },
+];
 
 // Instagram-style top nav: floating white text, no chrome. Active tab is
 // full-opacity bold + subtle underline; inactive is ~60% white. Lives
@@ -7,17 +13,9 @@ import { useTab, type Tab } from "./TabContext";
 // transform — so this component itself has no fixed positioning.
 export function TabBar() {
     const { tab, setTab } = useTab();
-    const { t } = useTranslation();
-
-    const TABS: { id: Tab; label: string }[] = [
-        { id: "home", label: t("nav.home") },
-        { id: "following", label: t("nav.following") },
-        { id: "foryou", label: t("nav.foryou") },
-        { id: "explore", label: t("nav.explore") },
-    ];
 
     return (
-        <nav className="binge-tabbar" role="tablist" aria-label={t("nav.sections")}>
+        <nav className="binge-tabbar" role="tablist" aria-label="Reel sections">
             {TABS.map((t) => (
                 <button
                     key={t.id}
@@ -25,8 +23,7 @@ export function TabBar() {
                     role="tab"
                     aria-selected={tab === t.id}
                     className={
-                        "binge-tabbar-link" +
-                        (tab === t.id ? " is-active" : "")
+                        "binge-tabbar-link" + (tab === t.id ? " is-active" : "")
                     }
                     onClick={() => setTab(t.id)}
                 >

@@ -1,11 +1,5 @@
 import { findTagByName, findTagsContaining } from "./queries";
-import {
-    sceneUpdate,
-    tagCreate,
-    tagDestroy,
-    tagRename,
-    tagSetParents,
-} from "./mutations";
+import { sceneUpdate, tagCreate, tagDestroy, tagSetParents } from "./mutations";
 
 // "Save to ..." folder system. Each collection is a Stash tag; the
 // bookmark sheet lists all known collections + lets the user create new
@@ -23,78 +17,23 @@ import {
 //   2. The "Watch Later" default is created on first use with the new
 //      suffix. (Was unsuffixed in the prior version of this code; that
 //      tag is harmless to leave orphaned.)
-//
-// v0.4.15: binge 自建的两个默认合集 tagName 从英文改为中文
-// （"Watch Later 📁" → "稍后观看 📁"，"My Favourite ❤️" → "我的最爱 ❤️"），
-// 与界面显示名一致。旧英文 tag 通过 migrateLegacyTagNamesIfNeeded
-// 自动 rename 迁移。Favourite ★ 保持英文（ASR 共享，改名会破坏互操作）。
-// v0.4.16: "稍后观看"的 emoji 从文件夹 📁 改为时钟 🕐，与 binge UI
-// 里的时钟图标及 Stash 标签管理器的视觉一致。用户自建合集仍用 📁
-// 后缀。只迁移英文 → 中文（"Watch Later 📁" → "稍后观看 🕐"），
-// 不迁移 v0.4.15 创建的 "稍后观看 📁" → "稍后观看 🕐"（用户明确要求）。
 
 export const COLLECTION_TAG_SUFFIX = " 📁";
-const FAVOURITES_TAG_NAME = "Favourite ★"; // ASR 共享，始终英文
+const FAVOURITES_TAG_NAME = "Favourite ★";
+const DEFAULT_WATCH_LATER_TAG_NAME = `Watch Later${COLLECTION_TAG_SUFFIX}`;
+// Parent under which every binge-managed collection tag is
+// nested in Stash's tag tree. Keeps the user's tag list tidy:
+// instead of N flat "<name> 📁" tags scattered alphabetically,
+// they live in a single hierarchy. Name has no " 📁" suffix so
+// it isn't itself listed as a collection in the SaveSheet, but
+// is namespaced with the plugin name so its purpose is obvious.
+//
+// `Favourite ★` is explicitly NOT reparented — it's owned by the
+// Advanced Rating plugin and binge only borrows it for the
+// Favourites collection. Moving it would break ASR's hierarchy.
+const COLLECTIONS_PARENT_TAG_NAME = "binge Collections";
 
-// v0.4.17：i18n 联动。Stash 标签名跟随界面语言，通过 syncTagLanguage()
-// 手动触发改名。标签语言状态记录在 localStorage（binge.tagLanguage），
-// 不做自动检测——用户切换语言后，语言选项下方弹出"同步 Stash 标签"
-// 按钮，点击后执行 rename 并更新状态。
-// 命名约定：显示名在前，emoji 图标在后（📁 / 🕐 / ❤️）。
-interface TagNamesByLang {
-    watchLater: string;
-    myFavourite: string;
-    parent: string;
-    favouritesDisplay: string;
-    watchLaterDisplay: string;
-    myFavouriteDisplay: string;
-}
-const TAG_NAMES: Record<string, TagNamesByLang> = {
-    zh: {
-        watchLater: "稍后观看 🕐",
-        myFavourite: "我的最爱 ❤️",
-        parent: "binge 合集",
-        favouritesDisplay: "收藏夹",
-        watchLaterDisplay: "稍后观看",
-        myFavouriteDisplay: "我的最爱",
-    },
-    en: {
-        watchLater: "Watch Later 🕐",
-        myFavourite: "My Favourite ❤️",
-        parent: "binge Collections",
-        favouritesDisplay: "Favourites",
-        watchLaterDisplay: "Watch Later",
-        myFavouriteDisplay: "My Favourite",
-    },
-};
-const TAG_LANGUAGE_KEY = "binge.tagLanguage";
-
-export function getTagLanguage(): string {
-    try {
-        const lang = localStorage.getItem(TAG_LANGUAGE_KEY);
-        return lang && TAG_NAMES[lang] ? lang : "zh";
-    } catch {
-        return "zh";
-    }
-}
-
-function currentTagNames(): TagNamesByLang {
-    return TAG_NAMES[getTagLanguage()] || TAG_NAMES.zh;
-}
-
-// 旧英文 → 中文的一次性迁移映射（v0.4.15）。目标固定为中文，不受
-// 当前语言影响。
-const LEGACY_TAG_NAMES: Record<string, string> = {
-    "Watch Later 📁": TAG_NAMES.zh.watchLater,
-    "My Favourite ❤️": TAG_NAMES.zh.myFavourite,
-};
-const LEGACY_PARENT_TAG_NAME = "binge Collections";
-
-export type CollectionIconName =
-    | "favourite"
-    | "watchLater"
-    | "myFavourite"
-    | "generic";
+export type CollectionIconName = "favourite" | "watchLater" | "generic";
 
 export interface CollectionDef {
     name: string; // display label (no suffix, no star)
@@ -140,51 +79,28 @@ export function subscribeCollections(fn: Subscriber): () => void {
 // Later (default), then appends any user-created tags ending in the
 // suffix. Default tags are find-or-created lazily on first toggle —
 // we don't want loading the menu to mutate the user's tag list.
-//
-// Bug 9：默认合集的 display name（界面显示名）翻译为中文。
-// v0.4.15：binge 自建的两个 tagName 也改为中文（"稍后观看 📁" /
-// "我的最爱 ❤️"），与界面显示名一致；Favourite ★ 仍保持英文，因为
-// 它由 ASR 插件拥有并共享，改名会破坏 ASR 互操作。
 export function getCollections(): Promise<CollectionDef[]> {
     if (cachedCollectionsPromise) return cachedCollectionsPromise;
     cachedCollectionsPromise = (async () => {
         const userTags = await findTagsContaining(COLLECTION_TAG_SUFFIX);
-        // 需求3：第三个默认合集"我的最爱 ❤️"。tagName 是
-        // "My Favourite ❤️"（无 " 📁" 后缀），不会被上面的
-        // findTagsContaining 拉回，所以总是从 defaults 数组显式
-        // 注入。de-dup 仍按 tagName + 显示名兜底，避免用户手动
-        // 建过同名 tag 时出现两个"我的最爱"。
-        const names = currentTagNames();
         const defaults: CollectionDef[] = [
             {
-                name: names.favouritesDisplay,
+                name: "Favourites",
                 tagName: FAVOURITES_TAG_NAME,
                 icon: "favourite",
                 isDefault: true,
             },
             {
-                name: names.watchLaterDisplay,
-                tagName: names.watchLater,
+                name: "Watch Later",
+                tagName: DEFAULT_WATCH_LATER_TAG_NAME,
                 icon: "watchLater",
                 isDefault: true,
             },
-            {
-                name: names.myFavouriteDisplay,
-                tagName: names.myFavourite,
-                icon: "myFavourite",
-                isDefault: true,
-            },
         ];
-        // 需求6：过滤掉与默认合集重复的用户 tag。原先只按 tagName
-        // 过滤（"稍后观看 📁"），但如果用户库里有同名的中文 tag
-        // （stripSuffix 后与默认 name 相同），会导致列表出现两个
-        // "稍后观看"。现在按 stripSuffix 后的 display name 与所有
-        // 默认 name 比对，同时仍按 tagName 过滤以排除默认 tag 本身。
-        const defaultNames = new Set(defaults.map((d) => d.name));
-        const defaultTagNames = new Set(defaults.map((d) => d.tagName));
+        // User-created collections (excluding Watch Later, which is a
+        // default we already include).
         const userCollections: CollectionDef[] = userTags
-            .filter((t) => !defaultTagNames.has(t.name))
-            .filter((t) => !defaultNames.has(stripSuffix(t.name)))
+            .filter((t) => t.name !== DEFAULT_WATCH_LATER_TAG_NAME)
             .map((t) => ({
                 name: stripSuffix(t.name),
                 tagName: t.name,
@@ -208,13 +124,9 @@ let cachedParentIdPromise: Promise<string> | null = null;
 function ensureCollectionsParentTagId(): Promise<string> {
     if (cachedParentIdPromise) return cachedParentIdPromise;
     cachedParentIdPromise = (async () => {
-        const parentName = currentTagNames().parent;
-        const existing = await findTagByName(parentName);
+        const existing = await findTagByName(COLLECTIONS_PARENT_TAG_NAME);
         if (existing) return existing.id;
-        const created = await tagCreate(
-            parentName,
-            true
-        );
+        const created = await tagCreate(COLLECTIONS_PARENT_TAG_NAME, true);
         return created.id;
     })().catch((err) => {
         cachedParentIdPromise = null;
@@ -252,16 +164,14 @@ export function getCollectionTagIds(): Promise<Map<string, string>> {
                         new Set([
                             ...existing.parents.map((p) => p.id),
                             parentId,
-                        ])
+                        ]),
                     );
                     try {
                         await tagSetParents(existing.id, next);
                     } catch (err) {
                         console.warn(
-                            "[binge] reparent of " +
-                                c.tagName +
-                                " failed",
-                            err
+                            "[binge] reparent of " + c.tagName + " failed",
+                            err,
                         );
                     }
                 }
@@ -271,7 +181,7 @@ export function getCollectionTagIds(): Promise<Map<string, string>> {
             const created = await tagCreate(
                 c.tagName,
                 true,
-                reparent ? [parentId] : undefined
+                reparent ? [parentId] : undefined,
             );
             map.set(c.tagName, created.id);
         }
@@ -289,7 +199,7 @@ export function getCollectionTagIds(): Promise<Map<string, string>> {
 // wipe the caches so the next read picks up the new collection,
 // then notify subscribers so any open SaveSheet re-renders.
 export async function createCollection(
-    displayName: string
+    displayName: string,
 ): Promise<CollectionDef> {
     const trimmed = displayName.trim();
     if (!trimmed) throw new Error("Collection name cannot be empty");
@@ -299,16 +209,11 @@ export async function createCollection(
     const existing = await findTagByName(tagName);
     if (!existing) {
         await tagCreate(tagName, true, [parentId]);
-    } else if (
-        !existing.parents.some((p) => p.id === parentId)
-    ) {
+    } else if (!existing.parents.some((p) => p.id === parentId)) {
         // Tag existed without the parent (e.g. pre-migration);
         // reparent in place.
         const next = Array.from(
-            new Set([
-                ...existing.parents.map((p) => p.id),
-                parentId,
-            ])
+            new Set([...existing.parents.map((p) => p.id), parentId]),
         );
         await tagSetParents(existing.id, next);
     }
@@ -328,22 +233,11 @@ export async function createCollection(
 // We refuse to delete the Favourites collection because it's ASR's
 // tag and the user probably doesn't want to nuke their ASR favourites
 // state. Returns true on success.
-//
-// 需求3：默认合集（收藏夹 / 稍后观看 / 我的最爱）一律不可删除 —
-// 它们是 binge 内置分类，删除后下次启动又会被 ensureDefaultCollections
-// 重建，徒增困惑。Favourite ★ 另有 ASR 共享原因。
 export async function deleteCollection(tagName: string): Promise<boolean> {
     if (tagName === FAVOURITES_TAG_NAME) {
         throw new Error(
-            "收藏夹合集与 ASR 共享，无法从 binge 中删除。"
+            "The Favourites collection is shared with ASR and can't be deleted from binge.",
         );
-    }
-    const names = currentTagNames();
-    if (
-        tagName === names.watchLater ||
-        tagName === names.myFavourite
-    ) {
-        throw new Error("默认合集无法删除。");
     }
     const tagIds = await getCollectionTagIds();
     const id = tagIds.get(tagName);
@@ -355,153 +249,13 @@ export async function deleteCollection(tagName: string): Promise<boolean> {
     return true;
 }
 
-// 需求3：首次访问"已保存"页时，自动在 Stash 创建 3 个默认合集
-// （收藏夹★ / 稍后观看📁 / 我的最爱❤️）对应的 tag。原先默认 tag
-// 是懒创建（首次保存场景时才建），用户进入"已保存"页看到的是
-// 空列表，体验不好。现在改为应用启动时一次性 ensure。
-//
-// 用 `binge.defaultCollectionsSeeded` localStorage flag 保证只跑
-// 一次：第一次成功后写 true，后续启动直接短路。如果用户在 Stash
-// 里手动删了某个默认 tag，下次 ensure 仍会重建（因为 getCollectionTagIds
-// 的 find-or-create 逻辑会补回缺失项），但要等到 flag 被清除
-// （例如清空 localStorage）才会重新触发 ensure。这是可接受的
-// 折中：避免每次启动都打 findTagByName 三个 round-trip。
-const DEFAULT_COLLECTIONS_SEEDED_KEY = "binge.defaultCollectionsSeeded";
-
-// v0.4.15：将旧英文 tagName rename 为新中文 tagName。幂等——旧 tag
-// 不存在则跳过。用独立 localStorage flag 保证只跑一次，在 seeded
-// 短路之前执行，确保已 seeded 的老用户也能迁移。
-//
-// 边缘情况：若旧 tag 和新 tag 同时存在（用户手动建过新名 tag，或
-// 迁移中断后重跑），不处理——保留旧 tag 残留，避免数据丢失。用户
-// 可在 Stash 标签管理器手动清理。
-const LEGACY_MIGRATION_DONE_KEY = "binge.legacyTagNamesMigrated.v0.4.15";
-
-async function migrateLegacyTagNamesIfNeeded(): Promise<void> {
-    let migrated = false;
-    try {
-        migrated =
-            localStorage.getItem(LEGACY_MIGRATION_DONE_KEY) === "1";
-    } catch {
-        // localStorage 不可用——退化为每次都跑迁移（幂等，安全）
-    }
-    if (migrated) return;
-    try {
-        for (const [oldName, newName] of Object.entries(LEGACY_TAG_NAMES)) {
-            const oldTag = await findTagByName(oldName);
-            if (!oldTag) continue;
-            const newTag = await findTagByName(newName);
-            if (newTag) {
-                // 新 tag 已存在——不处理，避免冲突。旧 tag 残留为
-                // 孤儿，用户可在 Stash 标签管理器手动清理。
-                console.warn(
-                    `[binge] 跳过迁移 ${oldName} → ${newName}：新 tag 已存在，请手动清理旧 tag`
-                );
-                continue;
-            }
-            await tagRename(oldTag.id, newName);
-        }
-        // 迁移父标签 "binge Collections" → "binge 合集"。rename 不改
-        // tag id，子标签的 parent_ids 关系自动保留。同样处理边缘情况。
-        const legacyParent = await findTagByName(LEGACY_PARENT_TAG_NAME);
-        if (legacyParent) {
-            const newParent = await findTagByName(TAG_NAMES.zh.parent);
-            if (!newParent) {
-                await tagRename(legacyParent.id, TAG_NAMES.zh.parent);
-            } else {
-                console.warn(
-                    `[binge] 跳过迁移父标签 ${LEGACY_PARENT_TAG_NAME} → ${TAG_NAMES.zh.parent}：新 tag 已存在`
-                );
-            }
-        }
-        try {
-            localStorage.setItem(LEGACY_MIGRATION_DONE_KEY, "1");
-        } catch {
-            /* ignore quota / privacy mode errors */
-        }
-    } catch (err) {
-        console.warn(
-            "[binge] legacy tag migration failed — will retry next launch",
-            err
-        );
-    }
-}
-
-export async function ensureDefaultCollections(): Promise<void> {
-    // v0.4.15：先迁移旧英文 tagName 为中文，再走原有 ensure 逻辑。
-    // 迁移在 seeded 短路之前执行，确保已 seeded 的老用户也能迁移。
-    await migrateLegacyTagNamesIfNeeded();
-    let alreadySeeded = false;
-    try {
-        alreadySeeded =
-            localStorage.getItem(DEFAULT_COLLECTIONS_SEEDED_KEY) === "1";
-    } catch {
-        // localStorage 不可用时退化为每次都跑 ensure — 不会损坏数据，
-        // 只是多几个 round-trip。
-    }
-    if (alreadySeeded) return;
-    try {
-        // getCollectionTagIds 会 find-or-create 每个默认 tag 并挂到
-        // binge Collections 父标签下。任何一个失败都会 reject，
-        // flag 不写入，下次启动会重试。
-        await getCollectionTagIds();
-        try {
-            localStorage.setItem(DEFAULT_COLLECTIONS_SEEDED_KEY, "1");
-        } catch {
-            /* ignore quota / privacy mode errors */
-        }
-        // 通知订阅者：第一次创建后 SaveSheet / SavedPage 可以拿到
-        // 新鲜的封面/计数（虽然此时三个合集都是空的）。
-        notifySubscribers();
-    } catch (err) {
-        console.warn(
-            "[binge] ensureDefaultCollections failed — will retry next launch",
-            err
-        );
-    }
-}
-
-// v0.4.17：将 binge 自有的 Stash 标签（稍后观看 / 我的最爱 / 父标签）
-// 从当前语言 rename 为目标语言。Favourite ★ 不受影响（ASR 共享）。
-// 找到旧名 tag → rename 为新名。如果旧名不存在或新名已存在则跳过。
-// 成功后更新 localStorage 中的标签语言状态并清空缓存。
-export async function syncTagLanguage(targetLang: string): Promise<void> {
-    const currentLang = getTagLanguage();
-    if (currentLang === targetLang) return;
-    if (!TAG_NAMES[targetLang]) return;
-
-    const current = TAG_NAMES[currentLang];
-    const target = TAG_NAMES[targetLang];
-
-    await renameTagIfExists(current.watchLater, target.watchLater);
-    await renameTagIfExists(current.myFavourite, target.myFavourite);
-    await renameTagIfExists(current.parent, target.parent);
-
-    try {
-        localStorage.setItem(TAG_LANGUAGE_KEY, targetLang);
-    } catch { /* ignore */ }
-
-    cachedCollectionsPromise = null;
-    cachedTagIdsPromise = null;
-    cachedParentIdPromise = null;
-    notifySubscribers();
-}
-
-async function renameTagIfExists(oldName: string, newName: string): Promise<void> {
-    const oldTag = await findTagByName(oldName);
-    if (!oldTag) return;
-    const newTag = await findTagByName(newName);
-    if (newTag) return;
-    await tagRename(oldTag.id, newName);
-}
-
 // Toggle a scene's membership in a collection. Caller passes the scene's
 // CURRENT tag ids; we diff and sceneUpdate. Returns the new state.
 export async function setSceneInCollection(
     sceneId: string,
     currentTagIds: string[],
     tagName: string,
-    next: boolean
+    next: boolean,
 ): Promise<boolean> {
     const tagIds = await getCollectionTagIds();
     const id = tagIds.get(tagName);

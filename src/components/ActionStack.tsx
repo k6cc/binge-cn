@@ -43,12 +43,7 @@ interface ActionStackProps {
     // contents (currently just "Open in Stash") so callers can extend
     // it without touching ActionStack.
     onOpenMore: () => void;
-    // ── Fullscreen ─────────────────────────────────────────────────
-    isFullscreen: boolean;
-    onToggleFullscreen: () => void;
-    fullscreenUIVisible: boolean;
 }
-import { useTranslation } from "react-i18next";
 
 // Heart hold-to-unlike duration. Mirrors common mobile long-press
 // thresholds; 1500 chosen for "long enough to never trigger by accident".
@@ -80,26 +75,15 @@ export function ActionStack({
     onOpenMultiviewPlayer,
     onOpenScribe,
     onOpenMore,
-    isFullscreen,
-    onToggleFullscreen,
-    fullscreenUIVisible,
 }: ActionStackProps) {
     const hasMultiview = useHasMultiview();
     const hasScribe = useHasScribe();
     const hasAdvancedRating = useHasAdvancedRating();
     const [rateStripOpen, setRateStripOpen] = useState(false);
     const useAdvancedRating = hasAdvancedRating && !!onOpenAdvancedRating;
-    const { t } = useTranslation();
 
     return (
-        <aside
-            className={
-                "binge-actions" +
-                (isFullscreen ? " is-fullscreen" : "") +
-                (isFullscreen && !fullscreenUIVisible ? " fs-ui-hidden" : "")
-            }
-            aria-label={t("action.scene_actions")}
-        >
+        <aside className="binge-actions" aria-label="scene actions">
             <HeartButton
                 oCount={oCount}
                 oError={oError}
@@ -142,29 +126,13 @@ export function ActionStack({
 
             <button
                 type="button"
-                className={
-                    "binge-action-button binge-fullscreen-button" +
-                    (isFullscreen ? " is-active" : "")
-                }
-                onClick={(e) => {
-                    e.stopPropagation();
-                    onToggleFullscreen();
-                }}
-                aria-label={isFullscreen ? t("action.exit_fullscreen") : t("action.enter_fullscreen")}
-                title={isFullscreen ? t("action.exit_fullscreen") : t("action.enter_fullscreen")}
-            >
-                <FullscreenIcon exit={isFullscreen} />
-            </button>
-
-            <button
-                type="button"
                 className="binge-action-button binge-more-button"
                 onClick={(e) => {
                     e.stopPropagation();
                     onOpenMore();
                 }}
-                aria-label={t("action.more_actions")}
-                            title={t("action.more")}
+                aria-label="More actions"
+                title="More"
             >
                 <MoreIcon />
             </button>
@@ -185,7 +153,6 @@ function HeartButton({
     onLike: () => void;
     onUnlike: () => void;
 }) {
-    const { t } = useTranslation();
     const [holding, setHolding] = useState(false);
     const holdTimerRef = useRef<number | null>(null);
     const heldDownRef = useRef(false);
@@ -206,7 +173,7 @@ function HeartButton({
     };
 
     const handlePointerDown: React.PointerEventHandler<HTMLButtonElement> = (
-        e
+        e,
     ) => {
         e.stopPropagation();
         heldDownRef.current = false;
@@ -220,7 +187,7 @@ function HeartButton({
     };
 
     const handlePointerUp: React.PointerEventHandler<HTMLButtonElement> = (
-        e
+        e,
     ) => {
         e.stopPropagation();
         if (heldDownRef.current) {
@@ -237,7 +204,7 @@ function HeartButton({
     };
 
     const suppressContextMenu: React.MouseEventHandler<HTMLButtonElement> = (
-        e
+        e,
     ) => e.preventDefault();
 
     return (
@@ -254,13 +221,11 @@ function HeartButton({
             onPointerLeave={handlePointerLeave}
             onPointerCancel={handlePointerLeave}
             onContextMenu={suppressContextMenu}
-            aria-label={t("action.like_unlike_desc", { count: oCount })}
-            title={t("action.like_unlike")}
+            aria-label={`O counter ${oCount}. Tap to like, hold to unlike.`}
+            title="Tap to like · hold to unlike"
         >
             <HeartIcon filled={oCount > 0} />
-            {oCount > 0 && (
-                <span className="binge-action-count">{oCount}</span>
-            )}
+            {oCount > 0 && <span className="binge-action-count">{oCount}</span>}
         </button>
     );
 }
@@ -282,7 +247,6 @@ function RateButton({
     onSetRating: (stars: number | null) => void;
     onDismiss: () => void;
 }) {
-    const { t } = useTranslation();
     const rated = (ratingStars ?? 0) > 0;
     return (
         <div className="binge-action-rate-wrap">
@@ -306,12 +270,12 @@ function RateButton({
                 }}
                 aria-label={
                     ratingStars
-                        ? t("action.rated_stars", { count: ratingStars })
+                        ? `Rated ${ratingStars} stars. Tap to change.`
                         : advanced
-                          ? t("action.rate_advanced")
-                          : t("action.rate_scene")
+                          ? "Rate this scene (advanced)"
+                          : "Rate this scene"
                 }
-                title={advanced ? t("action.rate_advanced") : t("action.rate")}
+                title={advanced ? "Rate (advanced)" : "Rate"}
             >
                 <StarIcon filled={rated} />
                 {rated && (
@@ -331,7 +295,6 @@ function RateStrip({
     onPick: (stars: number | null) => void;
     onDismiss: () => void;
 }) {
-    const { t } = useTranslation();
     // Tap outside dismisses. The strip's stopPropagation prevents
     // clicks within it from bubbling to this listener.
     useEffect(() => {
@@ -352,7 +315,7 @@ function RateStrip({
             className="binge-rate-strip"
             onClick={(e) => e.stopPropagation()}
             role="radiogroup"
-            aria-label={t("action.rate_scene")}
+            aria-label="Rate scene"
         >
             {[1, 2, 3, 4, 5].map((n) => (
                 <button
@@ -365,9 +328,9 @@ function RateStrip({
                         e.stopPropagation();
                         // Tapping the current rating clears it (toggle).
                         onPick(n === current ? null : n);
-                }}
-                aria-label={t("action.rate_stars_count", { count: n })}
-                role="radio"
+                    }}
+                    aria-label={`${n} star${n === 1 ? "" : "s"}`}
+                    role="radio"
                     aria-checked={n === current}
                 >
                     <StarIcon filled={n <= current} />
@@ -388,7 +351,6 @@ function MultiviewButton({
     onTap: () => void;
     onHold: () => void;
 }) {
-    const { t } = useTranslation();
     const holdTimerRef = useRef<number | null>(null);
     const heldRef = useRef(false);
 
@@ -436,10 +398,10 @@ function MultiviewButton({
             onPointerCancel={onPointerLeave}
             aria-label={
                 inQueue
-                    ? t("multiview.remove_from_queue")
-                    : t("multiview.add_to_queue")
+                    ? "Remove from Multiview queue. Hold to open player."
+                    : "Add to Multiview queue. Hold to open player."
             }
-            title={t("multiview.queue_and_open_player")}
+            title="Tap to queue · hold to open Multiview"
         >
             <GridIcon filled={inQueue} />
         </button>
@@ -449,7 +411,6 @@ function MultiviewButton({
 // ── Scribe ───────────────────────────────────────────────────────────
 
 function ScribeButton({ onTap }: { onTap: () => void }) {
-    const { t } = useTranslation();
     return (
         <button
             type="button"
@@ -458,8 +419,8 @@ function ScribeButton({ onTap }: { onTap: () => void }) {
                 e.stopPropagation();
                 onTap();
             }}
-            aria-label={t("action.write_scribe_review")}
-            title={t("action.write_review")}
+            aria-label="Write a review with Scribe"
+            title="Write a review"
         >
             <PencilIcon />
         </button>
@@ -475,7 +436,6 @@ function BookmarkButton({
     inCollections: Record<string, boolean>;
     onToggleCollection: (tagName: string) => void;
 }) {
-    const { t } = useTranslation();
     const [sheetOpen, setSheetOpen] = useState(false);
     // Filled when in ANY collection — single visual signal that the
     // scene is "saved" without committing to which folder.
@@ -492,12 +452,10 @@ function BookmarkButton({
                     e.stopPropagation();
                     setSheetOpen(true);
                 }}
-                aria-label={
-                    savedSomewhere ? t("action.manage_saves") : t("action.save_scene")
-                }
+                aria-label={savedSomewhere ? "Manage saved-to" : "Save scene"}
                 aria-haspopup="dialog"
                 aria-expanded={sheetOpen}
-                title={t("action.save_to")}
+                title="Save to..."
             >
                 <BookmarkIcon filled={savedSomewhere} />
             </button>
@@ -659,25 +617,6 @@ export function BookmarkIcon({ filled }: { filled: boolean }) {
             aria-hidden="true"
         >
             <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-        </svg>
-    );
-}
-
-export function FullscreenIcon({ exit }: { exit: boolean }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            width="2.6em"
-            height="2.6em"
-            {...ICON_LINE_PROPS}
-            aria-hidden="true"
-        >
-            {exit ? (
-                <path d="M9 9H4M9 9V4M9 9 5 5M15 9h5M15 9V4m0 5 4-4M9 15H4m5 0v5m0-5-4 4M15 15h5m-5 0v5m0-5 4 4" />
-            ) : (
-                <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
-            )}
         </svg>
     );
 }

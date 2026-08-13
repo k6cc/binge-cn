@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
 import {
     findPerformersForPicker,
     findStudiosForPicker,
@@ -12,16 +11,15 @@ interface AddChipMenuProps {
     onClose: () => void;
 }
 
-const TABS_KEYS: { id: FilterCategory; labelKey: string; fallback: string }[] = [
-    { id: "performers", labelKey: "nav.performers", fallback: "演员" },
-    { id: "tags", labelKey: "nav.tags", fallback: "标签" },
-    { id: "studios", labelKey: "nav.studios", fallback: "制片厂" },
+const TABS: { id: FilterCategory; label: string }[] = [
+    { id: "performers", label: "Performers" },
+    { id: "tags", label: "Tags" },
+    { id: "studios", label: "Studios" },
 ];
 
 // Search-and-add picker. One tab per filter category. Type to search; each
 // hit is clickable. Debounces input so we don't fire 6 queries per keystroke.
 export function AddChipMenu({ onClose }: AddChipMenuProps) {
-    const { t } = useTranslation();
     const [tab, setTab] = useState<FilterCategory>("performers");
     const [q, setQ] = useState("");
     const [results, setResults] = useState<PickerResult[]>([]);
@@ -78,7 +76,7 @@ export function AddChipMenu({ onClose }: AddChipMenuProps) {
         // Defer so the same click that opened us doesn't immediately dismiss
         const t = window.setTimeout(
             () => document.addEventListener("mousedown", handler),
-            0
+            0,
         );
         return () => {
             window.clearTimeout(t);
@@ -108,19 +106,19 @@ export function AddChipMenu({ onClose }: AddChipMenuProps) {
     return (
         <div className="binge-chip-menu" ref={panelRef} role="dialog">
             <div className="binge-chip-menu-tabs" role="tablist">
-                {TABS_KEYS.map((tItem) => (
+                {TABS.map((t) => (
                     <button
-                        key={tItem.id}
+                        key={t.id}
                         type="button"
                         role="tab"
-                        aria-selected={tab === tItem.id}
+                        aria-selected={tab === t.id}
                         className={
                             "binge-chip-menu-tab" +
-                            (tab === tItem.id ? " is-active" : "")
+                            (tab === t.id ? " is-active" : "")
                         }
-                        onClick={() => setTab(tItem.id)}
+                        onClick={() => setTab(t.id)}
                     >
-                        {t(tItem.labelKey, tItem.fallback)}
+                        {t.label}
                     </button>
                 ))}
             </div>
@@ -128,16 +126,16 @@ export function AddChipMenu({ onClose }: AddChipMenuProps) {
                 ref={inputRef}
                 type="text"
                 className="binge-chip-menu-input"
-                placeholder={t("action.search_tab", { tab: t(TABS_KEYS.find((tItem) => tItem.id === tab)?.labelKey || "", TABS_KEYS.find((tItem) => tItem.id === tab)?.fallback || tab) })}
+                placeholder={`Search ${tab}…`}
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
             />
             <ul className="binge-chip-menu-results">
                 {loading && (
-                    <li className="binge-chip-menu-status">{t("status.searching")}</li>
+                    <li className="binge-chip-menu-status">searching…</li>
                 )}
                 {!loading && results.length === 0 && (
-                    <li className="binge-chip-menu-status">{t("status.no_results")}</li>
+                    <li className="binge-chip-menu-status">no results</li>
                 )}
                 {results.map((r) => {
                     const isSelected = alreadySelected.has(r.id);

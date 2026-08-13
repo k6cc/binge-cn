@@ -70,7 +70,7 @@ export function getGqlStats(): GqlStats {
 
 export async function gql<T>(
     query: string,
-    variables?: Record<string, unknown>
+    variables?: Record<string, unknown>,
 ): Promise<T> {
     const name = extractOpName(query);
     const start = performance.now();
@@ -84,9 +84,7 @@ export async function gql<T>(
             body: JSON.stringify({ query, variables }),
         });
         if (!res.ok) {
-            throw new Error(
-                `GraphQL HTTP ${res.status} ${res.statusText}`
-            );
+            throw new Error(`GraphQL HTTP ${res.status} ${res.statusText}`);
         }
         const body = (await res.json()) as GqlResponse<T>;
         if (body.errors?.length) {

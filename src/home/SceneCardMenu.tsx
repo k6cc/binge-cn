@@ -1,11 +1,5 @@
-import {
-    useEffect,
-    useRef,
-    useState,
-    type ReactNode,
-} from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { useTranslation } from "react-i18next";
 
 export interface SceneCardMenuItem {
     label: string;
@@ -31,10 +25,7 @@ export function SceneCardMenu({ items }: SceneCardMenuProps) {
     const triggerRef = useRef<HTMLButtonElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
     const [open, setOpen] = useState(false);
-    const [pos, setPos] = useState<{ top: number; left: number } | null>(
-        null
-    );
-    const { t } = useTranslation();
+    const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
 
     useEffect(() => {
         if (!open) return;
@@ -48,10 +39,7 @@ export function SceneCardMenu({ items }: SceneCardMenuProps) {
             const desiredLeft = rect.right - menuWidth;
             const clampedLeft = Math.max(
                 margin,
-                Math.min(
-                    desiredLeft,
-                    window.innerWidth - menuWidth - margin
-                )
+                Math.min(desiredLeft, window.innerWidth - menuWidth - margin),
             );
             setPos({
                 top: rect.bottom + window.scrollY + 6,
@@ -101,8 +89,8 @@ export function SceneCardMenu({ items }: SceneCardMenuProps) {
                 onClick={() => setOpen((v) => !v)}
                 aria-haspopup="menu"
                 aria-expanded={open}
-                aria-label={t("action.more_actions")}
-                title={t("action.more")}
+                aria-label="More actions"
+                title="More"
             >
                 <DotsIcon />
             </button>
@@ -147,7 +135,7 @@ export function SceneCardMenu({ items }: SceneCardMenuProps) {
                             </button>
                         ))}
                     </div>,
-                    document.body
+                    document.body,
                 )}
         </>
     );

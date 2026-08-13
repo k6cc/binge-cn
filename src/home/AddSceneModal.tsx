@@ -8,7 +8,6 @@ import {
 } from "../api/mutations";
 import type { StashDBSceneDetail } from "../api/stashdb";
 import { useSheetClose } from "../hooks/useSheetClose";
-import { useTranslation } from "react-i18next";
 
 interface AddSceneModalProps {
     stashDBSceneId: string;
@@ -55,7 +54,6 @@ export function AddSceneModal({
     const { isExiting, beginClose } = useSheetClose(onClose);
     const [state, setState] = useState<ModalState>({ kind: "loading" });
     const [imageIndex, setImageIndex] = useState(0);
-    const { t } = useTranslation();
 
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
@@ -72,10 +70,7 @@ export function AddSceneModal({
             try {
                 detail = await getStashDBSceneForCreate(stashDBSceneId);
             } catch (err) {
-                console.warn(
-                    "[binge] getStashDBSceneForCreate failed",
-                    err
-                );
+                console.warn("[binge] getStashDBSceneForCreate failed", err);
             }
             if (!alive) return;
             const form = await buildSceneCreateForm({
@@ -100,7 +95,7 @@ export function AddSceneModal({
 
     const updateField = <K extends keyof SceneCreateForm>(
         key: K,
-        value: SceneCreateForm[K]
+        value: SceneCreateForm[K],
     ) => {
         setState((prev) => {
             if (prev.kind !== "ready" && prev.kind !== "error") return prev;
@@ -140,8 +135,7 @@ export function AddSceneModal({
     const isSubmitting = state.kind === "submitting";
     const images = detail?.images ?? [];
     const hasMultipleImages = images.length > 1;
-    const currentImage =
-        images[imageIndex]?.url || form?.cover_image || "";
+    const currentImage = images[imageIndex]?.url || form?.cover_image || "";
 
     return createPortal(
         <div
@@ -154,15 +148,15 @@ export function AddSceneModal({
             <div
                 className="binge-sheet binge-follow-modal"
                 role="dialog"
-                aria-label={t("action.add_scene_to_library")}
+                aria-label="Add scene to library"
             >
                 <header className="binge-follow-modal-header">
-                    <h2>{t("action.add_scene_to_library")}</h2>
+                    <h2>Add scene to library</h2>
                     <button
                         type="button"
                         className="binge-follow-modal-close"
                         onClick={beginClose}
-                        aria-label={t("action.close")}
+                        aria-label="Close"
                     >
                         ×
                     </button>
@@ -170,7 +164,7 @@ export function AddSceneModal({
 
                 {state.kind === "loading" && (
                     <div className="binge-follow-modal-loading">
-                        {t("status.fetching_stashdb")}
+                        Fetching scene metadata from StashDB…
                     </div>
                 )}
 
@@ -190,7 +184,7 @@ export function AddSceneModal({
                                 >
                                     {!currentImage && (
                                         <span className="binge-follow-modal-hero-empty">
-                                            {t("status.no_image")}
+                                            no image
                                         </span>
                                     )}
                                 </div>
@@ -204,10 +198,10 @@ export function AddSceneModal({
                                                     (imageIndex -
                                                         1 +
                                                         images.length) %
-                                                        images.length
+                                                        images.length,
                                                 )
                                             }
-                                            aria-label={t("action.previous_photo")}
+                                            aria-label="Previous photo"
                                         >
                                             <ChevronLeft />
                                         </button>
@@ -217,10 +211,10 @@ export function AddSceneModal({
                                             onClick={() =>
                                                 setImageIndex(
                                                     (imageIndex + 1) %
-                                                        images.length
+                                                        images.length,
                                                 )
                                             }
-                                            aria-label={t("action.next_photo")}
+                                            aria-label="Next photo"
                                         >
                                             <ChevronRight />
                                         </button>
@@ -233,22 +227,27 @@ export function AddSceneModal({
                             <div className="binge-follow-modal-hero-meta">
                                 {detail?.studio && (
                                     <div className="binge-follow-modal-stats">
-                                        {t("performer.studio")}{" "}
+                                        Studio:{" "}
                                         <strong>{detail.studio.name}</strong>
                                         {!form.studioId && (
                                             <span className="binge-follow-modal-not-in-library">
-                                                {t("performer.not_in_library")}
+                                                (not in library)
                                             </span>
                                         )}
                                     </div>
                                 )}
                                 {detail && (
                                     <div className="binge-follow-modal-stats">
-                                        {t("scene.stashdb_performers", { count: detail.performers.length })}
+                                        {detail.performers.length} performer
+                                        {detail.performers.length === 1
+                                            ? ""
+                                            : "s"}{" "}
+                                        on StashDB
                                         {form.performerIds.length <
                                             detail.performers.length && (
                                             <span className="binge-follow-modal-not-in-library">
-                                                {t("scene.performers_in_library", { count: form.performerIds.length })}
+                                                ({form.performerIds.length} in
+                                                library)
                                             </span>
                                         )}
                                     </div>
@@ -259,44 +258,44 @@ export function AddSceneModal({
                                     rel="noopener noreferrer"
                                     className="binge-follow-modal-stashdb-link"
                                 >
-                                    {t("action.view_on_stashdb")} →
+                                    View on StashDB →
                                 </a>
                             </div>
                         </div>
 
                         <div className="binge-follow-modal-grid">
                             <Field
-                                label={t("form.title")}
+                                label="Title"
                                 value={form.title}
                                 onChange={(v) => updateField("title", v)}
                                 fullWidth
                             />
                             <Field
-                                label={t("form.date")}
+                                label="Date"
                                 value={form.date}
                                 type="date"
                                 onChange={(v) => updateField("date", v)}
                             />
                             <Field
-                                label={t("form.code")}
+                                label="Code"
                                 value={form.code}
                                 onChange={(v) => updateField("code", v)}
                             />
                             <Field
-                                label={t("form.director")}
+                                label="Director"
                                 value={form.director}
                                 onChange={(v) => updateField("director", v)}
                                 fullWidth
                             />
                             <TextareaField
-                                label={t("form.urls")}
+                                label="URLs (one per line)"
                                 value={form.urls}
                                 onChange={(v) => updateField("urls", v)}
                                 fullWidth
                                 rows={3}
                             />
                             <TextareaField
-                                label={t("form.details")}
+                                label="Details"
                                 value={form.details}
                                 onChange={(v) => updateField("details", v)}
                                 rows={5}
@@ -307,7 +306,7 @@ export function AddSceneModal({
                         {detail && detail.performers.length > 0 && (
                             <div className="binge-follow-modal-coperformers">
                                 <span className="binge-follow-modal-coperformers-label">
-                                    {t("performer.performers")}
+                                    Performers:
                                 </span>
                                 {detail.performers.map((p) => (
                                     // We don't have a per-performer
@@ -341,7 +340,7 @@ export function AddSceneModal({
                         onClick={beginClose}
                         disabled={isSubmitting}
                     >
-                        {t("action.cancel")}
+                        Cancel
                     </button>
                     <button
                         type="button"
@@ -350,15 +349,15 @@ export function AddSceneModal({
                         disabled={state.kind !== "ready"}
                     >
                         {isSubmitting
-                            ? t("status.adding")
+                            ? "Adding…"
                             : state.kind === "error"
-                              ? t("action.retry")
-                              : t("action.add_to_library")}
+                              ? "Retry"
+                              : "Add to library"}
                     </button>
                 </footer>
             </div>
         </div>,
-        document.body
+        document.body,
     );
 }
 
@@ -378,8 +377,7 @@ function Field({
     return (
         <label
             className={
-                "binge-follow-modal-label" +
-                (fullWidth ? " is-full" : "")
+                "binge-follow-modal-label" + (fullWidth ? " is-full" : "")
             }
         >
             <span className="binge-follow-modal-label-text">{label}</span>
@@ -411,8 +409,7 @@ function TextareaField({
     return (
         <label
             className={
-                "binge-follow-modal-label" +
-                (fullWidth ? " is-full" : "")
+                "binge-follow-modal-label" + (fullWidth ? " is-full" : "")
             }
         >
             <span className="binge-follow-modal-label-text">{label}</span>

@@ -30,9 +30,7 @@ export function StoriesProvider({ children }: { children: ReactNode }) {
 export function useSharedStories(): StoriesResult {
     const ctx = useContext(StoriesContext);
     if (!ctx) {
-        throw new Error(
-            "useSharedStories must be used within StoriesProvider"
-        );
+        throw new Error("useSharedStories must be used within StoriesProvider");
     }
     return ctx;
 }

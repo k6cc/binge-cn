@@ -23,7 +23,7 @@ interface StoryViewerContextValue {
 }
 
 const StoryViewerContext = createContext<StoryViewerContextValue | undefined>(
-    undefined
+    undefined,
 );
 
 export function StoryViewerProvider({ children }: { children: ReactNode }) {
@@ -45,7 +45,7 @@ export function StoryViewerProvider({ children }: { children: ReactNode }) {
 
     const value = useMemo<StoryViewerContextValue>(
         () => ({ isOpen, stories, activeIndex, open, close, setActiveIndex }),
-        [isOpen, stories, activeIndex, open, close]
+        [isOpen, stories, activeIndex, open, close],
     );
 
     return (
@@ -59,7 +59,7 @@ export function useStoryViewer(): StoryViewerContextValue {
     const ctx = useContext(StoryViewerContext);
     if (!ctx) {
         throw new Error(
-            "useStoryViewer must be used within StoryViewerProvider"
+            "useStoryViewer must be used within StoryViewerProvider",
         );
     }
     return ctx;

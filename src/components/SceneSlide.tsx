@@ -1,13 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { BingeScene } from "../api/queries";
 import { ActionStack } from "./ActionStack";
 import { PerformerRow } from "./PerformerRow";
-import {
-    buildTranscodeSeekUrl,
-    isWebCompatible,
-    pickStreamUrl,
-} from "../util/pickStream";
+import { pickStreamUrl } from "../util/pickStream";
 import { MuteToggle } from "./MuteToggle";
 import { SceneProgress } from "./SceneProgress";
 import { getPersistedMuted, useMuteState } from "../hooks/useMuteState";
@@ -34,11 +29,7 @@ import { HeartBurst } from "./HeartBurst";
 import { SceneDetailsSheet } from "./SceneDetailsSheet";
 import { CriterionRatingModal } from "./CriterionRatingModal";
 import { MoreSheet } from "./MoreSheet";
-import {
-    useAutoScroll,
-    useAutoLoadCaptions,
-    useTranscodeType,
-} from "../home/pluginSettings";
+import { useAutoScroll, useTranscodeType } from "../home/pluginSettings";
 import { useScribeModal } from "../scribe/ScribeContext";
 
 interface SceneSlideProps {
@@ -66,7 +57,7 @@ interface SceneSlideProps {
     onCollectionChange?: (
         sceneId: string,
         tagName: string,
-        next: boolean
+        next: boolean,
     ) => void;
     // True while the parent Reel is mid-scroll. We defer assigning
     // video.src until scroll settles — without this, every transient
@@ -111,98 +102,7 @@ export function SceneSlide({
     currentlyScrolling = false,
     onAutoAdvance,
 }: SceneSlideProps) {
-    const { t } = useTranslation();
     const autoScroll = useAutoScroll();
-    const autoLoadCaptions = useAutoLoadCaptions();
-    // Caption <track> src — only when the toggle is on AND Stash reported
-    // at least one caption for this scene. We always pick the first;
-    // local libraries typically have a single subtitle file and the
-    // Stash scan already ordered them. language_code may be "" (no lang
-    // tag in filename) — passed through as-is; srclang falls back to
-    // "und" so the <track> stays valid HTML.
-    const captionTrack = useMemo(() => {
-        if (!autoLoadCaptions) return null;
-        const c = scene.captions?.[0];
-        if (!c) return null;
-        const lang = c.language_code ?? "";
-        return {
-            src: `/scene/${scene.id}/caption?lang=${encodeURIComponent(lang)}&type=${encodeURIComponent(c.caption_type)}`,
-            srclang: lang || "und",
-            label: lang || t("action.captions"),
-        };
-    }, [autoLoadCaptions, scene.id, scene.captions, t]);
-
-    // Custom caption rendering: we hide the native <track> display
-    // (mode=hidden) and render the active cue's text in a positioned
-    // <div> instead. This gives us full control over:
-    //   - position: anchored to the video CONTENT bottom (not the
-    //     element bottom), so 16:9 video on a portrait screen shows
-    //     captions above the letterbox area where the binge overlay
-    //     lives — no UI overlap.
-    //   - font size: scales with the rendered video width (not the
-    //     viewport), so captions shrink on narrow phones and grow on
-    //     fullscreen desktops.
-    //   - style: text-shadow outline instead of the default black box.
-    const captionRef = useRef<HTMLDivElement>(null);
-    const [captionText, setCaptionText] = useState("");
-    useEffect(() => {
-        const video = videoRef.current;
-        if (!video || !captionTrack) return;
-        const setup = () => {
-            for (let i = 0; i < video.textTracks.length; i++) {
-                const tr = video.textTracks[i];
-                if (tr.kind !== "subtitles") continue;
-                tr.mode = "hidden";
-                tr.oncuechange = () => {
-                    const cue = tr.activeCues?.[0] as VTTCue | undefined;
-                    setCaptionText(cue?.text ?? "");
-                };
-            }
-        };
-        setup();
-        video.addEventListener("loadstart", setup);
-        return () => video.removeEventListener("loadstart", setup);
-    }, [captionTrack, scene.id]);
-
-    // Position + font-size: recompute whenever the video element
-    // resizes (orientation change, fullscreen toggle, virtualizer
-    // re-measure). ResizeObserver covers all cases without needing
-    // per-event listeners.
-    useEffect(() => {
-        if (!captionTrack) return;
-        const video = videoRef.current;
-        const el = captionRef.current;
-        if (!video || !el) return;
-        const update = () => {
-            const vw = video.videoWidth;
-            const vh = video.videoHeight;
-            if (!vw || !vh) return;
-            const ratio = vw / vh;
-            const cr = video.clientWidth / video.clientHeight;
-            // object-fit: contain → video content is centered & scaled
-            let rw: number, rh: number;
-            if (ratio > cr) {
-                rw = video.clientWidth;
-                rh = rw / ratio;
-            } else {
-                rh = video.clientHeight;
-                rw = rh * ratio;
-            }
-            // Bottom offset = distance from element bottom to content
-            // bottom (letterbox gap) + 8px padding.
-            el.style.bottom = `${Math.max(8, (video.clientHeight - rh) / 2 + 8)}px`;
-            // Font size ~3% of rendered video width, clamped ≥10px.
-            el.style.fontSize = `${Math.max(10, rw * 0.03)}px`;
-        };
-        update();
-        video.addEventListener("loadedmetadata", update);
-        const ro = new ResizeObserver(update);
-        ro.observe(video);
-        return () => {
-            video.removeEventListener("loadedmetadata", update);
-            ro.disconnect();
-        };
-    }, [captionTrack, scene.id]);
     // Reactive — re-points mounted <video> src when the user changes
     // the stream type in Settings (the old getTranscodeType() read was
     // non-reactive, so mounted slides kept the stale stream).
@@ -215,23 +115,12 @@ export function SceneSlide({
     const [detailsOpen, setDetailsOpen] = useState(false);
     const [advancedRatingOpen, setAdvancedRatingOpen] = useState(false);
     const [moreOpen, setMoreOpen] = useState(false);
-    const [isFullscreen, setIsFullscreen] = useState(false);
-    const [fullscreenUIVisible, setFullscreenUIVisible] = useState(true);
-    const fullscreenUITimerRef = useRef<number | null>(null);
-
-    // ── Touch gesture state: horizontal swipe seek + long-press 2× ──
-    const touchStartRef = useRef<{ x: number; y: number; time: number; videoTime: number } | null>(null);
-    const isSwipeRef = useRef(false);
-    const longPressTimerRef = useRef<number | null>(null);
-    const isLongPressRef = useRef(false);
-    const [seekIndicator, setSeekIndicator] = useState<{ delta: number; current: number } | null>(null);
-    const [showSpeedBadge, setShowSpeedBadge] = useState(false);
 
     // Like state. Optimistic value lives here AND in the parent Reel
     // (oCountOverride) so a remount after scroll-away inherits the
     // user's most recent like rather than the stale server value.
     const [oCount, setOCount] = useState<number>(
-        oCountOverride ?? scene.o_counter ?? 0
+        oCountOverride ?? scene.o_counter ?? 0,
     );
     const [oError, setOError] = useState(false);
     const [bursts, setBursts] = useState<Burst[]>([]);
@@ -240,7 +129,7 @@ export function SceneSlide({
     // Rating (0–100). Same lifted-override pattern as oCount — Reel
     // owns the canonical value across virtualizer mount/unmount.
     const [rating100, setRating100Local] = useState<number | null>(
-        ratingOverride !== undefined ? ratingOverride : scene.rating100
+        ratingOverride !== undefined ? ratingOverride : scene.rating100,
     );
     useEffect(() => {
         if (ratingOverride !== undefined && ratingOverride !== rating100) {
@@ -255,9 +144,9 @@ export function SceneSlide({
     // can create new ones via the SaveSheet) — we subscribe to the
     // collections module so a new collection's row appears here
     // unchecked the moment it's created.
-    const [inCollections, setInCollections] = useState<
-        Record<string, boolean>
-    >(() => collectionsOverride ?? {});
+    const [inCollections, setInCollections] = useState<Record<string, boolean>>(
+        () => collectionsOverride ?? {},
+    );
     useEffect(() => {
         if (collectionsOverride) {
             setInCollections(collectionsOverride);
@@ -296,13 +185,13 @@ export function SceneSlide({
     // every queue change (this tab, other tabs, AND other clients via the
     // config poll started by startMultiviewSync).
     const [inMVQueue, setInMVQueue] = useState<boolean>(() =>
-        isInMultiviewQueue(scene.id)
+        isInMultiviewQueue(scene.id),
     );
     useEffect(() => {
         startMultiviewSync();
         setInMVQueue(isInMultiviewQueue(scene.id));
         return subscribeMultiviewQueue(() =>
-            setInMVQueue(isInMultiviewQueue(scene.id))
+            setInMVQueue(isInMultiviewQueue(scene.id)),
         );
     }, [scene.id]);
 
@@ -344,121 +233,33 @@ export function SceneSlide({
     //       state where you'd expect "load now" silently stays blank.
     //   (2) we need an explicit `video.load()` call right after setting
     //       src to force the browser to actually start fetching.
-    // 视频 poster 懒加载（修改9）：useEffect 增加 !isActive 守卫，视频源
-    // 只在卡片进入视口时才请求并加载。不在视口的卡片仅显示 poster 封面，
-    // 离开视口时由 IntersectionObserver 触发 pause()。大幅减少不可见卡片
-    // 的带宽与内存占用。
-    //
-    // 需求2：记录 base stream URL（不含 ?start=）到 ref，供 seekToTime
-    // 重建带 ?start=N 的转码 seek URL。同时添加调试日志便于排查快进问题。
-    const baseStreamUrlRef = useRef<string>("");
-    const needsTranscodeSeek = !isWebCompatible(scene);
-    // 转码硬 seek 偏移量：硬 seek 用 ?start=N 重建 src 后，新流的
-    // currentTime 从 0 重新计起，进度条需知道偏移量才能显示真实位置。
-    // 加载新基础流（换场景/重进视口）时重置为 0。
-    const [seekOffset, setSeekOffset] = useState(0);
-    // 上一次硬 seek 注册的事件监听清理函数。新一轮 seek 前先清理上一轮，
-    // 避免快速连续 seek 时监听器堆积；卸载时也调用。
-    const seekCleanupRef = useRef<(() => void) | null>(null);
+    // The effect deps `[currentlyScrolling, scene.id]` mean: on mount
+    // (or scene change) we assign src if scroll is settled; entering
+    // scroll = no-op (existing src stays whatever it was); leaving
+    // scroll = assign src on any slide that doesn't yet have it.
     useEffect(() => {
         const video = videoRef.current;
         if (!video) return;
         if (currentlyScrolling) return;
-        // 仅视口内（active）卡片加载视频源。
-        if (!isActive) return;
         const url = pickStreamUrl(scene, transcodeType);
-        baseStreamUrlRef.current = url;
         if (video.src !== url) {
             video.src = url;
             video.load();
-            // 新基础流从头开始，清除转码 seek 偏移量。
-            setSeekOffset(0);
         }
         // Kick playback for the active slide once src is settled. If
         // the IO fired play() mid-scroll (before src was assigned) it
         // rejected and won't re-fire, so the slide would otherwise sit
-        // frozen on its poster. Guarded by paused (don't double-play);
-        // isActive 已在上方守卫，无需重复判断。
-        if (video.paused) {
+        // frozen on its poster. Guarded by isActive (off-screen slides
+        // stay paused) and paused (don't double-play).
+        if (isActive && video.paused) {
             playPreferred(video);
         }
-    }, [currentlyScrolling, scene.id, isActive, transcodeType, needsTranscodeSeek]);
-
-    // 需求2 修复：转码流（avi/wmv/mkv/...）的 seek 处理。
-    // 原生 <video>.currentTime = N 依赖 HTTP Range 请求，而 Stash 的 live
-    // MP4 transcode 不稳定支持 Range → 快进会从头播放。改为"硬 seek"：
-    // 用 ?start={秒} 参数重建 src，触发 ffmpeg 从该时间点重新转码。
-    // web 兼容容器（mp4/webm/...）走直连流，原生 seek 正常，无需此路径。
-    // 同时添加调试日志便于排查。
-    const seekToTime = useCallback(
-        (time: number) => {
-            const video = videoRef.current;
-            if (!video) return;
-            if (!needsTranscodeSeek) {
-                // 原生 seek：直接设 currentTime
-                video.currentTime = time;
-                return;
-            }
-            // 转码硬 seek：重建 src 带 ?start=N
-            const baseUrl = baseStreamUrlRef.current;
-            if (!baseUrl) {
-                return;
-            }
-            const seekUrl = buildTranscodeSeekUrl(baseUrl, time);
-            // 记录偏移量：新流 currentTime 从 0 计起，进度条需加偏移量。
-            setSeekOffset(time);
-            // 先清理上一轮 seek 注册的监听器，避免快速连续 seek 时堆积。
-            seekCleanupRef.current?.();
-            // 先暂停当前播放，避免 seek 期间继续解码旧流
-            video.pause();
-            video.src = seekUrl;
-            video.load();
-            // 自动播放：wmv/avi 转码流可能在数据尚未真正就绪时就触发
-            // canplay，单次 play() 会以 AbortError 失败。canplay/
-            // loadeddata 每次加载只触发一次，若那次 play() 失败就再无
-            // 重试机会 → 视频停在暂停态（wmv 尤其明显）。修复：除了监听
-            // canplay/loadeddata，还启动 300ms 周期重试，直到 playing
-            // 事件确认播放成功或超时。cleanup 设置 done=true 后重试自动停止。
-            let done = false;
-            let retryTimer: number | null = null;
-            const cleanup = () => {
-                if (done) return;
-                done = true;
-                video.removeEventListener("canplay", onReady);
-                video.removeEventListener("loadeddata", onReady);
-                video.removeEventListener("playing", onPlaying);
-                if (retryTimer !== null) {
-                    window.clearTimeout(retryTimer);
-                    retryTimer = null;
-                }
-                seekCleanupRef.current = null;
-            };
-            const onPlaying = () => {
-                cleanup();
-            };
-            const onReady = () => {
-                if (done || !video.paused) return;
-                playPreferred(video);
-            };
-            // 周期重试：canplay 触发过早时 play() 以 AbortError 失败，
-            // playPreferred 内部不会重试 AbortError。这里每 300ms 检查
-            // 一次，若仍在暂停就再调 playPreferred，给转码流"追上"的时间。
-            const retryPlay = () => {
-                if (done || !video.paused) return;
-                playPreferred(video);
-                retryTimer = window.setTimeout(retryPlay, 300);
-            };
-            seekCleanupRef.current = cleanup;
-            video.addEventListener("canplay", onReady);
-            video.addEventListener("loadeddata", onReady);
-            video.addEventListener("playing", onPlaying);
-            // 首次延迟 300ms 启动周期重试（让 canplay 先有机会触发）
-            retryTimer = window.setTimeout(retryPlay, 300);
-            // 安全兜底：8 秒后若仍未播放，移除监听器避免泄漏
-            window.setTimeout(cleanup, 8000);
-        },
-        [needsTranscodeSeek, scene.id]
-    );
+        // `scene` and `playPreferred` are deliberately absent: the effect
+        // only cares about the scene's identity (any other field changing
+        // must not reassign src mid-playback), and playPreferred is rebuilt
+        // every render, which would reload the video on every paint.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentlyScrolling, scene.id, isActive, transcodeType]);
 
     // Explicit decoder cleanup on unmount. The browser doesn't release
     // hardware decoder slots aggressively — they linger until GC. Calling
@@ -467,9 +268,6 @@ export function SceneSlide({
     useEffect(() => {
         const video = videoRef.current;
         return () => {
-            // 清理可能残留的转码 seek 事件监听器。
-            seekCleanupRef.current?.();
-            seekCleanupRef.current = null;
             if (!video) return;
             try {
                 video.pause();
@@ -606,7 +404,7 @@ export function SceneSlide({
             scene.id,
             scene.tags.map((t) => t.id),
             tagName,
-            next
+            next,
         )
             .then((confirmed) => {
                 setInCollections((prev) => ({
@@ -657,9 +455,6 @@ export function SceneSlide({
             if (tapTimerRef.current !== null) {
                 window.clearTimeout(tapTimerRef.current);
             }
-            if (longPressTimerRef.current !== null) {
-                window.clearTimeout(longPressTimerRef.current);
-            }
         };
     }, []);
 
@@ -686,9 +481,7 @@ export function SceneSlide({
         const observer = new IntersectionObserver(
             (entries) => {
                 for (const entry of entries) {
-                    // 阈值 0.7：略严于 0.6，避免最后一部视频滑到边界时
-                    // 上一部仍 ≥0.6 触发双 active（同时播放两部声音）
-                    const active = entry.intersectionRatio >= 0.7;
+                    const active = entry.intersectionRatio >= 0.6;
                     setIsActive(active);
                     if (active) {
                         onActiveRef.current?.(scene.id);
@@ -704,11 +497,14 @@ export function SceneSlide({
                     }
                 }
             },
-            { threshold: [0, 0.7, 1] }
+            { threshold: [0, 0.6, 1] },
         );
 
         observer.observe(container);
         return () => observer.disconnect();
+        // playPreferred is rebuilt every render; listing it here would tear
+        // down and re-attach the observer on each one.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [scene.id]);
 
     // Track playing state for the tap indicator + accessibility
@@ -737,219 +533,7 @@ export function SceneSlide({
         }
     };
 
-    // ── Fullscreen toggle ──────────────────────────────────────────
-    const showFullscreenUI = useCallback(() => {
-        setFullscreenUIVisible(true);
-        if (fullscreenUITimerRef.current !== null) {
-            window.clearTimeout(fullscreenUITimerRef.current);
-        }
-        fullscreenUITimerRef.current = window.setTimeout(() => {
-            setFullscreenUIVisible(false);
-        }, 3000);
-    }, []);
-
-    const handleToggleFullscreen = useCallback(() => {
-        const el = containerRef.current;
-        if (!el) return;
-        const fsEl = document.fullscreenElement;
-        const isMine = fsEl === el;
-        if (!isMine) {
-            const reel = el.closest(".binge-reel") as HTMLElement | null;
-            if (reel) {
-                reel.style.height = `${reel.clientHeight}px`;
-            }
-            void el.requestFullscreen?.().then(() => {
-                // 横屏视频 → 锁定横屏方向（Android only，iOS 静默失败）
-                const video = videoRef.current;
-                if (video && video.videoWidth > video.videoHeight) {
-                    const orient = screen.orientation;
-                    if (orient && typeof orient.lock === "function") {
-                        orient.lock("landscape").catch(() => {});
-                    }
-                }
-            }).catch(() => {
-                if (reel) reel.style.height = "";
-            });
-        } else {
-            void document.exitFullscreen?.().then(() => {
-                const orient = screen.orientation;
-                if (orient && typeof orient.unlock === "function") {
-                    orient.unlock();
-                }
-            }).catch(() => {});
-        }
-    }, [scene.id]);
-
-    useEffect(() => {
-        const onChange = () => {
-            // 关键修复：判断全屏元素是否是当前卡片，而不是全局
-            // document.fullscreenElement。虚拟列表中多个 SceneSlide 实例
-            // 都监听 fullscreenchange，若不区分归属，任一卡片进入全屏
-            // 会让所有渲染中的卡片 isFullscreen=true，导致：
-            //   1. 非全屏卡片也应用全屏样式
-            //   2. 在其他卡片上点全屏时 document.fullscreenElement 已存在
-            //      → 调用 exitFullscreen → "闪一下退出" → resize → 视频重载
-            const fsEl = document.fullscreenElement;
-            const isMine = fsEl === containerRef.current;
-            setIsFullscreen(isMine);
-            if (isMine) {
-                showFullscreenUI();
-            } else if (!fsEl) {
-                // 完全退出全屏（无任何元素全屏）：清理 UI 定时器。
-                // 仅在真正退出全屏时触发，避免其他卡片进入全屏时
-                // 误触 resize 导致 Reel 重算、视频重载。
-                if (fullscreenUITimerRef.current !== null) {
-                    window.clearTimeout(fullscreenUITimerRef.current);
-                    fullscreenUITimerRef.current = null;
-                }
-                setFullscreenUIVisible(true);
-            }
-        };
-        document.addEventListener("fullscreenchange", onChange);
-        return () => document.removeEventListener("fullscreenchange", onChange);
-    }, [showFullscreenUI, scene.id]);
-
-    // Mouse move in fullscreen → show UI
-    useEffect(() => {
-        if (!isFullscreen) return;
-        const onMove = () => showFullscreenUI();
-        const el = containerRef.current;
-        if (el) el.addEventListener("mousemove", onMove);
-        return () => {
-            if (el) el.removeEventListener("mousemove", onMove);
-        };
-    }, [isFullscreen, showFullscreenUI]);
-
-    // Cleanup timer on unmount
-    useEffect(() => {
-        return () => {
-            if (fullscreenUITimerRef.current !== null) {
-                window.clearTimeout(fullscreenUITimerRef.current);
-            }
-        };
-    }, []);
-
-    // ── Touch: swipe seek + long-press 2× ──────────────────────────
-    // touch-action: pan-y on the tap target lets the browser handle
-    // vertical scroll (Reel slide navigation) while delivering
-    // horizontal swipes to us.
-    const TOUCH_SWIPE_THRESHOLD = 12; // px before deciding horizontal vs vertical
-    const SEEK_PX_TO_SEC = 0.6; // each pixel = 0.6 seconds of seek
-    const LONG_PRESS_MS = 500;
-
-    const handleTouchStart: React.TouchEventHandler = (e) => {
-        if (e.touches.length !== 1) return;
-        const video = videoRef.current;
-        const touch = e.touches[0];
-        touchStartRef.current = {
-            x: touch.clientX,
-            y: touch.clientY,
-            time: Date.now(),
-            videoTime: video?.currentTime ?? 0,
-        };
-        isSwipeRef.current = false;
-        isLongPressRef.current = false;
-        // Start long-press timer
-        if (longPressTimerRef.current !== null) {
-            window.clearTimeout(longPressTimerRef.current);
-        }
-        longPressTimerRef.current = window.setTimeout(() => {
-            if (!isSwipeRef.current && touchStartRef.current) {
-                isLongPressRef.current = true;
-                if (video) video.playbackRate = 2;
-                setShowSpeedBadge(true);
-            }
-        }, LONG_PRESS_MS);
-    };
-
-    const handleTouchMove: React.TouchEventHandler = (e) => {
-        if (!touchStartRef.current || e.touches.length !== 1) return;
-        const touch = e.touches[0];
-        const dx = touch.clientX - touchStartRef.current.x;
-        const dy = touch.clientY - touchStartRef.current.y;
-        if (!isSwipeRef.current) {
-            if (Math.abs(dx) < TOUCH_SWIPE_THRESHOLD && Math.abs(dy) < TOUCH_SWIPE_THRESHOLD) {
-                return; // not enough movement yet
-            }
-            // Decide direction once
-            if (Math.abs(dx) > Math.abs(dy)) {
-                isSwipeRef.current = true;
-                // Cancel long-press
-                if (longPressTimerRef.current !== null) {
-                    window.clearTimeout(longPressTimerRef.current);
-                    longPressTimerRef.current = null;
-                }
-            } else {
-                // Vertical — let browser handle scroll, cancel long-press
-                if (longPressTimerRef.current !== null) {
-                    window.clearTimeout(longPressTimerRef.current);
-                    longPressTimerRef.current = null;
-                }
-                touchStartRef.current = null;
-                return;
-            }
-        }
-        // Horizontal swipe: seek
-        e.preventDefault();
-        const video = videoRef.current;
-        if (!video) return;
-        const deltaSec = dx * SEEK_PX_TO_SEC;
-        const duration = video.duration || 0;
-        let target = touchStartRef.current.videoTime + deltaSec;
-        if (target < 0) target = 0;
-        if (duration > 0 && target > duration) target = duration;
-        setSeekIndicator({ delta: deltaSec, current: target });
-    };
-
-    const handleTouchEnd: React.TouchEventHandler = (e) => {
-        // Cancel long-press timer
-        if (longPressTimerRef.current !== null) {
-            window.clearTimeout(longPressTimerRef.current);
-            longPressTimerRef.current = null;
-        }
-        // Restore 2× speed
-        if (isLongPressRef.current) {
-            const video = videoRef.current;
-            if (video) video.playbackRate = 1;
-            setShowSpeedBadge(false);
-            isLongPressRef.current = false;
-            // Prevent click from firing (don't toggle play/pause)
-            e.preventDefault();
-            e.stopPropagation();
-            touchStartRef.current = null;
-            return;
-        }
-        // If horizontal swipe: perform the seek and prevent click
-        if (isSwipeRef.current && touchStartRef.current) {
-            const video = videoRef.current;
-            if (video) {
-                const dx = (e.changedTouches[0]?.clientX ?? touchStartRef.current.x) - touchStartRef.current.x;
-                const deltaSec = dx * SEEK_PX_TO_SEC;
-                const duration = video.duration || 0;
-                let target = touchStartRef.current.videoTime + deltaSec;
-                if (target < 0) target = 0;
-                if (duration > 0 && target > duration) target = duration;
-                seekToTime(target);
-            }
-            setSeekIndicator(null);
-            isSwipeRef.current = false;
-            // Prevent click from firing
-            e.preventDefault();
-            e.stopPropagation();
-            touchStartRef.current = null;
-            return;
-        }
-        // Simple tap — let click event fire normally for handleTap
-        touchStartRef.current = null;
-    };
-
     const handleTap = () => {
-        // In fullscreen, first tap shows UI; if UI already visible, toggle play/pause
-        if (isFullscreen && !fullscreenUIVisible) {
-            showFullscreenUI();
-            return;
-        }
-        if (isFullscreen) showFullscreenUI();
         if (tapTimerRef.current !== null) {
             // Second tap inside the window → double-tap like.
             window.clearTimeout(tapTimerRef.current);
@@ -970,8 +554,8 @@ export function SceneSlide({
         () =>
             scene.title ||
             scene.performers.map((p) => p.name).join(", ") ||
-            t("scene.scene_id", { id: scene.id }),
-        [scene.id, scene.title, scene.performers]
+            `Scene ${scene.id}`,
+        [scene.id, scene.title, scene.performers],
     );
     const detailsLine = scene.details?.trim() || "";
 
@@ -982,11 +566,7 @@ export function SceneSlide({
     return (
         <article
             ref={containerRef}
-            className={
-                "binge-slide" +
-                (isFullscreen ? " is-fullscreen" : "") +
-                (isFullscreen && !fullscreenUIVisible ? " fs-ui-hidden" : "")
-            }
+            className="binge-slide"
             data-scene-id={scene.id}
             data-active={isActive ? "true" : "false"}
         >
@@ -1007,22 +587,7 @@ export function SceneSlide({
                     if (!autoScroll || !isActive) return;
                     onAutoAdvance?.();
                 }}
-            >
-                {captionTrack && (
-                    <track
-                        kind="subtitles"
-                        src={captionTrack.src}
-                        srcLang={captionTrack.srclang}
-                        label={captionTrack.label}
-                        default
-                    />
-                )}
-            </video>
-            {captionTrack && (
-                <div className="binge-caption-track" ref={captionRef}>
-                    {captionText}
-                </div>
-            )}
+            />
             {/* Full-frame tap target. Sits above the video but below the
                 overlay/action-stack so taps in the video area toggle
                 play/pause while UI controls remain hot. */}
@@ -1030,27 +595,9 @@ export function SceneSlide({
                 type="button"
                 className="binge-tap-target"
                 onClick={handleTap}
-                onTouchStart={handleTouchStart}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleTouchEnd}
-                aria-label={isPlaying ? t("action.pause") : t("action.play")}
+                aria-label={isPlaying ? "Pause" : "Play"}
                 tabIndex={-1}
             />
-            {/* Seek indicator overlay (horizontal swipe) */}
-            {seekIndicator && (
-                <div className="binge-seek-indicator" aria-hidden="true">
-                    <span className="binge-seek-indicator-dir">
-                        {seekIndicator.delta >= 0 ? "▶▶" : "◀◀"}
-                    </span>
-                    <span className="binge-seek-indicator-time">
-                        {Math.round(seekIndicator.current)}s
-                    </span>
-                </div>
-            )}
-            {/* 2× speed badge (long press) */}
-            {showSpeedBadge && (
-                <div className="binge-speed-badge" aria-hidden="true">2×</div>
-            )}
             {bursts.length > 0 && (
                 <div className="binge-heart-burst-layer" aria-hidden="true">
                     {bursts.map((b) => (
@@ -1063,8 +610,7 @@ export function SceneSlide({
                 Instagram-style. Both fade in/out together on play state. */}
             <div
                 className={
-                    "binge-paused-overlay" +
-                    (isPlaying ? " is-hidden" : "")
+                    "binge-paused-overlay" + (isPlaying ? " is-hidden" : "")
                 }
             >
                 <MuteToggle muted={muted} onToggle={() => setMuted(!muted)} />
@@ -1083,7 +629,7 @@ export function SceneSlide({
                     type="button"
                     className="binge-caption"
                     onClick={() => setDetailsOpen(true)}
-                    aria-label={t("action.view_details")}
+                    aria-label="Show details"
                 >
                     <span className="binge-caption-line">
                         <span className="binge-caption-title">
@@ -1143,19 +689,8 @@ export function SceneSlide({
                 onOpenMultiviewPlayer={handleOpenMultiview}
                 onOpenScribe={handleOpenScribe}
                 onOpenMore={() => setMoreOpen(true)}
-                isFullscreen={isFullscreen}
-                onToggleFullscreen={handleToggleFullscreen}
-                fullscreenUIVisible={fullscreenUIVisible}
             />
-            <SceneProgress
-                videoRef={videoRef}
-                duration={stashDuration}
-                onSeekToTime={seekToTime}
-                seekOffset={seekOffset}
-                isFullscreen={isFullscreen}
-                fullscreenUIVisible={fullscreenUIVisible}
-                onInteract={showFullscreenUI}
-            />
+            <SceneProgress videoRef={videoRef} duration={stashDuration} />
         </article>
     );
 }

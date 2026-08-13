@@ -27,18 +27,15 @@ body,
     margin: 0;
     background: var(--bg-0);
     color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    font-family:
+        -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     overscroll-behavior: none;
 }
 
 .binge-app {
     position: relative;
-    /* 100dvh 让容器跟随 mobile Chrome 地址栏显隐动态变化。
-       地址栏显示时容器 = 当前视口高度，地址栏隐藏时容器扩展。
-       配合 .binge-reel / .binge-tab-scroll 同步使用 100dvh，
-       确保所有 tab 页面（含 Reel virtualizer 的 vi.size）跟实际视口一致。 */
-    height: 100dvh;
+    height: 100vh;
     width: 100vw;
     overflow: hidden;
 }
@@ -117,7 +114,8 @@ body,
     box-shadow: none !important;
 }
 .binge-showcase-blur .binge-performer-bubble {
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.95),
+    box-shadow:
+        0 0 0 2px rgba(255, 255, 255, 0.95),
         0 0 0 3px rgba(0, 0, 0, 0.45),
         0 2px 8px rgba(0, 0, 0, 0.55);
 }
@@ -206,9 +204,7 @@ body,
 /* ── Reel ──────────────────────────────────────────────────────────── */
 .binge-reel {
     position: relative;
-    /* 100dvh 跟随地址栏显隐：避免 vi.size 与 .binge-reel height 不一致
-       导致最后一部 wrapper 顶部无法对齐视口顶部（scroll max 不够）。 */
-    height: 100dvh;
+    height: 100vh;
     overflow-y: scroll;
     scroll-snap-type: y mandatory;
     scroll-behavior: smooth;
@@ -240,128 +236,12 @@ body,
     background: #000;
     overflow: hidden;
 }
-/* Fullscreen mode: container fills the screen, video stays contained */
-.binge-slide:fullscreen {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-.binge-slide:fullscreen .binge-video {
-    max-width: 100%;
-    max-height: 100%;
-}
-
-/* ── Fullscreen UI auto-hide ──────────────────────────────────── */
-/* When in fullscreen and UI is hidden, fade out all overlay elements */
-.binge-slide.is-fullscreen .binge-overlay,
-.binge-slide.is-fullscreen .binge-caption,
-.binge-actions.is-fullscreen {
-    transition: opacity 0.3s ease;
-}
-.binge-slide.is-fullscreen.fs-ui-hidden .binge-overlay,
-.binge-slide.is-fullscreen.fs-ui-hidden .binge-caption,
-.binge-actions.is-fullscreen.fs-ui-hidden {
-    opacity: 0;
-    pointer-events: none;
-}
-
-/* 方案 A：全屏 UI 淡出时进度条收细变淡，但常驻可见且可点击。
-   参考 YouTube / B 站 / Netflix 的"残留细条"设计：
-   - 热区缩小（仍保留足够点击区域）
-   - 可见条贴底边、去掉左右内边距，让细条横贯整个底部
-   - 半透明，弱化视觉重量，保持沉浸感
-   - 点击/悬停细条时通过 SceneProgress 的 onInteract 唤出完整 UI */
-.binge-progress {
-    transition: opacity 0.3s ease, height 0.3s ease, padding 0.3s ease, bottom 0.28s ease;
-}
-.binge-progress.is-fs-collapsed {
-    height: 10px;          /* 热区缩小但保证可点中 */
-    padding: 0 0;          /* 去掉左右内边距，细条横贯底部 */
-    opacity: 0.55;
-}
-.binge-progress.is-fs-collapsed::before {
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 2px;
-    background: rgba(255, 255, 255, 0.18);
-    transition: height 0.18s ease, bottom 0.18s ease, left 0.3s ease, right 0.3s ease, background 0.3s ease;
-}
-.binge-progress.is-fs-collapsed .binge-progress-fill {
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 2px;
-    opacity: 0.7;
-    transition: height 0.18s ease, bottom 0.18s ease, left 0.3s ease, right 0.3s ease, opacity 0.3s ease;
-}
-
-/* 全屏下隐藏非必要按钮（保留 喜欢/评分/全屏）。
-   用 display:none 而非 pointer-events:none + opacity:0.25，
-   这样按钮完全脱离布局，flex column 的 gap 不会为隐藏元素
-   保留空间，其他按钮自动靠拢，布局更紧凑。 */
-.binge-actions.is-fullscreen .binge-multiview-button,
-.binge-actions.is-fullscreen .binge-scribe-button,
-.binge-actions.is-fullscreen .binge-bookmark-button,
-.binge-actions.is-fullscreen .binge-more-button {
-    display: none;
-}
-
-/* 全屏下禁用 overlay 中所有交互元素。
-   overlay 本身就是 pointer-events: none（line 518），但后代元素
-   .binge-caption（line 550）、.binge-performer-row（line 601）、
-   .binge-follow-btn（line 711）都有自己的 pointer-events: auto。
-   必须用 * （所有后代元素）+ !important 覆盖所有层级的 auto。
-   overlay 内的按钮（头像、名字、收藏、标题）onClick 会打开
-   PerformerSheet / SceneDetailsSheet / PerformerProfile，但这些
-   组件都用 createPortal 渲染到 document.body，被全屏元素的堆叠
-   上下文遮挡 → 用户看不到目标页面，退出全屏后才发现已打开。 */
-.binge-slide.is-fullscreen .binge-overlay * {
-    pointer-events: none !important;
-}
 
 .binge-video {
     width: 100%;
     height: 100%;
     object-fit: contain;
     background: #000;
-}
-
-/* ── Caption (subtitle) styling ────────────────────────────────
-   Native <track> display is hidden (mode=hidden); cues are rendered
-   in a custom .binge-caption-track div positioned over the video
-   CONTENT area (not the element), so 16:9 video on a portrait screen
-   shows captions above the letterbox where the binge overlay lives.
-   The ::cue rules below are a fallback only. */
-.binge-video::cue {
-    background: transparent;
-    color: #fff;
-}
-.binge-caption-track {
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-    max-width: 92%;
-    text-align: center;
-    color: #fff;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-                 "Helvetica Neue", Arial, "Noto Sans", "PingFang SC",
-                 "Microsoft YaHei", "Hiragino Sans GB", sans-serif;
-    line-height: 1.3;
-    /* bottom + font-size set imperatively by SceneSlide based on the
-       rendered video content area (object-fit: contain math). */
-    text-shadow:
-        0 0 2px #000, 0 0 2px #000, 0 0 2px #000,
-        1px 1px 2px #000, -1px -1px 2px #000,
-        1px -1px 2px #000, -1px 1px 2px #000;
-    pointer-events: none;
-    z-index: 6;
-    white-space: pre-wrap;
-    word-break: break-word;
-    /* Hide the empty container when no cue is active. */
-}
-.binge-caption-track:empty {
-    display: none;
 }
 
 /* Full-slide tap target. Sits over the video; overlay text, action stack,
@@ -379,58 +259,10 @@ body,
     cursor: pointer;
     /* Suppress the iOS tap highlight + double-tap zoom */
     -webkit-tap-highlight-color: transparent;
-    /* pan-y: browser handles vertical scroll (Reel slide nav),
-       horizontal swipes delivered to our touch handlers for seek. */
-    touch-action: pan-y;
+    touch-action: manipulation;
 }
 .binge-tap-target:focus {
     outline: none;
-}
-
-/* Seek indicator (horizontal swipe) */
-.binge-seek-indicator {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 5;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.3rem;
-    padding: 0.8rem 1.2rem;
-    background: rgba(0, 0, 0, 0.75);
-    border-radius: 12px;
-    pointer-events: none;
-    backdrop-filter: blur(4px);
-}
-.binge-seek-indicator-dir {
-    font-size: 1.2rem;
-    color: rgba(255, 255, 255, 0.9);
-}
-.binge-seek-indicator-time {
-    font-size: 1rem;
-    font-weight: 600;
-    color: #fff;
-    font-variant-numeric: tabular-nums;
-}
-
-/* 2× speed badge (long press) */
-.binge-speed-badge {
-    position: absolute;
-    top: 1rem;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 5;
-    padding: 0.3rem 0.8rem;
-    background: rgba(255, 255, 255, 0.15);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 999px;
-    font-size: 0.85rem;
-    font-weight: 700;
-    color: #fff;
-    pointer-events: none;
-    backdrop-filter: blur(4px);
 }
 
 /* Centered paused-overlay: mute toggle on top, large play glyph below.
@@ -491,7 +323,9 @@ body,
     place-items: center;
     cursor: pointer;
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
-    transition: transform 0.18s ease, background 0.22s ease,
+    transition:
+        transform 0.18s ease,
+        background 0.22s ease,
         border-color 0.22s ease;
     pointer-events: auto;
 }
@@ -529,7 +363,9 @@ body,
     height: 2px;
     background: rgba(255, 255, 255, 0.22);
     border-radius: 2px;
-    transition: height 0.18s ease, bottom 0.18s ease;
+    transition:
+        height 0.18s ease,
+        bottom 0.18s ease;
 }
 .binge-progress.is-hovering::before {
     height: 4px;
@@ -546,7 +382,9 @@ body,
     border-radius: 2px;
     will-change: transform;
     pointer-events: none;
-    transition: height 0.18s ease, bottom 0.18s ease;
+    transition:
+        height 0.18s ease,
+        bottom 0.18s ease;
 }
 .binge-progress.is-hovering .binge-progress-fill {
     height: 4px;
@@ -562,29 +400,14 @@ body,
     /* Full-width so the gradient reaches the right edge; padding-right
        reserves space for the action stack so text never sits under it. */
     padding: 1.5rem 5.5rem 2.25rem 1.25rem;
-    background: linear-gradient(to top, rgba(0, 0, 0, 0.75) 0%, transparent 100%);
+    background: linear-gradient(
+        to top,
+        rgba(0, 0, 0, 0.75) 0%,
+        transparent 100%
+    );
     color: var(--text);
     pointer-events: none;
     z-index: 5;
-    /* Smooth shift when bottom-nav appears/disappears on mobile. */
-    transition: bottom 0.28s ease;
-}
-
-/* Mobile bottom-nav visible → shift overlay + actions + progress up
-   so they aren't covered by the 3.5rem nav bar (+ iOS safe-area).
-   Uses :has() to detect the nav's ACTUAL visibility (is-hidden class)
-   rather than a React state mirror — avoids any state/CSS sync lag.
-   Only matches non-fullscreen slides (the nav is behind the
-   fullscreen element anyway). .binge-bottom-nav only renders on
-   mobile (useIsMobile), so desktop is unaffected. */
-.binge-app:has(.binge-bottom-nav:not(.is-hidden)) .binge-slide:not(.is-fullscreen) .binge-overlay {
-    bottom: calc(3.5rem + env(safe-area-inset-bottom, 0));
-}
-.binge-app:has(.binge-bottom-nav:not(.is-hidden)) .binge-slide:not(.is-fullscreen) .binge-actions {
-    bottom: calc(8.5rem + env(safe-area-inset-bottom, 0));
-}
-.binge-app:has(.binge-bottom-nav:not(.is-hidden)) .binge-slide:not(.is-fullscreen) .binge-progress {
-    bottom: calc(3.5rem + env(safe-area-inset-bottom, 0));
 }
 
 .binge-studio {
@@ -610,7 +433,7 @@ body,
     cursor: pointer;
     text-align: left;
     width: 100%;
-    max-width: 90%;
+    max-width: 50%;
     display: block;
     /* The .binge-overlay parent has pointer-events: none so video taps
        still pass through to the play/pause target. Opt this button back
@@ -658,7 +481,6 @@ body,
     gap: 0.85rem;
     pointer-events: auto;
     z-index: 6;
-    transition: bottom 0.28s ease;
 }
 
 /* Performer row — Instagram-style stacked avatars + "A and B" name text */
@@ -710,7 +532,8 @@ body,
     background-position: center top;
     background-repeat: no-repeat;
     /* White ring keeps each circle separable when they overlap. */
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.95),
+    box-shadow:
+        0 0 0 2px rgba(255, 255, 255, 0.95),
         0 0 0 3px rgba(0, 0, 0, 0.45),
         0 2px 8px rgba(0, 0, 0, 0.55);
     overflow: hidden;
@@ -730,7 +553,8 @@ body,
     font-weight: 700;
     display: grid;
     place-items: center;
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.95),
+    box-shadow:
+        0 0 0 2px rgba(255, 255, 255, 0.95),
         0 0 0 3px rgba(0, 0, 0, 0.45);
 }
 
@@ -775,7 +599,10 @@ body,
     line-height: 1;
     margin-left: 0.4rem;
     pointer-events: auto;
-    transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease,
+    transition:
+        background 0.18s ease,
+        border-color 0.18s ease,
+        color 0.18s ease,
         opacity 0.18s ease;
     flex: 0 0 auto;
     text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
@@ -867,12 +694,10 @@ body,
    sheet's React owner sets `.is-exiting` on the root, waits for the
    animation to finish, then unmounts. See useSheetClose. */
 .binge-sheet-root.is-exiting .binge-sheet {
-    animation: binge-sheet-slide-out 0.26s
-        cubic-bezier(0.7, 0, 0.84, 0) both;
+    animation: binge-sheet-slide-out 0.26s cubic-bezier(0.7, 0, 0.84, 0) both;
 }
 .binge-sheet-root.is-exiting .binge-sheet-backdrop {
-    animation: binge-sheet-fade-out 0.26s
-        cubic-bezier(0.7, 0, 0.84, 0) both;
+    animation: binge-sheet-fade-out 0.26s cubic-bezier(0.7, 0, 0.84, 0) both;
 }
 @keyframes binge-sheet-slide-out {
     from {
@@ -1013,7 +838,9 @@ body,
     flex-direction: column;
     align-items: center;
     gap: 0.05rem;
-    transition: transform 0.18s ease, filter 0.22s ease;
+    transition:
+        transform 0.18s ease,
+        filter 0.22s ease;
     /* Drop shadow on the icon ensures contrast against bright video frames. */
     filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.85));
 }
@@ -1038,11 +865,17 @@ body,
 .binge-action-button.is-holding .binge-heart {
     color: #9ca3af !important;
     transform: scale(0.72);
-    transition: transform 1.5s ease-out, color 1.5s ease-out, filter 1.5s ease-out;
+    transition:
+        transform 1.5s ease-out,
+        color 1.5s ease-out,
+        filter 1.5s ease-out;
     filter: none;
 }
 .binge-action-button .binge-heart {
-    transition: color 0.2s ease, filter 0.2s ease, transform 0.2s ease;
+    transition:
+        color 0.2s ease,
+        filter 0.2s ease,
+        transform 0.2s ease;
 }
 
 /* Heart icon: outlined white by default; refract-pink (#f472b6) with glow
@@ -1051,12 +884,13 @@ body,
    the celebration is the one-shot burst (see .binge-heart-burst below). */
 .binge-heart {
     color: #fff;
-    transition: color 0.2s ease, filter 0.2s ease;
+    transition:
+        color 0.2s ease,
+        filter 0.2s ease;
 }
 .binge-action-button.is-active .binge-heart {
     color: #f472b6;
-    filter:
-        drop-shadow(0 0 6px rgba(244, 114, 182, 0.85))
+    filter: drop-shadow(0 0 6px rgba(244, 114, 182, 0.85))
         drop-shadow(0 0 14px rgba(244, 114, 182, 0.45));
 }
 
@@ -1073,13 +907,11 @@ body,
     position: absolute;
     bottom: -2rem;
     color: #f472b6;
-    filter:
-        drop-shadow(0 0 6px rgba(244, 114, 182, 0.7))
+    filter: drop-shadow(0 0 6px rgba(244, 114, 182, 0.7))
         drop-shadow(0 0 12px rgba(244, 114, 182, 0.35));
     will-change: transform, opacity;
     animation: binge-heart-rise var(--binge-burst-duration, 2400ms)
-        cubic-bezier(0.25, 0.7, 0.45, 1)
-        var(--binge-burst-delay, 0ms) forwards;
+        cubic-bezier(0.25, 0.7, 0.45, 1) var(--binge-burst-delay, 0ms) forwards;
 }
 
 @keyframes binge-heart-rise {
@@ -1123,14 +955,12 @@ body,
 }
 .binge-rate-button.is-active svg {
     color: #ffd24c;
-    filter:
-        drop-shadow(0 0 6px rgba(255, 210, 76, 0.65))
+    filter: drop-shadow(0 0 6px rgba(255, 210, 76, 0.65))
         drop-shadow(0 0 14px rgba(255, 210, 76, 0.35));
 }
 .binge-app.refract .binge-rate-button.is-active svg {
     color: rgba(var(--accent-rgb), 1);
-    filter:
-        drop-shadow(0 0 6px rgba(var(--accent-rgb), 0.65))
+    filter: drop-shadow(0 0 6px rgba(var(--accent-rgb), 0.65))
         drop-shadow(0 0 14px rgba(var(--accent-rgb), 0.35));
 }
 
@@ -1159,7 +989,9 @@ body,
     padding: 0.15rem;
     cursor: pointer;
     color: rgba(255, 255, 255, 0.45);
-    transition: color 0.12s ease, transform 0.12s ease;
+    transition:
+        color 0.12s ease,
+        transform 0.12s ease;
 }
 .binge-rate-star:hover,
 .binge-rate-star:focus-visible {
@@ -1183,14 +1015,12 @@ body,
 /* ── Multiview button ──────────────────────────────────────────────── */
 .binge-multiview-button.is-active svg {
     color: #6aa9ff;
-    filter:
-        drop-shadow(0 0 6px rgba(106, 169, 255, 0.65))
+    filter: drop-shadow(0 0 6px rgba(106, 169, 255, 0.65))
         drop-shadow(0 0 14px rgba(106, 169, 255, 0.35));
 }
 .binge-app.refract .binge-multiview-button.is-active svg {
     color: rgba(var(--accent-rgb), 1);
-    filter:
-        drop-shadow(0 0 6px rgba(var(--accent-rgb), 0.65))
+    filter: drop-shadow(0 0 6px rgba(var(--accent-rgb), 0.65))
         drop-shadow(0 0 14px rgba(var(--accent-rgb), 0.35));
 }
 
@@ -1283,7 +1113,9 @@ body,
     gap: 0.35rem;
     font-size: 0.82rem;
     font-weight: 500;
-    transition: background 0.12s ease, border-color 0.12s ease;
+    transition:
+        background 0.12s ease,
+        border-color 0.12s ease;
 }
 .binge-filter-sheet-chip:hover {
     background: rgba(255, 255, 255, 0.14);
@@ -1398,7 +1230,9 @@ body,
     color: rgba(255, 255, 255, 0.5);
     font-size: 1.15rem;
     font-weight: 700;
-    transition: color 0.12s ease, background 0.12s ease;
+    transition:
+        color 0.12s ease,
+        background 0.12s ease;
 }
 .binge-filter-sheet-preset-delete:hover {
     color: #ff6b6b;
@@ -1559,7 +1393,9 @@ body,
     font-size: 0.85rem;
     font-weight: 600;
     cursor: pointer;
-    transition: background 0.12s ease, color 0.12s ease;
+    transition:
+        background 0.12s ease,
+        color 0.12s ease;
 }
 .binge-save-sheet-create-confirm {
     background: #6aa9ff;
@@ -1591,14 +1427,12 @@ body,
 /* ── Bookmark / favourite button ───────────────────────────────────── */
 .binge-bookmark-button.is-active svg {
     color: #ffd24c;
-    filter:
-        drop-shadow(0 0 6px rgba(255, 210, 76, 0.7))
+    filter: drop-shadow(0 0 6px rgba(255, 210, 76, 0.7))
         drop-shadow(0 0 14px rgba(255, 210, 76, 0.4));
 }
 .binge-app.refract .binge-bookmark-button.is-active svg {
     color: rgba(var(--accent-rgb), 1);
-    filter:
-        drop-shadow(0 0 6px rgba(var(--accent-rgb), 0.7))
+    filter: drop-shadow(0 0 6px rgba(var(--accent-rgb), 0.7))
         drop-shadow(0 0 14px rgba(var(--accent-rgb), 0.4));
 }
 
@@ -1624,7 +1458,9 @@ body,
     pointer-events: none; /* children opt back in */
     opacity: 1;
     transform: translateY(0);
-    transition: opacity 0.28s ease, transform 0.28s ease;
+    transition:
+        opacity 0.28s ease,
+        transform 0.28s ease;
 }
 .binge-top-header.is-hidden {
     opacity: 0;
@@ -1639,7 +1475,7 @@ body,
 .binge-tabbar {
     display: flex;
     justify-content: center;
-    gap: 2.25rem;
+    gap: 1.5rem;
     line-height: 1.1;
 }
 
@@ -1647,17 +1483,19 @@ body,
     appearance: none;
     background: transparent;
     border: none;
-    padding: 0.3rem 0.15rem;
+    padding: 0.2rem 0.1rem;
     margin: 0;
     color: rgba(255, 255, 255, 0.6);
-    font-size: 1.425rem;
+    font-size: 0.95rem;
     font-weight: 600;
     letter-spacing: 0.01em;
     line-height: 1.1;
     cursor: pointer;
     /* Drop shadow so the bare-text labels stay readable over any frame. */
     text-shadow: 0 1px 4px rgba(0, 0, 0, 0.85);
-    transition: color 0.18s ease, transform 0.18s ease;
+    transition:
+        color 0.18s ease,
+        transform 0.18s ease;
     position: relative;
 }
 .binge-tabbar-link:hover {
@@ -1671,9 +1509,9 @@ body,
     content: "";
     position: absolute;
     left: 50%;
-    bottom: -6px;
-    width: 27px;
-    height: 3px;
+    bottom: -4px;
+    width: 18px;
+    height: 2px;
     background: #fff;
     border-radius: 2px;
     transform: translateX(-50%);
@@ -1681,6 +1519,10 @@ body,
 }
 
 /* ── Active filter chips (inside TopHeader, alongside TabBar) ──────── */
+.binge-filter-bar {
+    /* No fixed positioning, no gradient — inherits both from the parent
+       .binge-top-header so we don't double-paint the top scrim. */
+}
 .binge-filter-chips {
     display: flex;
     flex-wrap: wrap;
@@ -1714,7 +1556,10 @@ body,
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
-    transition: background 0.2s ease, border-color 0.2s ease, transform 0.18s ease;
+    transition:
+        background 0.2s ease,
+        border-color 0.2s ease,
+        transform 0.18s ease;
     line-height: 1;
 }
 .binge-filter-chip:hover,
@@ -1790,7 +1635,8 @@ body,
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
     border-radius: var(--radius);
-    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55),
+    box-shadow:
+        0 14px 40px rgba(0, 0, 0, 0.55),
         0 0 22px rgba(var(--accent-rgb), 0.18);
     padding: 0.5rem;
     pointer-events: auto;
@@ -1813,7 +1659,10 @@ body,
     font-weight: 600;
     padding: 0.35rem 0.7rem;
     border-radius: 999px;
-    transition: color 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+    transition:
+        color 0.18s ease,
+        background 0.18s ease,
+        border-color 0.18s ease;
 }
 .binge-chip-menu-tab:hover {
     color: #fff;
@@ -1956,7 +1805,9 @@ body,
     line-height: 1;
     padding: 0.35rem 0.5rem;
     border-radius: 6px;
-    transition: background 0.18s ease, color 0.18s ease;
+    transition:
+        background 0.18s ease,
+        color 0.18s ease;
 }
 .binge-preset-icon-button:hover {
     background: rgba(255, 255, 255, 0.06);
@@ -1972,8 +1823,7 @@ body,
 
 /* ── Following / Explore tab containers ────────────────────────────── */
 .binge-tab-scroll {
-    /* 100dvh 跟随地址栏显隐，与 .binge-app / .binge-reel 保持一致 */
-    height: 100dvh;
+    height: 100vh;
     overflow-y: auto;
     overscroll-behavior: contain;
     scrollbar-width: thin;
@@ -2023,7 +1873,9 @@ body,
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    transition: color 0.12s ease, background 0.12s ease;
+    transition:
+        color 0.12s ease,
+        background 0.12s ease;
 }
 .binge-tab-title-action:hover,
 .binge-tab-title-action:focus-visible {
@@ -2068,7 +1920,9 @@ body,
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    transition: color 0.12s ease, background 0.12s ease;
+    transition:
+        color 0.12s ease,
+        background 0.12s ease;
 }
 .binge-home-burger-btn:hover,
 .binge-home-burger-btn:focus-visible {
@@ -2133,8 +1987,6 @@ body,
 }
 .binge-settings-list {
     padding: 0.5rem 0;
-    max-width: 1100px;
-    margin: 0 auto;
 }
 .binge-settings-row {
     display: flex;
@@ -2177,28 +2029,6 @@ body,
     font-size: 0.88rem;
     min-width: 13rem;
     cursor: pointer;
-}
-
-/* v0.4.17：语言切换后出现的"同步 Stash 标签"按钮 */
-.binge-settings-sync-tags-btn {
-    display: block;
-    margin: -0.2rem 1.25rem 0.6rem auto;
-    padding: 0.4rem 0.9rem;
-    font-size: 0.82rem;
-    font-weight: 600;
-    color: #fff;
-    background: rgba(255, 180, 80, 0.18);
-    border: 1px solid rgba(255, 180, 80, 0.4);
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background 0.15s;
-}
-.binge-settings-sync-tags-btn:hover:not(:disabled) {
-    background: rgba(255, 180, 80, 0.28);
-}
-.binge-settings-sync-tags-btn:disabled {
-    opacity: 0.5;
-    cursor: default;
 }
 
 /* 5-button gender toggle strip — sits in the Settings row's
@@ -2292,7 +2122,10 @@ body,
     + .binge-settings-switch-track {
     background: rgba(var(--accent-rgb), 1);
 }
-.binge-settings-switch input:checked + .binge-settings-switch-track .binge-settings-switch-thumb {
+.binge-settings-switch
+    input:checked
+    + .binge-settings-switch-track
+    .binge-settings-switch-thumb {
     transform: translateX(calc(2.4rem - 1.35rem));
 }
 
@@ -2620,34 +2453,6 @@ body,
     outline: 2px solid rgba(255, 255, 255, 0.25);
     outline-offset: 1px;
 }
-
-/* 窄屏（手机）：控件下移到文字下方，输入框/下拉框占满宽度 */
-@media (max-width: 720px) {
-    .binge-settings-row {
-        flex-direction: column;
-        gap: 0.6rem;
-    }
-    .binge-settings-row-control {
-        align-self: stretch;
-        width: 100%;
-    }
-    .binge-settings-select,
-    .binge-settings-input {
-        min-width: 0;
-        width: 100%;
-    }
-    .binge-settings-url-row {
-        display: flex;
-        width: 100%;
-    }
-    .binge-settings-url-row .binge-settings-input {
-        flex: 1;
-    }
-    /* 性别按钮行：缩小按钮以避免溢出 */
-    .binge-settings-gender-row {
-        justify-content: flex-start;
-    }
-}
 .binge-settings-status-dot {
     width: 0.65rem;
     height: 0.65rem;
@@ -2810,7 +2615,9 @@ body,
     color: rgba(255, 255, 255, 0.4);
     font-size: 0.82rem;
 }
-/* full cover-image rendered by the inner .binge-saved-tile-single */
+.binge-saved-tile-cover.is-single {
+    /* full cover-image rendered by the inner .binge-saved-tile-single */
+}
 .binge-saved-tile-cover.is-mosaic {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -2826,14 +2633,14 @@ body,
     width: 100%;
     height: 100%;
     background-size: cover;
-    background-position: right center;
+    background-position: center;
     background-repeat: no-repeat;
 }
 
 .binge-saved-tile-cell {
     background-color: #222;
     background-size: cover;
-    background-position: right center;
+    background-position: center;
     background-repeat: no-repeat;
 }
 
@@ -2842,12 +2649,12 @@ body,
 }
 .binge-saved-tile-meta {
     display: flex;
-    align-items: center;
+    justify-content: space-between;
+    align-items: baseline;
     gap: 0.4rem;
     padding: 0 0.1rem;
 }
 .binge-saved-tile-name {
-    flex: 1;
     font-size: 0.95rem;
     font-weight: 600;
     color: #fff;
@@ -2982,12 +2789,16 @@ body,
     /* Non-favorited: muted ring. Favorites get accent + glow via the
        .is-favorite override below. */
     border: 3px solid rgba(255, 255, 255, 0.18);
-    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45),
+    box-shadow:
+        0 0 0 1px rgba(0, 0, 0, 0.45),
         0 10px 26px rgba(0, 0, 0, 0.55);
     display: grid;
     place-items: center;
     overflow: hidden;
-    transition: transform 0.2s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+    transition:
+        transform 0.2s ease,
+        box-shadow 0.22s ease,
+        border-color 0.22s ease;
 }
 /* Favorited: refract-pink "glass" ring — semi-translucent border with
    layered outer glow + inner glow for a luminous halo. Pink matches the
@@ -3017,7 +2828,8 @@ body,
 .binge-follow-card:focus-visible .binge-follow-avatar {
     transform: scale(1.04);
     border-color: #fff;
-    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45),
+    box-shadow:
+        0 0 0 1px rgba(0, 0, 0, 0.45),
         0 14px 32px rgba(0, 0, 0, 0.65),
         0 0 30px rgba(var(--accent-rgb), 0.55);
 }
@@ -3048,34 +2860,6 @@ body,
     color: var(--text-muted);
     letter-spacing: 0.04em;
     text-transform: uppercase;
-}
-
-/* Narrow screens: shrink avatars + gaps so 3 columns fit on phones
-   (≥320px). Default minmax(140px) only gives 2 columns below ~494px;
-   this override lowers the threshold to ~320px. Everything scales
-   proportionally — avatar, name, count, gap. */
-@media (max-width: 720px) {
-    .binge-following-grid {
-        grid-template-columns: repeat(auto-fill, minmax(95px, 1fr));
-        gap: 0.8rem 0.5rem;
-    }
-    .binge-follow-card {
-        gap: 0.35rem;
-    }
-    .binge-follow-avatar {
-        width: 85px;
-        height: 85px;
-        border-width: 2px;
-    }
-    .binge-follow-initial {
-        font-size: 2rem;
-    }
-    .binge-follow-name {
-        font-size: 0.82rem;
-    }
-    .binge-follow-count {
-        font-size: 0.65rem;
-    }
 }
 
 /* ── Explore grid (3-column scene wall, IG-style) ──────────────────── */
@@ -3127,76 +2911,6 @@ body,
 }
 .binge-explore-search::placeholder {
     color: rgba(255, 255, 255, 0.4);
-}
-
-/* ── 搜索历史下拉框 ────────────────────────────────────────────── */
-/* 输入框聚焦时显示，点击条目填充输入框。absolute 定位贴在输入框
-   下方，不占据文档流空间。binge-search-wrap 是输入框的相对定位
-   容器（position:relative），由各搜索组件包裹。 */
-.binge-search-wrap {
-    position: relative;
-    flex: 1 1 auto;
-    min-width: 0;
-    display: flex;
-}
-.binge-search-history {
-    position: absolute;
-    top: calc(100% + 4px);
-    left: 0;
-    right: 0;
-    z-index: 50;
-    background: #1a1a1a;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 10px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-    /* 芯片横向排列自动换行 */
-    padding: 0.5rem;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.4rem;
-    max-height: 320px;
-    overflow-y: auto;
-}
-.binge-search-history-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    max-width: 100%;
-    padding: 0.3rem 0.5rem 0.3rem 0.75rem;
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    border-radius: 999px;
-    color: rgba(255, 255, 255, 0.88);
-    font-size: 0.85rem;
-    line-height: 1.3;
-    cursor: pointer;
-    transition: background 0.15s ease, border-color 0.15s ease;
-}
-.binge-search-history-chip:hover {
-    background: rgba(255, 255, 255, 0.14);
-    border-color: rgba(255, 255, 255, 0.25);
-}
-.binge-search-history-chip-text {
-    /* 文字最多 12 字符，truncateLabel 已截断加省略号；CSS 再保险 */
-    max-width: 13em;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-.binge-search-history-chip-remove {
-    flex-shrink: 0;
-    width: 18px;
-    height: 18px;
-    display: grid;
-    place-items: center;
-    border-radius: 50%;
-    color: rgba(255, 255, 255, 0.45);
-    font-size: 1rem;
-    line-height: 1;
-}
-.binge-search-history-chip-remove:hover {
-    background: rgba(255, 255, 255, 0.18);
-    color: rgba(255, 255, 255, 0.95);
 }
 
 /* Tag chip row — IG Explore style. Horizontal scroll, no scrollbar,
@@ -3254,7 +2968,9 @@ body,
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    transition: background 0.15s ease, opacity 0.15s ease,
+    transition:
+        background 0.15s ease,
+        opacity 0.15s ease,
         visibility 0.15s ease;
 }
 .binge-explore-chips-chevron:hover {
@@ -3288,7 +3004,9 @@ body,
     line-height: 1.1;
     cursor: pointer;
     white-space: nowrap;
-    transition: background 0.15s ease, border-color 0.15s ease,
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease,
         color 0.15s ease;
 }
 .binge-explore-chip:hover {
@@ -3312,21 +3030,8 @@ body,
 
 .binge-explore-grid {
     display: grid;
-    /* 需求2：3:4 竖版封面，一行 2-4 个自适应窗口大小。
-       默认 2 列（窄窗口），随窗口变宽到 3 列、4 列，最多 4 列。
-       媒体查询控制 breakpoints，避免 auto-fill 在宽屏产生 5+ 列。 */
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 3px;
-}
-@media (min-width: 560px) {
-    .binge-explore-grid {
-        grid-template-columns: repeat(3, 1fr);
-    }
-}
-@media (min-width: 820px) {
-    .binge-explore-grid {
-        grid-template-columns: repeat(4, 1fr);
-    }
 }
 
 .binge-explore-tile {
@@ -3336,19 +3041,15 @@ body,
     margin: 0;
     cursor: pointer;
     position: relative;
-    /* 需求2：3:4 竖版（与图库封面、演员档案场景封面一致）。 */
-    aspect-ratio: 3 / 4;
+    aspect-ratio: 1 / 1;
     background-color: #111;
     background-size: cover;
-    background-position: right center;
+    background-position: center;
     background-repeat: no-repeat;
     overflow: hidden;
-    transition: filter 0.15s ease, transform 0.15s ease;
-    /* 需求2：grid 项默认 align-self:stretch 会与 aspect-ratio 产生循环依赖
-       （与 PackDetailSheet 修改 29 同类问题），显式 start 避免行高塌缩。 */
-    align-self: start;
-    width: 100%;
-    display: block;
+    transition:
+        filter 0.15s ease,
+        transform 0.15s ease;
 }
 .binge-explore-tile:hover,
 .binge-explore-tile:focus-visible {
@@ -3412,7 +3113,9 @@ body,
     cursor: pointer;
     padding: 0.15rem 0.3rem;
     border-radius: 6px;
-    transition: color 0.18s ease, background 0.18s ease;
+    transition:
+        color 0.18s ease,
+        background 0.18s ease;
 }
 .binge-see-all:hover,
 .binge-see-all:focus-visible {
@@ -3473,7 +3176,9 @@ body,
     justify-content: center;
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
-    transition: background 0.15s ease, opacity 0.15s ease;
+    transition:
+        background 0.15s ease,
+        opacity 0.15s ease;
 }
 .binge-stories-chevron:hover,
 .binge-stories-chevron:focus-visible {
@@ -3714,16 +3419,7 @@ body,
     color: var(--text-muted);
     opacity: 0.7;
 }
-.binge-following-empty,
-.binge-status.binge-following-empty {
-    /* 覆盖 .binge-status 的 height:100vh —— 收藏夹为空时占位过高
-       会把"所有演员"行挤到第二屏。要求：空白占位高度等于一个演员
-       资料卡的高度（avatar 110 + gap 8 + name 行高 + count 行高）。
-       用双类选择器 .binge-status.binge-following-empty 提升特异性，
-       确保覆盖源码顺序在后的 .binge-status { height:100vh }。
-       min-height 兜底，保留文字垂直居中。 */
-    height: auto;
-    min-height: 180px;
+.binge-following-empty {
     padding: 0.5rem 0;
 }
 
@@ -3758,48 +3454,8 @@ body,
     cursor: progress;
 }
 @keyframes binge-spin {
-    to { transform: rotate(360deg); }
-}
-
-/* Scroll-to-top button — appears on Home after scrolling past one
-   viewport height. Fixed at bottom-right; lifts above the mobile
-   bottom nav when it's visible (same :has() pattern as the reel). */
-.binge-scroll-top {
-    position: fixed;
-    right: 1rem;
-    bottom: calc(1rem + env(safe-area-inset-bottom, 0));
-    z-index: 50;
-    width: 42px;
-    height: 42px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.12);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: bottom 0.28s ease, opacity 0.2s ease, transform 0.2s ease;
-}
-.binge-scroll-top:hover {
-    background: rgba(255, 255, 255, 0.2);
-}
-.binge-scroll-top:active {
-    transform: scale(0.92);
-}
-.binge-app:has(.binge-bottom-nav:not(.is-hidden)) .binge-scroll-top {
-    bottom: calc(4.5rem + env(safe-area-inset-bottom, 0));
-}
-@media (max-width: 720px) {
-    .binge-scroll-top {
-        width: 36px;
-        height: 36px;
-    }
-    .binge-scroll-top svg {
-        width: 18px;
-        height: 18px;
+    to {
+        transform: rotate(360deg);
     }
 }
 
@@ -3846,12 +3502,7 @@ body,
     width: 7px;
     height: 7px;
     border-radius: 50%;
-    background: linear-gradient(
-        135deg,
-        #f472b6 0%,
-        #a855f7 50%,
-        #6aa9ff 100%
-    );
+    background: linear-gradient(135deg, #f472b6 0%, #a855f7 50%, #6aa9ff 100%);
     border: 1.5px solid var(--bg-0, #0a0a0a);
     box-sizing: border-box;
 }
@@ -3891,7 +3542,9 @@ body,
     color: rgba(255, 255, 255, 0.55);
     cursor: pointer;
     text-align: left;
-    transition: background 0.12s ease, color 0.12s ease;
+    transition:
+        background 0.12s ease,
+        color 0.12s ease;
 }
 .binge-feed-filter-item:hover {
     background: rgba(255, 255, 255, 0.06);
@@ -3946,12 +3599,7 @@ body,
     /* binge's identity gradient — pink (--accent) → purple →
        blue (bingeLink). Replaces the IG-quote pink→orange ring
        so the ring matches the rest of the two-tone palette. */
-    background: linear-gradient(
-        45deg,
-        #f472b6 0%,
-        #a855f7 50%,
-        #6aa9ff 100%
-    );
+    background: linear-gradient(45deg, #f472b6 0%, #a855f7 50%, #6aa9ff 100%);
     padding: 3px;
     display: block;
     transition: filter 0.18s ease;
@@ -3964,7 +3612,6 @@ body,
 /* Story rings keep Instagram's signature gradient regardless of theme —
    the ring is a strong visual anchor and the IG colours read more
    reliably as "has new content" than an accent-tinted variant did. */
-
 
 .binge-story-avatar {
     box-sizing: border-box;
@@ -4000,31 +3647,6 @@ body,
     -webkit-line-clamp: 1;
     line-clamp: 1;
     -webkit-box-orient: vertical;
-}
-
-/* Narrow screens: shrink Stories row avatars to match Following tab
-   proportions. Stories is a horizontal scroller (not a grid), so we
-   only scale the avatar + name — no column-count change needed. */
-@media (max-width: 720px) {
-    .binge-stories-scroller {
-        gap: 0.5rem;
-    }
-    .binge-story {
-        width: 62px;
-        gap: 0.3rem;
-    }
-    .binge-story-ring {
-        width: 58px;
-        height: 58px;
-        padding: 2px;
-    }
-    .binge-story-initial {
-        font-size: 1.3rem;
-    }
-    .binge-story-name {
-        font-size: 0.65rem;
-        max-width: 62px;
-    }
 }
 
 /* Discover performers horizontal scroller (Explore tab). */
@@ -4073,12 +3695,16 @@ body,
     background-position: center top;
     background-repeat: no-repeat;
     border: 2px solid rgba(255, 255, 255, 0.2);
-    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4),
+    box-shadow:
+        0 0 0 1px rgba(0, 0, 0, 0.4),
         0 6px 18px rgba(0, 0, 0, 0.45);
     display: grid;
     place-items: center;
     overflow: hidden;
-    transition: border-color 0.22s ease, box-shadow 0.22s ease, transform 0.2s ease;
+    transition:
+        border-color 0.22s ease,
+        box-shadow 0.22s ease,
+        transform 0.2s ease;
 }
 .binge-discover-card.is-favorite .binge-discover-avatar {
     border-color: rgba(244, 114, 182, 0.85);
@@ -4129,8 +3755,12 @@ body,
     animation: binge-modal-fade 0.18s ease-out;
 }
 @keyframes binge-modal-fade {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
 }
 
 .binge-modal {
@@ -4141,7 +3771,8 @@ body,
     max-height: 88vh;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6),
+    box-shadow:
+        0 24px 60px rgba(0, 0, 0, 0.6),
         0 0 30px rgba(var(--accent-rgb), 0.18);
     overflow: hidden;
 }
@@ -4170,7 +3801,9 @@ body,
     line-height: 1;
     padding: 0.2rem 0.5rem;
     border-radius: 8px;
-    transition: color 0.18s ease, background 0.18s ease;
+    transition:
+        color 0.18s ease,
+        background 0.18s ease;
 }
 .binge-modal-close:hover {
     color: #fff;
@@ -4254,14 +3887,17 @@ body,
     flex-direction: column;
     gap: 0.35rem;
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
-    transition: transform 0.18s ease, border-color 0.22s ease,
+    transition:
+        transform 0.18s ease,
+        border-color 0.22s ease,
         box-shadow 0.22s ease;
 }
 .binge-preset-card:hover,
 .binge-preset-card:focus-visible {
     transform: translateY(-2px);
     border-color: rgba(var(--accent-rgb), 0.55);
-    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.55),
+    box-shadow:
+        0 10px 26px rgba(0, 0, 0, 0.55),
         0 0 22px rgba(var(--accent-rgb), 0.32);
 }
 
@@ -4316,7 +3952,9 @@ body,
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
-    transition: background 0.18s ease, border-color 0.18s ease,
+    transition:
+        background 0.18s ease,
+        border-color 0.18s ease,
         transform 0.18s ease;
 }
 .binge-tag-pill:hover,
@@ -4383,26 +4021,6 @@ body,
     text-align: center;
 }
 
-/* 需求7：卡片宽度自适应。移动端铺满（100%），PC 端适当留空。
-   通过 CSS 变量 --binge-card-max 统一控制 wrapper/card/discovery
-   三处的 max-width，避免分散修改。断点：
-     移动端 (< 720px)  : 无 max-width 约束，width:100% 铺满
-     平板 (≥ 720px)    : 680px，两侧留白
-     桌面 (≥ 1100px)   : 840px，更宽且与平板拉开差距 */
-.binge-feed {
-    --binge-card-max: none;
-}
-@media (min-width: 720px) {
-    .binge-feed {
-        --binge-card-max: 680px;
-    }
-}
-@media (min-width: 1100px) {
-    .binge-feed {
-        --binge-card-max: 840px;
-    }
-}
-
 /* Each virtual card wrapper. Absolute-positioned inside .binge-feed;
    horizontally centered via translateX(-50%) on `left: 50%`. The
    vertical translate component is set inline per-card from the
@@ -4414,10 +4032,9 @@ body,
     top: 0;
     left: 50%;
     width: 100%;
-    max-width: var(--binge-card-max, none);
+    max-width: 470px;
     padding-bottom: 1.5rem;
     box-sizing: border-box;
-    transition: max-width 0.25s ease;
 }
 
 /* Sentinel + load-more indicator at the end of the feed. Acts as the
@@ -4432,17 +4049,15 @@ body,
 
 .binge-feed-card {
     width: 100%;
-    max-width: var(--binge-card-max, none);
+    max-width: 470px;
     background: var(--bg-1, #111);
     border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: 14px;
     overflow: hidden;
     box-shadow: 0 4px 18px rgba(0, 0, 0, 0.3);
-    transition: max-width 0.25s ease;
 }
 .binge-app.refract .binge-feed-card {
-    background: var(--glass-bg, #00000080);
-    background-color: #0d0d0d;
+    background: var(--glass-bg, rgba(255, 255, 255, 0.04));
     border-color: rgba(255, 255, 255, 0.08);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
@@ -4455,7 +4070,7 @@ body,
 */
 .binge-discovery-card {
     width: 100%;
-    max-width: var(--binge-card-max, none);
+    max-width: 470px;
     background: var(--bg-1, #111);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 14px;
@@ -4463,11 +4078,9 @@ body,
     box-shadow: 0 4px 18px rgba(0, 0, 0, 0.3);
     display: flex;
     flex-direction: column;
-    transition: max-width 0.25s ease;
 }
 .binge-app.refract .binge-discovery-card {
-    background: var(--glass-bg, #00000080);
-    background-color: #0d0d0d;
+    background: var(--glass-bg, rgba(255, 255, 255, 0.04));
     border-color: rgba(255, 255, 255, 0.1);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
@@ -4506,8 +4119,7 @@ body,
     align-items: center;
     flex: 0 0 auto;
 }
-.binge-discovery-card-avatar-stack
-    > .binge-hovercard-trigger:not(:first-child),
+.binge-discovery-card-avatar-stack > .binge-hovercard-trigger:not(:first-child),
 .binge-discovery-card-avatar-stack
     > .binge-discovery-card-avatar:not(:first-child) {
     margin-left: -14px;
@@ -4601,9 +4213,6 @@ body,
     width: 100%;
     height: 100%;
     object-fit: cover;
-    /* Bug 4：发现页的影片封面右对齐。横版封面被裁切到 16:9 时，
-       右对齐能保留动作区域。 */
-    object-position: right center;
     display: block;
 }
 .binge-discovery-card-cover-empty {
@@ -4623,7 +4232,6 @@ body,
     /* Two-line clamp — long StashDB titles look messy past that. */
     display: -webkit-box;
     -webkit-line-clamp: 2;
-    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
@@ -4681,7 +4289,9 @@ body,
     padding: 0.45rem 0.85rem;
     border-radius: 999px;
     cursor: pointer;
-    transition: background 0.15s ease, filter 0.15s ease;
+    transition:
+        background 0.15s ease,
+        filter 0.15s ease;
     white-space: nowrap;
 }
 .binge-discovery-card-follow:hover:not(:disabled),
@@ -4804,7 +4414,9 @@ body,
     font-weight: 600;
     padding: 0.5rem 0.7rem;
     cursor: pointer;
-    transition: background 0.15s ease, filter 0.15s ease;
+    transition:
+        background 0.15s ease,
+        filter 0.15s ease;
     border: none;
 }
 .binge-performer-hovercard-open {
@@ -5113,7 +4725,9 @@ body,
     display: grid;
     place-items: center;
     flex: 0 0 32px;
-    transition: background 0.15s ease, color 0.15s ease;
+    transition:
+        background 0.15s ease,
+        color 0.15s ease;
 }
 .binge-card-menu-trigger:hover,
 .binge-card-menu-trigger:focus-visible,
@@ -5240,7 +4854,9 @@ body,
     padding: 0.5rem 0.6rem;
     width: 100%;
     box-sizing: border-box;
-    transition: border-color 0.15s ease, background 0.15s ease;
+    transition:
+        border-color 0.15s ease,
+        background 0.15s ease;
     font-family: inherit;
 }
 .binge-follow-modal-input:focus,
@@ -5281,7 +4897,9 @@ body,
     font-weight: 600;
     padding: 0.7rem 0.9rem;
     cursor: pointer;
-    transition: background 0.15s ease, filter 0.15s ease;
+    transition:
+        background 0.15s ease,
+        filter 0.15s ease;
 }
 .binge-follow-modal-cancel {
     background: rgba(255, 255, 255, 0.06);
@@ -5335,7 +4953,6 @@ body,
     align-items: center;
     flex: 1 1 auto;
     min-width: 0;
-    gap: 0.55rem;
 }
 /* Pack cards wrap the SINGLE avatar in a hovercard too (regular
    scene cards stack multiple avatars without per-avatar hovercards).
@@ -5344,10 +4961,6 @@ body,
    trigger to content width so only the name trigger expands. */
 .binge-feed-card-author
     > .binge-hovercard-trigger:has(.binge-pack-card-avatar) {
-    flex: 0 0 auto;
-}
-.binge-feed-card-author
-    > .binge-hovercard-trigger:has(.binge-feed-card-avatar) {
     flex: 0 0 auto;
 }
 
@@ -5383,7 +4996,7 @@ body,
     height: 13px;
     margin: 0 0.18em 0 0.25em;
     vertical-align: -1px;
-    color: #3897F0;
+    color: #3897f0;
 }
 .binge-feed-card-verified.is-favorite {
     color: rgba(244, 114, 182, 1);
@@ -5453,12 +5066,7 @@ body,
     justify-content: center;
     padding: 2px;
     border-radius: 50%;
-    background: linear-gradient(
-        45deg,
-        #f472b6 0%,
-        #a855f7 50%,
-        #6aa9ff 100%
-    );
+    background: linear-gradient(45deg, #f472b6 0%, #a855f7 50%, #6aa9ff 100%);
     box-sizing: border-box;
     position: relative;
 }
@@ -5483,43 +5091,7 @@ body,
     cursor: default;
 }
 .binge-app.refract .binge-feed-card-stack-avatar {
-    border-color: var(--glass-bg, #00000080);
-}
-
-/* 需求5：GalleryFeedCard 使用的单头像样式。原本此 class 无 CSS 定义，
-   导致图库卡片 header 头像区域显示为白底无头像。复用 stack-avatar
-   的尺寸/圆形/背景规则，使图库卡片与场景卡片头像视觉一致。 */
-.binge-feed-card-avatar {
-    appearance: none;
-    width: 34px;
-    height: 34px;
-    border-radius: 50%;
-    background-color: var(--bg-2, #222);
-    background-size: cover;
-    background-position: center top;
-    background-repeat: no-repeat;
-    border: none;
-    box-sizing: border-box;
-    flex: 0 0 34px;
-    display: grid;
-    place-items: center;
-    overflow: hidden;
-    color: #fff;
-}
-.binge-feed-card-avatar-ring {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 2px;
-    border-radius: 50%;
-    background: linear-gradient(
-        45deg,
-        #f472b6 0%,
-        #a855f7 50%,
-        #6aa9ff 100%
-    );
-    box-sizing: border-box;
-    flex: 0 0 auto;
+    border-color: var(--glass-bg, rgba(255, 255, 255, 0.04));
 }
 
 .binge-feed-card-name {
@@ -5645,7 +5217,9 @@ body,
     gap: 0.3rem;
     padding: 0.25rem 0.3rem;
     border-radius: 6px;
-    transition: background 0.15s ease, color 0.15s ease;
+    transition:
+        background 0.15s ease,
+        color 0.15s ease;
     font-size: 0.85rem;
     font-weight: 600;
 }
@@ -5674,7 +5248,9 @@ body,
     justify-content: center;
     padding: 0.25rem 0.3rem;
     border-radius: 6px;
-    transition: background 0.15s ease, color 0.15s ease;
+    transition:
+        background 0.15s ease,
+        color 0.15s ease;
 }
 .binge-feed-card-iconbtn:hover,
 .binge-feed-card-iconbtn:focus-visible {
@@ -5705,7 +5281,10 @@ body,
     padding: 0.4rem 0.8rem;
     border-radius: 999px;
     cursor: pointer;
-    transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+    transition:
+        background 0.15s ease,
+        color 0.15s ease,
+        transform 0.15s ease;
 }
 .binge-feed-card-cta:hover,
 .binge-feed-card-cta:focus-visible {
@@ -5735,7 +5314,7 @@ body,
 .binge-gallery-carousel {
     display: flex;
     width: 100%;
-    aspect-ratio: 4 / 3;
+    aspect-ratio: 1 / 1;
     overflow-x: auto;
     scroll-snap-type: x mandatory;
     scroll-behavior: smooth;
@@ -5761,7 +5340,6 @@ body,
     scroll-snap-align: start;
     scroll-snap-stop: always;
     cursor: pointer;
-    object-fit: cover;
 }
 .binge-gallery-slide:focus {
     outline: none;
@@ -5770,6 +5348,8 @@ body,
 /* End-of-carousel "View gallery →" panel. Visually distinct from image
    slides — solid background + centered CTA. */
 .binge-gallery-end {
+    background-color: rgba(var(--accent-rgb, 244, 114, 182), 0.18);
+    background-image: none;
     display: grid;
     place-items: center;
     cursor: pointer;
@@ -5812,8 +5392,7 @@ body,
     border-radius: 999px;
     font-size: 0.75rem;
     font-weight: 600;
-    pointer-events: auto;
-    cursor: pointer;
+    pointer-events: none;
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
 }
@@ -5835,7 +5414,9 @@ body,
     border-radius: 50%;
     cursor: pointer;
     padding: 0;
-    transition: background 0.15s ease, transform 0.15s ease;
+    transition:
+        background 0.15s ease,
+        transform 0.15s ease;
 }
 .binge-gallery-dot:hover {
     background: rgba(255, 255, 255, 0.45);
@@ -5863,7 +5444,9 @@ body,
     font-size: 0.85rem;
     font-weight: 500;
     color: #6aa9ff;
-    transition: color 0.12s ease, text-decoration 0.12s ease;
+    transition:
+        color 0.12s ease,
+        text-decoration 0.12s ease;
 }
 .binge-feed-card-hashtag:hover,
 .binge-feed-card-hashtag:focus-visible {
@@ -5976,7 +5559,9 @@ body,
     cursor: pointer;
     display: grid;
     place-items: center;
-    transition: background 0.15s ease, transform 0.15s ease;
+    transition:
+        background 0.15s ease,
+        transform 0.15s ease;
 }
 .binge-story-viewer-close:hover,
 .binge-story-viewer-close:focus-visible {
@@ -6369,7 +5954,9 @@ body,
     padding: 0.65rem 1rem;
     border-radius: 999px;
     cursor: pointer;
-    transition: background 0.15s ease, transform 0.15s ease;
+    transition:
+        background 0.15s ease,
+        transform 0.15s ease;
 }
 .binge-story-viewer-cta:hover,
 .binge-story-viewer-cta:focus-visible {
@@ -6396,14 +5983,15 @@ body,
     border-radius: 10px;
     background-color: #1a1a1a;
     background-size: cover;
-    /* 需求2：周围 peek 卡片图片右对齐，与中间播放卡片一致，
-       保留主体动作区域。 */
-    background-position: right center;
+    background-position: center;
     flex: 0 0 auto;
     aspect-ratio: 9 / 16;
     position: relative;
     overflow: hidden;
-    transition: transform 0.2s ease, opacity 0.2s ease, filter 0.2s ease;
+    transition:
+        transform 0.2s ease,
+        opacity 0.2s ease,
+        filter 0.2s ease;
 }
 .binge-story-viewer-peek.is-distance-1 {
     height: min(46vh, 460px);
@@ -6455,7 +6043,10 @@ body,
     place-items: center;
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
-    transition: background 0.18s ease, transform 0.18s ease, opacity 0.18s ease;
+    transition:
+        background 0.18s ease,
+        transform 0.18s ease,
+        opacity 0.18s ease;
 }
 .binge-story-viewer-chevron svg {
     width: 22px;
@@ -6515,8 +6106,14 @@ body,
     color: #fff;
 }
 @keyframes binge-profile-fade {
-    from { opacity: 0; transform: translateY(8px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* Sticky top bar starts transparent so the avatar peeks through; ramps
@@ -6532,7 +6129,9 @@ body,
     height: 56px;
     padding: 0 0.5rem;
     background: transparent;
-    transition: background 0.22s ease, backdrop-filter 0.22s ease,
+    transition:
+        background 0.22s ease,
+        backdrop-filter 0.22s ease,
         border-color 0.22s ease;
     border-bottom: 1px solid transparent;
 }
@@ -6555,7 +6154,9 @@ body,
     display: grid;
     place-items: center;
     cursor: pointer;
-    transition: background 0.18s ease, opacity 0.18s ease;
+    transition:
+        background 0.18s ease,
+        opacity 0.18s ease;
 }
 .binge-profile-back svg,
 .binge-profile-more svg {
@@ -6596,7 +6197,7 @@ body,
     place-items: center;
     width: 16px;
     height: 16px;
-    color: #3897F0;
+    color: #3897f0;
 }
 .binge-profile-verified.is-favorite {
     color: rgba(244, 114, 182, 1);
@@ -6617,7 +6218,9 @@ body,
     scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
     padding-bottom: 2rem;
 }
-.binge-profile-body::-webkit-scrollbar { width: 6px; }
+.binge-profile-body::-webkit-scrollbar {
+    width: 6px;
+}
 .binge-profile-body::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.2);
     border-radius: 3px;
@@ -6702,7 +6305,9 @@ body,
     display: grid;
     place-items: center;
     color: #fff;
-    transition: transform 0.18s ease, border-color 0.18s ease;
+    transition:
+        transform 0.18s ease,
+        border-color 0.18s ease;
 }
 .binge-discover-bubble-img.is-in-library {
     /* IG-verified blue (`#3897F0`) for performers already in the
@@ -6729,24 +6334,7 @@ body,
     text-overflow: ellipsis;
     display: -webkit-box;
     -webkit-line-clamp: 2;
-    line-clamp: 2;
     -webkit-box-orient: vertical;
-}
-@media (max-width: 720px) {
-    .binge-discover-bubble {
-        flex: 0 0 62px;
-    }
-    .binge-discover-bubble-img {
-        width: 56px;
-        height: 56px;
-    }
-    .binge-discover-bubble-initial {
-        font-size: 1.2rem;
-    }
-    .binge-discover-bubble-name {
-        font-size: 0.7rem;
-        max-width: 62px;
-    }
 }
 .binge-discover-bar-chevron {
     appearance: none;
@@ -6759,17 +6347,11 @@ body,
     display: grid;
     place-items: center;
     cursor: pointer;
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    z-index: 5;
-    transition: opacity 0.15s ease, background 0.15s ease;
-}
-.binge-discover-bar-chevron.is-prev {
-    left: 0;
-}
-.binge-discover-bar-chevron.is-next {
-    right: 0;
+    flex: 0 0 32px;
+    margin: 0 0.25rem;
+    transition:
+        opacity 0.15s ease,
+        background 0.15s ease;
 }
 .binge-discover-bar-chevron:hover,
 .binge-discover-bar-chevron:focus-visible {
@@ -6777,8 +6359,7 @@ body,
     outline: none;
 }
 .binge-discover-bar-chevron.is-hidden {
-    opacity: 0;
-    pointer-events: none;
+    display: none;
 }
 .binge-discover-bar-chevron svg {
     width: 18px;
@@ -6951,12 +6532,7 @@ body,
     /* binge identity gradient — kept in sync with .binge-story-ring
        so every "performer has new content" affordance reads as the
        same design element. */
-    background: linear-gradient(
-        45deg,
-        #f472b6 0%,
-        #a855f7 50%,
-        #6aa9ff 100%
-    );
+    background: linear-gradient(45deg, #f472b6 0%, #a855f7 50%, #6aa9ff 100%);
     border-radius: 50%;
     cursor: pointer;
     display: inline-flex;
@@ -7076,7 +6652,9 @@ body,
     cursor: pointer;
     font-family: inherit;
     line-height: 1;
-    transition: background 0.18s ease, border-color 0.18s ease;
+    transition:
+        background 0.18s ease,
+        border-color 0.18s ease;
 }
 .binge-profile-link-chip:hover {
     background: rgba(255, 255, 255, 0.14);
@@ -7282,7 +6860,9 @@ body,
     cursor: pointer;
     text-align: left;
     white-space: nowrap;
-    transition: background 0.12s ease, color 0.12s ease;
+    transition:
+        background 0.12s ease,
+        color 0.12s ease;
 }
 .binge-scene-sort-item:hover {
     background: rgba(255, 255, 255, 0.06);
@@ -7317,7 +6897,9 @@ body,
     text-transform: uppercase;
     color: var(--text-muted, rgba(255, 255, 255, 0.6));
     cursor: pointer;
-    transition: background 0.12s ease, color 0.12s ease,
+    transition:
+        background 0.12s ease,
+        color 0.12s ease,
         border-color 0.12s ease;
 }
 .binge-profile-stashdb-toggle:hover {
@@ -7337,7 +6919,9 @@ body,
     height: 8px;
     border-radius: 50%;
     background: rgba(255, 255, 255, 0.2);
-    transition: background 0.12s ease, box-shadow 0.12s ease;
+    transition:
+        background 0.12s ease,
+        box-shadow 0.12s ease;
 }
 .binge-profile-stashdb-toggle.is-on .binge-profile-stashdb-toggle-dot {
     background: rgba(255, 60, 120, 1);
@@ -7366,14 +6950,6 @@ body,
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
     gap: 6px;
-}
-/* Narrow screens: force at least 2 columns so scenes don't stretch
-   to full width on phones. minmax(160px) would allow 1 column below
-   ~330px, which looks broken. */
-@media (max-width: 380px) {
-    .binge-profile-scene-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
 }
 @media (min-width: 720px) {
     .binge-profile-scene-grid {
@@ -7406,7 +6982,9 @@ body,
     position: relative;
     overflow: hidden;
     border-radius: 8px;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition:
+        transform 0.2s ease,
+        box-shadow 0.2s ease;
     contain: layout paint style;
 }
 .binge-profile-scene-card:focus-visible {
@@ -7418,15 +6996,14 @@ body,
     position: absolute;
     inset: 0;
     background-size: cover;
-    /* Bug 2：演员详情页的影片封面右对齐。横版封面被裁切到 9:16 竖屏
-       时，右对齐能保留动作区域（中居裁切常切掉主体）。竖版封面因
-       object-fit:cover 已基本完整显示，右对齐影响可忽略。 */
-    background-position: right center;
+    background-position: center;
     background-repeat: no-repeat;
     background-color: #050505;
     /* background-size is a keyword — it doesn't tween — so the
        cover→contain swap snaps. transform stays animatable. */
-    transition: background-size 0.25s ease, transform 0.4s ease;
+    transition:
+        background-size 0.25s ease,
+        transform 0.4s ease;
 }
 .binge-profile-scene-cell.is-landscape-thumb
     .binge-profile-scene-card:hover
@@ -7435,8 +7012,6 @@ body,
     .binge-profile-scene-card:focus-visible
     .binge-profile-scene-poster {
     background-size: contain;
-    /* 悬停查看完整封面时改回居中，避免 contain 状态下右侧出现黑边。 */
-    background-position: center;
 }
 
 /* Preview clip — sits above the poster, below the hover overlay.
@@ -7687,7 +7262,9 @@ body,
 .binge-details-title-link {
     color: inherit;
     text-decoration: none;
-    transition: color 0.12s ease, text-decoration-color 0.12s ease;
+    transition:
+        color 0.12s ease,
+        text-decoration-color 0.12s ease;
 }
 .binge-details-title-link:hover,
 .binge-details-title-link:focus-visible {
@@ -7818,7 +7395,7 @@ body,
     border: none;
     padding: 0;
     margin: 0;
-    background: #111111;
+    background: #050505;
     cursor: pointer;
     width: 100%;
     aspect-ratio: 1 / 1;
@@ -7838,143 +7415,6 @@ body,
     height: 100%;
     object-fit: cover;
     display: block;
-    position: relative;
-    z-index: 1;
-}
-/* 无图片占位符：默认隐藏，has-no-image 时显示 */
-.binge-photo-fallback {
-    position: absolute;
-    inset: 0;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    color: #666;
-    font-size: 0.8rem;
-    z-index: 0;
-    pointer-events: none;
-}
-.has-no-image .binge-photo-fallback {
-    display: flex;
-}
-.binge-profile-photo-thumb.is-broken,
-.binge-gallery-cover.is-broken {
-    display: none;
-}
-
-/* ──────────────────────────────────────────────────────────────────────
-   Gallery cover grid (performer profile → 图库 tab, layer 1)
-
-   Bug 3：图库封面约束 3:4 竖排比例。封面被锁定到 3:4 竖屏（与场景
-   卡片 9:16 区分），3 列网格。悬停时由 mYf GalleryCoverCell 自动
-   循环切换该图库前 50 张图片。
-   ────────────────────────────────────────────────────────────────────── */
-.binge-gallery-grid {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 6px;
-}
-@media (min-width: 720px) {
-    .binge-gallery-grid {
-        grid-template-columns: repeat(4, 1fr);
-        gap: 8px;
-    }
-}
-@media (min-width: 1100px) {
-    .binge-gallery-grid {
-        grid-template-columns: repeat(5, 1fr);
-    }
-}
-.binge-gallery-cell {
-    display: block;
-    margin: 0;
-    padding: 0;
-}
-.binge-gallery-cover-btn {
-    appearance: none;
-    border: none;
-    padding: 0;
-    margin: 0;
-    background: #111111;
-    cursor: pointer;
-    width: 100%;
-    /* Bug 3：3:4 竖排比例 */
-    aspect-ratio: 3 / 4;
-    overflow: hidden;
-    position: relative;
-    border-radius: 6px;
-    display: block;
-    color: inherit;
-    transition: filter 0.18s ease;
-}
-.binge-gallery-cover-btn:hover {
-    filter: brightness(1.08);
-}
-.binge-gallery-cover-btn:focus-visible {
-    outline: 2px solid rgba(244, 114, 182, 0.7);
-    outline-offset: 2px;
-}
-.binge-gallery-cover {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    /* 需求3：封面默认右对齐保留主体。 */
-    object-position: right center;
-    display: block;
-}
-/* 需求3：悬停循环切换图片时改为铺满（center），因为循环展示的
-   是图库内实际图片而非封面截图，居中铺满更自然。 */
-.binge-gallery-cover.is-cycling {
-    object-position: center;
-}
-.binge-gallery-cell-title {
-    position: absolute;
-    left: 0.4rem;
-    right: 0.4rem;
-    bottom: 0.4rem;
-    color: #fff;
-    font-size: 0.72rem;
-    font-weight: 600;
-    line-height: 1.2;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    pointer-events: none;
-}
-.binge-gallery-cell-count {
-    position: absolute;
-    top: 0.35rem;
-    right: 0.35rem;
-    padding: 0.15rem 0.4rem;
-    background: rgba(0, 0, 0, 0.6);
-    color: #fff;
-    border-radius: 999px;
-    font-size: 0.68rem;
-    font-weight: 600;
-    pointer-events: none;
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
-}
-.binge-gallery-back {
-    appearance: none;
-    border: none;
-    background: transparent;
-    color: inherit;
-    cursor: pointer;
-    padding: 0.4rem 0;
-    margin-bottom: 0.5rem;
-    font-size: 0.9rem;
-    font-weight: 600;
-}
-.binge-gallery-title {
-    color: #fff;
-    font-size: 1rem;
-    font-weight: 700;
-    margin-bottom: 0.75rem;
-    padding: 0 0.25rem;
 }
 
 /* X (Twitter) media cell — the card is an <a> (opens the tweet), so it
@@ -8002,296 +7442,6 @@ body,
     pointer-events: none;
 }
 
-/* Bug 11：X tab 专属样式 — meta 行 + 单元格点赞数徽章。
-   .binge-x-tile 复用 .binge-gallery-cover-btn 的 3:4 卡片样式，
-   仅补充 anchor 专属重置。 */
-.binge-x-grid-meta {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 0.5rem;
-    padding: 0 0.25rem 0.75rem;
-}
-.binge-x-grid-handle {
-    color: #6aa9ff;
-    font-size: 0.85rem;
-    font-weight: 700;
-    text-decoration: none;
-}
-.binge-x-grid-handle:hover,
-.binge-x-grid-handle:focus-visible {
-    text-decoration: underline;
-    outline: none;
-}
-.binge-app.refract .binge-x-grid-handle {
-    color: rgba(var(--accent-rgb), 1);
-}
-.binge-x-grid-count {
-    color: rgba(255, 255, 255, 0.55);
-    font-size: 0.78rem;
-    font-weight: 500;
-}
-.binge-x-tile {
-    text-decoration: none;
-    color: inherit;
-}
-/* 视频缩略图加载中/失败的占位样式。fetch + createObjectURL 方案需要
-   先下载完整 blob 才能显示，期间用深色占位保持网格布局不塌陷。 */
-.binge-x-thumb-placeholder {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #0a0a0a;
-    color: rgba(255, 255, 255, 0.3);
-    font-size: 1.5rem;
-}
-
-/* 下载进度条：占位区域底部细条 */
-.binge-x-progress {
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 3px;
-    background: rgba(255, 255, 255, 0.1);
-}
-.binge-x-progress-bar {
-    height: 100%;
-    background: rgba(244, 114, 182, 0.8);
-    transition: width 0.2s ease;
-}
-
-/* 卡片悬停浮现的保存按钮 */
-.binge-x-cell-save {
-    position: absolute;
-    top: 0.35rem;
-    right: 0.35rem;
-    width: 26px;
-    height: 26px;
-    border-radius: 50%;
-    background: rgba(0, 0, 0, 0.65);
-    color: #fff;
-    font-size: 0.85rem;
-    line-height: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    opacity: 0;
-    transform: translateY(-4px);
-    transition: opacity 0.15s ease, transform 0.15s ease;
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
-    user-select: none;
-    z-index: 2;
-}
-.binge-x-tile:hover .binge-x-cell-save {
-    opacity: 1;
-    transform: translateY(0);
-}
-.binge-x-cell-save:hover {
-    background: rgba(244, 114, 182, 0.8);
-}
-
-/* ── X 详情 modal ─────────────────────────────────────────────── */
-.binge-x-modal-root {
-    position: fixed;
-    inset: 0;
-    z-index: 130;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-.binge-x-modal-backdrop {
-    position: absolute;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.92);
-    backdrop-filter: blur(10px);
-}
-.binge-x-modal-close {
-    position: absolute;
-    top: 1rem;
-    right: 1.25rem;
-    z-index: 3;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.08);
-    border: none;
-    color: #fff;
-    font-size: 1.5rem;
-    line-height: 1;
-    cursor: pointer;
-    display: grid;
-    place-items: center;
-    transition: background 0.15s ease, transform 0.15s ease;
-}
-.binge-x-modal-close:hover,
-.binge-x-modal-close:focus-visible {
-    background: rgba(255, 255, 255, 0.18);
-    transform: scale(1.05);
-    outline: none;
-}
-.binge-x-modal-nav {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    z-index: 3;
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.08);
-    border: none;
-    color: #fff;
-    font-size: 2rem;
-    line-height: 1;
-    cursor: pointer;
-    display: grid;
-    place-items: center;
-    transition: background 0.15s ease;
-}
-.binge-x-modal-nav:hover {
-    background: rgba(255, 255, 255, 0.18);
-}
-.binge-x-modal-nav-prev {
-    left: 1rem;
-}
-.binge-x-modal-nav-next {
-    right: 1rem;
-}
-.binge-x-modal-content {
-    /* 必须用 height 而非 max-height：作为 flex 容器，若只有
-       max-height 其高度由内容决定。media 区域的 video/image 是
-       position:absolute 不参与 flex 布局 → media intrinsic 高度为 0
-       → flex:1 无空间可分配 → 看不到图片/视频。用 height 给容器
-       明确高度，flex:1 才能吃掉 info 之外的剩余空间。 */
-    position: relative;
-    z-index: 2;
-    width: min(90vw, 675px);
-    height: min(90vh, 900px);
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    overflow: hidden;
-}
-.binge-x-modal-media {
-    /* flex:1 + min-height:0 让 media 区域吃掉 info 之外的剩余高度。
-       position:relative 让内部 video/image 用 absolute 定位填满区域，
-       object-fit:contain 保证不裁切。 */
-    position: relative;
-    flex: 1;
-    min-height: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #000;
-    border-radius: 8px;
-    overflow: hidden;
-}
-.binge-x-modal-video {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-}
-.binge-x-modal-image {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-}
-.binge-x-modal-loading,
-.binge-x-modal-error {
-    color: rgba(255, 255, 255, 0.6);
-    padding: 3rem 1rem;
-    font-size: 0.95rem;
-}
-.binge-x-modal-info {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    padding: 0.75rem 1rem;
-    background: rgba(20, 20, 20, 0.9);
-    border-radius: 8px;
-}
-.binge-x-modal-text {
-    margin: 0;
-    color: rgba(255, 255, 255, 0.92);
-    font-size: 0.92rem;
-    line-height: 1.5;
-    max-height: 6rem;
-    overflow-y: auto;
-    white-space: pre-wrap;
-    word-break: break-word;
-}
-.binge-x-modal-meta {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    color: rgba(255, 255, 255, 0.55);
-    font-size: 0.82rem;
-}
-.binge-x-modal-likes {
-    color: rgba(244, 114, 182, 1);
-}
-.binge-x-modal-index {
-    margin-left: auto;
-}
-.binge-x-modal-actions {
-    display: flex;
-    gap: 0.5rem;
-    margin-top: 0.25rem;
-}
-.binge-x-modal-save,
-.binge-x-modal-open-x {
-    padding: 0.5rem 1rem;
-    border-radius: 6px;
-    font-size: 0.85rem;
-    font-weight: 500;
-    cursor: pointer;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 0.15s ease;
-    border: 1px solid transparent;
-}
-.binge-x-modal-save {
-    background: rgba(244, 114, 182, 0.15);
-    color: rgba(244, 114, 182, 1);
-    border-color: rgba(244, 114, 182, 0.4);
-}
-.binge-x-modal-save:hover:not(:disabled) {
-    background: rgba(244, 114, 182, 0.25);
-}
-.binge-x-modal-save:disabled {
-    opacity: 0.6;
-    cursor: default;
-}
-.binge-x-modal-open-x {
-    background: rgba(255, 255, 255, 0.08);
-    color: #fff;
-}
-.binge-x-modal-open-x:hover {
-    background: rgba(255, 255, 255, 0.18);
-}
-.binge-x-cell-likes {
-    position: absolute;
-    left: 0.35rem;
-    bottom: 0.35rem;
-    padding: 0.12rem 0.4rem;
-    background: rgba(0, 0, 0, 0.6);
-    color: rgba(244, 114, 182, 1);
-    border-radius: 999px;
-    font-size: 0.68rem;
-    font-weight: 600;
-    pointer-events: none;
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
-}
-
 /* Lightbox — full-screen image viewer over the profile (z:90) and any
    sheets. Backdrop dimmed; image centered with object-fit: contain so
    portrait images breathe. Prev/next chevrons are large hit targets on
@@ -8306,8 +7456,12 @@ body,
     animation: binge-lightbox-fade 0.18s ease-out;
 }
 @keyframes binge-lightbox-fade {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
 }
 .binge-lightbox-backdrop {
     position: absolute;
@@ -8324,7 +7478,7 @@ body,
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 4rem 4rem;
+    padding: 4rem 5rem;
     pointer-events: none;
 }
 .binge-lightbox-image {
@@ -8377,48 +7531,20 @@ body,
     place-items: center;
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
-    /* 移除 mobile 默认 tap highlight（点击瞬间箭头变透明在白底上不可见）*/
-    -webkit-tap-highlight-color: transparent;
     transition: background 0.18s ease;
 }
 .binge-lightbox-nav:hover {
     background: rgba(255, 255, 255, 0.18);
 }
-.binge-lightbox-nav:active {
-    /* 点击时加深背景而非依赖默认透明行为，确保白底图片上箭头始终可见 */
-    background: rgba(0, 0, 0, 0.75);
-}
 .binge-lightbox-nav svg {
     width: 22px;
     height: 22px;
-    /* 描边让箭头在纯白图片背景上也能识别 */
-    filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.85));
 }
 .binge-lightbox-prev {
     left: 0.75rem;
 }
 .binge-lightbox-next {
     right: 0.75rem;
-}
-@media (max-width: 720px) {
-    .binge-lightbox-stage {
-        padding: 3rem 0.5rem;
-    }
-    .binge-lightbox-nav {
-        width: 36px;
-        height: 36px;
-        background: rgba(0, 0, 0, 0.35);
-    }
-    .binge-lightbox-nav svg {
-        width: 18px;
-        height: 18px;
-    }
-    .binge-lightbox-prev {
-        left: 0.5rem;
-    }
-    .binge-lightbox-next {
-        right: 0.5rem;
-    }
 }
 .binge-lightbox-counter {
     position: absolute;
@@ -8459,7 +7585,9 @@ body,
     align-items: center;
     gap: 0.85rem;
     text-align: left;
-    transition: background 0.15s ease, border-color 0.15s ease;
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease;
 }
 .binge-menu-row:hover,
 .binge-menu-row:focus-visible {
@@ -8520,7 +7648,9 @@ body,
        hide so chrome at top and bottom feel like a single layer. */
     opacity: 1;
     transform: translateY(0);
-    transition: opacity 0.28s ease, transform 0.28s ease;
+    transition:
+        opacity 0.28s ease,
+        transform 0.28s ease;
 }
 .binge-bottom-nav.is-hidden {
     opacity: 0;
@@ -8541,7 +7671,9 @@ body,
     /* 48px min target keeps the nav passable on a11y for small
        phones where 3.5rem comes in below that. */
     min-height: 48px;
-    transition: color 0.15s ease, transform 0.15s ease;
+    transition:
+        color 0.15s ease,
+        transform 0.15s ease;
 }
 .binge-bottom-nav-item.is-active {
     color: #fff;
@@ -8568,7 +7700,9 @@ body,
     pointer-events: none;
     opacity: 1;
     transform: translateY(0);
-    transition: opacity 0.28s ease, transform 0.28s ease;
+    transition:
+        opacity 0.28s ease,
+        transform 0.28s ease;
 }
 .binge-mobile-floating.is-hidden {
     opacity: 0;
@@ -8605,9 +7739,12 @@ body,
     .binge-discover-bar {
         padding: 1rem 0.6rem 0;
     }
-    /* Reel action stack bottom offset is handled by the :has() rule
-       above (shifts up when bottom-nav is visible, returns to 5rem
-       when hidden). No fixed override needed here. */
+    /* Reel action stack: lift above the 3.5rem bottom nav. The
+       existing 5rem already gives a bit of breathing room; we just
+       add the nav height on top. */
+    .binge-actions {
+        bottom: calc(5rem + 3.5rem);
+    }
     /* Settings + Saved have their own back-chevron headers — no
        fixed strip to clear, but the back-button-style header looks
        cramped against the viewport top. Give it some breathing
@@ -8648,8 +7785,7 @@ body,
         animation: binge-sheet-fade 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
     }
     .binge-sheet-root.is-exiting .binge-scribe-modal {
-        animation: binge-sheet-fade-out 0.2s
-            cubic-bezier(0.7, 0, 0.84, 0) both;
+        animation: binge-sheet-fade-out 0.2s cubic-bezier(0.7, 0, 0.84, 0) both;
     }
 }
 .binge-scribe-header {
@@ -8825,7 +7961,9 @@ body,
     font-size: 0.82rem;
     font-weight: 600;
     cursor: pointer;
-    transition: background 0.15s ease, border-color 0.15s ease;
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease;
 }
 .binge-scribe-send:hover:not(:disabled),
 .binge-scribe-generate:hover:not(:disabled),
@@ -9095,12 +8233,7 @@ body,
     justify-content: center;
     padding: 2px;
     border-radius: 50%;
-    background: linear-gradient(
-        45deg,
-        #f472b6 0%,
-        #a855f7 50%,
-        #6aa9ff 100%
-    );
+    background: linear-gradient(45deg, #f472b6 0%, #a855f7 50%, #6aa9ff 100%);
     box-sizing: border-box;
     flex: 0 0 auto;
 }
@@ -9130,12 +8263,7 @@ body,
     place-items: center;
     padding: 3px;
     box-sizing: border-box;
-    background: linear-gradient(
-        135deg,
-        #f472b6 0%,
-        #a855f7 50%,
-        #6aa9ff 100%
-    );
+    background: linear-gradient(135deg, #f472b6 0%, #a855f7 50%, #6aa9ff 100%);
     border: 2px solid var(--bg-1, #111);
     color: #fff;
     pointer-events: none;
@@ -9162,12 +8290,7 @@ body,
     place-items: center;
     padding: 3px;
     box-sizing: border-box;
-    background: linear-gradient(
-        135deg,
-        #f472b6 0%,
-        #a855f7 50%,
-        #6aa9ff 100%
-    );
+    background: linear-gradient(135deg, #f472b6 0%, #a855f7 50%, #6aa9ff 100%);
     border: 2px solid var(--bg-1, #111);
     color: #fff;
     z-index: 20;
@@ -9179,13 +8302,10 @@ body,
    count when the pack has more than 9 scenes. */
 .binge-pack-card-mosaic {
     width: 100%;
-    /* 需求3：4×2 mosaic，每个 tile 3:4 竖版，4列2行。
-       整体宽高比 = 4×tile宽 : 2×tile高 = 4×3 : 2×4 = 12:8 = 3:2。
-       所以 mosaic 容器 aspect-ratio: 3/2。 */
-    aspect-ratio: 3 / 2;
+    aspect-ratio: 1 / 1;
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    grid-template-rows: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
     gap: 2px;
     background: var(--bg-1, #111);
     cursor: pointer;
@@ -9197,15 +8317,8 @@ body,
 .binge-pack-card-mosaic-tile {
     background-color: #0a0a0a;
     background-size: cover;
-    /* 需求3：一层封面右对齐，保留主体（与演员详情页场景封面、
-       图库封面、发现页封面一致）。原先 center 会把横向截图居中
-       裁切，主体常被切掉。 */
-    background-position: right center;
+    background-position: center;
     position: relative;
-    /* 需求3：tile 在 grid 单元格内铺满（width:100% + height:100%），
-       由 grid-template-rows 控制行高，不依赖 aspect-ratio。 */
-    width: 100%;
-    height: 100%;
 }
 .binge-pack-card-mosaic-overflow {
     position: absolute;
@@ -9246,85 +8359,20 @@ body,
 }
 .binge-pack-sheet-grid {
     display: grid;
-    /* 需求3：二层封面一行 2 个（原先 3 个）。 */
-    grid-template-columns: repeat(2, 1fr);
-    /* 修复：显式声明行轨迹为 max-content。grid 容器有 overflow-y:auto
-       + 固定高度时，部分浏览器引擎的 grid 行轨迹会按内容 min-content
-       高度计算，而 button+aspect-ratio 在 grid 项中不被识别为内容高度
-       → 行高塌缩到约 92px → 第二行 tile 上移与第一行重叠（实测
-       tile[0] y=164 h=499，tile[3] y=256 → 垂直重叠 407px）。
-       max-content 强制按 tile 实际渲染高度撑开行轨迹。 */
-    grid-auto-rows: max-content;
+    grid-template-columns: repeat(3, 1fr);
     gap: 2px;
     overflow-y: auto;
     padding-bottom: env(safe-area-inset-bottom);
-    /* 修复：作为 .binge-pack-sheet (display:flex, flex-direction:column)
-       的子元素，需要 flex:1 + min-height:0 才能正确获得剩余高度并触发
-       overflow-y:auto 滚动。否则 flex 子项默认 min-height:auto 不会
-       缩小，grid 会撑破 sheet 的 max-height:92vh。 */
-    flex: 1;
-    min-height: 0;
 }
 .binge-pack-sheet-tile {
     appearance: none;
     background: var(--bg-1, #111);
     border: none;
     cursor: pointer;
-    /* 需求3：二层封面改为 4:3 横版（铺满），原先 3:4 竖版。
-       横版截图主体居中，4:3 与多数影片截图比例一致，裁切最小。 */
-    aspect-ratio: 4 / 3;
+    aspect-ratio: 9 / 16;
     background-size: cover;
-    /* 需求3：横版居中铺满。 */
-    background-position: center center;
+    background-position: center;
     padding: 0;
-    position: relative;
-    overflow: hidden;
-    /* 修复：button 元素在 grid 中不会自动 stretch 填满列宽，且唯一的
-       子元素（标题 span）是 position:absolute 脱离文档流，导致按钮
-       宽度退化为 0 → aspect-ratio 算出高度也是 0 → 所有 tile 叠在
-       同一个格子里。显式 width:100% + display:block 强制撑满，
-       与 .binge-gallery-cover-btn 保持一致。 */
-    width: 100%;
-    display: block;
-    color: inherit;
-    /* 修复：grid 项默认 align-self:stretch 会让 tile 高度参与行轨迹
-       的循环依赖（stretch 想让 tile 等于行高，aspect-ratio 又想用
-       宽度算高度），部分浏览器因此塌缩行高 → 第二行 tile 上移与
-       第一行重叠。align-self:start 让 tile 不参与 stretch，高度完全
-       由 aspect-ratio 按宽度计算，行轨迹按 tile 实际高度撑开。 */
-    align-self: start;
-}
-.binge-pack-sheet-tile:focus-visible {
-    outline: 2px solid rgba(var(--accent-rgb, 244, 114, 182), 0.8);
-    outline-offset: -2px;
-}
-/* 需求1：二层封面底部叠加标题（类似图库封面 .binge-gallery-cell-title）。
-   渐变蒙层从底部黑到顶部透明，保证文字在任意截图上都可读。文字右对齐
-   与封面右对齐保持视觉一致。最多两行，超出省略。 */
-.binge-pack-sheet-tile-title {
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    padding: 18px 8px 6px;
-    background: linear-gradient(
-        to top,
-        rgba(0, 0, 0, 0.85) 0%,
-        rgba(0, 0, 0, 0.55) 60%,
-        rgba(0, 0, 0, 0) 100%
-    );
-    color: #fff;
-    font-size: 0.74rem;
-    font-weight: 600;
-    line-height: 1.22;
-    text-align: right;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
-    pointer-events: none;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
 }
 
 /* ── First-paint splash ───────────────────────────────────────────────
@@ -9358,40 +8406,6 @@ body,
 .binge-splash-icon {
     width: 14rem;
     filter: drop-shadow(0 0 24px rgba(168, 85, 247, 0.45));
-}
-
-.binge-gallery-end {
-    position: relative;
-    overflow: hidden;
-    background-color: #111;
-    isolation: isolate;
-}
-
-.binge-gallery-end::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background-image: var(--end-bg);
-    background-size: cover;
-    background-position: center;
-    filter: blur(10px);
-    transform: scale(1.05);
-    z-index: 1;
-}
-
-.binge-gallery-end::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background-color: rgba(0, 0, 0, 0.5);
-    z-index: 2;
-}
-
-.binge-gallery-end-inner {
-    position: relative;
-    z-index: 3;
-    color: white;
-    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
 }
 
 /* ── Settings: binge-server install card ──────────────────────────────

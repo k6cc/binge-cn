@@ -1,18 +1,17 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
-import { withTranslation, type WithTranslation } from "react-i18next";
 
 // Catches render-time throws so a single bad component (e.g. an
 // unexpected scene/StashDB shape slipping past a null guard) shows a
 // recoverable message instead of unmounting the whole SPA to a blank
 // screen inside Stash.
-interface Props extends WithTranslation {
+interface Props {
     children: ReactNode;
 }
 interface State {
     error: Error | null;
 }
 
-class ErrorBoundary extends Component<Props, State> {
+export class ErrorBoundary extends Component<Props, State> {
     state: State = { error: null };
 
     static getDerivedStateFromError(error: Error): State {
@@ -45,7 +44,7 @@ class ErrorBoundary extends Component<Props, State> {
                     }}
                 >
                     <div style={{ fontSize: "1.1rem", fontWeight: 700 }}>
-                        {this.props.t("status.encountered_error")}
+                        binge hit an error
                     </div>
                     <div
                         style={{
@@ -54,7 +53,7 @@ class ErrorBoundary extends Component<Props, State> {
                             maxWidth: "32rem",
                         }}
                     >
-                        {this.state.error.message || this.props.t("status.unexpected_render_error")}
+                        {this.state.error.message || "Unexpected render error."}
                     </div>
                     <button
                         type="button"
@@ -71,7 +70,7 @@ class ErrorBoundary extends Component<Props, State> {
                             borderRadius: "999px",
                         }}
                     >
-                        {this.props.t("action.reload_binge")}
+                        Reload binge
                     </button>
                 </div>
             );
@@ -79,5 +78,3 @@ class ErrorBoundary extends Component<Props, State> {
         return this.props.children;
     }
 }
-
-export const TranslatedErrorBoundary = withTranslation()(ErrorBoundary);

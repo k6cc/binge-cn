@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useTranslation } from "react-i18next";
 import { findPerformer, type PerformerDetail } from "../api/queries";
 import { setPerformerFavorite } from "../api/mutations";
 import { useHasAdvancedRating } from "../plugins/PluginContext";
@@ -10,7 +9,6 @@ import { PerformerStatsRow } from "./PerformerStatsRow";
 import { PerformerBio } from "./PerformerBio";
 import { PerformerSceneGrid } from "./PerformerSceneGrid";
 import { PerformerImageGrid } from "./PerformerImageGrid";
-import { PerformerXGrid } from "./PerformerXGrid";
 import { CriterionRatingModal } from "../components/CriterionRatingModal";
 import { PerformerMoreSheet } from "./PerformerMoreSheet";
 import { useSharedStories } from "../home/StoriesContext";
@@ -20,8 +18,7 @@ import { getXFeed, xHandleFromUrls } from "../api/bingeServer";
 import type { Story, StoryScene } from "../home/useStories";
 import { BingeLoading } from "../components/BingeLoading";
 
-// Bug 11：增加 "x" tab — 仅在演员有 X 链接且设置开启时显示。
-type ProfileTab = "scenes" | "galleries" | "x";
+type ProfileTab = "scenes" | "photos";
 
 // How far back the profile pulls X media for the story ring/viewer.
 // Matches the "just their latest stuff" intent — not the whole profile.
@@ -32,10 +29,18 @@ const X_STORY_LOOKBACK_DAYS = 7;
 // so the StoryViewer renders it with zero new branches; the x.com domain
 // drives the "X" badge. Filtered to the lookback window, newest first.
 function xMediaToStoryScenes(
-    media: { tweetId: string; tweetUrl: string; kind: "image" | "video"; mediaUrl: string; text?: string; createdUtc: number }[],
-    handle: string
+    media: {
+        tweetId: string;
+        tweetUrl: string;
+        kind: "image" | "video";
+        mediaUrl: string;
+        text?: string;
+        createdUtc: number;
+    }[],
+    handle: string,
 ): StoryScene[] {
-    const cutoff = Math.floor(Date.now() / 1000) - X_STORY_LOOKBACK_DAYS * 86400;
+    const cutoff =
+        Math.floor(Date.now() / 1000) - X_STORY_LOOKBACK_DAYS * 86400;
     return media
         .filter((m) => m.createdUtc >= cutoff && m.mediaUrl)
         .map((m) => ({
@@ -76,27 +81,13 @@ export function PerformerProfile() {
     if (!currentProfile) return null;
     if (currentProfile.kind === "stashdb") {
         return (
-            <StashDBPerformerProfile
-                stashDBPerformerId={currentProfile.id}
-            />
+            <StashDBPerformerProfile stashDBPerformerId={currentProfile.id} />
         );
     }
-    return (
-        <LocalPerformerProfile
-            localId={currentProfile.id}
-            initialTab={currentProfile.tab}
-        />
-    );
+    return <LocalPerformerProfile localId={currentProfile.id} />;
 }
 
-function LocalPerformerProfile({
-    localId,
-    initialTab,
-}: {
-    localId: string;
-    initialTab?: string;
-}) {
-    const { t } = useTranslation();
+function LocalPerformerProfile({ localId }: { localId: string }) {
     const currentId = localId;
     const { close } = usePerformerProfile();
     const [state, setState] = useState<LoadState>({ kind: "idle" });
@@ -105,13 +96,7 @@ function LocalPerformerProfile({
     const [favorite, setFavorite] = useState(false);
     const [busy, setBusy] = useState(false);
     const [scrolled, setScrolled] = useState(false);
-    const [tab, setTab] = useState<ProfileTab>(
-        initialTab === "galleries"
-            ? "galleries"
-            : initialTab === "x"
-              ? "x"
-              : "scenes"
-    );
+    const [tab, setTab] = useState<ProfileTab>("scenes");
     const includeX = useIncludeX();
     const [ratingOpen, setRatingOpen] = useState(false);
     const [moreOpen, setMoreOpen] = useState(false);
@@ -130,9 +115,8 @@ function LocalPerformerProfile({
     // This performer's existing story (library / reddit / stashdb), if any.
     const sharedStory =
         stories.state.kind === "ready" && currentId
-            ? stories.state.stories.find(
-                  (s) => s.performerId === currentId
-              ) ?? null
+            ? (stories.state.stories.find((s) => s.performerId === currentId) ??
+              null)
             : null;
     // Recent (≤7d) X media for this performer, fetched on demand when the
     // profile opens. Folded into the story so the ring lights up and the
@@ -144,7 +128,7 @@ function LocalPerformerProfile({
     const openStory = () => {
         const base = sharedStory?.scenes ?? [];
         const merged = [...base, ...xScenes].sort((a, b) =>
-            b.effectiveAt.localeCompare(a.effectiveAt)
+            b.effectiveAt.localeCompare(a.effectiveAt),
         );
         if (merged.length === 0 || state.kind !== "ready") return;
         // Open ONLY this performer's story — the user is already on their
@@ -153,8 +137,7 @@ function LocalPerformerProfile({
             performerId: sharedStory?.performerId ?? state.performer.id,
             performerName: sharedStory?.performerName ?? state.performer.name,
             performerImagePath:
-                sharedStory?.performerImagePath ??
-                state.performer.image_path,
+                sharedStory?.performerImagePath ?? state.performer.image_path,
             performerFavorite: sharedStory?.performerFavorite ?? favorite,
             scenes: merged,
             latestEffectiveAt: merged[0].effectiveAt,
@@ -164,16 +147,10 @@ function LocalPerformerProfile({
 
     // Reset tab when the profile changes to a different performer — IG
     // does the same; opening a new profile always lands on the default
-    // tab (or the tab specified by initialTab for deep-links).
+    // tab.
     useEffect(() => {
-        setTab(
-            initialTab === "galleries"
-                ? "galleries"
-                : initialTab === "x"
-                  ? "x"
-                  : "scenes"
-        );
-    }, [currentId, initialTab]);
+        setTab("scenes");
+    }, [currentId]);
 
     // On-demand X media for the story ring/viewer. Reset immediately on
     // performer change (so a stale strip never lights the wrong ring),
@@ -188,7 +165,9 @@ function LocalPerformerProfile({
         getXFeed(stashId)
             .then((res) => {
                 if (!alive || !res) return;
-                setXScenes(xMediaToStoryScenes(res.media, res.handle || handle));
+                setXScenes(
+                    xMediaToStoryScenes(res.media, res.handle || handle),
+                );
             })
             .catch(() => {
                 /* daemon down / blocked — leave the ring to other sources */
@@ -198,21 +177,6 @@ function LocalPerformerProfile({
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentId, includeX, state.kind]);
-
-    // Bug 11：如果当前 tab 是 "x" 但条件不再满足（设置关闭 / 演员
-    // 无 X 链接 / 演员未加载完成），回退到 "scenes" tab，避免渲染
-    // 一个不可见 tab 对应的内容。
-    useEffect(() => {
-        if (tab !== "x") return;
-        if (state.kind !== "ready") {
-            setTab("scenes");
-            return;
-        }
-        if (!includeX || !xHandleFromUrls(state.performer.urls)) {
-            setTab("scenes");
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [tab, state.kind, includeX]);
 
     useEffect(() => {
         if (!currentId) {
@@ -269,8 +233,8 @@ function LocalPerformerProfile({
         const timeout = new Promise<never>((_, reject) =>
             setTimeout(
                 () => reject(new Error("setPerformerFavorite timeout (8s)")),
-                8000
-            )
+                8000,
+            ),
         );
         try {
             const confirmed = (await Promise.race([
@@ -287,18 +251,21 @@ function LocalPerformerProfile({
     };
 
     return createPortal(
-        <div className="binge-profile-root" role="dialog" aria-label={t("performer.profile_aria_label")}>
+        <div
+            className="binge-profile-root"
+            role="dialog"
+            aria-label="Performer profile"
+        >
             <header
                 className={
-                    "binge-profile-topbar" +
-                    (scrolled ? " is-scrolled" : "")
+                    "binge-profile-topbar" + (scrolled ? " is-scrolled" : "")
                 }
             >
                 <button
                     type="button"
                     className="binge-profile-back"
                     onClick={close}
-                    aria-label={t("performer.close_profile")}
+                    aria-label="Close profile"
                 >
                     <BackIcon />
                 </button>
@@ -310,10 +277,8 @@ function LocalPerformerProfile({
                                 "binge-profile-verified" +
                                 (favorite ? " is-favorite" : "")
                             }
-                            aria-label={
-                                favorite ? t("performer.favorited") : t("performer.in_library")
-                            }
-                            title={favorite ? t("performer.favorited") : t("performer.in_library")}
+                            aria-label={favorite ? "Favourited" : "In library"}
+                            title={favorite ? "Favourited" : "In library"}
                         >
                             <VerifiedIcon />
                         </span>
@@ -322,8 +287,8 @@ function LocalPerformerProfile({
                 <button
                     type="button"
                     className="binge-profile-more"
-                    aria-label={t("performer.more_actions")}
-                    title={t("action.more")}
+                    aria-label="More actions"
+                    title="More"
                     onClick={() => setMoreOpen(true)}
                 >
                     <MoreIcon />
@@ -333,7 +298,7 @@ function LocalPerformerProfile({
                 {state.kind === "loading" && <BingeLoading minHeight="50vh" />}
                 {state.kind === "error" && (
                     <div className="binge-status binge-status-error">
-                        {t("status.error_message", { message: state.message })}
+                        error: {state.message}
                     </div>
                 )}
                 {state.kind === "ready" && (
@@ -359,8 +324,8 @@ function LocalPerformerProfile({
                                         type="button"
                                         className="binge-profile-rate"
                                         onClick={() => setRatingOpen(true)}
-                                        aria-label={t("performer.rate")}
-                                        title={t("performer.rate_advanced")}
+                                        aria-label="Rate performer"
+                                        title="Rate (advanced)"
                                     >
                                         ★
                                     </button>
@@ -377,10 +342,8 @@ function LocalPerformerProfile({
                                 onClick={handleFollow}
                                 disabled={busy}
                                 aria-pressed={favorite}
-                                title={t("action.manage_follows")}
-                                aria-label={favorite ? t("performer.unfollow") : t("performer.follow")}
                             >
-                                {favorite ? t("performer.favorited") : t("performer.follow")}
+                                {favorite ? "Favourited" : "Favourite"}
                             </button>
                         </div>
                         {ratingOpen && state.kind === "ready" && (
@@ -395,16 +358,14 @@ function LocalPerformerProfile({
                         {moreOpen && state.kind === "ready" && (
                             <PerformerMoreSheet
                                 performerId={state.performer.id}
-                                onRefresh={() =>
-                                    setRefreshTick((n) => n + 1)
-                                }
+                                onRefresh={() => setRefreshTick((n) => n + 1)}
                                 onClose={() => setMoreOpen(false)}
                             />
                         )}
                         <div
                             className="binge-profile-tabs"
                             role="tablist"
-                            aria-label={t("nav.profile_content")}
+                            aria-label="Profile content"
                         >
                             <button
                                 type="button"
@@ -416,44 +377,26 @@ function LocalPerformerProfile({
                                 }
                                 onClick={() => setTab("scenes")}
                             >
-                                {t("nav.scenes")}
+                                Scenes
                             </button>
                             <button
                                 type="button"
                                 role="tab"
-                                aria-selected={tab === "galleries"}
+                                aria-selected={tab === "photos"}
                                 className={
                                     "binge-profile-tab" +
-                                    (tab === "galleries" ? " is-active" : "")
+                                    (tab === "photos" ? " is-active" : "")
                                 }
-                                onClick={() => setTab("galleries")}
+                                onClick={() => setTab("photos")}
                             >
-                                {t("nav.gallery")}
+                                Photos
                             </button>
-                            {/* Bug 11: X (Twitter) tab — Renders only when settings are enabled and the performer has X links. */}
-                            {includeX &&
-                                xHandleFromUrls(state.performer.urls) && (
-                                    <button
-                                        type="button"
-                                        role="tab"
-                                        aria-selected={tab === "x"}
-                                        className={
-                                            "binge-profile-tab" +
-                                            (tab === "x" ? " is-active" : "")
-                                        }
-                                        onClick={() => setTab("x")}
-                                    >
-                                        {t("nav.x_tab")}
-                                    </button>
-                                )}
                         </div>
                         {tab === "scenes" ? (
                             <PerformerSceneGrid
                                 performer={state.performer}
                                 onClose={close}
                             />
-                        ) : tab === "x" ? (
-                            <PerformerXGrid performer={state.performer} />
                         ) : (
                             <PerformerImageGrid performer={state.performer} />
                         )}
@@ -461,7 +404,7 @@ function LocalPerformerProfile({
                 )}
             </div>
         </div>,
-        document.body
+        document.body,
     );
 }
 
@@ -480,14 +423,11 @@ function ProfileAvatar({
     hasStory: boolean;
     onOpenStory: () => void;
 }) {
-    const { t } = useTranslation();
     const inner = (
         <span
             className="binge-profile-avatar"
             style={
-                imagePath
-                    ? { backgroundImage: `url(${imagePath})` }
-                    : undefined
+                imagePath ? { backgroundImage: `url(${imagePath})` } : undefined
             }
         >
             {!imagePath && (
@@ -503,8 +443,8 @@ function ProfileAvatar({
             type="button"
             className="binge-profile-avatar-ring"
             onClick={onOpenStory}
-            aria-label={t("performer.view_story_for", { name })}
-            title={t("performer.view_story")}
+            aria-label={`View ${name}'s story`}
+            title="View story"
         >
             {inner}
         </button>

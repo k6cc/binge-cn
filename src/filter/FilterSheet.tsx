@@ -1,12 +1,10 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-
 import { useFilter } from "./FilterContext";
 import {
     findSavedFiltersForScenes,
     type StashSavedFilter,
 } from "../api/queries";
-import { useTranslation } from "react-i18next";
 
 interface FilterSheetProps {
     onClose: () => void;
@@ -40,7 +38,6 @@ export function FilterSheet({ onClose }: FilterSheetProps) {
         | { kind: "ready"; filters: StashSavedFilter[] }
         | { kind: "error"; message: string }
     >({ kind: "loading" });
-    const { t } = useTranslation();
 
     useEffect(() => {
         let alive = true;
@@ -53,9 +50,7 @@ export function FilterSheet({ onClose }: FilterSheetProps) {
                     setState({
                         kind: "error",
                         message:
-                            err instanceof Error
-                                ? err.message
-                                : String(err),
+                            err instanceof Error ? err.message : String(err),
                     });
             });
         return () => {
@@ -77,24 +72,24 @@ export function FilterSheet({ onClose }: FilterSheetProps) {
             <div
                 className="binge-sheet binge-filter-sheet"
                 role="dialog"
-                aria-label={t("filter.filter_criteria")}
+                aria-label="Filter"
             >
                 <div className="binge-sheet-handle" aria-hidden="true" />
                 <div className="binge-filter-sheet-header">
-                    <h2 className="binge-filter-sheet-title">{t("filter.filter_criteria")}</h2>
+                    <h2 className="binge-filter-sheet-title">Filter</h2>
                 </div>
 
                 {/* Active state */}
                 <section className="binge-filter-sheet-section">
                     <header className="binge-filter-sheet-section-head">
-                        <h3>{t("filter.current_active")}</h3>
+                        <h3>Active</h3>
                         {(!isEmpty || activeSavedFilter) && (
                             <button
                                 type="button"
                                 className="binge-filter-sheet-clear"
                                 onClick={() => clear()}
                             >
-                                {t("action.clear_all")}
+                                Clear all
                             </button>
                         )}
                     </header>
@@ -104,7 +99,7 @@ export function FilterSheet({ onClose }: FilterSheetProps) {
                                 type="button"
                                 className="binge-filter-sheet-chip binge-filter-sheet-chip-saved"
                                 onClick={() => clearSavedFilter()}
-                                title={t("action.clear_saved_filter", { name: activeSavedFilter.name })}
+                                title={`Clear "${activeSavedFilter.name}"`}
                             >
                                 <span>{activeSavedFilter.name}</span>
                                 <span
@@ -117,7 +112,7 @@ export function FilterSheet({ onClose }: FilterSheetProps) {
                         </div>
                     ) : isEmpty ? (
                         <div className="binge-filter-sheet-empty">
-                            {t("filter.no_active_filters")}
+                            No active filter — showing everything.
                         </div>
                     ) : (
                         <div className="binge-filter-sheet-chips">
@@ -126,9 +121,7 @@ export function FilterSheet({ onClose }: FilterSheetProps) {
                                     key={`p:${p.id}`}
                                     label={p.name}
                                     tone="performers"
-                                    onRemove={() =>
-                                        remove("performers", p.id)
-                                    }
+                                    onRemove={() => remove("performers", p.id)}
                                 />
                             ))}
                             {filter.tags.map((t) => (
@@ -154,21 +147,21 @@ export function FilterSheet({ onClose }: FilterSheetProps) {
                 {/* Stash saved filters */}
                 <section className="binge-filter-sheet-section">
                     <header className="binge-filter-sheet-section-head">
-                        <h3>{t("filter.stash_saved_filters")}</h3>
+                        <h3>Stash saved filters</h3>
                     </header>
                     {state.kind === "loading" && (
-                        <div className="binge-filter-sheet-empty">
-                            {t("status.loading")}
-                        </div>
+                        <div className="binge-filter-sheet-empty">Loading…</div>
                     )}
                     {state.kind === "error" && (
                         <div className="binge-filter-sheet-empty">
-                            {t("status.load_failed", { message: state.message })}
+                            Couldn't load: {state.message}
                         </div>
                     )}
                     {state.kind === "ready" && state.filters.length === 0 && (
                         <div className="binge-filter-sheet-empty">
-                            {t("filter.no_saved_filters")}
+                            No saved filters for scenes. Create them in Stash's
+                            main scene browser — they'll appear here
+                            automatically.
                         </div>
                     )}
                     {state.kind === "ready" && state.filters.length > 0 && (
@@ -189,7 +182,7 @@ export function FilterSheet({ onClose }: FilterSheetProps) {
                 </section>
             </div>
         </div>,
-        document.body
+        document.body,
     );
 }
 
@@ -202,7 +195,6 @@ function FilterChip({
     tone: "performers" | "tags" | "studios";
     onRemove: () => void;
 }) {
-    const { t } = useTranslation();
     return (
         <button
             type="button"
@@ -210,7 +202,7 @@ function FilterChip({
                 "binge-filter-sheet-chip binge-filter-sheet-chip-" + tone
             }
             onClick={onRemove}
-            title={t("action.remove_item", { item: label })}
+            title={`Remove ${label}`}
         >
             <span>{label}</span>
             <span className="binge-filter-sheet-chip-x" aria-hidden="true">
@@ -229,20 +221,18 @@ function SavedFilterRow({
     active: boolean;
     onApply: () => void;
 }) {
-    const { t } = useTranslation();
     // Summarise the saved filter's criteria for the row's secondary line.
     const criteria = Object.keys(sf.object_filter ?? {});
     const summary =
         criteria.length === 0
-            ? t("filter.no_filters")
+            ? "no criteria"
             : criteria.slice(0, 4).join(" · ") +
               (criteria.length > 4 ? ` · +${criteria.length - 4}` : "");
     const sort = sf.find_filter?.sort ?? "";
     return (
         <li
             className={
-                "binge-filter-sheet-preset-row" +
-                (active ? " is-active" : "")
+                "binge-filter-sheet-preset-row" + (active ? " is-active" : "")
             }
         >
             <button
@@ -255,7 +245,7 @@ function SavedFilterRow({
                 </span>
                 <span className="binge-filter-sheet-preset-meta">
                     {summary}
-                    {sort && t("filter.sort_by", { sort })}
+                    {sort && ` · sort: ${sort}`}
                 </span>
             </button>
         </li>

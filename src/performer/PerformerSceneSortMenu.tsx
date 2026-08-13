@@ -1,12 +1,11 @@
-import { useEffect, useRef, useState, useMemo } from "react";
-import { useTranslation } from "react-i18next";
-import {
-    PERFORMER_SCENE_SORTS,
-    type PerformerSceneSort,
-} from "../api/queries";
+import { useEffect, useRef, useState } from "react";
+import { PERFORMER_SCENE_SORTS, type PerformerSceneSort } from "../api/queries";
 
-
-
+// Subtle sort control for the performer scene grid. Renders as a small
+// muted label ("Recent ⌄") that opens a popover of the sort options —
+// deliberately understated so it sits quietly in the SCENES heading next
+// to the StashDB toggle. Single-select; the active option carries a check.
+// Outside-click / Escape close it (same pattern as FeedFilterMenu).
 export function PerformerSceneSortMenu({
     value,
     onChange,
@@ -14,29 +13,8 @@ export function PerformerSceneSortMenu({
     value: PerformerSceneSort;
     onChange: (next: PerformerSceneSort) => void;
 }) {
-    const { t } = useTranslation();
     const [open, setOpen] = useState(false);
     const rootRef = useRef<HTMLDivElement>(null);
-
-    const SORT_LABELS_LOCAL: Record<PerformerSceneSort, string> = useMemo(() => ({
-        recent: t("sort.recent"),
-        views: t("sort.views"),
-        orgasms: t("sort.orgasms"),
-        rating: t("sort.rating"),
-        added: t("sort.added"),
-    }), [t]);
-
-    function sortLabel(key: PerformerSceneSort): string {
-        const fallback = SORT_LABELS_LOCAL[key] ?? PERFORMER_SCENE_SORTS.find((s) => s.key === key)?.label ?? key;
-        switch (key) {
-            case "recent": return t("sort.recent", fallback);
-            case "views": return t("sort.views", fallback);
-            case "orgasms": return t("sort.orgasms", fallback);
-            case "rating": return t("sort.rating", fallback);
-            case "added": return t("sort.added", fallback);
-            default: return fallback;
-        }
-    }
 
     useEffect(() => {
         if (!open) return;
@@ -67,15 +45,13 @@ export function PerformerSceneSortMenu({
         <div className="binge-scene-sort" ref={rootRef}>
             <button
                 type="button"
-                className={
-                    "binge-scene-sort-btn" + (open ? " is-open" : "")
-                }
+                className={"binge-scene-sort-btn" + (open ? " is-open" : "")}
                 onClick={() => setOpen((o) => !o)}
                 aria-haspopup="menu"
                 aria-expanded={open}
-                title={t("action.sort_scenes")}
+                title="Sort scenes"
             >
-                {sortLabel(current.key)}
+                {current.label}
                 <ChevronIcon />
             </button>
             {open && (
@@ -100,7 +76,7 @@ export function PerformerSceneSortMenu({
                                 <span className="binge-scene-sort-check">
                                     {active && <CheckIcon />}
                                 </span>
-                                {sortLabel(opt.key)}
+                                {opt.label}
                             </button>
                         );
                     })}

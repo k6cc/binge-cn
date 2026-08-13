@@ -23,14 +23,10 @@ import {
     REVIEW_CONTRACT_PERFORMER,
     REVIEW_CONTRACT_SCENE,
 } from "./prompts";
-import {
-    sessionKeyForPerformer,
-    sessionKeyForScene,
-} from "./session";
+import { sessionKeyForPerformer, sessionKeyForScene } from "./session";
 
 export type SubjectRef =
-    | { kind: "scene"; id: string }
-    | { kind: "performer"; id: string };
+    { kind: "scene"; id: string } | { kind: "performer"; id: string };
 
 // What the modal needs from a loaded subject — every field is
 // already normalised so the modal doesn't branch on kind once it
@@ -54,7 +50,7 @@ export interface LoadedSubject {
 }
 
 export async function loadSubject(
-    ref: SubjectRef
+    ref: SubjectRef,
 ): Promise<LoadedSubject | null> {
     if (ref.kind === "scene") {
         const [scene, criteria] = await Promise.all([
@@ -64,7 +60,9 @@ export async function loadSubject(
         if (!scene) return null;
         return {
             kind: "scene",
-            title: scene.title ? `Stash Scribe — ${scene.title}` : "Stash Scribe",
+            title: scene.title
+                ? `Stash Scribe — ${scene.title}`
+                : "Stash Scribe",
             contextStrip: buildSceneContextStrip(scene),
             contextForLLM: describeSceneForLLM(scene),
             existingReview: readExistingReviewGeneric(scene),
@@ -91,7 +89,9 @@ export async function loadSubject(
     const { performer, aggregates } = ctx;
     return {
         kind: "performer",
-        title: performer.name ? `Stash Scribe — ${performer.name}` : "Stash Scribe",
+        title: performer.name
+            ? `Stash Scribe — ${performer.name}`
+            : "Stash Scribe",
         contextStrip: buildPerformerContextStrip(performer, aggregates),
         contextForLLM: describePerformerForLLM(performer, aggregates),
         existingReview: readExistingReviewGeneric(performer),

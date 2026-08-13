@@ -56,7 +56,7 @@ export async function startServerInstall(): Promise<void> {
             plugin_id: PLUGIN_ID,
             task_name: TASK_NAME,
             args_map: { mode: "install", bind: bindMode() },
-        }
+        },
     );
 }
 
@@ -80,7 +80,7 @@ export async function installTaskAvailable(): Promise<boolean> {
  *  pulls a few hundred MB, so this is patient. */
 export async function waitForServer(
     timeoutMs = 300_000,
-    onTick?: (elapsedMs: number) => void
+    onTick?: (elapsedMs: number) => void,
 ): Promise<boolean> {
     const started = Date.now();
     while (Date.now() - started < timeoutMs) {
@@ -103,7 +103,7 @@ export async function recordServerUrl(url: string): Promise<void> {
             `mutation($input: Map!) {
                 configurePlugin(plugin_id: "${PLUGIN_ID}", input: $input)
             }`,
-            { input: { serverUrl: url } }
+            { input: { serverUrl: url } },
         );
     } catch {
         /* local setting stands on its own */

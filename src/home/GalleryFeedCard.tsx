@@ -1,13 +1,8 @@
-import { Fragment, useEffect, useRef, useState } from "react";
-import { MAX_GALLERY_IMAGES, type GalleryFeedItem } from "./useFeed";
+import { useEffect, useRef, useState } from "react";
+import type { GalleryFeedItem } from "./useFeed";
 import { ImageLightbox } from "../performer/ImageLightbox";
-import { PerformerHoverCard } from "./PerformerHoverCard";
-import { VerifiedIcon } from "../performer/PerformerProfile";
 import { usePerformerProfile } from "../performer/PerformerProfileContext";
-import { useSharedStories } from "./StoriesContext";
-import { useStoryViewer } from "./StoryViewerContext";
 import { timeAgo } from "./timeAgo";
-import { useTranslation } from "react-i18next";
 
 interface GalleryFeedCardProps {
     item: GalleryFeedItem;
@@ -26,46 +21,12 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
     const [lightboxOpenAt, setLightboxOpenAt] = useState<number | null>(null);
 
     const { openProfile } = usePerformerProfile();
-    const { open: openStoryViewer } = useStoryViewer();
-    const storiesState = useSharedStories();
     const primaryPerformer = item.performers[0];
-    const { t } = useTranslation();
-
-    const handleAvatarTap = () => {
-        if (!primaryPerformer) return;
-        if (storiesState.state.kind !== "ready") {
-            openProfile(primaryPerformer.id);
-            return;
-        }
-        const list = storiesState.state.stories;
-        const idx = list.findIndex(
-            (s) => s.performerId === primaryPerformer.id
-        );
-        if (idx >= 0) {
-            openStoryViewer(list, idx);
-        } else {
-            openProfile(primaryPerformer.id);
-        }
-    };
-
-    const images = item.images.slice(0, MAX_GALLERY_IMAGES);
 
     // Total slide count: N images + 1 "View gallery" panel. The panel
     // gets its own snap slot, so the dots indicator needs to track it
     // too (last dot = the end panel).
-    const slideCount = images.length + 1;
-
-    const endBgUrl = images.length > 0
-        ? images[0].paths.thumbnail || images[0].paths.image
-        : item.coverPath;
-
-    const handleEndClick = () => {
-        if (primaryPerformer) {
-            openProfile(primaryPerformer.id, "galleries");
-        } else {
-            setLightboxOpenAt(0);
-        }
-    };
+    const slideCount = item.images.length + 1;
 
     // Update activeIndex as the carousel scrolls. Uses scroll position
     // / clientWidth math — robust against snap timing differences
@@ -97,131 +58,40 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
         el.scrollTo({ left: i * el.clientWidth, behavior: "smooth" });
     };
 
-    // 修改10：首页图库卡片自动播放。IntersectionObserver 监听卡片是否
-    // 进入视口（threshold 0.5，即 50% 可见）。进入视口且图片数 >1 时，
-    // 启动 setInterval 每 2 秒切换到下一张；离开视口时 clearInterval。
-    // 组件卸载时 disconnect observer 并清理 interval。
-    useEffect(() => {
-        const el = carouselRef.current;
-        if (!el) return;
-        if (images.length <= 1) return;
-        let intervalId: number | null = null;
-        const observer = new IntersectionObserver(
-            (entries) => {
-                for (const entry of entries) {
-                    if (entry.isIntersecting) {
-                        if (intervalId !== null) continue;
-                        intervalId = window.setInterval(() => {
-                            const cur = el.scrollLeft / el.clientWidth;
-                            const n = Math.round(cur);
-                            const c = slideCount;
-                            el.scrollTo({
-                                left: ((n + 1) % c) * el.clientWidth,
-                                behavior: "smooth",
-                            });
-                        }, 2000);
-                    } else {
-                        if (intervalId !== null) {
-                            window.clearInterval(intervalId);
-                            intervalId = null;
-                        }
-                    }
-                }
-            },
-            { threshold: 0.5 }
-        );
-        observer.observe(el);
-        return () => {
-            observer.disconnect();
-            if (intervalId !== null) window.clearInterval(intervalId);
-        };
-    }, [item.images.length]);
-
     return (
         <article className="binge-feed-card binge-feed-card-gallery">
             <header className="binge-feed-card-header">
-                <div className="binge-feed-card-author">
-                    {primaryPerformer ? (
-                        <PerformerHoverCard
-                            name={primaryPerformer.name}
-                            image={primaryPerformer.imagePath ?? null}
-                            gender={null}
-                            birthDate={null}
-                            inLibrary
-                            favorite={primaryPerformer.favorite}
-                            onOpenProfile={() => openProfile(primaryPerformer.id)}
-                        >
-                            <span
-                                className="binge-feed-card-avatar-ring"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleAvatarTap();
-                                }}
-                                style={{ cursor: "pointer" }}
-                            >
-                                <span
-                                    className="binge-feed-card-avatar"
-                                    style={
-                                        primaryPerformer.imagePath
-                                            ? { backgroundImage: `url("${primaryPerformer.imagePath}")` }
-                                            : undefined
-                                    }
-                                >
-                                    {!primaryPerformer.imagePath && (
-                                        <span className="binge-feed-card-initial">
-                                            {primaryPerformer.name.charAt(0).toUpperCase()}
-                                        </span>
-                                    )}
-                                </span>
+                <button
+                    type="button"
+                    className="binge-feed-card-author"
+                    onClick={() =>
+                        primaryPerformer && openProfile(primaryPerformer.id)
+                    }
+                    aria-label={primaryPerformer?.name ?? "Performer"}
+                >
+                    <span
+                        className="binge-feed-card-avatar"
+                        style={
+                            primaryPerformer?.imagePath
+                                ? {
+                                      backgroundImage: `url(${primaryPerformer.imagePath})`,
+                                  }
+                                : undefined
+                        }
+                    >
+                        {!primaryPerformer?.imagePath && (
+                            <span className="binge-feed-card-initial">
+                                {primaryPerformer?.name
+                                    .charAt(0)
+                                    .toUpperCase() ?? "?"}
                             </span>
-                            <button
-                                type="button"
-                                className="binge-feed-card-name-btn"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    openProfile(primaryPerformer.id);
-                                }}
-                                aria-label={primaryPerformer.name}
-                            >
-                                <span className="binge-feed-card-name">
-                                    {item.performers.map((p, idx) => (
-                                        <Fragment key={p.id}>
-                                            {idx > 0 && ", "}
-                                            {p.name}
-                                            <span
-                                                className={
-                                                    "binge-feed-card-verified" +
-                                                    (p.favorite ? " is-favorite" : "")
-                                                }
-                                                aria-label={
-                                                    p.favorite
-                                                        ? t("status.favorite")
-                                                        : t("status.in_library")
-                                                }
-                                                title={
-                                                    p.favorite
-                                                        ? t("status.favorite")
-                                                        : t("status.in_library")
-                                                }
-                                            >
-                                                <VerifiedIcon />
-                                            </span>
-                                        </Fragment>
-                                    ))}
-                                </span>
-                            </button>
-                        </PerformerHoverCard>
-                    ) : (
-                        <>
-                            <span className="binge-feed-card-avatar-ring">
-                                <span className="binge-feed-card-avatar">
-                                    <span className="binge-feed-card-initial">?</span>
-                                </span>
-                            </span>
-                            <span className="binge-feed-card-name">{t("gallery.gallery")}</span>
-                        </>
-                    )}
-                </div>
+                        )}
+                    </span>
+                    <span className="binge-feed-card-name">
+                        {item.performers.map((p) => p.name).join(", ") ||
+                            "Gallery"}
+                    </span>
+                </button>
                 <span className="binge-feed-card-time">
                     {timeAgo(item.effectiveAt)}
                 </span>
@@ -233,9 +103,9 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                     ref={carouselRef}
                     role="region"
                     aria-roledescription="carousel"
-                    aria-label={item.title ?? t("gallery.gallery_image")}
+                    aria-label={item.title ?? "Gallery images"}
                 >
-                    {images.length === 0 ? (
+                    {item.images.length === 0 ? (
                         // Empty image list — typically means the gallery
                         // exists but no images have been ingested yet.
                         // Show the cover thumbnail as a single slide.
@@ -245,15 +115,15 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                             style={
                                 item.coverPath
                                     ? {
-                                          backgroundImage: `url("${item.coverPath}")`,
+                                          backgroundImage: `url(${item.coverPath})`,
                                       }
                                     : undefined
                             }
                             onClick={() => setLightboxOpenAt(0)}
-                            aria-label={t("gallery.open_gallery_title", { title: item.title ?? t("gallery.gallery") })}
+                            aria-label={`Open ${item.title ?? "gallery"}`}
                         />
                     ) : (
-                        images.map((img, idx) => {
+                        item.images.map((img, idx) => {
                             const src =
                                 img.paths.thumbnail || img.paths.image || "";
                             return (
@@ -263,38 +133,33 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                                     className="binge-gallery-slide"
                                     style={
                                         src
-                                            ? { backgroundImage: `url("${src}")` }
+                                            ? { backgroundImage: `url(${src})` }
                                             : undefined
                                     }
                                     onClick={() => setLightboxOpenAt(idx)}
-                                    aria-label={t("gallery.slide_position", { current: idx + 1, total: item.imageCount })}
+                                    aria-label={`Image ${idx + 1} of ${
+                                        item.imageCount
+                                    }`}
                                 />
                             );
                         })
                     )}
 
                     {/* End panel — always rendered so the carousel has
-                        a "more →" outro slot even on small galleries.
-                        Bug 8：点击纯色图直接跳转到演员档案的图库 tab，
-                        而非打开灯箱。
-                        */}
+                        a "more →" outro slot even on small galleries. */}
                     <button
                         type="button"
                         className="binge-gallery-slide binge-gallery-end"
-                        onClick={handleEndClick}
-                        aria-label={t("gallery.view_full_gallery")}
-                        style={
-                            endBgUrl
-                                ? ({ "--end-bg": `url("${endBgUrl}")` } as React.CSSProperties)
-                                : undefined
-                        }
+                        onClick={() => setLightboxOpenAt(0)}
+                        aria-label="View full gallery"
                     >
                         <span className="binge-gallery-end-inner">
                             <span className="binge-gallery-end-label">
-                                {t("gallery.view_gallery")}
+                                View gallery
                             </span>
                             <span className="binge-gallery-end-sub">
-                                {t("gallery.image_count", { count: item.imageCount })}
+                                {item.imageCount}{" "}
+                                {item.imageCount === 1 ? "photo" : "photos"}
                             </span>
                             <ChevronRight />
                         </span>
@@ -302,13 +167,7 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                 </div>
 
                 {/* Image count badge (top-right of media). */}
-                <div
-                    className="binge-gallery-count-badge"
-                    role="button"
-                    tabIndex={0}
-                    onClick={handleEndClick}
-                    aria-hidden="true"
-                >
+                <div className="binge-gallery-count-badge" aria-hidden="true">
                     <StackIcon />
                     <span>{item.imageCount}</span>
                 </div>
@@ -319,7 +178,7 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                 <div
                     className="binge-gallery-dots"
                     role="tablist"
-                    aria-label={t("nav.gallery_position")}
+                    aria-label="Gallery position"
                 >
                     {Array.from({ length: slideCount }).map((_, i) => (
                         <button
@@ -333,7 +192,7 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                             }
                             onClick={() => scrollToSlide(i)}
                             tabIndex={-1}
-                            aria-label={t("gallery.jump_to_slide", { current: i + 1 })}
+                            aria-label={`Go to slide ${i + 1}`}
                         />
                     ))}
                 </div>

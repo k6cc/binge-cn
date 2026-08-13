@@ -1,13 +1,7 @@
-import {
-    useEffect,
-    useRef,
-    useState,
-    type ReactNode,
-} from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { FollowPerformerModal } from "./FollowPerformerModal";
 import { VerifiedIcon } from "../performer/PerformerProfile";
-import { useTranslation } from "react-i18next";
 
 export type FollowState =
     | { kind: "idle" }
@@ -77,9 +71,7 @@ export function PerformerHoverCard({
     const triggerRef = useRef<HTMLSpanElement>(null);
     const cardRef = useRef<HTMLDivElement>(null);
     const [open, setOpen] = useState(false);
-    const [pos, setPos] = useState<{ top: number; left: number } | null>(
-        null
-    );
+    const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
     const showTimerRef = useRef<number | null>(null);
     const hideTimerRef = useRef<number | null>(null);
 
@@ -92,7 +84,6 @@ export function PerformerHoverCard({
     });
     const followState = controlledFollow?.state ?? internalFollow;
     const [modalOpen, setModalOpen] = useState(false);
-    const { t } = useTranslation();
 
     // Tap Follow → open the confirm modal. The modal owns the
     // actual performerCreate call so the user can edit the scraped
@@ -117,10 +108,8 @@ export function PerformerHoverCard({
 
     useEffect(() => {
         return () => {
-            if (showTimerRef.current)
-                window.clearTimeout(showTimerRef.current);
-            if (hideTimerRef.current)
-                window.clearTimeout(hideTimerRef.current);
+            if (showTimerRef.current) window.clearTimeout(showTimerRef.current);
+            if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current);
         };
     }, []);
 
@@ -129,9 +118,7 @@ export function PerformerHoverCard({
     // viewport space below (avoids the card running off-screen
     // when the trigger is near the bottom of the viewport — common
     // for performer mentions in the body of feed cards).
-    const [placement, setPlacement] = useState<"below" | "above">(
-        "below"
-    );
+    const [placement, setPlacement] = useState<"below" | "above">("below");
     useEffect(() => {
         if (!open) return;
         const update = () => {
@@ -141,10 +128,10 @@ export function PerformerHoverCard({
             const cardWidth = cardRef.current?.offsetWidth ?? 280;
             const cardHeight = cardRef.current?.offsetHeight ?? 180;
             const margin = 8;
-            const desiredLeft = rect.left;
+            const desiredLeft = rect.left + rect.width / 2 - cardWidth / 2;
             const clampedLeft = Math.max(
                 margin,
-                Math.min(desiredLeft, window.innerWidth - cardWidth - margin)
+                Math.min(desiredLeft, window.innerWidth - cardWidth - margin),
             );
             const spaceBelow = window.innerHeight - rect.bottom;
             const placeAbove =
@@ -201,14 +188,14 @@ export function PerformerHoverCard({
         cancelTimers();
         showTimerRef.current = window.setTimeout(
             () => setOpen(true),
-            SHOW_DELAY_MS
+            SHOW_DELAY_MS,
         );
     };
     const queueHide = () => {
         cancelTimers();
         hideTimerRef.current = window.setTimeout(
             () => setOpen(false),
-            HIDE_DELAY_MS
+            HIDE_DELAY_MS,
         );
     };
 
@@ -222,12 +209,12 @@ export function PerformerHoverCard({
     const followError =
         followState.kind === "error" ? followState.message : null;
     const followLabel = followBusy
-        ? t("status.following")
+        ? "Following…"
         : followedAlready
-          ? t("status.followed")
+          ? "Following"
           : followError
-            ? t("action.retry_follow_name", { name })
-            : t("action.follow_performer_name", { name });
+            ? `Retry · Follow ${name}`
+            : `Follow ${name}`;
 
     return (
         <>
@@ -289,19 +276,17 @@ export function PerformerHoverCard({
                                         <span
                                             className={
                                                 "binge-feed-card-verified" +
-                                                (favorite
-                                                    ? " is-favorite"
-                                                    : "")
+                                                (favorite ? " is-favorite" : "")
                                             }
                                             aria-label={
                                                 favorite
-                                                    ? t("status.favorite")
-                                                    : t("status.in_library")
+                                                    ? "Favourited"
+                                                    : "In library"
                                             }
                                             title={
                                                 favorite
-                                                    ? t("status.favorite")
-                                                    : t("status.in_library")
+                                                    ? "Favourited"
+                                                    : "In library"
                                             }
                                         >
                                             <VerifiedIcon />
@@ -310,11 +295,11 @@ export function PerformerHoverCard({
                                 </span>
                                 <span className="binge-performer-hovercard-meta">
                                     {[
-                                        formatGender(gender, t),
+                                        formatGender(gender),
                                         age !== null ? `${age}` : null,
                                     ]
                                         .filter(Boolean)
-                                        .join(" · ") || t("performer.performer")}
+                                        .join(" · ") || "Performer"}
                                 </span>
                                 <span
                                     className={
@@ -324,7 +309,7 @@ export function PerformerHoverCard({
                                             : " is-stashdb")
                                     }
                                 >
-                                    {inLibrary ? t("status.in_library") : "StashDB"}
+                                    {inLibrary ? "In library" : "StashDB"}
                                 </span>
                             </div>
                         </div>
@@ -337,7 +322,7 @@ export function PerformerHoverCard({
                                     setOpen(false);
                                 }}
                             >
-                                {t("action.open_profile")}
+                                Open profile
                             </button>
                         )}
                         {!inLibrary && (
@@ -364,7 +349,7 @@ export function PerformerHoverCard({
                             </>
                         )}
                     </div>,
-                    document.body
+                    document.body,
                 )}
             {modalOpen && stashDBPerformerId && stashBoxIndex !== undefined && (
                 <FollowPerformerModal
@@ -395,21 +380,21 @@ function computeAge(birthDate: string): number {
     return age;
 }
 
-function formatGender(g: string | null, t: any): string | null {
+function formatGender(g: string | null): string | null {
     if (!g) return null;
     switch (g) {
         case "FEMALE":
-            return t("settings.gender.female");
+            return "Female";
         case "TRANSGENDER_FEMALE":
-            return t("settings.gender.trans_female");
+            return "Trans female";
         case "MALE":
-            return t("settings.gender.male");
+            return "Male";
         case "TRANSGENDER_MALE":
-            return t("settings.gender.trans_male");
+            return "Trans male";
         case "INTERSEX":
-            return t("settings.gender.intersex");
+            return "Intersex";
         case "NON_BINARY":
-            return t("settings.gender.non_binary");
+            return "Non-binary";
         default:
             return g
                 .replace(/_/g, " ")

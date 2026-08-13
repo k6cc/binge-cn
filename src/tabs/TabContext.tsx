@@ -10,13 +10,7 @@ import {
 } from "react";
 
 export type Tab =
-    | "home"
-    | "foryou"
-    | "following"
-    | "explore"
-    | "saved"
-    | "settings"
-    | "menu";
+    "home" | "foryou" | "following" | "explore" | "saved" | "settings" | "menu";
 
 // "random" — the existing reel behaviour: random sort + scene_filter chips.
 // "chained" — recommendation chain seeded by an Explore-tile tap. The reel
@@ -94,9 +88,10 @@ export function TabProvider({ children }: { children: ReactNode }) {
     const [tab, setTabRaw] = useState<Tab>(() => readTabFromHash() ?? "home");
     const [tabBarVisible, setTabBarVisible] = useState(true);
     const [pinFirstSceneId, setPinFirstSceneId] = useState<string | null>(null);
-    const [pinnedQueue, setPinnedQueue] = useState<
-        { ids: string[]; startIndex: number } | null
-    >(null);
+    const [pinnedQueue, setPinnedQueue] = useState<{
+        ids: string[];
+        startIndex: number;
+    } | null>(null);
     const [reelMode, setReelMode] = useState<ReelMode>("random");
 
     // On first paint, make sure the hash reflects the resolved tab —
@@ -142,12 +137,6 @@ export function TabProvider({ children }: { children: ReactNode }) {
         // watching a chained reel returns to the Explore grid rather
         // than re-rendering the same reel.
         setReelMode("random");
-        // Bug 5 修复：清除 pin 和 queue，防止下次进入 Reel 时残留的
-        // pin/queue 触发 chained/queue 路径覆盖随机场景。调用方若想
-        // 保留 pin/queue（如 handleWatchFullScene），必须在 setTab 之
-        // 后再次设置，利用 React 18 批处理"后写胜"语义。
-        setPinFirstSceneId(null);
-        setPinnedQueue(null);
         writeTabToHash(next);
     }, []);
 
@@ -164,14 +153,7 @@ export function TabProvider({ children }: { children: ReactNode }) {
             reelMode,
             setReelMode,
         }),
-        [
-            tab,
-            setTab,
-            tabBarVisible,
-            pinFirstSceneId,
-            pinnedQueue,
-            reelMode,
-        ]
+        [tab, setTab, tabBarVisible, pinFirstSceneId, pinnedQueue, reelMode],
     );
 
     return <TabContext.Provider value={value}>{children}</TabContext.Provider>;

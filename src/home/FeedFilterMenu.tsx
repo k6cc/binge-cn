@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
 import {
     ALL_FEED_CATEGORIES,
     setHiddenFeedCategories,
@@ -11,20 +10,17 @@ import {
 // per-category visibility toggles for the Home feed. State is stored
 // in localStorage (binge.feedHidden) so it persists and the Feed
 // reacts live via useHiddenFeedCategories.
-
+const LABELS: Record<FeedCategory, string> = {
+    discover: "Discover",
+    trending: "Trending",
+    posts: "Posts",
+    reposts: "Reposts",
+};
 
 export function FeedFilterMenu() {
     const hidden = useHiddenFeedCategories();
     const [open, setOpen] = useState(false);
     const rootRef = useRef<HTMLDivElement>(null);
-    const { t } = useTranslation();
-
-    const LABELS: Record<FeedCategory, string> = {
-        discover: t("feed.category.discover"),
-        trending: t("feed.category.trending"),
-        posts: t("feed.category.posts"),
-        reposts: t("feed.category.reposts"),
-    };
 
     useEffect(() => {
         if (!open) return;
@@ -61,13 +57,12 @@ export function FeedFilterMenu() {
             <button
                 type="button"
                 className={
-                    "binge-feed-filter-btn" +
-                    (anyHidden ? " is-active" : "")
+                    "binge-feed-filter-btn" + (anyHidden ? " is-active" : "")
                 }
-                onClick={() => setOpen((o: boolean) => !o)}
-                aria-label={t("action.filter_feed")}
+                onClick={() => setOpen((o) => !o)}
+                aria-label="Filter feed"
                 aria-expanded={open}
-                title={t("action.filter_feed")}
+                title="Filter feed"
             >
                 <FilterIcon />
                 {anyHidden && (
@@ -80,7 +75,7 @@ export function FeedFilterMenu() {
             {open && (
                 <div className="binge-feed-filter-menu" role="menu">
                     <div className="binge-feed-filter-heading">
-                        {t("feed.show_in_feed")}
+                        Show in feed
                     </div>
                     {ALL_FEED_CATEGORIES.map((cat) => {
                         const shown = !hidden.has(cat);

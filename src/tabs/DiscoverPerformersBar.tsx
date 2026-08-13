@@ -8,7 +8,6 @@ import {
 import { usePerformerProfile } from "../performer/PerformerProfileContext";
 import { PerformerHoverCard } from "../home/PerformerHoverCard";
 import { useAllowedGenders, orderedGenders } from "../home/pluginSettings";
-import { useTranslation } from "react-i18next";
 
 // Horizontal scroll-snap row of StashDB performer bubbles, mirroring
 // the homepage stories row. Mounts at the top of Explore. Data comes
@@ -32,7 +31,6 @@ export function DiscoverPerformersBar() {
     const scrollerRef = useRef<HTMLDivElement>(null);
     const [canScrollLeft, setCanScrollLeft] = useState(false);
     const [canScrollRight, setCanScrollRight] = useState(false);
-    const { t } = useTranslation();
 
     // Stable cache key so flipping a gender toggle re-runs the
     // effect (the Set reference changes on every render).
@@ -51,7 +49,7 @@ export function DiscoverPerformersBar() {
                     getTrendingStashDBPerformers(
                         box.api_key,
                         30,
-                        orderedGenders(allowedGenders)
+                        orderedGenders(allowedGenders),
                     ),
                     getLinkedPerformers(),
                 ]);
@@ -83,7 +81,7 @@ export function DiscoverPerformersBar() {
         const update = () => {
             setCanScrollLeft(el.scrollLeft > 4);
             setCanScrollRight(
-                el.scrollLeft + el.clientWidth < el.scrollWidth - 4
+                el.scrollLeft + el.clientWidth < el.scrollWidth - 4,
             );
         };
         update();
@@ -105,7 +103,7 @@ export function DiscoverPerformersBar() {
     if (state.kind === "error") return null; // graceful no-op
     return (
         <section className="binge-discover-bar">
-            <h2 className="binge-discover-bar-title">{t("nav.discover_performers")}</h2>
+            <h2 className="binge-discover-bar-title">Discover performers</h2>
             <div className="binge-discover-bar-row">
                 <button
                     type="button"
@@ -114,15 +112,12 @@ export function DiscoverPerformersBar() {
                         (canScrollLeft ? "" : " is-hidden")
                     }
                     onClick={() => scrollBy(-300)}
-                    aria-label={t("nav.scroll_left")}
+                    aria-label="Scroll left"
                     tabIndex={canScrollLeft ? 0 : -1}
                 >
                     <ChevronLeft />
                 </button>
-                <div
-                    className="binge-discover-bar-scroll"
-                    ref={scrollerRef}
-                >
+                <div className="binge-discover-bar-scroll" ref={scrollerRef}>
                     {state.kind === "loading"
                         ? Array.from({ length: 8 }).map((_, i) => (
                               <span
@@ -134,9 +129,7 @@ export function DiscoverPerformersBar() {
                               <PerformerBubble
                                   key={p.id}
                                   performer={p}
-                                  onOpenStashDB={() =>
-                                      openStashDBProfile(p.id)
-                                  }
+                                  onOpenStashDB={() => openStashDBProfile(p.id)}
                                   onOpenLocal={(localId) =>
                                       openProfile(localId)
                                   }
@@ -150,7 +143,7 @@ export function DiscoverPerformersBar() {
                         (canScrollRight ? "" : " is-hidden")
                     }
                     onClick={() => scrollBy(300)}
-                    aria-label={t("nav.scroll_right")}
+                    aria-label="Scroll right"
                     tabIndex={canScrollRight ? 0 : -1}
                 >
                     <ChevronRight />
@@ -192,9 +185,7 @@ function PerformerBubble({
                 <span
                     className={
                         "binge-discover-bubble-img" +
-                        (performer.localId !== null
-                            ? " is-in-library"
-                            : "")
+                        (performer.localId !== null ? " is-in-library" : "")
                     }
                     style={
                         performer.image

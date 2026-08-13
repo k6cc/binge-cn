@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import type { PerformerSceneCard } from "../api/queries";
-import { useTranslation } from "react-i18next";
 
 // Generic paginated 3-column scene grid. The performer profile and the
 // saved-collection detail view both use this — they only differ in
@@ -18,7 +17,7 @@ const NEAR_BOTTOM_PX = 600;
 export interface SceneCardGridProps {
     fetcher: (
         page: number,
-        perPage: number
+        perPage: number,
     ) => Promise<{ count: number; scenes: PerformerSceneCard[] }>;
     onPick: (scene: PerformerSceneCard) => void;
     // Reset fetched state when this changes (e.g. switching to a
@@ -35,10 +34,8 @@ export function SceneCardGrid({
     resetKey,
     pageSize = DEFAULT_PAGE_SIZE,
     heading,
-    emptyMessage,
+    emptyMessage = "no scenes",
 }: SceneCardGridProps) {
-    const { t } = useTranslation();
-    const finalEmptyMessage = emptyMessage || t("status.no_scenes");
     const [scenes, setScenes] = useState<PerformerSceneCard[]>([]);
     const [count, setCount] = useState<number | null>(null);
     const [page, setPage] = useState(1);
@@ -62,7 +59,7 @@ export function SceneCardGrid({
                 if (!alive) return;
                 setCount(res.count);
                 setScenes((prev) =>
-                    page === 1 ? res.scenes : [...prev, ...res.scenes]
+                    page === 1 ? res.scenes : [...prev, ...res.scenes],
                 );
             })
             .catch((err: Error) => {
@@ -93,7 +90,7 @@ export function SceneCardGrid({
                     if (entry.isIntersecting) setPage((p) => p + 1);
                 }
             },
-            { rootMargin: `0px 0px ${NEAR_BOTTOM_PX}px 0px` }
+            { rootMargin: `0px 0px ${NEAR_BOTTOM_PX}px 0px` },
         );
         observer.observe(sentinel);
         return () => observer.disconnect();
@@ -109,14 +106,14 @@ export function SceneCardGrid({
             )}
             {error && (
                 <div className="binge-status binge-status-error">
-                    {t("status.error_message", { message: error })}
+                    error: {error}
                 </div>
             )}
             {scenes.length === 0 && loading && (
-                <div className="binge-status">{t("status.loading")}</div>
+                <div className="binge-status">loading…</div>
             )}
             {scenes.length === 0 && !loading && !error && (
-                <div className="binge-status">{finalEmptyMessage}</div>
+                <div className="binge-status">{emptyMessage}</div>
             )}
             {scenes.length > 0 && (
                 <div className="binge-explore-grid">
@@ -131,7 +128,7 @@ export function SceneCardGrid({
             )}
             <div ref={sentinelRef} aria-hidden="true" />
             {loading && scenes.length > 0 && (
-                <div className="binge-status">{t("status.loading")}</div>
+                <div className="binge-status">loading more…</div>
             )}
         </div>
     );
@@ -147,8 +144,7 @@ function ExploreStyleTile({
     scene: PerformerSceneCard;
     onPick: () => void;
 }) {
-    const { t } = useTranslation();
-    const sceneTitle = scene.title?.trim() || t("scene.scene_id", { id: scene.id });
+    const sceneTitle = scene.title?.trim() || `Scene ${scene.id}`;
     return (
         <button
             type="button"

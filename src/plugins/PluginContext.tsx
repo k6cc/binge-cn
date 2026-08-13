@@ -69,7 +69,7 @@ export function PluginProvider({ children }: { children: ReactNode }) {
 
     const value = useMemo<PluginContextValue>(() => {
         const enabledIds = new Set(
-            (entries ?? []).filter((p) => p.enabled).map((p) => p.id)
+            (entries ?? []).filter((p) => p.enabled).map((p) => p.id),
         );
         return {
             loaded: entries !== null,

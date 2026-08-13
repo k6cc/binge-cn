@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useTranslation } from "react-i18next";
 import type { PackFeedItem } from "./useFeed";
 import { VerifiedIcon } from "../performer/PerformerProfile";
 import { usePerformerProfile } from "../performer/PerformerProfileContext";
@@ -10,11 +9,11 @@ import { timeAgo } from "./timeAgo";
 import { PackDetailSheet } from "./PackDetailSheet";
 import { RepostIcon } from "../components/ActionStack";
 
-// Number of cover tiles rendered in the 4×2 mosaic. The pack may
+// Number of cover tiles rendered in the 3×3 mosaic. The pack may
 // hold dozens or hundreds of scenes; the tile grid surfaces only
-// the first 8 (newest-first) and the "+N more" badge counts the
+// the first 9 (newest-first) and the "+N more" badge counts the
 // remainder so the card stays compact.
-const MOSAIC_TILES = 8;
+const MOSAIC_TILES = 9;
 
 // Bulk-import card. Renders as a single feed entry when binge
 // detects many scenes from the same performer added in one batch
@@ -27,7 +26,6 @@ const MOSAIC_TILES = 8;
 // activity) + hover card + relative time.
 export function PackFeedCard({ item }: { item: PackFeedItem }) {
     const [sheetOpen, setSheetOpen] = useState(false);
-    const { t } = useTranslation();
     const { openProfile } = usePerformerProfile();
     const { open: openStoryViewer } = useStoryViewer();
     const storiesState = useSharedStories();
@@ -35,16 +33,12 @@ export function PackFeedCard({ item }: { item: PackFeedItem }) {
 
     const hasStory =
         storiesState.state.kind === "ready" &&
-        storiesState.state.stories.some(
-            (s) => s.performerId === primary.id
-        );
+        storiesState.state.stories.some((s) => s.performerId === primary.id);
 
     const handleAvatarTap = () => {
         if (hasStory && storiesState.state.kind === "ready") {
             const list = storiesState.state.stories;
-            const idx = list.findIndex(
-                (s) => s.performerId === primary.id
-            );
+            const idx = list.findIndex((s) => s.performerId === primary.id);
             if (idx >= 0) {
                 openStoryViewer(list, idx);
                 return;
@@ -104,7 +98,7 @@ export function PackFeedCard({ item }: { item: PackFeedItem }) {
                                 {item.isRepost && (
                                     <span
                                         className="binge-pack-card-repost-badge"
-                                        aria-label={t("status.reposted")}
+                                        aria-label="Reposted"
                                     >
                                         <RepostIcon />
                                     </span>
@@ -140,8 +134,8 @@ export function PackFeedCard({ item }: { item: PackFeedItem }) {
                                         }
                                         aria-label={
                                             primary.favorite
-                                                ? t("status.favorite")
-                                                : t("status.in_library")
+                                                ? "Favourited"
+                                                : "In library"
                                         }
                                     >
                                         <VerifiedIcon />
@@ -149,8 +143,8 @@ export function PackFeedCard({ item }: { item: PackFeedItem }) {
                                 </span>
                                 <span className="binge-pack-card-sub">
                                     {item.isRepost
-                                        ? t("status.reposted_count", { count: item.sceneCount })
-                                        : t("status.added_count", { count: item.sceneCount })}
+                                        ? `reposted ${item.sceneCount} scenes`
+                                        : `added ${item.sceneCount} new scenes`}
                                 </span>
                             </button>
                         </PerformerHoverCard>
@@ -163,7 +157,7 @@ export function PackFeedCard({ item }: { item: PackFeedItem }) {
                     className="binge-pack-card-mosaic"
                     role="button"
                     tabIndex={0}
-                    aria-label={t("action.open_pack_aria", { count: item.sceneCount })}
+                    aria-label={`Open pack — ${item.sceneCount} scenes`}
                     onClick={() => setSheetOpen(true)}
                     onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === " ") {

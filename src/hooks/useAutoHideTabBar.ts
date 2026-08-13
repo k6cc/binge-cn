@@ -16,7 +16,7 @@ const NEAR_TOP_PX = 80;
 const DELTA_DEADZONE_PX = 5;
 
 export function useAutoHideTabBar(
-    scrollRef: RefObject<HTMLElement | null>
+    scrollRef: RefObject<HTMLElement | null>,
 ): void {
     const { setTabBarVisible } = useTab();
     const lastScrollTopRef = useRef(0);

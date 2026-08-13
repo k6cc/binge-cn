@@ -15,13 +15,11 @@ import {
     useShowGalleries,
     useLookbackDays,
     useIncludeStashDB,
-    useHiddenFeedCategories,
 } from "./pluginSettings";
 import {
     fetchDiscoveryFeedItems,
     type DiscoveryFeedItem,
 } from "./discoveryFeed";
-import { useSharedStories } from "./StoriesContext";
 
 // Performer summary inside a feed item. Multiple performers per item are
 // kept so the card can show their names and route taps to the correct
@@ -125,10 +123,7 @@ export interface PackFeedItem {
 }
 
 export type FeedItem =
-    | SceneFeedItem
-    | GalleryFeedItem
-    | DiscoveryFeedItemWrapped
-    | PackFeedItem;
+    SceneFeedItem | GalleryFeedItem | DiscoveryFeedItemWrapped | PackFeedItem;
 
 export type FeedState =
     | { kind: "loading" }
@@ -163,7 +158,7 @@ const PACK_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 function assemblePacks(
     scenes: SceneFeedItem[],
-    repostCutoff: string
+    repostCutoff: string,
 ): FeedItem[] {
     // `repostCutoff` (YYYY-MM-DD) is computed by the caller from the
     // configured recent window — not the grown infinite-scroll window —
@@ -188,13 +183,11 @@ function assemblePacks(
     const out: FeedItem[] = [];
     for (const [pid, list] of byPrimary) {
         const sortedByCreated = [...list].sort((a, b) =>
-            b.createdAt.localeCompare(a.createdAt)
+            b.createdAt.localeCompare(a.createdAt),
         );
         const newest = new Date(sortedByCreated[0].createdAt).getTime();
         const inWindow = sortedByCreated.filter(
-            (s) =>
-                newest - new Date(s.createdAt).getTime() <=
-                PACK_WINDOW_MS
+            (s) => newest - new Date(s.createdAt).getTime() <= PACK_WINDOW_MS,
         );
         if (inWindow.length < PACK_MIN_SIZE) continue;
         const primary = sortedByCreated[0].performers[0];
@@ -244,9 +237,7 @@ function assemblePacks(
 }
 // Max images per gallery in the carousel — the rest live behind the
 // "View gallery →" panel and open in the existing ImageLightbox.
-// Bug 7 修复：原值 10 导致 13 张图库只显示 10 张。提升到 500（与
-// PerformerImageGrid 的上限一致），实际显示数量受图库真实图片数限制。
-export const MAX_GALLERY_IMAGES = 20;
+const MAX_GALLERY_IMAGES = 10;
 
 // Path patterns that identify auto-generated / non-photo-set galleries
 // the user doesn't want surfaced in the Home feed. The `screen[^/]*`
@@ -285,19 +276,13 @@ export function useFeed(): FeedHookResult {
     const [state, setState] = useState<FeedState>({ kind: "loading" });
     const showGalleries = useShowGalleries();
     const includeStashDB = useIncludeStashDB();
-    const hidden = useHiddenFeedCategories();
-    // The Home refresh button lives on stories.refresh(); we watch
-    // its tick so a single tap coordinates refetch across stories +
-    // feed (including dropping the 12h discovery cache and pulling
-    // fresh seeds from stashdb).
-    const { refreshTick: storiesRefreshTick } = useSharedStories();
     // Bumped by retry() to force the effect below to re-run.
     const [reloadTick, setReloadTick] = useState(0);
 
     useEffect(() => {
         let alive = true;
         const sinceIso = new Date(
-            Date.now() - lookbackDays * 24 * 3600 * 1000
+            Date.now() - lookbackDays * 24 * 3600 * 1000,
         ).toISOString();
 
         // Stash's date fields are YYYY-MM-DD strings (DateCriterionInput),
@@ -341,17 +326,8 @@ export function useFeed(): FeedHookResult {
                     // hide together so the user has one switch.
                     // Failures swallowed inside fetchDiscoveryFeedItems
                     // so a StashDB outage never breaks the feed.
-                    //
-                    // skipTrending: when the user has hidden the
-                    // "trending" feed category, skip the trending
-                    // stashdb query entirely — no point fetching data
-                    // we'd then filter out in the card layer. The
-                    // co-star seed still runs because "discover"
-                    // (costar) is a separate category.
                     includeStashDB
-                        ? fetchDiscoveryFeedItems(sinceDate, {
-                              skipTrending: hidden.has("trending"),
-                          })
+                        ? fetchDiscoveryFeedItems(sinceDate)
                         : Promise.resolve([] as DiscoveryFeedItem[]),
                 ]);
                 if (!alive) return;
@@ -380,8 +356,7 @@ export function useFeed(): FeedHookResult {
                         // it by import time so it surfaces instead of
                         // sinking to its years-old release date.
                         const isRepost =
-                            r.sceneDate !== null &&
-                            r.sceneDate < sinceDate;
+                            r.sceneDate !== null && r.sceneDate < sinceDate;
                         item = {
                             kind: "scene",
                             key: `scene:${r.sceneId}`,
@@ -394,7 +369,7 @@ export function useFeed(): FeedHookResult {
                             date: r.sceneDate,
                             effectiveAt: isRepost
                                 ? r.sceneCreatedAt
-                                : r.sceneDate ?? r.sceneCreatedAt,
+                                : (r.sceneDate ?? r.sceneCreatedAt),
                             width: r.sceneWidth,
                             height: r.sceneHeight,
                             performers: [],
@@ -416,15 +391,15 @@ export function useFeed(): FeedHookResult {
                 // per-gallery image round-trips on gallery-heavy windows.
                 const cappedGalleryRows = galleryRows.slice(
                     0,
-                    MAX_GALLERY_CARDS
+                    MAX_GALLERY_CARDS,
                 );
                 const galleryImageLists = await Promise.all(
                     cappedGalleryRows.map((g) =>
                         findImagesByGallery(
                             g.galleryId,
-                            MAX_GALLERY_IMAGES
-                        ).catch(() => [] as PerformerImageCard[])
-                    )
+                            MAX_GALLERY_IMAGES,
+                        ).catch(() => [] as PerformerImageCard[]),
+                    ),
                 );
                 if (!alive) return;
 
@@ -447,7 +422,7 @@ export function useFeed(): FeedHookResult {
                             favorite: p.favorite,
                         })),
                         paths: g.paths,
-                    })
+                    }),
                 );
 
                 // Assemble packs (bulk imports → one pack card). No
@@ -455,9 +430,9 @@ export function useFeed(): FeedHookResult {
                 // virtualizer renders only what's on screen.
                 const sceneList: FeedItem[] = assemblePacks(
                     Array.from(sceneItems.values()).sort((a, b) =>
-                        b.effectiveAt.localeCompare(a.effectiveAt)
+                        b.effectiveAt.localeCompare(a.effectiveAt),
                     ),
-                    sinceDate
+                    sinceDate,
                 );
 
                 const wrappedDiscovery: DiscoveryFeedItemWrapped[] =
@@ -482,7 +457,7 @@ export function useFeed(): FeedHookResult {
         return () => {
             alive = false;
         };
-    }, [lookbackDays, showGalleries, includeStashDB, hidden, storiesRefreshTick, reloadTick]);
+    }, [lookbackDays, showGalleries, includeStashDB, reloadTick]);
 
     return { state, retry: () => setReloadTick((t) => t + 1) };
 }

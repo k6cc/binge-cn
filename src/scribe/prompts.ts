@@ -11,7 +11,11 @@ export const DEFAULT_OLLAMA_URL = "http://localhost:11434";
 export const DEFAULT_MODEL = "weirdcompound:latest";
 
 export type VoiceMode = "direct" | "sensual" | "filthy";
-export const VOICE_MODES: ReadonlyArray<VoiceMode> = ["direct", "sensual", "filthy"];
+export const VOICE_MODES: ReadonlyArray<VoiceMode> = [
+    "direct",
+    "sensual",
+    "filthy",
+];
 export const VOICE_LABELS: Record<VoiceMode, string> = {
     direct: "Direct",
     sensual: "Sensual",
@@ -85,7 +89,7 @@ export const INTERVIEW_CONTRACT_PERFORMER = [
     "",
     "INTERVIEW STRUCTURE — TWO PHASES.",
     "",
-    "PHASE 1 (the rating sweep): Work methodically through every rating criterion listed above the contract. ONE question per reply, focused on a SPECIFIC criterion. Ask in any order that feels natural for the conversation, but cover them ALL before moving on. If the user gives a quick or shallow answer, follow up ONCE for filthy specifics (e.g. \"tits are amazing\" → \"shape, jiggle, nipples — what stood out?\"), then move to the next unfinished criterion. Track internally which criteria you've already covered — don't ask twice about the same axis.",
+    'PHASE 1 (the rating sweep): Work methodically through every rating criterion listed above the contract. ONE question per reply, focused on a SPECIFIC criterion. Ask in any order that feels natural for the conversation, but cover them ALL before moving on. If the user gives a quick or shallow answer, follow up ONCE for filthy specifics (e.g. "tits are amazing" → "shape, jiggle, nipples — what stood out?"), then move to the next unfinished criterion. Track internally which criteria you\'ve already covered — don\'t ask twice about the same axis.',
     "",
     "PHASE 2 (open follow-ups): Once you have a stated impression for every rating criterion, switch into open follow-ups. Dig into the user's overall feelings about her, signature kinks, specific scenes, weaknesses, why she keeps pulling them back, archetypal fit, etc. Stay focused on her — don't drift into unrelated tangents. Still one question per reply.",
     "",
@@ -96,8 +100,8 @@ export const INTERVIEW_CONTRACT_PERFORMER = [
     "FILTHY & USEFUL FOLLOW-UP EXAMPLES:",
     '- User says "amazing tits" → "Break those tits down for me — shape, how they bounce when she\'s getting fucked, nipples, the way they look when oiled up?"',
     '- User says "great ass" → "Tell me about that ass — how it jiggles, how it looks when she\'s bent over, does it clap when you pound it?"',
-    '- User mentions goth/e-girl → "What exactly does her goth look do for you — the pale skin, the dark hair and makeup, that \'perverted alt slut\' energy?"',
-    '- User says "she tries hard" → "What does \'tries hard\' look like when she\'s getting railed — desperate moaning, eager riding even if she\'s bad at it, good eye contact?"',
+    "- User mentions goth/e-girl → \"What exactly does her goth look do for you — the pale skin, the dark hair and makeup, that 'perverted alt slut' energy?\"",
+    "- User says \"she tries hard\" → \"What does 'tries hard' look like when she's getting railed — desperate moaning, eager riding even if she's bad at it, good eye contact?\"",
     '- User says "her face is average / ugly" → "So her face is mid or straight-up busted — what is it about that butterface look that still gets you hard? The contrast with her body? The \'she knows she\'s not perfect but tries anyway\' vibe?"',
     '- User says "she\'s really into it" or "high energy" → "What does her \'really into it\' energy actually look like? Is she moaning like a whore, actively throwing her ass back, making eye contact while choking on dick, or something else?"',
     '- User mentions pussy or genitals → "Tell me about her cunt — is it pretty, puffy, tight-looking, does it grip, get creamy, squirt, or just look like a perfect fuckhole when it\'s stretched?"',

@@ -69,7 +69,7 @@ export interface SceneUpdateResult {
 }
 
 export async function sceneUpdate(
-    input: SceneUpdateInput
+    input: SceneUpdateInput,
 ): Promise<SceneUpdateResult> {
     const data = await gql<{ sceneUpdate: SceneUpdateResult }>(SCENE_UPDATE, {
         input,
@@ -81,7 +81,7 @@ export async function sceneUpdate(
 // 0–5 stars to 0/20/40/60/80/100 at the call site.
 export async function setSceneRating(
     sceneId: string,
-    rating100: number | null
+    rating100: number | null,
 ): Promise<number | null> {
     const result = await sceneUpdate({ id: sceneId, rating100 });
     return result.rating100;
@@ -102,7 +102,7 @@ const TAG_CREATE = /* GraphQL */ `
 export async function tagCreate(
     name: string,
     ignoreAutoTag: boolean,
-    parentIds?: string[]
+    parentIds?: string[],
 ): Promise<{ id: string; name: string }> {
     const input: Record<string, unknown> = {
         name,
@@ -113,7 +113,7 @@ export async function tagCreate(
     }
     const data = await gql<{ tagCreate: { id: string; name: string } }>(
         TAG_CREATE,
-        { input }
+        { input },
     );
     return data.tagCreate;
 }
@@ -135,22 +135,10 @@ const TAG_UPDATE = /* GraphQL */ `
 
 export async function tagSetParents(
     id: string,
-    parentIds: string[]
+    parentIds: string[],
 ): Promise<void> {
     await gql(TAG_UPDATE, {
         input: { id, parent_ids: parentIds },
-    });
-}
-
-// Rename a tag in place. Reuses TAG_UPDATE with the name field —
-// Stash preserves all scene associations and parent/child links.
-// Used by the v0.4.15 legacy-tag-name migration (English → Chinese).
-export async function tagRename(
-    id: string,
-    newName: string
-): Promise<void> {
-    await gql(TAG_UPDATE, {
-        input: { id, name: newName },
     });
 }
 
@@ -185,7 +173,7 @@ interface PerformerUpdateResult {
 
 export async function setPerformerFavorite(
     performerId: string,
-    favorite: boolean
+    favorite: boolean,
 ): Promise<boolean> {
     const data = await gql<PerformerUpdateResult>(PERFORMER_UPDATE_FAVORITE, {
         id: performerId,
@@ -209,10 +197,7 @@ export async function setPerformerFavorite(
 // — they can manually scrape from Stash later to fill metadata.
 
 const SCRAPE_STASHBOX_PERFORMER = /* GraphQL */ `
-    query ScrapeStashBoxPerformer(
-        $stash_box_index: Int!
-        $stash_id: String!
-    ) {
+    query ScrapeStashBoxPerformer($stash_box_index: Int!, $stash_id: String!) {
         scrapeSinglePerformer(
             source: { stash_box_index: $stash_box_index }
             input: { performer_id: $stash_id }
@@ -282,7 +267,7 @@ export interface ScrapedPerformer {
 // simpler and gives us the full images array for the modal's
 // photo carousel.
 export async function getStashDBPerformerForFollow(
-    stashId: string
+    stashId: string,
 ): Promise<StashDBPerformerDetail | null> {
     const box = await getStashDBBox();
     if (!box) return null;
@@ -330,20 +315,18 @@ export function buildPerformerCreateForm(args: {
     const d = args.detail;
     const tattoosText = (d?.tattoos ?? [])
         .map((t) =>
-            t.description ? `${t.location}: ${t.description}` : t.location
+            t.description ? `${t.location}: ${t.description}` : t.location,
         )
         .join("\n");
     const piercingsText = (d?.piercings ?? [])
         .map((p) =>
-            p.description ? `${p.location}: ${p.description}` : p.location
+            p.description ? `${p.location}: ${p.description}` : p.location,
         )
         .join("\n");
     // StashDB returns career years; Stash stores ISO date strings.
     // Promote start_year → YYYY-01-01 and end_year → YYYY-12-31 so
     // the dates land in the right year.
-    const careerStart = d?.careerStartYear
-        ? `${d.careerStartYear}-01-01`
-        : "";
+    const careerStart = d?.careerStartYear ? `${d.careerStartYear}-01-01` : "";
     const careerEnd = d?.careerEndYear ? `${d.careerEndYear}-12-31` : "";
     const urlsText = (d?.urls ?? []).map((u) => u.url).join("\n");
     // Map StashDB breast_type → Stash's fake_tits string. Stash
@@ -402,7 +385,7 @@ const STASHDB_ENDPOINT = "https://stashdb.org/graphql";
 // stash_ids back to StashDB so the new local performer stays
 // linked.
 export async function submitPerformerCreate(
-    form: PerformerCreateForm
+    form: PerformerCreateForm,
 ): Promise<{ id: string; name: string }> {
     const input: Record<string, unknown> = {
         name: form.name.trim(),
@@ -468,7 +451,7 @@ export interface FollowStashDBPerformerArgs {
 }
 
 export async function followStashDBPerformer(
-    args: FollowStashDBPerformerArgs
+    args: FollowStashDBPerformerArgs,
 ): Promise<{ id: string; name: string }> {
     let scraped: ScrapedPerformer | null = null;
     try {
@@ -513,7 +496,11 @@ export async function followStashDBPerformer(
     if (scraped?.piercings) input.piercings = scraped.piercings;
     if (scraped?.career_length) input.career_length = scraped.career_length;
     if (scraped?.measurements) input.measurements = scraped.measurements;
-    if (scraped?.aliases) input.alias_list = scraped.aliases.split(",").map((s) => s.trim()).filter(Boolean);
+    if (scraped?.aliases)
+        input.alias_list = scraped.aliases
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean);
     if (scraped?.death_date) input.death_date = scraped.death_date;
     if (scraped?.weight) {
         const w = parseFloat(scraped.weight);
@@ -540,7 +527,7 @@ export async function followStashDBPerformer(
 // sceneCreate input.
 
 export async function getStashDBSceneForCreate(
-    stashDBSceneId: string
+    stashDBSceneId: string,
 ): Promise<StashDBSceneDetail | null> {
     const box = await getStashDBBox();
     if (!box) return null;
@@ -589,7 +576,7 @@ const FIND_STUDIOS_BY_STASH_ID = /* GraphQL */ `
 `;
 
 async function buildPerformerStashIdMap(
-    stashIds: string[]
+    stashIds: string[],
 ): Promise<Map<string, string>> {
     if (stashIds.length === 0) return new Map();
     const data = await gql<{
@@ -616,9 +603,7 @@ async function buildPerformerStashIdMap(
     return out;
 }
 
-async function findStudioByStashId(
-    stashId: string
-): Promise<string | null> {
+async function findStudioByStashId(stashId: string): Promise<string | null> {
     const data = await gql<{
         findStudios: {
             studios: {
@@ -629,10 +614,7 @@ async function findStudioByStashId(
     }>(FIND_STUDIOS_BY_STASH_ID);
     for (const s of data.findStudios.studios) {
         for (const sid of s.stash_ids) {
-            if (
-                sid.endpoint === STASHDB_ENDPOINT &&
-                sid.stash_id === stashId
-            ) {
+            if (sid.endpoint === STASHDB_ENDPOINT && sid.stash_id === stashId) {
                 return s.id;
             }
         }
@@ -649,9 +631,7 @@ export async function buildSceneCreateForm(args: {
     let studioId: string | null = null;
     if (d) {
         const performerStashIds = d.performers.map((p) => p.stashId);
-        const performerMap = await buildPerformerStashIdMap(
-            performerStashIds
-        );
+        const performerMap = await buildPerformerStashIdMap(performerStashIds);
         for (const sid of performerStashIds) {
             const local = performerMap.get(sid);
             if (local) performerIds.push(local);
@@ -684,7 +664,7 @@ const SCENE_CREATE = /* GraphQL */ `
 `;
 
 export async function submitSceneCreate(
-    form: SceneCreateForm
+    form: SceneCreateForm,
 ): Promise<{ id: string; title: string | null }> {
     const input: Record<string, unknown> = {
         stash_ids: [

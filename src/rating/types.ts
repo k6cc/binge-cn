@@ -35,7 +35,7 @@ export type RatingDomain = "scene" | "performer";
 export interface RatingConfig {
     domain: RatingDomain;
     groups: Group[];
-    criteria: Criterion[];  // already filtered to enabled=true
+    criteria: Criterion[]; // already filtered to enabled=true
 }
 
 // Suffix used by the Advanced Rating plugin for criterion tags. The

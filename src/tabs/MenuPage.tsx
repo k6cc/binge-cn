@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import { useTab } from "./TabContext";
 
 // "More" page reached via the bottom-nav burger slot on mobile. Just
@@ -11,12 +10,11 @@ import { useTab } from "./TabContext";
 // route — direct-linking `#/menu` still works.
 export function MenuPage() {
     const { setTab } = useTab();
-    const { t } = useTranslation();
     return (
         <div className="binge-tab-scroll">
             <header className="binge-saved-header">
                 <span className="binge-saved-spacer" />
-                <h1 className="binge-saved-title">{t("nav.menu")}</h1>
+                <h1 className="binge-saved-title">More</h1>
                 <span className="binge-saved-spacer" />
             </header>
             <ul className="binge-menu-list">
@@ -26,15 +24,16 @@ export function MenuPage() {
                         className="binge-menu-row"
                         onClick={() => setTab("saved")}
                     >
-                        <span className="binge-menu-row-icon" aria-hidden="true">
+                        <span
+                            className="binge-menu-row-icon"
+                            aria-hidden="true"
+                        >
                             <BookmarkIcon />
                         </span>
                         <span className="binge-menu-row-text">
-                            <span className="binge-menu-row-title">
-                                {t("nav.saved")}
-                            </span>
+                            <span className="binge-menu-row-title">Saved</span>
                             <span className="binge-menu-row-desc">
-                                {t("desc_saved")}
+                                Custom collections of bookmarked scenes.
                             </span>
                         </span>
                         <span
@@ -51,15 +50,19 @@ export function MenuPage() {
                         className="binge-menu-row"
                         onClick={() => setTab("settings")}
                     >
-                        <span className="binge-menu-row-icon" aria-hidden="true">
+                        <span
+                            className="binge-menu-row-icon"
+                            aria-hidden="true"
+                        >
                             <GearIcon />
                         </span>
                         <span className="binge-menu-row-text">
                             <span className="binge-menu-row-title">
-                                {t("nav.settings")}
+                                Settings
                             </span>
                             <span className="binge-menu-row-desc">
-                                {t("desc_settings")}
+                                Stream type, lookback window, binge-server
+                                configuration, theme integration.
                             </span>
                         </span>
                         <span

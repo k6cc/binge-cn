@@ -41,10 +41,15 @@ import {
 } from "../api/collections";
 import { timeAgo } from "./timeAgo";
 import { useScribeModal } from "../scribe/ScribeContext";
-import { useTranslation } from "react-i18next";
 
 interface SceneFeedCardProps {
     item: SceneFeedItem;
+    /// Date-sorted list of every scene id in the home feed.
+    /// "Watch full scene" now drops the user into the reel
+    /// pre-populated with this list, starting at this card's
+    /// scene — they walk through the home timeline rather than
+    /// landing in a filter-scoped reel.
+    feedSceneIds: string[];
 }
 
 // Scene-as-post IG-style card. Preview WebM auto-plays muted when ≥60%
@@ -52,10 +57,11 @@ interface SceneFeedCardProps {
 // the media to toggle play/pause; double-click to like; tap the header
 // avatar/name to open that performer's profile.
 //
-// 硬约束：CTA "观看完整场景 →" 使用 chained 模式（而非 pinnedQueue）。
-// chained 模式以当前场景为种子，由 chainAlgo 生成后续推荐，避免
-// pinnedQueue 的 scrollTo() 被虚拟列表逻辑覆盖的问题。
-export function SceneFeedCard({ item }: SceneFeedCardProps) {
+// The CTA "Watch full scene →" drops into the reel with the WHOLE
+// home feed pre-loaded as a deterministic queue (no filter, no
+// chained algo) — the user keeps walking the home timeline,
+// starting at the tapped scene. Same UX as the iOS port.
+export function SceneFeedCard({ item, feedSceneIds }: SceneFeedCardProps) {
     const videoRef = useRef<HTMLVideoElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [isPlaying, setIsPlaying] = useState(false);
@@ -63,10 +69,10 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
     const [oCount, setOCount] = useState(0);
     const [liked, setLiked] = useState(false);
     const oBusyRef = useRef(false);
-    const { t } = useTranslation();
 
     const { replace } = useFilter();
-    const { setTab, setPinFirstSceneId, setReelMode } = useTab();
+    const { setTab, setPinFirstSceneId, setReelMode, setPinnedQueue } =
+        useTab();
     const { openProfile } = usePerformerProfile();
     const { open: openStoryViewer } = useStoryViewer();
     const storiesState = useSharedStories();
@@ -78,11 +84,9 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
     const storyPerformerIds = useMemo<Set<string>>(
         () =>
             storiesState.state.kind === "ready"
-                ? new Set(
-                      storiesState.state.stories.map((s) => s.performerId)
-                  )
+                ? new Set(storiesState.state.stories.map((s) => s.performerId))
                 : new Set(),
-        [storiesState.state]
+        [storiesState.state],
     );
 
     const hasAdvancedRating = useHasAdvancedRating();
@@ -92,7 +96,9 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
     const [ratingOpen, setRatingOpen] = useState(false);
     const [saveSheetOpen, setSaveSheetOpen] = useState(false);
     const [inMVQueue, setInMVQueue] = useState(false);
-    const [inCollections, setInCollections] = useState<Record<string, boolean>>({});
+    const [inCollections, setInCollections] = useState<Record<string, boolean>>(
+        {},
+    );
 
     // Multiview queue membership — resynced on every queue change (this
     // tab, other tabs, and other clients via the config poll).
@@ -153,7 +159,7 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
                 item.sceneId,
                 item.tags.map((t) => t.id),
                 tagName,
-                next
+                next,
             );
             setInCollections((m) => ({ ...m, [tagName]: confirmed }));
         } catch {
@@ -163,21 +169,12 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
     };
 
     const isPortrait =
-        item.width !== null &&
-        item.height !== null &&
-        item.height > item.width;
+        item.width !== null && item.height !== null && item.height > item.width;
     const primaryPerformer = item.performers[0];
 
     // Auto-play when scrolled into view. Mirrors SceneSlide's IO logic
     // but drops the muted-fallback dance — feed previews are always
     // muted by default, the user has to click the card to unmute.
-    //
-    // 需求1 修复：原代码在 IO callback 里写 `video.muted = muted`，但
-    // 闭包固定了 mount 时的 muted 值——用户切换静音后，新进入视口的
-    // 卡片会被旧闭包值覆盖，导致每部影片都要关再开才有声音。
-    // 现在 IO 只负责 play/pause，muted 完全交给下方的独立 effect 同步。
-    // threshold 提高到 0.75，减少窄卡片场景下两张影片同时满足阈值
-    // 而同时播放声音的问题。
     useEffect(() => {
         const container = containerRef.current;
         const video = videoRef.current;
@@ -185,8 +182,9 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
         const observer = new IntersectionObserver(
             (entries) => {
                 for (const entry of entries) {
-                    const active = entry.intersectionRatio >= 0.75;
+                    const active = entry.intersectionRatio >= 0.6;
                     if (active) {
+                        video.muted = muted;
                         void video.play().catch(() => {
                             // Retry muted, accept failure silently.
                             video.muted = true;
@@ -197,20 +195,15 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
                     }
                 }
             },
-            { threshold: [0, 0.75, 1] }
+            { threshold: [0, 0.6, 1] },
         );
         observer.observe(container);
         return () => observer.disconnect();
+        // muted intentionally not a dep — IO callback reads the latest
+        // value from closure; if we depend on it the observer
+        // tears down on every mute toggle.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
-
-    // 同步 video.muted 与 React muted 状态。IO 不再触碰 muted，
-    // 因此无论用户何时切换静音，当前及后续进入视口的卡片都会
-    // 立即应用最新的 muted 值。
-    useEffect(() => {
-        const video = videoRef.current;
-        if (!video) return;
-        video.muted = muted;
-    }, [muted]);
 
     // Track play state for the centred play-glyph overlay.
     useEffect(() => {
@@ -277,18 +270,25 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
     };
 
     const handleWatchFullScene = () => {
-        // 硬约束：使用 chained 模式（而非 pinnedQueue）。以当前场景为
-        // 种子进入 reel，chainAlgo 基于该场景的演员/标签生成后续推荐，
-        // 避免 pinnedQueue 的 scrollTo() 被虚拟列表逻辑覆盖。
-        // 清空筛选以防 chained 模式的 filter-takeover 把用户弹回 random。
+        // Home → reel timeline jump. Hands the reel the home
+        // feed's ordered scene id list + the index of this
+        // card's scene; the reel's pinnedQueue path renders them
+        // verbatim, in order, no pagination. User walks the
+        // timeline forward/back from where they tapped.
         //
-        // Bug 5 修复：setTab 会清除 pin/queue 并重置 reelMode=random，
-        // 因此必须在 setTab 之后再设置 pin 和 reelMode=chained，利用
-        // React 18 批处理"后写胜"语义保证最终状态正确。
+        // Previously this was filter-scoped (replace filter to
+        // primary performer + pin first scene). That dropped the
+        // user out of the date-ordered timeline and into a
+        // random feed of one performer's scenes — surprising on
+        // a date-ordered home page. Same change shipped on iOS.
+        setReelMode("random");
+        // Clear any stale chained-mode filter so the reel reads
+        // the pinned queue cleanly.
         replace({ performers: [], tags: [], studios: [] });
+        const startIndex = Math.max(0, feedSceneIds.indexOf(item.sceneId));
+        setPinFirstSceneId(null);
+        setPinnedQueue({ ids: feedSceneIds, startIndex });
         setTab("foryou");
-        setPinFirstSceneId(item.sceneId);
-        setReelMode("chained");
     };
 
     return (
@@ -311,7 +311,7 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
                             }
                             const list = storiesState.state.stories;
                             const idx = list.findIndex(
-                                (s) => s.performerId === performerId
+                                (s) => s.performerId === performerId,
                             );
                             if (idx >= 0) {
                                 openStoryViewer(list, idx);
@@ -361,13 +361,13 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
                                                 }
                                                 aria-label={
                                                     p.favorite
-                                                        ? t("status.favorite")
-                                                        : t("status.in_library")
+                                                        ? "Favourited"
+                                                        : "In library"
                                                 }
                                                 title={
                                                     p.favorite
-                                                        ? t("status.favorite")
-                                                        : t("status.in_library")
+                                                        ? "Favourited"
+                                                        : "In library"
                                                 }
                                             >
                                                 <VerifiedIcon />
@@ -378,9 +378,7 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
                             </button>
                         </PerformerHoverCard>
                     ) : (
-                        <span className="binge-feed-card-name">
-                            {t("performer.unknown")}
-                        </span>
+                        <span className="binge-feed-card-name">Unknown</span>
                     )}
                 </div>
                 <span className="binge-feed-card-time">
@@ -389,13 +387,13 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
                 <SceneCardMenu
                     items={[
                         {
-                            label: t("action.open_in_stash"),
-                            sub: t("action.open_in_stash_details"),
+                            label: "Open in Stash",
+                            sub: "Opens the scene in your Stash UI",
                             onClick: () =>
                                 window.open(
                                     `/scenes/${item.sceneId}`,
                                     "_blank",
-                                    "noopener,noreferrer"
+                                    "noopener,noreferrer",
                                 ),
                         },
                     ]}
@@ -424,7 +422,7 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
                     type="button"
                     className="binge-feed-card-tap"
                     onClick={handleTap}
-                    aria-label={isPlaying ? t("action.pause") : t("action.play")}
+                    aria-label={isPlaying ? "Pause" : "Play"}
                     tabIndex={-1}
                 />
                 {!isPlaying && (
@@ -448,8 +446,8 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
                         e.stopPropagation();
                         setMuted(!muted);
                     }}
-                    aria-label={muted ? t("action.unmute") : t("action.mute")}
-                    title={muted ? t("action.unmute") : t("action.mute")}
+                    aria-label={muted ? "Unmute" : "Mute"}
+                    title={muted ? "Unmute" : "Mute"}
                 >
                     {muted ? <MutedIcon /> : <UnmutedIcon />}
                 </button>
@@ -463,8 +461,8 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
                         (liked || oCount > 0 ? " is-liked" : "")
                     }
                     onClick={triggerLike}
-                    aria-label={t("action.like")}
-                    title={t("action.like")}
+                    aria-label="Like"
+                    title="Like"
                 >
                     <HeartIcon filled={liked || oCount > 0} />
                     {oCount > 0 && (
@@ -478,8 +476,8 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
                         type="button"
                         className="binge-feed-card-iconbtn"
                         onClick={() => setRatingOpen(true)}
-                        aria-label={t("action.rate")}
-                        title={t("action.rate_advanced")}
+                        aria-label="Rate"
+                        title="Rate (advanced)"
                     >
                         <StarIcon filled={false} />
                     </button>
@@ -494,10 +492,10 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
                         onClick={handleToggleMV}
                         aria-label={
                             inMVQueue
-                                ? t("action.remove_from_multiview")
-                                : t("action.add_to_multiview")
+                                ? "Remove from Multiview"
+                                : "Add to Multiview"
                         }
-                        title={t("action.send_to_multiview")}
+                        title="Send to Multiview"
                     >
                         <GridIcon filled={inMVQueue} />
                     </button>
@@ -507,8 +505,8 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
                         type="button"
                         className="binge-feed-card-iconbtn"
                         onClick={handleOpenScribe}
-                        aria-label={t("action.write_scribe_review")}
-                        title={t("action.write_review")}
+                        aria-label="Write review with Scribe"
+                        title="Write review"
                     >
                         <PencilIcon />
                     </button>
@@ -520,8 +518,8 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
                         (savedSomewhere ? " is-active" : "")
                     }
                     onClick={() => setSaveSheetOpen(true)}
-                    aria-label={t("action.save")}
-                    title={t("action.save")}
+                    aria-label="Save"
+                    title="Save"
                 >
                     <BookmarkIcon filled={savedSomewhere} />
                 </button>
@@ -530,7 +528,7 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
                     className="binge-feed-card-cta"
                     onClick={handleWatchFullScene}
                 >
-                    {t("action.watch_full_scene")}
+                    Watch full scene →
                 </button>
             </div>
 
@@ -583,7 +581,6 @@ function FeedCaption({
     details: string | null;
 }) {
     const [expanded, setExpanded] = useState(false);
-    const { t } = useTranslation();
     const trimmedDetails = details?.trim() || "";
     const hasDetails = trimmedDetails.length > 0;
     return (
@@ -605,7 +602,7 @@ function FeedCaption({
                             className="binge-feed-card-more-btn"
                             onClick={() => setExpanded(true)}
                         >
-                            {t("action.more")}
+                            more
                         </button>
                     </>
                 )}
@@ -618,7 +615,7 @@ function FeedCaption({
                         className="binge-feed-card-more-btn"
                         onClick={() => setExpanded(false)}
                     >
-                        {t("action.collapse")}
+                        less
                     </button>
                 </div>
             )}
@@ -654,7 +651,6 @@ function AvatarStack({
     /// re-adds.
     isRepost?: boolean;
 }) {
-    const { t } = useTranslation();
     if (performers.length === 0) return null;
     const visible = performers.slice(0, 3);
     const overflow = performers.length - visible.length;
@@ -716,8 +712,8 @@ function AvatarStack({
                             {ringedNode}
                             <span
                                 className="binge-feed-card-stack-repost-badge"
-                                aria-label={t("status.reposted")}
-                                title={t("status.reposted_details")}
+                                aria-label="Reposted"
+                                title="Reposted — back-catalog you re-added"
                             >
                                 <RepostIcon />
                             </span>
@@ -761,7 +757,6 @@ function HashtagRow({
     tags: FeedTag[];
     onTap: (tag: FeedTag) => void;
 }) {
-    const { t } = useTranslation();
     const [expanded, setExpanded] = useState(false);
     const INITIAL = 7;
     const shown = expanded ? tags : tags.slice(0, INITIAL);
@@ -783,9 +778,11 @@ function HashtagRow({
                     type="button"
                     className="binge-feed-card-hashtag-more"
                     onClick={() => setExpanded(true)}
-                    aria-label={t("action.show_more_tags", { count: hidden })}
+                    aria-label={`Show ${hidden} more tag${
+                        hidden === 1 ? "" : "s"
+                    }`}
                 >
-                    +{hidden}
+                    +{hidden} more
                 </button>
             )}
             {expanded && tags.length > INITIAL && (
@@ -793,9 +790,9 @@ function HashtagRow({
                     type="button"
                     className="binge-feed-card-hashtag-more"
                     onClick={() => setExpanded(false)}
-                    aria-label={t("action.show_fewer_tags")}
+                    aria-label="Show fewer tags"
                 >
-                    {t("action.collapse")}
+                    less
                 </button>
             )}
         </div>

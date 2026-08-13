@@ -1,9 +1,6 @@
 import { Fragment, useEffect, useState } from "react";
 import { usePerformerProfile } from "../performer/PerformerProfileContext";
-import {
-    PerformerHoverCard,
-    type FollowState,
-} from "./PerformerHoverCard";
+import { PerformerHoverCard, type FollowState } from "./PerformerHoverCard";
 import { FollowPerformerModal } from "./FollowPerformerModal";
 import { AddSceneModal } from "./AddSceneModal";
 import { SceneCardMenu, type SceneCardMenuItem } from "./SceneCardMenu";
@@ -11,8 +8,6 @@ import type { DiscoveryFeedItemWrapped } from "./useFeed";
 import { VerifiedIcon } from "../performer/PerformerProfile";
 import { addForageWatch, forageAvailable } from "../api/forageServer";
 import { useForageUrl } from "./pluginSettings";
-import { formatDate } from "../utils/date";
-import { useTranslation } from "react-i18next";
 
 interface DiscoveryFeedCardProps {
     item: DiscoveryFeedItemWrapped;
@@ -79,7 +74,6 @@ export function DiscoveryFeedCard({
         kind: "idle",
     });
     const forageReady = useForageAvailable();
-    const { t, i18n } = useTranslation();
 
     const isBusy = followState.kind === "following";
     const isFollowed = followState.kind === "followed";
@@ -100,23 +94,23 @@ export function DiscoveryFeedCard({
         if (res.ok) {
             setForageState({ kind: "sent", target: res.target });
         } else {
-            setForageState({ kind: "error", message: "error" in res ? res.error : "Unknown error" });
+            setForageState({ kind: "error", message: res.error });
         }
     };
 
     const forageMenuItem: SceneCardMenuItem = {
         label:
             forageState.kind === "sending"
-                ? t("status.sending_to_forage")
+                ? "Sending to forage…"
                 : forageState.kind === "sent"
-                  ? t("status.in_forage_watchlist")
-                  : t("action.send_to_forage"),
+                  ? "On forage watchlist ✓"
+                  : "Send to forage",
         sub:
             forageState.kind === "sent"
                 ? forageState.target === "any"
-                    ? t("status.watching_any_version")
-                    : t("status.watching_target_version", { target: forageState.target })
-                : t("status.add_to_forage_watchlist"),
+                    ? "Watching for any release"
+                    : `Watching for a ${forageState.target} copy`
+                : "Add to your forage watchlist",
         onClick: () => void handleSendToForage(),
     };
 
@@ -149,16 +143,12 @@ export function DiscoveryFeedCard({
                             favorite={item.primaryPerformer.favorite}
                             onOpenProfile={() =>
                                 item.primaryPerformer.localId
-                                    ? openProfile(
-                                          item.primaryPerformer.localId
-                                      )
+                                    ? openProfile(item.primaryPerformer.localId)
                                     : openStashDBProfile(
-                                          item.primaryPerformer.stashId
+                                          item.primaryPerformer.stashId,
                                       )
                             }
-                            stashDBPerformerId={
-                                item.primaryPerformer.stashId
-                            }
+                            stashDBPerformerId={item.primaryPerformer.stashId}
                             stashBoxIndex={item.stashBoxIndex}
                             onFollowed={onFollowed}
                             controlledFollow={
@@ -246,12 +236,10 @@ export function DiscoveryFeedCard({
                                 }
                             >
                                 {item.source === "costar"
-                                    ? t("status.discover")
-                                    : t("status.trending")}
+                                    ? "DISCOVER"
+                                    : "TRENDING"}
                             </span>
-                            {item.releaseDate && (
-                                <> · {formatDate(item.releaseDate, i18n)}</>
-                            )}
+                            {item.releaseDate && <> · {item.releaseDate}</>}
                         </span>
                     </span>
                 </span>
@@ -261,27 +249,25 @@ export function DiscoveryFeedCard({
                         className={
                             "binge-discovery-card-follow" +
                             (isFollowed ? " is-followed" : "") +
-                            (followState.kind === "error"
-                                ? " is-error"
-                                : "")
+                            (followState.kind === "error" ? " is-error" : "")
                         }
                         onClick={handleFollow}
                         disabled={isBusy || isFollowed}
                         title={
                             isBusy
-                                ? t("status.following")
+                                ? "Following…"
                                 : isFollowed
-                                  ? t("status.followed_in_library")
-                                  : t("action.follow_performer_to_library", { name: item.primaryPerformer.name })
+                                  ? "Followed — added to your library"
+                                  : `Follow ${item.primaryPerformer.name} — adds to your library`
                         }
                     >
                         {isBusy
-                            ? t("status.following")
+                            ? "…"
                             : isFollowed
-                              ? t("status.followed")
+                              ? "Following"
                               : followState.kind === "error"
-                                ? t("action.retry")
-                                : t("action.follow")}
+                                ? "Retry"
+                                : "+ Follow"}
                     </button>
                 )}
                 <SceneCardMenu
@@ -290,31 +276,31 @@ export function DiscoveryFeedCard({
                             ? [
                                   ...(forageReady ? [forageMenuItem] : []),
                                   {
-                                      label: t("action.view_on_stashdb"),
-                                      sub: t("nav.open_in_new_tab"),
+                                      label: "View on StashDB",
+                                      sub: "Opens in a new tab",
                                       onClick: () =>
                                           window.open(
                                               item.stashboxUrl,
                                               "_blank",
-                                              "noopener,noreferrer"
+                                              "noopener,noreferrer",
                                           ),
                                   },
                               ]
                             : [
                                   {
-                                      label: t("action.add_scene_to_library"),
-                                      sub: t("action.create_scene_link"),
+                                      label: "Add scene to library",
+                                      sub: "Create the scene in Stash + link to StashDB",
                                       onClick: () => setSceneModalOpen(true),
                                   },
                                   ...(forageReady ? [forageMenuItem] : []),
                                   {
-                                      label: t("action.view_on_stashdb"),
-                                      sub: t("nav.open_in_new_tab"),
+                                      label: "View on StashDB",
+                                      sub: "Opens in a new tab",
                                       onClick: () =>
                                           window.open(
                                               item.stashboxUrl,
                                               "_blank",
-                                              "noopener,noreferrer"
+                                              "noopener,noreferrer",
                                           ),
                                   },
                               ]
@@ -330,13 +316,13 @@ export function DiscoveryFeedCard({
                     className="binge-discovery-card-cover"
                     aria-label={
                         item.title
-                            ? t("action.open_on_stashdb_title", { title: item.title })
-                            : t("action.open_on_stashdb_scene")
+                            ? `Open "${item.title}" on StashDB`
+                            : "Open scene on StashDB"
                     }
                 >
                     <img
                         src={item.coverUrl}
-                        alt={item.title ?? t("scene.stashdb_scene")}
+                        alt={item.title ?? "StashDB scene"}
                         loading="lazy"
                     />
                 </a>
@@ -358,13 +344,13 @@ export function DiscoveryFeedCard({
                     people always show as icons, never as @s). */}
                 {(() => {
                     const unlinked = item.coPerformers.filter(
-                        (cp) => cp.localId === null
+                        (cp) => cp.localId === null,
                     );
                     if (unlinked.length === 0) return null;
                     return (
                         <div className="binge-discovery-card-coperformers">
                             <span className="binge-discovery-card-with">
-                                {t("status.with")}
+                                with
                             </span>
                             {unlinked.map((cp, idx) => (
                                 <span
@@ -405,7 +391,7 @@ export function DiscoveryFeedCard({
                     rel="noopener noreferrer"
                     className="binge-discovery-card-stashdb-link"
                 >
-                    {t("action.view_on_stashdb")} →
+                    View on StashDB →
                 </a>
 
                 {followState.kind === "error" && (
@@ -416,12 +402,12 @@ export function DiscoveryFeedCard({
 
                 {forageState.kind === "sending" && (
                     <div className="binge-discovery-card-forage-status">
-                        {t("status.sending_to_forage")}
+                        Sending to forage…
                     </div>
                 )}
                 {forageState.kind === "sent" && (
                     <div className="binge-discovery-card-forage-ok">
-                        {t("status.in_forage_watchlist")}
+                        On forage watchlist
                         {forageState.target !== "any"
                             ? ` · ${forageState.target}`
                             : ""}{" "}
@@ -473,7 +459,6 @@ export function DiscoveryFeedCard({
 // feed card's name row so the chrome is consistent across
 // library + StashDB-sourced cards.
 function HeaderNames({ item }: { item: DiscoveryFeedItemWrapped }) {
-    const { t } = useTranslation();
     const libraryCo = item.coPerformers.filter((cp) => cp.localId !== null);
     const all = [
         {
@@ -490,8 +475,8 @@ function HeaderNames({ item }: { item: DiscoveryFeedItemWrapped }) {
     return (
         <>
             {all.map((p, idx) => (
-                <Fragment key={p.name}>
-                    {idx > 0 && t("separator.comma")}
+                <Fragment key={idx}>
+                    {idx > 0 && ", "}
                     {p.name}
                     {p.inLibrary && (
                         <span
@@ -500,11 +485,9 @@ function HeaderNames({ item }: { item: DiscoveryFeedItemWrapped }) {
                                 (p.favorite ? " is-favorite" : "")
                             }
                             aria-label={
-                                p.favorite ? t("status.favorite") : t("status.in_library")
+                                p.favorite ? "Favourited" : "In library"
                             }
-                            title={
-                                p.favorite ? t("status.favorite") : t("status.in_library")
-                            }
+                            title={p.favorite ? "Favourited" : "In library"}
                         >
                             <VerifiedIcon />
                         </span>

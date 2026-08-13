@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import type { PerformerDetail } from "../api/queries";
 import { PerformerLinks } from "./PerformerLinks";
-import { useTranslation } from "react-i18next";
 
 interface PerformerBioProps {
     performer: PerformerDetail;
@@ -15,13 +14,12 @@ interface PerformerBioProps {
 // Each block only renders when its data is present, so a sparse performer
 // doesn't show a wall of empty rows.
 export function PerformerBio({ performer, nameAccessory }: PerformerBioProps) {
-    const { t } = useTranslation();
     const attributes: string[] = [];
     if (performer.country) attributes.push(performer.country);
     const birthYear = parseBirthYear(performer.birthdate);
     if (birthYear) attributes.push(String(birthYear));
     if (performer.hair_color) attributes.push(performer.hair_color);
-    if (performer.eye_color) attributes.push(t("performer.eye_color_desc", { color: performer.eye_color }));
+    if (performer.eye_color) attributes.push(`${performer.eye_color} eyes`);
 
     const aliases = performer.alias_list ?? [];
 
@@ -29,7 +27,7 @@ export function PerformerBio({ performer, nameAccessory }: PerformerBioProps) {
         window.open(
             `/performers/${performer.id}`,
             "_blank",
-            "noopener,noreferrer"
+            "noopener,noreferrer",
         );
     };
 
@@ -41,8 +39,8 @@ export function PerformerBio({ performer, nameAccessory }: PerformerBioProps) {
                         type="button"
                         className="binge-profile-name-link"
                         onClick={handleOpenInStash}
-                        title={t("action.open_in_stash")}
-                        aria-label={t("action.open_performer_in_stash", { name: performer.name })}
+                        title="Open in Stash"
+                        aria-label={`Open ${performer.name} in Stash`}
                     >
                         {performer.name}
                     </button>
@@ -51,7 +49,7 @@ export function PerformerBio({ performer, nameAccessory }: PerformerBioProps) {
             </div>
             {aliases.length > 0 && (
                 <p className="binge-profile-aliases">
-                    {t("performer.aka", { aliases: aliases.join(", ") })}
+                    a.k.a. {aliases.join(", ")}
                 </p>
             )}
             {attributes.length > 0 && (
@@ -78,7 +76,8 @@ function parseBirthYear(birthdate: string | null): number | null {
 function collectUrls(performer: PerformerDetail): string[] {
     const out: string[] = [];
     if (performer.twitter) out.push(expandHandle("twitter", performer.twitter));
-    if (performer.instagram) out.push(expandHandle("instagram", performer.instagram));
+    if (performer.instagram)
+        out.push(expandHandle("instagram", performer.instagram));
     if (performer.url) out.push(performer.url);
     if (performer.urls) out.push(...performer.urls);
     return out;
@@ -86,7 +85,7 @@ function collectUrls(performer: PerformerDetail): string[] {
 
 function expandHandle(
     platform: "twitter" | "instagram",
-    value: string
+    value: string,
 ): string {
     if (/^https?:\/\//i.test(value)) return value;
     const handle = value.replace(/^@/, "");

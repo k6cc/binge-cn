@@ -1,5 +1,3 @@
-import { useTranslation } from "react-i18next";
-
 import { useEffect, useState } from "react";
 
 // 0-5 stars per criterion. Module-scoped so it isn't allocated per row.
@@ -24,7 +22,11 @@ import {
     fetchSceneTagsAndRating,
     findScoreTag,
 } from "../rating/mutations";
-import { scoreTagName, type Criterion, type RatingConfig } from "../rating/types";
+import {
+    scoreTagName,
+    type Criterion,
+    type RatingConfig,
+} from "../rating/types";
 
 // Shared criterion-rating modal. Renders the Advanced Rating plugin's
 // data model (groups → criteria → 0-5 stars) for either the scene or
@@ -33,8 +35,7 @@ import { scoreTagName, type Criterion, type RatingConfig } from "../rating/types
 // each update; we re-fetch tags + rating100 to reflect it.
 
 export type RatingTarget =
-    | { kind: "scene"; id: string }
-    | { kind: "performer"; id: string };
+    { kind: "scene"; id: string } | { kind: "performer"; id: string };
 
 interface Props {
     target: RatingTarget;
@@ -61,15 +62,14 @@ export function CriterionRatingModal({
     onClose,
     onRatingChange,
 }: Props) {
-    const { t } = useTranslation();
     const domain = target.kind;
     const [state, setState] = useState<LoadState>({ kind: "loading" });
-    const [pendingCriterionId, setPendingCriterionId] = useState<
-        string | null
-    >(null);
-    const [missingTagWarning, setMissingTagWarning] = useState<
-        string | null
-    >(null);
+    const [pendingCriterionId, setPendingCriterionId] = useState<string | null>(
+        null,
+    );
+    const [missingTagWarning, setMissingTagWarning] = useState<string | null>(
+        null,
+    );
     const { isExiting, beginClose } = useSheetClose(onClose);
 
     // Load config + precision + current tags in parallel on mount.
@@ -96,15 +96,14 @@ export function CriterionRatingModal({
                 if (!alive) return;
                 setState({
                     kind: "error",
-                    message:
-                        err instanceof Error ? err.message : String(err),
+                    message: err instanceof Error ? err.message : String(err),
                 });
             }
         })();
         return () => {
             alive = false;
         };
-    }, [domain, target.id]);
+    }, [domain, target.id, target.kind]);
 
     // Esc closes (via the same beginClose path so the exit animation plays).
     useEffect(() => {
@@ -117,7 +116,7 @@ export function CriterionRatingModal({
 
     async function setScore(
         criterion: Criterion,
-        newScore: number | null
+        newScore: number | null,
     ): Promise<void> {
         if (state.kind !== "ready") return;
         setPendingCriterionId(criterion.id);
@@ -132,7 +131,7 @@ export function CriterionRatingModal({
                     // the parent-tag hierarchy.
                     const name = scoreTagName(criterion, newScore);
                     setMissingTagWarning(
-                        t("rating.missing_tag_warning", `评分标签 “{{name}}” 尚不存在。请在 Stash 中打开 Advanced Rating 插件的设置面板一次 — 它会在正确的父级下创建标签层级。然后再在此处重试。`, { name })
+                        `Score tag "${name}" doesn't exist yet. Open the Advanced Rating plugin's settings panel in Stash once — it'll create the tag hierarchy under the right parent. Then try again here.`,
                     );
                     return;
                 }
@@ -141,7 +140,7 @@ export function CriterionRatingModal({
                 state.tags,
                 criterion,
                 newScore,
-                newTagId
+                newTagId,
             );
             if (newIds === null) {
                 throw new Error("could not resolve score tag id");
@@ -183,17 +182,12 @@ export function CriterionRatingModal({
                 (isExiting ? " is-exiting" : "")
             }
         >
-            <div
-                className="binge-sheet-backdrop"
-                onClick={beginClose}
-            />
+            <div className="binge-sheet-backdrop" onClick={beginClose} />
             <div
                 className="binge-sheet binge-rating-modal"
                 role="dialog"
                 aria-label={
-                    target.kind === "scene"
-                        ? t("rating.scene_rating")
-                        : t("rating.performer_rating")
+                    target.kind === "scene" ? "Rate scene" : "Rate performer"
                 }
             >
                 <div className="binge-sheet-handle" aria-hidden="true" />
@@ -210,47 +204,36 @@ export function CriterionRatingModal({
                 />
             </div>
         </div>,
-        document.body
+        document.body,
     );
 }
 
-function Header({
-    state,
-    target,
-}: {
-    state: LoadState;
-    target: RatingTarget;
-}) {
-    const { t } = useTranslation();
+function Header({ state, target }: { state: LoadState; target: RatingTarget }) {
     if (state.kind !== "ready") {
         return (
             <header className="binge-rating-modal-header">
                 <h2>
-                    {target.kind === "scene"
-                        ? t("rating.scene_rating")
-                        : t("rating.performer_rating")}
+                    {target.kind === "scene" ? "Rate scene" : "Rate performer"}
                 </h2>
             </header>
         );
     }
     const { rated, total } = ratingProgress(
         parseRatingsFromTags(state.tags, state.config.criteria),
-        state.config.criteria
+        state.config.criteria,
     );
     const rating100 = state.rating100;
     const ratingDisplay =
-        rating100 !== null ? `${Math.round(rating100)} / 100` : t("rating.unrated");
+        rating100 !== null ? Math.round(rating100) + " / 100" : "unrated";
     return (
         <header className="binge-rating-modal-header">
-            <h2>
-                {target.kind === "scene" ? t("rating.scene_rating") : t("rating.performer_rating")}
-            </h2>
+            <h2>{target.kind === "scene" ? "Rate scene" : "Rate performer"}</h2>
             <div className="binge-rating-modal-summary">
                 <span className="binge-rating-modal-rating">
                     {ratingDisplay}
                 </span>
                 <span className="binge-rating-modal-progress">
-                    {t("rating.rated_progress", { rated, total })}
+                    {rated}/{total} rated
                 </span>
             </div>
         </header>
@@ -266,14 +249,13 @@ function Body({
     pendingCriterionId: string | null;
     onScore: (criterion: Criterion, newScore: number | null) => void;
 }) {
-    const { t } = useTranslation();
     if (state.kind === "loading") {
-        return <div className="binge-rating-modal-empty">{t("status.loading")}</div>;
+        return <div className="binge-rating-modal-empty">loading…</div>;
     }
     if (state.kind === "error") {
         return (
             <div className="binge-rating-modal-empty binge-status-error">
-                {t("rating.config_load_failed", { message: state.message })}
+                couldn't load rating config: {state.message}
             </div>
         );
     }
@@ -315,10 +297,8 @@ function Body({
             })}
             {previewRating !== null && (
                 <footer className="binge-rating-modal-footer">
-                    {t("rating.preview_score", { score: Math.round(previewRating) })}
-                    <small>
-                        {t("rating.stash_plugin_hook_lock")}
-                    </small>
+                    preview · {Math.round(previewRating)} / 100
+                    <small>Stash's plugin hook will lock this in.</small>
                 </footer>
             )}
         </div>
@@ -338,7 +318,6 @@ function CriterionRow({
     pending: boolean;
     onScore: (newScore: number | null) => void;
 }) {
-    const { t } = useTranslation();
     const [hover, setHover] = useState<number | null>(null);
     const filledThrough = hover ?? score ?? 0;
     return (
@@ -375,7 +354,7 @@ function CriterionRow({
                         }
                         onMouseEnter={() => setHover(s)}
                         onClick={() => onScore(s)}
-                        aria-label={t("rating.criterion_score", { name: criterion.name, score: s })}
+                        aria-label={`${criterion.name}: ${s} of 5`}
                     >
                         ★
                     </button>
@@ -385,8 +364,8 @@ function CriterionRow({
                     className="binge-rating-modal-clear"
                     disabled={disabled || score === null}
                     onClick={() => onScore(null)}
-                    aria-label={t("rating.clear_criterion_score", { name: criterion.name })}
-                    title={t("action.clear")}
+                    aria-label={`Clear ${criterion.name} rating`}
+                    title="Clear"
                 >
                     ×
                 </button>

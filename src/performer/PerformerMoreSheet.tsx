@@ -3,7 +3,6 @@ import { createPortal } from "react-dom";
 import { useSheetClose } from "../hooks/useSheetClose";
 import { useHasScribe } from "../plugins/PluginContext";
 import { useScribeModal } from "../scribe/ScribeContext";
-import { useTranslation } from "react-i18next";
 
 interface PerformerMoreSheetProps {
     performerId: string;
@@ -22,7 +21,6 @@ export function PerformerMoreSheet({
     onClose,
 }: PerformerMoreSheetProps) {
     const { isExiting, beginClose } = useSheetClose(onClose);
-    const { t } = useTranslation();
 
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
@@ -47,7 +45,7 @@ export function PerformerMoreSheet({
         window.open(
             `/performers/${performerId}`,
             "_blank",
-            "noopener,noreferrer"
+            "noopener,noreferrer",
         );
         beginClose();
     };
@@ -63,7 +61,7 @@ export function PerformerMoreSheet({
             <div
                 className="binge-sheet binge-more-sheet"
                 role="dialog"
-                aria-label={t("action.more_actions")}
+                aria-label="More actions"
             >
                 <div className="binge-sheet-handle" aria-hidden="true" />
                 <ul className="binge-more-sheet-list">
@@ -75,7 +73,7 @@ export function PerformerMoreSheet({
                                 onClick={handleWriteReview}
                             >
                                 <span className="binge-more-sheet-row-label">
-                                    {t("action.write_review")}
+                                    Write review
                                 </span>
                                 <CommentIcon />
                             </button>
@@ -88,7 +86,7 @@ export function PerformerMoreSheet({
                             onClick={handleRefresh}
                         >
                             <span className="binge-more-sheet-row-label">
-                                {t("action.refresh")}
+                                Refresh
                             </span>
                             <RefreshIcon />
                         </button>
@@ -100,7 +98,7 @@ export function PerformerMoreSheet({
                             onClick={handleOpenInStash}
                         >
                             <span className="binge-more-sheet-row-label">
-                                {t("action.open_in_stash")}
+                                Open in Stash
                             </span>
                             <ExternalLinkIcon />
                         </button>
@@ -108,7 +106,7 @@ export function PerformerMoreSheet({
                 </ul>
             </div>
         </div>,
-        document.body
+        document.body,
     );
 }
 

@@ -23,7 +23,7 @@ export interface RedditStoryDigest {
 }
 
 export interface RedditPost {
-    id: string;                          // "t3_<base36>"
+    id: string; // "t3_<base36>"
     kind: "image" | "video" | "text" | "link";
     title: string | null;
     body: string | null;
@@ -122,6 +122,19 @@ export interface XFeedResponse {
     media: XMedia[];
 }
 
+// Loopback, unique-local (fc00::/7) and link-local (fe80::/10) only.
+// Anything else, including an address with an embedded IPv4 part, is
+// treated as public. The URL parser has already lowercased and compressed
+// the address by the time this sees it.
+function isPrivateIPv6(addr: string): boolean {
+    if (addr === "::1") return true;
+    const firstHextet = addr.split(":")[0];
+    if (!firstHextet) return false; // leading "::", i.e. not one of ours
+    if (firstHextet.startsWith("fc") || firstHextet.startsWith("fd"))
+        return true;
+    return /^fe[89ab]/.test(firstHextet);
+}
+
 // Whether it's safe to transmit credentials (Stash API key / Reddit
 // cookie) to this binge-server URL. https is always fine; plain http is
 // allowed only to loopback / private / tailnet hosts (a self-hosted
@@ -147,6 +160,14 @@ export function isTrustedDaemonUrl(raw: string): boolean {
         host.endsWith(".ts.net")
     )
         return true;
+    // IPv6 literal, which the URL parser hands back in brackets. This has
+    // to be settled BEFORE the bare-hostname rule below: an IPv6 address
+    // contains no dots, so "no dot means LAN name" would wave a public
+    // address like [2001:4860:4860::8888] straight through and post the
+    // credentials to it in cleartext.
+    if (host.startsWith("[") && host.endsWith("]")) {
+        return isPrivateIPv6(host.slice(1, -1));
+    }
     // Bare hostname (no dot) is a LAN/tailnet machine name, not public.
     if (!host.includes(".")) return true;
     // RFC1918 private + Tailscale CGNAT (100.64/10) IPv4 literals.
@@ -169,13 +190,26 @@ export function isTrustedDaemonUrl(raw: string): boolean {
 // reserved path segments. Used client-side only to decide whether to
 // show the X tab (the actual fetch resolves the handle server-side).
 const X_RESERVED = new Set([
-    "home", "search", "explore", "notifications", "messages", "i",
-    "intent", "share", "hashtag", "settings", "compose",
+    "home",
+    "search",
+    "explore",
+    "notifications",
+    "messages",
+    "i",
+    "intent",
+    "share",
+    "hashtag",
+    "settings",
+    "compose",
 ]);
-export function xHandleFromUrls(urls: string[] | null | undefined): string | null {
+export function xHandleFromUrls(
+    urls: string[] | null | undefined,
+): string | null {
     if (!urls) return null;
     for (const u of urls) {
-        const m = u.match(/(?:twitter|x)\.com\/([A-Za-z0-9_]{1,15})(?:[/?#]|$)/i);
+        const m = u.match(
+            /(?:twitter|x)\.com\/([A-Za-z0-9_]{1,15})(?:[/?#]|$)/i,
+        );
         if (m && !X_RESERVED.has(m[1].toLowerCase())) return m[1];
     }
     return null;
@@ -211,12 +245,31 @@ async function ensureStashKey(): Promise<string> {
     return stashKeyPromise;
 }
 
+// Warn once rather than per media URL, of which there are hundreds.
+let warnedUntrusted = false;
+function warnUntrusted(base: string): void {
+    if (warnedUntrusted) return;
+    warnedUntrusted = true;
+    console.warn(
+        "[binge] not sending the Stash API key to " +
+            base +
+            " — plain http to a public host would expose it. Use https, or a " +
+            "local/tailnet address.",
+    );
+}
+
 /// Appends the key as a query parameter. Needed for URLs handed to <img>
 /// and <video>, which cannot carry headers — the same reason Stash accepts
 /// `apikey` on its own media routes. Returns the URL untouched when no key
-/// is configured.
+/// is configured, or when the daemon is not somewhere the key may go: a
+/// query string is the worst place to put a secret, since it lands in
+/// access logs, Referer headers and history.
 function withKey(url: string): string {
     if (!cachedStashKey) return url;
+    if (!isTrustedDaemonUrl(url)) {
+        warnUntrusted(url);
+        return url;
+    }
     const sep = url.includes("?") ? "&" : "?";
     return `${url}${sep}apikey=${encodeURIComponent(cachedStashKey)}`;
 }
@@ -224,21 +277,26 @@ function withKey(url: string): string {
 async function fetchJSON<T>(
     path: string,
     init?: RequestInit,
-    timeoutMs = 8000
+    timeoutMs = 8000,
 ): Promise<T | null> {
     await ensureBingeServerUrlSeeded();
     const key = await ensureStashKey();
     const base = readBingeServerUrl();
+    // Same rule as the credential POST in setBingeServerConfig, applied
+    // here because this is the path that actually carries the key most
+    // often: every feed, story and health call. A daemon URL can be set
+    // by the user, seeded from Stash's plugin config, or rewritten by
+    // anything with same-origin access, so trust is checked per request
+    // rather than assumed from wherever the value came from.
+    const trusted = isTrustedDaemonUrl(base);
+    if (key && !trusted) warnUntrusted(base);
     try {
-        // ApiKey as a query param instead of a header: a custom header
-        // triggers a CORS preflight the daemon doesn't answer, breaking
-        // every call (including /healthz) when Stash API auth is on.
-        // The daemon already accepts ?apikey= on its media routes (same
-        // mechanism Stash itself uses), so this is consistent and keeps
-        // requests as simple CORS requests.
-        const url = key ? withKey(base + path) : base + path;
-        const resp = await fetch(url, {
+        const resp = await fetch(base + path, {
             ...init,
+            headers: {
+                ...(init?.headers ?? {}),
+                ...(key && trusted ? { ApiKey: key } : {}),
+            },
             // Tailscale Funnel + Mullvad NL adds latency vs a local
             // daemon. 8s is enough for the fast (DB-backed) endpoints;
             // callers that shell out server-side (X → gallery-dl) pass a
@@ -248,7 +306,12 @@ async function fetchJSON<T>(
         if (!resp.ok) {
             // 4xx/5xx — log once but don't throw.
             console.warn(
-                "[bingeServer] " + resp.status + " " + resp.statusText + " for " + path
+                "[bingeServer] " +
+                    resp.status +
+                    " " +
+                    resp.statusText +
+                    " for " +
+                    path,
             );
             return null;
         }
@@ -264,20 +327,18 @@ async function fetchJSON<T>(
 // distinguish these — "daemon down" needs a different UI message than
 // "daemon reachable but no posts".
 export async function getRedditStories(
-    sinceUtc: number
+    sinceUtc: number,
 ): Promise<RedditStoryDigest[] | null> {
     return fetchJSON<RedditStoryDigest[]>(
-        `/reddit/stories?sinceUtc=${sinceUtc}`
+        `/reddit/stories?sinceUtc=${sinceUtc}`,
     );
 }
 
 export async function getRedditFeed(
     stashId: number,
-    limit = 25
+    limit = 25,
 ): Promise<RedditPost[] | null> {
-    return fetchJSON<RedditPost[]>(
-        `/reddit/feed/${stashId}?limit=${limit}`
-    );
+    return fetchJSON<RedditPost[]>(`/reddit/feed/${stashId}?limit=${limit}`);
 }
 
 // getXFeed pulls a performer's X media tab on demand. Returns null on a
@@ -286,7 +347,7 @@ export async function getRedditFeed(
 // media array. `limit` caps how deep gallery-dl scrolls.
 export async function getXFeed(
     stashId: number,
-    limit = 40
+    limit = 40,
 ): Promise<XFeedResponse | null> {
     // A cold fetch shells out to gallery-dl + round-trips X through the
     // Mullvad funnel — well over the default 8s budget from a slow
@@ -295,7 +356,7 @@ export async function getXFeed(
     return fetchJSON<XFeedResponse>(
         `/x/feed/${stashId}?limit=${limit}`,
         undefined,
-        25_000
+        25_000,
     );
 }
 
@@ -306,24 +367,26 @@ export async function getXFeed(
 // on failure (daemon down, not configured, upstream block) so the UI can
 // surface it.
 export async function saveToStash(
-    req: SaveToStashRequest
-): Promise<{ ok: true; result: SaveToStashResult } | { ok: false; error: string }> {
+    req: SaveToStashRequest,
+): Promise<
+    { ok: true; result: SaveToStashResult } | { ok: false; error: string }
+> {
     const base = readBingeServerUrl();
     try {
         const key = await ensureStashKey();
-        // query param auth — see fetchJSON (avoid CORS preflight).
-        const url = key ? withKey(base + "/save") : base + "/save";
-        const resp = await fetch(url, {
+        const trusted = isTrustedDaemonUrl(base);
+        if (key && !trusted) warnUntrusted(base);
+        const resp = await fetch(base + "/save", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
+                ...(key && trusted ? { ApiKey: key } : {}),
             },
             body: JSON.stringify(req),
             signal: AbortSignal.timeout(30_000),
         });
         const body = (await resp.json().catch(() => ({}))) as
-            | SaveToStashResult
-            | { error?: string };
+            SaveToStashResult | { error?: string };
         if (!resp.ok) {
             return {
                 ok: false,
@@ -366,16 +429,16 @@ export interface PornhubStoryDigest {
 
 export async function getPornhubFeed(
     stashId: number,
-    limit = 60
+    limit = 60,
 ): Promise<PornhubVideo[] | null> {
     return fetchJSON<PornhubVideo[]>(`/pornhub/feed/${stashId}?limit=${limit}`);
 }
 
 export async function getPornhubStories(
-    sinceUtc: number
+    sinceUtc: number,
 ): Promise<PornhubStoryDigest[] | null> {
     return fetchJSON<PornhubStoryDigest[]>(
-        `/pornhub/stories?sinceUtc=${sinceUtc}`
+        `/pornhub/stories?sinceUtc=${sinceUtc}`,
     );
 }
 
@@ -383,14 +446,20 @@ export async function getPornhubStories(
 // locked and on adult CDNs (UK-blocked), so they all route through
 // binge-server, which extracts + relays them from its Mullvad exit.
 export function pornhubStreamUrl(videoId: string): string {
-    return withKey(`${readBingeServerUrl()}/pornhub/stream/${encodeURIComponent(videoId)}`);
+    return withKey(
+        `${readBingeServerUrl()}/pornhub/stream/${encodeURIComponent(videoId)}`,
+    );
 }
 export function pornhubPreviewUrl(videoId: string): string {
-    return withKey(`${readBingeServerUrl()}/pornhub/preview/${encodeURIComponent(videoId)}`);
+    return withKey(
+        `${readBingeServerUrl()}/pornhub/preview/${encodeURIComponent(videoId)}`,
+    );
 }
 export function pornhubThumbUrl(raw: string | null): string | null {
     if (!raw) return raw;
-    return withKey(`${readBingeServerUrl()}/pornhub/thumb?url=${encodeURIComponent(raw)}`);
+    return withKey(
+        `${readBingeServerUrl()}/pornhub/thumb?url=${encodeURIComponent(raw)}`,
+    );
 }
 
 export async function getBingeServerHealth(): Promise<BingeServerHealth | null> {
@@ -407,7 +476,7 @@ export async function getBingeServerConfig(): Promise<BingeServerConfigState | n
 // On validation failure the daemon returns 400 with {error:"…"}; we
 // surface that to the caller so the UI can render an inline message.
 export async function setBingeServerConfig(
-    payload: BingeServerConfigPayload
+    payload: BingeServerConfigPayload,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
     const base = readBingeServerUrl();
     // Never send the Stash API key / Reddit cookie over cleartext to a
@@ -415,17 +484,16 @@ export async function setBingeServerConfig(
     if (!isTrustedDaemonUrl(base)) {
         return {
             ok: false,
-            error: "不会将凭据发送到不受信任的 binge-server URL——请使用 https:// 或本地/tailnet 地址。",
+            error: "Won't send credentials to an untrusted binge-server URL — use https:// or a local/tailnet address.",
         };
     }
     try {
         const key = await ensureStashKey();
-        // query param auth — see fetchJSON (avoid CORS preflight).
-        const url = key ? withKey(base + "/config") : base + "/config";
-        const resp = await fetch(url, {
+        const resp = await fetch(base + "/config", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
+                ...(key ? { ApiKey: key } : {}),
             },
             body: JSON.stringify(payload),
             signal: AbortSignal.timeout(15_000),

@@ -1,35 +1,35 @@
 name: Binge
 description: Instagram-shaped social + discovery layer for Stash — stories, vertical reel, performer profiles, and StashDB-powered Follow/Discover.
-version: 0.5.6
+version: 0.5.5
 url: https://github.com/ordureconnoisseur/binge
 # Runs the binge-server installer on the machine hosting Stash. A browser
 # can't install software, so the Settings button calls runPluginTask and
 # Stash executes this here. Python is only needed for that one task; the
 # plugin's UI works without it.
 exec:
-  - python
-  - "{pluginDir}/binge-install.py"
+    - python
+    - "{pluginDir}/binge-install.py"
 interface: raw
 tasks:
-  - name: Install binge-server
-    description: >-
-      Install or update the optional binge-server daemon on this machine
-      (Docker if available, otherwise the release binary). Adds Reddit, X,
-      PornHub and Save-to-Stash to binge. Also runnable from binge's
-      Settings page.
-    defaultArgs:
-      mode: install
+    - name: Install binge-server
+      description: >-
+          Install or update the optional binge-server daemon on this machine
+          (Docker if available, otherwise the release binary). Adds Reddit, X,
+          PornHub and Save-to-Stash to binge. Also runnable from binge's
+          Settings page.
+      defaultArgs:
+          mode: install
 ui:
-  assets:
-    /: .
-  javascript:
-    - binge.entry.js
+    assets:
+        /: .
+    javascript:
+        - binge.entry.js
 settings:
-  serverUrl:
-    displayName: binge-server URL
-    description: Base URL of your binge-server daemon (e.g. http://localhost:7878, or a Tailscale Funnel HTTPS URL for a remote daemon). Seeds the in-app setting on first load.
-    type: STRING
-  forageUrl:
-    displayName: forage server URL
-    description: Optional. Base URL of your forage daemon, if you run one (github.com/ordureconnoisseur/forager). Seeds the in-app setting on first load; leave blank to keep "Send to forage" hidden. Use https if Stash is served over https.
-    type: STRING
+    serverUrl:
+        displayName: binge-server URL
+        description: Base URL of your binge-server daemon (e.g. http://localhost:7878, or a Tailscale Funnel HTTPS URL for a remote daemon). Seeds the in-app setting on first load.
+        type: STRING
+    forageUrl:
+        displayName: forage server URL
+        description: Optional. Base URL of your forage daemon, if you run one. Seeds the in-app setting on first load; leave blank to keep "Send to forage" hidden. Use https if Stash is served over https.
+        type: STRING

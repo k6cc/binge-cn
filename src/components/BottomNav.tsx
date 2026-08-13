@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import { useTab, type Tab } from "../tabs/TabContext";
 
 // 4-slot fixed bottom nav for mobile viewports (≤720px). Mirrors the
@@ -7,27 +6,23 @@ import { useTab, type Tab } from "../tabs/TabContext";
 // on Saved + Settings since those tabs have their own back-chevron
 // header and a bottom nav over the top would be redundant.
 
+const SLOTS: { id: Tab; label: string }[] = [
+    { id: "home", label: "Home" },
+    { id: "foryou", label: "For You" },
+    { id: "explore", label: "Explore" },
+    { id: "following", label: "Following" },
+    { id: "menu", label: "Menu" },
+];
+
 export function BottomNav() {
     const { tab, setTab, tabBarVisible } = useTab();
-    const { t } = useTranslation();
-
-    const SLOTS: { id: Tab; label: string }[] = [
-        { id: "home", label: t("nav.home") },
-        { id: "foryou", label: t("nav.foryou") },
-        { id: "explore", label: t("nav.explore") },
-        { id: "following", label: t("nav.following") },
-        { id: "menu", label: t("nav.menu") },
-    ];
-
     if (tab === "saved" || tab === "settings") return null;
 
     return (
         <nav
-            className={
-                "binge-bottom-nav" + (tabBarVisible ? "" : " is-hidden")
-            }
+            className={"binge-bottom-nav" + (tabBarVisible ? "" : " is-hidden")}
             role="tablist"
-            aria-label={t("nav.sections")}
+            aria-label="Sections"
         >
             {SLOTS.map((slot) => {
                 const active = tab === slot.id;
@@ -123,10 +118,7 @@ const HOME_FILLED =
 
 function HomeIcon({ filled }: { filled: boolean }) {
     return (
-        <svg
-            {...ICON_PROPS}
-            {...(filled ? SOLID_FILL : EVENODD_FILL)}
-        >
+        <svg {...ICON_PROPS} {...(filled ? SOLID_FILL : EVENODD_FILL)}>
             <path d={filled ? HOME_FILLED : HOME_OUTLINED} />
         </svg>
     );

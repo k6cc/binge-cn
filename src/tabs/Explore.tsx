@@ -1,15 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { findScenes, findRecentlyLikedTags } from "../api/queries";
 import { getTopInteractedTags, type TagScore } from "../api/interactedTags";
-import { useTranslation } from "react-i18next";
 import { DiscoverPerformersBar } from "./DiscoverPerformersBar";
 import { useFilter } from "../filter/FilterContext";
 import { useTab } from "./TabContext";
 import { useAutoHideTabBar } from "../hooks/useAutoHideTabBar";
-import { useSearchHistory } from "../hooks/useSearchHistory";
-import { useScrollToTop } from "../hooks/useScrollToTop";
-import { SearchHistoryDropdown } from "../components/SearchHistoryDropdown";
-import { ScrollTopButton } from "../components/ScrollTopButton";
 
 interface ExploreTile {
     id: string;
@@ -30,12 +25,18 @@ const MAX_CHIPS = 25;
 // long enough that a typed word coalesces into one request.
 const SEARCH_DEBOUNCE_MS = 280;
 
+// Kept outside the component so the randomness sits in a plain module
+// function rather than in render.
+function randomSeed(): number {
+    return Math.floor(Math.random() * 1e9);
+}
+
 export function Explore() {
-    const { t } = useTranslation();
-    const sortSeed = useMemo(
-        () => `random_${Math.floor(Math.random() * 1e9)}`,
-        []
-    );
+    // One random sort seed per mount, so revisiting Explore reshuffles but
+    // paginating within a visit stays consistent. Held in state rather than
+    // a useMemo: a memo is allowed to be recomputed, and re-rolling the seed
+    // mid-session would make the next page overlap the one on screen.
+    const [sortSeed] = useState(() => `random_${randomSeed()}`);
     const [tiles, setTiles] = useState<ExploreTile[]>([]);
     // Page is a ref, not state — the observer reads it on each fire,
     // and we don't want the observer effect to tear down + re-attach
@@ -72,15 +73,8 @@ export function Explore() {
     const chipScrollerRef = useRef<HTMLDivElement>(null);
     const { replace } = useFilter();
     const { setPinFirstSceneId, setReelMode } = useTab();
-    const { history: sceneSearchHistory, addEntry: addSceneSearchEntry, removeEntry: removeSceneSearchEntry, scheduleSave: scheduleSceneSave } =
-        useSearchHistory("scenes");
-    const [searchFocused, setSearchFocused] = useState(false);
-    // 输入法合成标记：合成中（拼音/笔画未确认）不保存搜索词，避免把
-    // 预输入的英文字母误存为历史记录。compositionend 后再保存确认值。
-    const composingRef = useRef(false);
 
     useAutoHideTabBar(scrollRef);
-    const { show: showScrollTop, scrollToTop } = useScrollToTop(scrollRef);
 
     // Top chips refresh on mount + whenever the user comes back to
     // Explore (they may have liked things in between visits). A
@@ -112,7 +106,7 @@ export function Explore() {
                         tagName: t.name,
                         score: 0,
                         lastSeenAt: 0,
-                    }))
+                    })),
                 );
             })
             .catch(() => {
@@ -138,8 +132,7 @@ export function Explore() {
 
     // Choose which list to render in the chip row: personal first,
     // library fallback only when personal is too small to be useful.
-    const chipsToRender =
-        topTags.length >= 3 ? topTags : fallbackTags;
+    const chipsToRender = topTags.length >= 3 ? topTags : fallbackTags;
 
     // Track scroll position so the chevrons fade in/out. Refreshed on
     // scroll, on resize, and when the chip set changes (so the
@@ -198,7 +191,7 @@ export function Explore() {
                     fresh.push({ id: s.id, screenshot: s.paths.screenshot });
                 }
                 setTiles((prev) =>
-                    nextPage === 1 ? fresh : [...prev, ...fresh]
+                    nextPage === 1 ? fresh : [...prev, ...fresh],
                 );
                 pageRef.current = nextPage;
                 if (data.findScenes.scenes.length < PAGE_SIZE) {
@@ -207,16 +200,14 @@ export function Explore() {
                     setHasMore(true);
                 }
             } catch (err) {
-                setError(
-                    err instanceof Error ? err.message : String(err)
-                );
+                setError(err instanceof Error ? err.message : String(err));
                 setHasMore(false);
             } finally {
                 loadingRef.current = false;
                 setIsLoading(false);
             }
         },
-        [sortSeed, activeTag, searchQuery]
+        [sortSeed, activeTag, searchQuery],
     );
 
     // Reset + reload when filter (tag or search) changes. Wiping
@@ -244,7 +235,7 @@ export function Explore() {
                     void loadPage(pageRef.current + 1);
                 }
             },
-            { rootMargin: "800px 0px", root: scrollRef.current }
+            { rootMargin: "800px 0px", root: scrollRef.current },
         );
         observer.observe(el);
         return () => observer.disconnect();
@@ -275,49 +266,14 @@ export function Explore() {
                     <input
                         type="search"
                         className="binge-explore-search"
-                        placeholder={t("nav.search_scenes")}
+                        placeholder="Search scenes"
                         value={searchInput}
-                        onChange={(e) => {
-                            setSearchInput(e.target.value);
-                            if (!composingRef.current) {
-                                scheduleSceneSave(e.target.value);
-                            }
-                        }}
-                        onCompositionStart={() => {
-                            composingRef.current = true;
-                        }}
-                        onCompositionEnd={(e) => {
-                            composingRef.current = false;
-                            // setTimeout(0)：compositionend 触发时 input.value
-                            // 可能还是合成前的旧值，浏览器要在随后的 input 事件
-                            // 中才更新为确认值。延迟到下一个事件循环读取，确保
-                            // 拿到最终确认的中文文本。
-                            const target = e.currentTarget;
-                            window.setTimeout(() => {
-                                scheduleSceneSave(target.value);
-                            }, 0);
-                        }}
-                        onFocus={() => setSearchFocused(true)}
-                        onBlur={() => {
-                            addSceneSearchEntry(searchInput);
-                            setSearchFocused(false);
-                        }}
-                        aria-label={t("nav.search_scenes")}
+                        onChange={(e) => setSearchInput(e.target.value)}
+                        aria-label="Search scenes"
                         autoCorrect="off"
                         autoCapitalize="off"
                         spellCheck={false}
                     />
-                    {searchFocused && (
-                        <SearchHistoryDropdown
-                            history={sceneSearchHistory}
-                            query={searchInput}
-                            onPick={(term) => {
-                                setSearchInput(term);
-                                setSearchFocused(false);
-                            }}
-                            onRemove={removeSceneSearchEntry}
-                        />
-                    )}
                 </div>
                 <div className="binge-explore-chips-row">
                     <button
@@ -327,15 +283,12 @@ export function Explore() {
                             (canScrollLeft ? "" : " is-hidden")
                         }
                         onClick={() => scrollChips(-280)}
-                        aria-label={t("nav.scroll_tags_left")}
+                        aria-label="Scroll tags left"
                         tabIndex={canScrollLeft ? 0 : -1}
                     >
                         <ChevronLeft />
                     </button>
-                    <div
-                        className="binge-explore-chips"
-                        ref={chipScrollerRef}
-                    >
+                    <div className="binge-explore-chips" ref={chipScrollerRef}>
                         <button
                             type="button"
                             className={
@@ -344,7 +297,7 @@ export function Explore() {
                             }
                             onClick={() => setActiveTag(null)}
                         >
-                            {t("nav.foryou")}
+                            For you
                         </button>
                         {chipsToRender.map((t) => (
                             <button
@@ -370,7 +323,7 @@ export function Explore() {
                             (canScrollRight ? "" : " is-hidden")
                         }
                         onClick={() => scrollChips(280)}
-                        aria-label={t("nav.scroll_tags_right")}
+                        aria-label="Scroll tags right"
                         tabIndex={canScrollRight ? 0 : -1}
                     >
                         <ChevronRight />
@@ -393,7 +346,7 @@ export function Explore() {
                                       }
                                     : undefined
                             }
-                            aria-label={t("action.open_scene")}
+                            aria-label="Open scene"
                         >
                             <span
                                 className="binge-explore-tile-play"
@@ -407,14 +360,14 @@ export function Explore() {
 
                 {error && (
                     <div className="binge-feed-empty binge-status-error">
-                        {t("status.load_failed", { message: error })}
+                        couldn't load explore: {error}
                     </div>
                 )}
                 {tiles.length === 0 && !isLoading && !error && (
                     <div className="binge-feed-empty">
                         {searchQuery || activeTag
-                            ? t("status.no_scenes_matched")
-                            : t("status.no_scenes_in_library")}
+                            ? "no scenes match this filter."
+                            : "no scenes in your library."}
                     </div>
                 )}
 
@@ -424,16 +377,15 @@ export function Explore() {
                         className="binge-feed-sentinel"
                         aria-hidden="true"
                     >
-                        {isLoading ? t("status.loading") : ""}
+                        {isLoading ? "loading…" : ""}
                     </div>
                 )}
                 {!hasMore && tiles.length > 0 && (
                     <div className="binge-feed-empty">
-                        {t("status.reached_bottom_scenes", { count: tiles.length })}
+                        you've reached the end · {tiles.length} scenes
                     </div>
                 )}
             </div>
-            {showScrollTop && <ScrollTopButton onClick={scrollToTop} />}
         </div>
     );
 }
@@ -509,4 +461,3 @@ function PlayIcon() {
         </svg>
     );
 }
-
