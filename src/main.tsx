@@ -1,13 +1,14 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
-import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
+import { TranslatedErrorBoundary } from "./components/ErrorBoundary.tsx";
+import "./i18n/config";
 import "./styles/global.css";
 
 createRoot(document.getElementById("root")!).render(
     <StrictMode>
-        <ErrorBoundary>
+        <TranslatedErrorBoundary>
             <App />
-        </ErrorBoundary>
+        </TranslatedErrorBoundary>
     </StrictMode>,
 );
