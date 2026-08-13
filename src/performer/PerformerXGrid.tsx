@@ -28,6 +28,10 @@ export function PerformerXGrid({ performer }: PerformerXGridProps) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [modalIndex, setModalIndex] = useState<number | null>(null);
+    // 重试计数器：自增触发 effect 重新拉取。服务端缓存场景下
+    // 点击重试可能仍返回旧空结果，但给用户明确反馈"已重试"，
+    // 且对网络瞬时失败（超时/断网）场景完全有效。
+    const [retryTick, setRetryTick] = useState(0);
 
     useEffect(() => {
         setMedia([]);
@@ -73,7 +77,12 @@ export function PerformerXGrid({ performer }: PerformerXGridProps) {
         return () => {
             alive = false;
         };
-    }, [performer.id, performer.urls]);
+    }, [performer.id, performer.urls, retryTick]);
+
+    const retry = () => {
+        if (loading) return;
+        setRetryTick((n) => n + 1);
+    };
 
     if (loading) {
         return (
@@ -85,10 +94,19 @@ export function PerformerXGrid({ performer }: PerformerXGridProps) {
 
     if (error) {
         return (
-            <section className="binge-profile-photos">
-                <div className="binge-status binge-status-error">
+            <section className="binge-profile-photos binge-x-status-section">
+                <div className="binge-status binge-status-error binge-x-status-msg">
                     {t("status.error_message", { message: error })}
                 </div>
+                <button
+                    type="button"
+                    className="binge-retry-btn"
+                    onClick={retry}
+                    disabled={loading}
+                >
+                    <span className={loading ? "binge-retry-icon is-spinning" : "binge-retry-icon"} aria-hidden="true">⟳</span>
+                    <span>{t("action.retry")}</span>
+                </button>
             </section>
         );
     }
@@ -105,10 +123,19 @@ export function PerformerXGrid({ performer }: PerformerXGridProps) {
 
     if (media.length === 0) {
         return (
-            <section className="binge-profile-photos">
-                <div className="binge-status">
+            <section className="binge-profile-photos binge-x-status-section">
+                <div className="binge-status binge-x-status-msg">
                     {t("status.no_x_media_found", { handle })}
                 </div>
+                <button
+                    type="button"
+                    className="binge-retry-btn"
+                    onClick={retry}
+                    disabled={loading}
+                >
+                    <span className={loading ? "binge-retry-icon is-spinning" : "binge-retry-icon"} aria-hidden="true">⟳</span>
+                    <span>{t("action.retry")}</span>
+                </button>
             </section>
         );
     }
