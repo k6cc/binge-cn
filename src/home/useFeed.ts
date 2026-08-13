@@ -125,10 +125,7 @@ export interface PackFeedItem {
 }
 
 export type FeedItem =
-    | SceneFeedItem
-    | GalleryFeedItem
-    | DiscoveryFeedItemWrapped
-    | PackFeedItem;
+    SceneFeedItem | GalleryFeedItem | DiscoveryFeedItemWrapped | PackFeedItem;
 
 export type FeedState =
     | { kind: "loading" }
@@ -163,7 +160,7 @@ const PACK_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 function assemblePacks(
     scenes: SceneFeedItem[],
-    repostCutoff: string
+    repostCutoff: string,
 ): FeedItem[] {
     // `repostCutoff` (YYYY-MM-DD) is computed by the caller from the
     // configured recent window — not the grown infinite-scroll window —
@@ -188,13 +185,11 @@ function assemblePacks(
     const out: FeedItem[] = [];
     for (const [pid, list] of byPrimary) {
         const sortedByCreated = [...list].sort((a, b) =>
-            b.createdAt.localeCompare(a.createdAt)
+            b.createdAt.localeCompare(a.createdAt),
         );
         const newest = new Date(sortedByCreated[0].createdAt).getTime();
         const inWindow = sortedByCreated.filter(
-            (s) =>
-                newest - new Date(s.createdAt).getTime() <=
-                PACK_WINDOW_MS
+            (s) => newest - new Date(s.createdAt).getTime() <= PACK_WINDOW_MS,
         );
         if (inWindow.length < PACK_MIN_SIZE) continue;
         const primary = sortedByCreated[0].performers[0];
@@ -297,7 +292,7 @@ export function useFeed(): FeedHookResult {
     useEffect(() => {
         let alive = true;
         const sinceIso = new Date(
-            Date.now() - lookbackDays * 24 * 3600 * 1000
+            Date.now() - lookbackDays * 24 * 3600 * 1000,
         ).toISOString();
 
         // Stash's date fields are YYYY-MM-DD strings (DateCriterionInput),
@@ -380,8 +375,7 @@ export function useFeed(): FeedHookResult {
                         // it by import time so it surfaces instead of
                         // sinking to its years-old release date.
                         const isRepost =
-                            r.sceneDate !== null &&
-                            r.sceneDate < sinceDate;
+                            r.sceneDate !== null && r.sceneDate < sinceDate;
                         item = {
                             kind: "scene",
                             key: `scene:${r.sceneId}`,
@@ -394,7 +388,7 @@ export function useFeed(): FeedHookResult {
                             date: r.sceneDate,
                             effectiveAt: isRepost
                                 ? r.sceneCreatedAt
-                                : r.sceneDate ?? r.sceneCreatedAt,
+                                : (r.sceneDate ?? r.sceneCreatedAt),
                             width: r.sceneWidth,
                             height: r.sceneHeight,
                             performers: [],
@@ -416,15 +410,15 @@ export function useFeed(): FeedHookResult {
                 // per-gallery image round-trips on gallery-heavy windows.
                 const cappedGalleryRows = galleryRows.slice(
                     0,
-                    MAX_GALLERY_CARDS
+                    MAX_GALLERY_CARDS,
                 );
                 const galleryImageLists = await Promise.all(
                     cappedGalleryRows.map((g) =>
                         findImagesByGallery(
                             g.galleryId,
-                            MAX_GALLERY_IMAGES
-                        ).catch(() => [] as PerformerImageCard[])
-                    )
+                            MAX_GALLERY_IMAGES,
+                        ).catch(() => [] as PerformerImageCard[]),
+                    ),
                 );
                 if (!alive) return;
 
@@ -447,7 +441,7 @@ export function useFeed(): FeedHookResult {
                             favorite: p.favorite,
                         })),
                         paths: g.paths,
-                    })
+                    }),
                 );
 
                 // Assemble packs (bulk imports → one pack card). No
@@ -455,9 +449,9 @@ export function useFeed(): FeedHookResult {
                 // virtualizer renders only what's on screen.
                 const sceneList: FeedItem[] = assemblePacks(
                     Array.from(sceneItems.values()).sort((a, b) =>
-                        b.effectiveAt.localeCompare(a.effectiveAt)
+                        b.effectiveAt.localeCompare(a.effectiveAt),
                     ),
-                    sinceDate
+                    sinceDate,
                 );
 
                 const wrappedDiscovery: DiscoveryFeedItemWrapped[] =

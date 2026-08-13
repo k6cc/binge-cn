@@ -29,7 +29,9 @@ export function PerformerStatsRow({
 function Stat({ value, label }: { value: number | null; label: string }) {
     return (
         <li className="binge-profile-stat">
-            <span className="binge-profile-stat-value">{formatStat(value)}</span>
+            <span className="binge-profile-stat-value">
+                {formatStat(value)}
+            </span>
             <span className="binge-profile-stat-label">{label}</span>
         </li>
     );

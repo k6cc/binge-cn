@@ -20,7 +20,7 @@ export function isSystemTag(name: string): boolean {
 }
 
 export function filterOutSystemTags<T extends { name: string }>(
-    tags: ReadonlyArray<T>
+    tags: ReadonlyArray<T>,
 ): T[] {
     return tags.filter((t) => !isSystemTag(t.name));
 }

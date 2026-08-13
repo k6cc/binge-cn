@@ -6,9 +6,7 @@ import {
     useState,
     type ReactNode,
 } from "react";
-import {
-    type StashSavedFilter,
-} from "../api/queries";
+import { type StashSavedFilter } from "../api/queries";
 
 export interface FilterEntry {
     id: string;
@@ -114,11 +112,13 @@ export function FilterProvider({ children }: { children: ReactNode }) {
             activeSavedFilter,
             applySavedFilter,
             clearSavedFilter,
-        ]
+        ],
     );
 
     return (
-        <FilterContext.Provider value={value}>{children}</FilterContext.Provider>
+        <FilterContext.Provider value={value}>
+            {children}
+        </FilterContext.Provider>
     );
 }
 

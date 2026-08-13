@@ -22,7 +22,10 @@
 //
 //   3. NULL-test modifiers (IS_NULL / NOT_NULL) often have no `value`
 //      key at all in storage. StringCriterionInput etc. require
-//      `value: String!` though — we substitute "".
+//      `value: String!` though — we substitute "". Three criterion
+//      inputs have NO value field at all, though, and substituting one
+//      into those is rejected outright as an unknown field, taking the
+//      whole query with it. See VALUELESS_CRITERION_FIELDS.
 //
 //   4. String / Multi criteria already have flat values when stored
 //      (the extra-wrap is specific to numeric types). Pass through
@@ -43,22 +46,40 @@ const SCALAR_FIELDS: ReadonlySet<string> = new Set([
     "performer_favorite",
 ]);
 
+// SceneFilterType fields whose criterion input declares no `value` field
+// at all: DuplicationCriterionInput {duplicated}, StashIDCriterionInput
+// {endpoint, stash_id, modifier} and StashIDsCriterionInput. Sending
+// `value: ""` to one of these is an unknown-field error that fails the
+// entire findScenes query, so a saved filter using "has no stash id"
+// would return nothing at all rather than the scenes it describes.
+// Taken from the live schema, not from memory.
+const VALUELESS_CRITERION_FIELDS: ReadonlySet<string> = new Set([
+    "duplicated",
+    "stash_id_endpoint",
+    "stash_ids_endpoint",
+]);
+
 function isPlainObject(v: unknown): v is Record<string, unknown> {
-    return (
-        v !== null && typeof v === "object" && !Array.isArray(v)
-    );
+    return v !== null && typeof v === "object" && !Array.isArray(v);
 }
 
 // Transform a single criterion `{modifier, value}` entry from stored
 // shape to input shape.
-function transformCriterion(v: Record<string, unknown>): Record<string, unknown> {
+function transformCriterion(
+    v: Record<string, unknown>,
+    field: string,
+): Record<string, unknown> {
     const modifier = v.modifier;
     const value = v.value;
 
     // No value at all (NOT_NULL / IS_NULL stored without a value key).
-    // String/Date inputs still require value: String!, so substitute "".
+    // String/Date inputs still require value: String!, so substitute ""
+    // — except where the input type has no value field to substitute
+    // into, in which case the modifier alone is the whole criterion.
     if (!("value" in v) || value === undefined || value === null) {
-        return { modifier, value: "" };
+        return VALUELESS_CRITERION_FIELDS.has(field)
+            ? { modifier }
+            : { modifier, value: "" };
     }
 
     // Numeric range wrap: value is itself { value, value2? }.
@@ -74,7 +95,11 @@ function transformCriterion(v: Record<string, unknown>): Record<string, unknown>
             modifier,
             value: inner.value,
         };
-        if ("value2" in inner && inner.value2 !== undefined && inner.value2 !== null) {
+        if (
+            "value2" in inner &&
+            inner.value2 !== undefined &&
+            inner.value2 !== null
+        ) {
             out.value2 = inner.value2;
         }
         return out;
@@ -85,7 +110,7 @@ function transformCriterion(v: Record<string, unknown>): Record<string, unknown>
 }
 
 export function transformObjectFilter(
-    obj: Record<string, unknown> | null | undefined
+    obj: Record<string, unknown> | null | undefined,
 ): Record<string, unknown> {
     if (!obj || !isPlainObject(obj)) return {};
     const out: Record<string, unknown> = {};
@@ -110,7 +135,7 @@ export function transformObjectFilter(
 
         // Criterion shape: has modifier (value optional for NOT_NULL etc.).
         if ("modifier" in val) {
-            out[key] = transformCriterion(val);
+            out[key] = transformCriterion(val, key);
             continue;
         }
 

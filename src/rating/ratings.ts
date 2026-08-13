@@ -22,7 +22,7 @@ export interface TagMin {
 // in the modal).
 export function parseRatingsFromTags(
     tags: ReadonlyArray<TagMin>,
-    criteria: ReadonlyArray<Criterion>
+    criteria: ReadonlyArray<Criterion>,
 ): Record<string, number> {
     const byPrefix = new Map<string, Criterion>();
     for (const c of criteria) byPrefix.set(criterionTagPrefix(c), c);
@@ -51,7 +51,7 @@ export function buildUpdatedTagIds(
     currentTags: ReadonlyArray<TagMin>,
     criterion: Criterion,
     newScore: number | null,
-    newScoreTagId: string | null
+    newScoreTagId: string | null,
 ): string[] | null {
     const prefix = criterionTagPrefix(criterion);
     const filtered = currentTags.filter((t) => {
@@ -67,13 +67,26 @@ export function buildUpdatedTagIds(
     return result;
 }
 
+// Python's round() is round-half-to-even; JavaScript's Math.round rounds
+// halves away from zero. The plugin's hook does the rounding that actually
+// gets stored, so the preview has to match it or an average landing exactly
+// on an odd half (two criteria scored 2 and 3, say) previews 60 and is then
+// rewritten to 40 the moment the hook runs.
+function roundHalfToEven(value: number): number {
+    const floor = Math.floor(value);
+    const remainder = value - floor;
+    if (remainder > 0.5) return floor + 1;
+    if (remainder < 0.5) return floor;
+    return floor % 2 === 0 ? floor : floor + 1;
+}
+
 // Replicates ASR/APR's weighted formula for the preview shown in the
 // modal. Stash's Python hook is the source of truth — this is for UI
 // feedback only.
 export function computeRating100(
     ratings: Readonly<Record<string, number>>,
     config: RatingConfig,
-    precision: number = 20
+    precision: number = 20,
 ): number | null {
     const groupContrib: { groupWeight: number; groupAvg: number }[] = [];
     const criteriaByGroup = new Map<string, Criterion[]>();
@@ -108,9 +121,10 @@ export function computeRating100(
     }
     if (den === 0) return null;
     const final05 = num / den;
-    const safePrecision = precision > 0 ? precision : 20;
-    let rating100 = Math.round(
-        Math.round((final05 * 20) / safePrecision) * safePrecision
+    // rating_core.py clamps with max(1, precision), not to a default of 20.
+    const safePrecision = Math.max(1, precision);
+    let rating100 = roundHalfToEven(
+        roundHalfToEven((final05 * 20) / safePrecision) * safePrecision,
     );
     rating100 = Math.max(safePrecision, Math.min(100, rating100));
     return rating100;
@@ -119,7 +133,7 @@ export function computeRating100(
 // Number of criteria visible (enabled) per group — for the modal's
 // per-group section header.
 export function countCriteriaPerGroup(
-    config: RatingConfig
+    config: RatingConfig,
 ): Map<string, Criterion[]> {
     const out = new Map<string, Criterion[]>();
     for (const c of config.criteria) {
@@ -133,7 +147,7 @@ export function countCriteriaPerGroup(
 // Convenience: how many criteria are rated vs total.
 export function ratingProgress(
     ratings: Readonly<Record<string, number>>,
-    criteria: ReadonlyArray<Criterion>
+    criteria: ReadonlyArray<Criterion>,
 ): { rated: number; total: number } {
     let rated = 0;
     for (const c of criteria) {

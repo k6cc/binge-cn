@@ -18,7 +18,7 @@ const NEAR_BOTTOM_PX = 600;
 export interface SceneCardGridProps {
     fetcher: (
         page: number,
-        perPage: number
+        perPage: number,
     ) => Promise<{ count: number; scenes: PerformerSceneCard[] }>;
     onPick: (scene: PerformerSceneCard) => void;
     // Reset fetched state when this changes (e.g. switching to a
@@ -62,7 +62,7 @@ export function SceneCardGrid({
                 if (!alive) return;
                 setCount(res.count);
                 setScenes((prev) =>
-                    page === 1 ? res.scenes : [...prev, ...res.scenes]
+                    page === 1 ? res.scenes : [...prev, ...res.scenes],
                 );
             })
             .catch((err: Error) => {
@@ -93,7 +93,7 @@ export function SceneCardGrid({
                     if (entry.isIntersecting) setPage((p) => p + 1);
                 }
             },
-            { rootMargin: `0px 0px ${NEAR_BOTTOM_PX}px 0px` }
+            { rootMargin: `0px 0px ${NEAR_BOTTOM_PX}px 0px` },
         );
         observer.observe(sentinel);
         return () => observer.disconnect();

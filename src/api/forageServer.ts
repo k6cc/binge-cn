@@ -130,14 +130,13 @@ export interface ForageWatchRequest {
 }
 
 export type ForageWatchResult =
-    | { ok: true; target: string }
-    | { ok: false; error: string };
+    { ok: true; target: string } | { ok: false; error: string };
 
 // addForageWatch POSTs a discovery scene to forage's watchlist. Mirrors
 // the forage plugin's own addWatch payload 1:1. Never throws — returns a
 // tagged result the card renders inline.
 export async function addForageWatch(
-    req: ForageWatchRequest
+    req: ForageWatchRequest,
 ): Promise<ForageWatchResult> {
     await ensureForageUrlSeeded();
     const base = readForageUrl();

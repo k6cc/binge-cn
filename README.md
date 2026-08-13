@@ -1,6 +1,6 @@
 # Binge（汉化版）
 
-> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.5.6**。
+> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.5.7**。
 
 为 [Stash](https://github.com/stashapp/stash) 提供的 Instagram 风格社交与发现层：竖屏 Reel、Stories、演员档案、StashDB 驱动的发现功能——全部基于 Stash 既有的 GraphQL API。Web 插件形态。
 
@@ -39,6 +39,18 @@ v0.4.17 将原硬编码中文迁移为基于 `react-i18next` 的动态多语言�
 - 详见 [汉化及修复.md](./汉化及修复.md)
 
 ### 功能修复
+
+#### v0.5.7
+
+- **合并上游 v0.5.0–v0.5.5**（25 个提交，125 文件，+10848/-4909 行）
+- **Stash 写入容错**：`flattenSceneNodes` / `mapGalleryNodes` 对 `paths` / `cover?.paths` / `performers` 加 null guard，部分写入不再让整个 feed 崩溃
+- **StashDB 缓存健壮性**：`readStashDBCache` 加 `Array.isArray` 校验 + `age<0` 防时钟回退 + `pruneOldCacheVersions` 清旧版本缓存避免 quota 溢出
+- **保存过滤器修复**：`transformObjectFilter` 对 `StashIDCriterionInput` 等无 value 字段的 criterion 不再发送 `value`，修复"近期到达"等过滤器返回空
+- **评分四舍五入对齐**：`rating100` 改用 round-half-to-even 匹配 Python 插件，解决预览与实际存储值不一致
+- **IPv6 安全检查**：`isPrivateIPv6()` 检查，公网 IPv6 daemon 不再传 API key 明文
+- **详情卡片滚动**：sheet 加 `overflow-y: auto`，窄屏可滚动查看完整技术信息
+- **详情卡片 handle 始终可见**：sticky 顶部，与其他 sheet 一致
+- **社交 tab 重试按钮**：error/empty 态末尾加 `⟳ 重试` 按钮，覆盖网络瞬时失败场景
 
 #### v0.5.6
 

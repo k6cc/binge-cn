@@ -32,7 +32,7 @@ function readRing(): InteractionEvent[] {
                 e != null &&
                 typeof e.tagId === "string" &&
                 typeof e.tagName === "string" &&
-                typeof e.ts === "number"
+                typeof e.ts === "number",
         );
     } catch {
         return [];
@@ -54,7 +54,7 @@ function writeRing(ring: InteractionEvent[]): void {
 // recency ring in the first place — keeps Explore's chip strip clean
 // from rating-plumbing noise.
 export function recordTagInteractions(
-    tags: ReadonlyArray<{ id: string; name: string }>
+    tags: ReadonlyArray<{ id: string; name: string }>,
 ): void {
     if (tags.length === 0) return;
     const filtered = tags.filter((t) => !isSystemTagName(t.name));

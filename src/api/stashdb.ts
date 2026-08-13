@@ -130,9 +130,7 @@ export async function getLinkedPerformers(): Promise<LinkedPerformer[]> {
     }>(FIND_LINKED_PERFORMERS);
     const out: LinkedPerformer[] = [];
     for (const p of data.findPerformers.performers) {
-        const link = p.stash_ids.find(
-            (s) => s.endpoint === STASHDB_ENDPOINT
-        );
+        const link = p.stash_ids.find((s) => s.endpoint === STASHDB_ENDPOINT);
         if (!link) continue;
         out.push({
             localId: p.id,
@@ -193,7 +191,7 @@ async function postStashDB<T>(
     apiKey: string,
     query: string,
     variables: Record<string, unknown>,
-    timeoutMs: number = STASHDB_TIMEOUT_MS
+    timeoutMs: number = STASHDB_TIMEOUT_MS,
 ): Promise<T | null> {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), timeoutMs);
@@ -211,7 +209,7 @@ async function postStashDB<T>(
             console.warn(
                 "[binge] stashdb http error",
                 res.status,
-                res.statusText
+                res.statusText,
             );
             return null;
         }
@@ -224,7 +222,7 @@ async function postStashDB<T>(
             // silently swallow themselves.
             console.warn(
                 "[binge] stashdb graphql errors",
-                body.errors.map((e) => e.message).join("; ")
+                body.errors.map((e) => e.message).join("; "),
             );
             return null;
         }
@@ -343,7 +341,7 @@ function shapeScene(s: RawStashDBScene): StashDBScene {
 async function fetchStashDBScenesBatch(
     apiKey: string,
     performerStashIds: string[],
-    sinceIsoDate: string
+    sinceIsoDate: string,
 ): Promise<StashDBScene[]> {
     const out: StashDBScene[] = [];
     let page = 1;
@@ -450,7 +448,7 @@ export interface StashDBPerformerDetail {
 
 export async function getStashDBPerformer(
     stashId: string,
-    apiKey: string
+    apiKey: string,
 ): Promise<StashDBPerformerDetail | null> {
     const data = await postStashDB<{
         findPerformer: {
@@ -504,7 +502,7 @@ export async function getStashDBPerformer(
             p.band_size,
             p.cup_size,
             p.waist_size,
-            p.hip_size
+            p.hip_size,
         ),
         images: p.images ?? [],
         urls: (p.urls ?? []).map((u) => ({
@@ -522,7 +520,7 @@ function formatMeasurements(
     band: number | null,
     cup: string | null,
     waist: number | null,
-    hip: number | null
+    hip: number | null,
 ): string | null {
     const top = band && cup ? `${band}${cup}` : null;
     const parts = [top, waist?.toString(), hip?.toString()].filter(Boolean);
@@ -604,7 +602,7 @@ export interface StashDBSceneDetail {
 
 export async function getStashDBScene(
     sceneId: string,
-    apiKey: string
+    apiKey: string,
 ): Promise<StashDBSceneDetail | null> {
     const data = await postStashDB<{
         findScene: {
@@ -646,9 +644,7 @@ export async function getStashDBScene(
             url: u.url,
             site: u.site?.name ?? "",
         })),
-        studio: s.studio
-            ? { stashId: s.studio.id, name: s.studio.name }
-            : null,
+        studio: s.studio ? { stashId: s.studio.id, name: s.studio.name } : null,
         performers: (s.performers ?? []).map((pa) => ({
             stashId: pa.performer.id,
             name: pa.performer.name,
@@ -715,7 +711,7 @@ export interface StashDBTrendingPerformer {
 export async function getTrendingStashDBPerformers(
     apiKey: string,
     perPage: number = 30,
-    genders: ReadonlyArray<string> = ["FEMALE"]
+    genders: ReadonlyArray<string> = ["FEMALE"],
 ): Promise<StashDBTrendingPerformer[]> {
     if (genders.length === 0) return [];
 
@@ -773,11 +769,11 @@ export async function getTrendingStashDBPerformers(
             } catch (err) {
                 console.warn(
                     `[binge] trending performers fetch for ${gender} failed`,
-                    err
+                    err,
                 );
                 return [];
             }
-        })
+        }),
     );
     const seen = new Set<string>();
     const merged: StashDBTrendingPerformer[] = [];
@@ -824,7 +820,7 @@ export async function getStashDBScenesForPerformer(
     performerStashId: string,
     apiKey: string,
     perPage: number = 100,
-    maxPages: number = 5
+    maxPages: number = 5,
 ): Promise<StashDBScene[]> {
     const out: StashDBScene[] = [];
     let page = 1;
@@ -852,7 +848,7 @@ export async function getStashDBScenesForPerformer(
 }
 
 export async function getTrendingStashDBScenes(
-    apiKey: string
+    apiKey: string,
 ): Promise<StashDBScene[]> {
     const data = await postStashDB<{
         queryScenes: { scenes: RawStashDBScene[] };
@@ -871,7 +867,7 @@ export async function getTrendingStashDBScenes(
 export async function getNewStashDBScenesForPerformers(
     performerStashIds: string[],
     sinceIsoDate: string,
-    apiKey: string
+    apiKey: string,
 ): Promise<StashDBScene[]> {
     if (performerStashIds.length === 0) return [];
     const merged: StashDBScene[] = [];
@@ -880,7 +876,7 @@ export async function getNewStashDBScenesForPerformers(
         const scenes = await fetchStashDBScenesBatch(
             apiKey,
             batch,
-            sinceIsoDate
+            sinceIsoDate,
         );
         merged.push(...scenes);
     }
@@ -899,7 +895,8 @@ export async function getNewStashDBScenesForPerformers(
 // v4: performers now include scene_count for the "most popular"
 // poster fallback. Old v3 entries lack the field, so reads should
 // return null and force a refetch.
-const CACHE_KEY = "binge.stashdb.newScenes.v4";
+const CACHE_PREFIX = "binge.stashdb.newScenes.";
+const CACHE_KEY = CACHE_PREFIX + "v4";
 const CACHE_TTL_MS = 12 * 60 * 60 * 1000;
 
 interface CacheEntry {
@@ -908,25 +905,54 @@ interface CacheEntry {
     scenes: StashDBScene[];
 }
 
-export function readStashDBCache(
-    sinceIsoDate: string
-): StashDBScene[] | null {
+export function readStashDBCache(sinceIsoDate: string): StashDBScene[] | null {
     try {
         const raw = localStorage.getItem(CACHE_KEY);
         if (!raw) return null;
         const entry = JSON.parse(raw) as CacheEntry;
         if (entry.sinceIsoDate !== sinceIsoDate) return null;
-        if (Date.now() - entry.fetchedAt > CACHE_TTL_MS) return null;
+        // Valid JSON is not the same as our JSON. A truncated or
+        // hand-edited entry parses fine and then hands the caller
+        // something it iterates, so the stories row dies with a
+        // TypeError until the cache happens to be invalidated.
+        if (!Array.isArray(entry.scenes)) return null;
+        const age = Date.now() - entry.fetchedAt;
+        // Negative age means the entry claims to be from the future,
+        // which happens when the clock moves backwards. Treat it as
+        // stale rather than valid until the clock catches up.
+        if (age < 0 || age > CACHE_TTL_MS) return null;
         return entry.scenes;
     } catch {
         return null;
     }
 }
 
+// Drop entries written by older versions of this cache. The version
+// lives in the key, so a bumped version silently orphans the previous
+// payload instead of replacing it: those are hundreds of KB of scenes
+// each, they are never read again, and they count against the origin's
+// quota. Once that quota is reached the write below fails, and it fails
+// silently, so the cache simply stops working.
+function pruneOldCacheVersions(): void {
+    try {
+        const stale: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith(CACHE_PREFIX) && key !== CACHE_KEY) {
+                stale.push(key);
+            }
+        }
+        for (const key of stale) localStorage.removeItem(key);
+    } catch {
+        /* storage unavailable — nothing to prune */
+    }
+}
+
 export function writeStashDBCache(
     sinceIsoDate: string,
-    scenes: StashDBScene[]
+    scenes: StashDBScene[],
 ): void {
+    pruneOldCacheVersions();
     try {
         localStorage.setItem(
             CACHE_KEY,
@@ -934,7 +960,7 @@ export function writeStashDBCache(
                 sinceIsoDate,
                 fetchedAt: Date.now(),
                 scenes,
-            } satisfies CacheEntry)
+            } satisfies CacheEntry),
         );
     } catch {
         /* quota etc — ignore */

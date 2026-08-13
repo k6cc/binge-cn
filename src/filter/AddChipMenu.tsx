@@ -78,7 +78,7 @@ export function AddChipMenu({ onClose }: AddChipMenuProps) {
         // Defer so the same click that opened us doesn't immediately dismiss
         const t = window.setTimeout(
             () => document.addEventListener("mousedown", handler),
-            0
+            0,
         );
         return () => {
             window.clearTimeout(t);

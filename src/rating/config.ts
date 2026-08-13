@@ -1,9 +1,4 @@
-import type {
-    Criterion,
-    Group,
-    RatingConfig,
-    RatingDomain,
-} from "./types";
+import type { Criterion, Group, RatingConfig, RatingDomain } from "./types";
 
 // Loads the Advanced Rating plugin's config from Stash and parses
 // it into typed groups + criteria for one domain (scene or performer).
@@ -60,7 +55,7 @@ async function fetchPluginConfig(): Promise<RawPluginConfig | null> {
 // only the requested domain's keys, with the `<domain>_` prefix stripped.
 function viewForDomain(
     raw: RawPluginConfig | null,
-    domain: RatingDomain
+    domain: RatingDomain,
 ): RawPluginConfig {
     if (!raw) return {};
     const prefix = domain + "_";
@@ -106,27 +101,118 @@ const SCENE_DEFAULT_GROUPS: Group[] = [
     { id: "overall", name: "Overall", weight: 1 },
 ];
 const SCENE_DEFAULT_CRITERIA: Criterion[] = [
-    { id: "production_quality", name: "Production Quality", groupId: "overall", weight: 1, enabled: true, description: "" },
-    { id: "chemistry",          name: "Chemistry",          groupId: "overall", weight: 1, enabled: true, description: "" },
-    { id: "performance",        name: "Performance",        groupId: "overall", weight: 1, enabled: true, description: "" },
-    { id: "aesthetics",         name: "Aesthetics",         groupId: "overall", weight: 1, enabled: true, description: "" },
-    { id: "creativity",         name: "Creativity",         groupId: "overall", weight: 1, enabled: true, description: "" },
+    {
+        id: "production_quality",
+        name: "Production Quality",
+        groupId: "overall",
+        weight: 1,
+        enabled: true,
+        description: "",
+    },
+    {
+        id: "chemistry",
+        name: "Chemistry",
+        groupId: "overall",
+        weight: 1,
+        enabled: true,
+        description: "",
+    },
+    {
+        id: "performance",
+        name: "Performance",
+        groupId: "overall",
+        weight: 1,
+        enabled: true,
+        description: "",
+    },
+    {
+        id: "aesthetics",
+        name: "Aesthetics",
+        groupId: "overall",
+        weight: 1,
+        enabled: true,
+        description: "",
+    },
+    {
+        id: "creativity",
+        name: "Creativity",
+        groupId: "overall",
+        weight: 1,
+        enabled: true,
+        description: "",
+    },
 ];
 
 // Performer defaults — two groups (physical, performance) split criteria.
 const PERFORMER_DEFAULT_GROUPS: Group[] = [
-    { id: "physical",    name: "Physical",    weight: 1 },
+    { id: "physical", name: "Physical", weight: 1 },
     { id: "performance", name: "Performance", weight: 1 },
 ];
 const PERFORMER_DEFAULT_CRITERIA: Criterion[] = [
-    { id: "face",        name: "Face",        groupId: "physical",    weight: 1, enabled: true, description: "" },
-    { id: "breasts",     name: "Breasts",     groupId: "physical",    weight: 1, enabled: true, description: "" },
-    { id: "ass",         name: "Ass",         groupId: "physical",    weight: 1, enabled: true, description: "" },
-    { id: "body",        name: "Body",        groupId: "physical",    weight: 1, enabled: true, description: "" },
-    { id: "genitals",    name: "Genitals",    groupId: "physical",    weight: 1, enabled: true, description: "" },
-    { id: "technique",   name: "Technique",   groupId: "performance", weight: 1, enabled: true, description: "" },
-    { id: "energy",      name: "Energy",      groupId: "performance", weight: 1, enabled: true, description: "" },
-    { id: "sluttiness",  name: "Sluttiness",  groupId: "performance", weight: 1, enabled: true, description: "" },
+    {
+        id: "face",
+        name: "Face",
+        groupId: "physical",
+        weight: 1,
+        enabled: true,
+        description: "",
+    },
+    {
+        id: "breasts",
+        name: "Breasts",
+        groupId: "physical",
+        weight: 1,
+        enabled: true,
+        description: "",
+    },
+    {
+        id: "ass",
+        name: "Ass",
+        groupId: "physical",
+        weight: 1,
+        enabled: true,
+        description: "",
+    },
+    {
+        id: "body",
+        name: "Body",
+        groupId: "physical",
+        weight: 1,
+        enabled: true,
+        description: "",
+    },
+    {
+        id: "genitals",
+        name: "Genitals",
+        groupId: "physical",
+        weight: 1,
+        enabled: true,
+        description: "",
+    },
+    {
+        id: "technique",
+        name: "Technique",
+        groupId: "performance",
+        weight: 1,
+        enabled: true,
+        description: "",
+    },
+    {
+        id: "energy",
+        name: "Energy",
+        groupId: "performance",
+        weight: 1,
+        enabled: true,
+        description: "",
+    },
+    {
+        id: "sluttiness",
+        name: "Sluttiness",
+        groupId: "performance",
+        weight: 1,
+        enabled: true,
+        description: "",
+    },
 ];
 
 function defaultsFor(domain: RatingDomain): {
@@ -147,7 +233,7 @@ function defaultsFor(domain: RatingDomain): {
 // same behaviour the plugin's own UI uses when config is empty.
 function parseConfig(
     domain: RatingDomain,
-    view: RawPluginConfig
+    view: RawPluginConfig,
 ): { groups: Group[]; criteria: Criterion[] } {
     const defaults = defaultsFor(domain);
 
@@ -158,12 +244,13 @@ function parseConfig(
         groupIds.length === 0
             ? defaults.groups
             : groupIds.map((id) => {
-                  const fallbackGroup =
-                      defaults.groups.find((g) => g.id === id) ?? {
-                          id,
-                          name: id,
-                          weight: 1,
-                      };
+                  const fallbackGroup = defaults.groups.find(
+                      (g) => g.id === id,
+                  ) ?? {
+                      id,
+                      name: id,
+                      weight: 1,
+                  };
                   return {
                       id,
                       name:
@@ -171,7 +258,7 @@ function parseConfig(
                           fallbackGroup.name,
                       weight: coerceFloat(
                           view[`group_weight_${id}`],
-                          fallbackGroup.weight
+                          fallbackGroup.weight,
                       ),
                   };
               });
@@ -182,22 +269,23 @@ function parseConfig(
         criteriaIds.length === 0
             ? defaults.criteria
             : criteriaIds.map((id) => {
-                  const fallbackCriterion =
-                      defaults.criteria.find((c) => c.id === id) ?? {
-                          id,
-                          name: id,
-                          groupId: groups[0]?.id ?? "",
-                          weight: 1,
-                          enabled: true,
-                          description: "",
-                      };
+                  const fallbackCriterion = defaults.criteria.find(
+                      (c) => c.id === id,
+                  ) ?? {
+                      id,
+                      name: id,
+                      groupId: groups[0]?.id ?? "",
+                      weight: 1,
+                      enabled: true,
+                      description: "",
+                  };
                   const groupId =
                       (view[`group_${id}`] as string | undefined) ??
                       fallbackCriterion.groupId;
                   // Plugin also supports legacy `disable_<id>` keys.
                   const legacyDisabled = coerceBool(
                       view[`disable_${id}`],
-                      false
+                      false,
                   );
                   return {
                       id,
@@ -206,16 +294,16 @@ function parseConfig(
                           fallbackCriterion.name,
                       groupId: groupIdSet.has(groupId)
                           ? groupId
-                          : groups[0]?.id ?? "",
+                          : (groups[0]?.id ?? ""),
                       weight: coerceFloat(
                           view[`weight_${id}`],
-                          fallbackCriterion.weight
+                          fallbackCriterion.weight,
                       ),
                       enabled: legacyDisabled
                           ? false
                           : coerceBool(
                                 view[`enabled_${id}`],
-                                fallbackCriterion.enabled
+                                fallbackCriterion.enabled,
                             ),
                       description:
                           (view[`desc_${id}`] as string | undefined) ??
@@ -241,9 +329,7 @@ function getRawConfig(): Promise<RawPluginConfig | null> {
 // Per-domain parsed-result cache so repeat callers don't re-parse.
 const parsedCache = new Map<RatingDomain, Promise<RatingConfig>>();
 
-export function loadRatingConfig(
-    domain: RatingDomain
-): Promise<RatingConfig> {
+export function loadRatingConfig(domain: RatingDomain): Promise<RatingConfig> {
     const existing = parsedCache.get(domain);
     if (existing) return existing;
     const p = (async () => {

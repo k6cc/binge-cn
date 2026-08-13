@@ -6,12 +6,7 @@ import { useTranslation } from "react-i18next";
 // listing the URLs verbatim — keeps the bio row tidy when a
 // performer has half a dozen miscellaneous sites linked.
 type Platform =
-    | "twitter"
-    | "instagram"
-    | "tiktok"
-    | "reddit"
-    | "onlyfans"
-    | "fansly";
+    "twitter" | "instagram" | "tiktok" | "reddit" | "onlyfans" | "fansly";
 
 interface PerformerLinksProps {
     urls: string[];
@@ -24,7 +19,9 @@ export function PerformerLinks({ urls }: PerformerLinksProps) {
     const [showOther, setShowOther] = useState(false);
     const { t } = useTranslation();
 
-    const cleaned = dedupe(urls.map(normalizeUrl).filter((u): u is string => !!u));
+    const cleaned = dedupe(
+        urls.map(normalizeUrl).filter((u): u is string => !!u),
+    );
     if (cleaned.length === 0) return null;
 
     // Bucket: first matching platform wins per URL; remainder go in `other`.
@@ -113,10 +110,16 @@ function detectPlatform(url: string): Platform | null {
     }
     if (host.startsWith("www.")) host = host.slice(4);
     if (host.startsWith("m.")) host = host.slice(2);
-    if (host === "twitter.com" || host === "x.com" || host === "t.co") return "twitter";
+    if (host === "twitter.com" || host === "x.com" || host === "t.co")
+        return "twitter";
     if (host === "instagram.com" || host === "instagr.am") return "instagram";
     if (host === "tiktok.com" || host === "vm.tiktok.com") return "tiktok";
-    if (host === "reddit.com" || host === "old.reddit.com" || host === "redd.it") return "reddit";
+    if (
+        host === "reddit.com" ||
+        host === "old.reddit.com" ||
+        host === "redd.it"
+    )
+        return "reddit";
     if (host === "onlyfans.com") return "onlyfans";
     if (host === "fansly.com") return "fansly";
     return null;
@@ -252,7 +255,13 @@ function InstagramIcon() {
         >
             <rect x="3" y="3" width="18" height="18" rx="5" />
             <circle cx="12" cy="12" r="4" />
-            <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
+            <circle
+                cx="17.5"
+                cy="6.5"
+                r="1"
+                fill="currentColor"
+                stroke="none"
+            />
         </svg>
     );
 }

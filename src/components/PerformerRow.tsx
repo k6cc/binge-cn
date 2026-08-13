@@ -19,7 +19,7 @@ export function PerformerRow({ performers }: PerformerRowProps) {
     // Mirror the primary's favorite state for the inline button. Updated
     // optimistically from the sheet via onFavoriteChange.
     const [primaryFav, setPrimaryFav] = useState<boolean>(
-        primary?.favorite ?? false
+        primary?.favorite ?? false,
     );
     const [sheetOpen, setSheetOpen] = useState(false);
     const { t } = useTranslation();
@@ -28,6 +28,21 @@ export function PerformerRow({ performers }: PerformerRowProps) {
         setPrimaryFav(primary?.favorite ?? false);
     }, [primary?.id, primary?.favorite]);
 
+    // Cap at 4 visible to keep the row tidy; show "+N" if more
+    const visible = performers.slice(0, 4);
+    const overflow = performers.length - visible.length;
+    // The reel re-renders this row constantly during like-bursts, hover
+    // states, etc — memoise the joined name string so we don't rerun
+    // map + format every paint.
+    const nameSummary = useMemo(
+        () => formatNames(performers.map((p) => p.name)),
+        [performers],
+    );
+
+    // Bail AFTER every hook has run. An early return above the useMemo
+    // changes the hook count between renders, so a scene whose performers
+    // arrive late (empty on the first paint, populated on the next) would
+    // crash with "rendered more hooks than during the previous render".
     if (performers.length === 0) return null;
 
     // Tapping a bubble — single performer goes straight to that
@@ -47,17 +62,6 @@ export function PerformerRow({ performers }: PerformerRowProps) {
         if (id === primary?.id) setPrimaryFav(value);
     };
 
-    // Cap at 4 visible to keep the row tidy; show "+N" if more
-    const visible = performers.slice(0, 4);
-    const overflow = performers.length - visible.length;
-    // The reel re-renders this row constantly during like-bursts, hover
-    // states, etc — memoise the joined name string so we don't rerun
-    // map + format every paint.
-    const nameSummary = useMemo(
-        () => formatNames(performers.map((p) => p.name)),
-        [performers]
-    );
-
     return (
         <div className="binge-performer-row">
             <div className="binge-performer-stack">
@@ -75,7 +79,9 @@ export function PerformerRow({ performers }: PerformerRowProps) {
                             className="binge-performer-bubble-img"
                             style={
                                 p.image_path
-                                    ? { backgroundImage: `url(${p.image_path})` }
+                                    ? {
+                                          backgroundImage: `url(${p.image_path})`,
+                                      }
                                     : undefined
                             }
                         >
@@ -133,7 +139,6 @@ function formatNames(names: string[]): string {
     if (names.length === 0) return "";
     if (names.length === 1) return names[0];
     if (names.length === 2) return `${names[0]} and ${names[1]}`;
-    if (names.length === 3)
-        return `${names[0]}, ${names[1]} and ${names[2]}`;
+    if (names.length === 3) return `${names[0]}, ${names[1]} and ${names[2]}`;
     return `${names.slice(0, 3).join(", ")} +${names.length - 3} more`;
 }

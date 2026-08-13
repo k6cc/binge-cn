@@ -39,7 +39,7 @@ export function BingeStartupSplash() {
     useEffect(() => {
         const t = setTimeout(
             () => setPhase((p) => (p === "hold" ? "fade" : p)),
-            MAX_HOLD_MS
+            MAX_HOLD_MS,
         );
         return () => clearTimeout(t);
     }, []);

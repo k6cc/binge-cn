@@ -25,8 +25,7 @@ export function TabBar() {
                     role="tab"
                     aria-selected={tab === t.id}
                     className={
-                        "binge-tabbar-link" +
-                        (tab === t.id ? " is-active" : "")
+                        "binge-tabbar-link" + (tab === t.id ? " is-active" : "")
                     }
                     onClick={() => setTab(t.id)}
                 >

@@ -24,7 +24,11 @@ interface Slot<T> {
     expiresAt: number;
 }
 
-function get<T>(slot: Slot<T>, key: string, fetcher: () => Promise<T>): Promise<T> {
+function get<T>(
+    slot: Slot<T>,
+    key: string,
+    fetcher: () => Promise<T>,
+): Promise<T> {
     const now = Date.now();
     if (slot.key === key && slot.promise && now < slot.expiresAt) {
         return slot.promise;
@@ -63,36 +67,32 @@ function emptySlot<T>(): Slot<T> {
 // days, so this is bounded by the user's import rate over that span.
 const FEED_PER_PAGE = -1;
 
-export function getRecentScenes(
-    sinceIso: string
-): Promise<RecentSceneRow[]> {
+export function getRecentScenes(sinceIso: string): Promise<RecentSceneRow[]> {
     // Bucket the key to the minute. The feed + stories widgets each
     // compute their own `now - Nd` a few ms apart; without bucketing,
     // their keys never match and each fires a full per_page:-1 query
     // instead of sharing the one this slot is meant to dedupe.
     return get(scenesByCreatedSlot, sinceIso.slice(0, 16), () =>
-        findRecentScenes(sinceIso, FEED_PER_PAGE)
+        findRecentScenes(sinceIso, FEED_PER_PAGE),
     );
 }
-export function getScenesByDate(
-    sinceDate: string
-): Promise<RecentSceneRow[]> {
+export function getScenesByDate(sinceDate: string): Promise<RecentSceneRow[]> {
     return get(scenesByDateSlot, sinceDate, () =>
-        findScenesByDate(sinceDate, FEED_PER_PAGE)
+        findScenesByDate(sinceDate, FEED_PER_PAGE),
     );
 }
 export function getRecentGalleries(
-    sinceIso: string
+    sinceIso: string,
 ): Promise<RecentGalleryRow[]> {
     return get(galleriesByCreatedSlot, sinceIso, () =>
-        findRecentGalleries(sinceIso)
+        findRecentGalleries(sinceIso),
     );
 }
 export function getGalleriesByDate(
-    sinceDate: string
+    sinceDate: string,
 ): Promise<RecentGalleryRow[]> {
     return get(galleriesByDateSlot, sinceDate, () =>
-        findGalleriesByDate(sinceDate)
+        findGalleriesByDate(sinceDate),
     );
 }
 

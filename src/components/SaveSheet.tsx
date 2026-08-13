@@ -73,9 +73,7 @@ export function SaveSheet({
             setNewName("");
             setCreating(false);
         } catch (err) {
-            setSubmitError(
-                err instanceof Error ? err.message : String(err)
-            );
+            setSubmitError(err instanceof Error ? err.message : String(err));
         } finally {
             setSubmitBusy(false);
         }
@@ -191,7 +189,7 @@ export function SaveSheet({
                 </div>
             </div>
         </div>,
-        document.body
+        document.body,
     );
 }
 

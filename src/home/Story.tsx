@@ -18,8 +18,7 @@ export function Story({ story, onClick }: StoryProps) {
         <button
             type="button"
             className={
-                "binge-story" +
-                (story.performerFavorite ? " is-favorite" : "")
+                "binge-story" + (story.performerFavorite ? " is-favorite" : "")
             }
             onClick={() => onClick(story)}
             title={t("story.new_scenes_title", { name: performerName, count: newCount })}
