@@ -1340,11 +1340,11 @@ export async function findGalleriesByDate(
 }
 
 const FIND_IMAGES_BY_GALLERY = /* GraphQL */ `
-    query GalleryImages($id: ID!, $per_page: Int!) {
+    query GalleryImages($id: ID!, $per_page: Int!, $page: Int!) {
         findImages(
             image_filter: { galleries: { value: [$id], modifier: INCLUDES } }
             filter: {
-                page: 1
+                page: $page
                 per_page: $per_page
                 sort: "path"
                 direction: ASC
@@ -1369,19 +1369,25 @@ const FIND_IMAGES_BY_GALLERY = /* GraphQL */ `
     }
 `;
 
-// Fetch the first `perPage` images of a gallery. Sorted by path so the
-// order matches Stash's gallery view (filesystem order, which is what
-// the user typically authored). Reuses the PerformerImageCard shape
-// so existing ImageLightbox accepts the result without adaptation.
+// Fetch one page of a gallery's images. Sorted by path so the order
+// matches Stash's gallery view (filesystem order, which is what the
+// user typically authored). Reuses the PerformerImageCard shape so
+// existing ImageLightbox accepts the result without adaptation.
+//
+// `page` is 1-based, as Stash's find filter is. The feed asks for the
+// first small page to fill a card's carousel; the lightbox pages
+// through the rest as the user gets near the end of what's loaded.
 export async function findImagesByGallery(
     galleryId: string,
     perPage: number,
+    page = 1,
 ): Promise<PerformerImageCard[]> {
     const data = await gql<{
         findImages: { images: PerformerImageCard[] };
     }>(FIND_IMAGES_BY_GALLERY, {
         id: galleryId,
         per_page: perPage,
+        page,
     });
     return data.findImages.images;
 }

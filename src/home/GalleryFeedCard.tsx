@@ -1,5 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { GalleryFeedItem } from "./useFeed";
+import { findImagesByGallery } from "../api/queries";
+import type { PerformerImageCard } from "../api/queries";
 import { ImageLightbox } from "../performer/ImageLightbox";
 import { usePerformerProfile } from "../performer/PerformerProfileContext";
 import { timeAgo } from "./timeAgo";
@@ -8,17 +10,65 @@ interface GalleryFeedCardProps {
     item: GalleryFeedItem;
 }
 
+// Images fetched per lightbox page. The feed only loads the handful the
+// carousel shows, so the first page here supersedes that small set
+// rather than appending to it, which keeps every page the same size and
+// the offsets exact.
+const LIGHTBOX_PAGE_SIZE = 60;
+
 // Gallery-as-post IG-style card. Horizontal scroll-snap carousel of up
 // to MAX_GALLERY_IMAGES (from useFeed); a "View gallery →" panel
 // follows as the final slide so the user can jump into the full
 // ImageLightbox even when they've scrolled to the end inline.
 //
 // Tap any image → lightbox at that index. Tap the end panel → lightbox
-// at index 0.
+// at index 0. The lightbox then pages through the whole gallery, which
+// for this library routinely means hundreds of images the carousel
+// never carried.
 export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
     const carouselRef = useRef<HTMLDivElement>(null);
     const [activeIndex, setActiveIndex] = useState(0);
     const [lightboxOpenAt, setLightboxOpenAt] = useState<number | null>(null);
+
+    // Images beyond the carousel's first page, loaded on demand once
+    // the lightbox is open. Null until the first page lands, so the
+    // lightbox opens instantly on what the card already has.
+    const [pagedImages, setPagedImages] = useState<PerformerImageCard[] | null>(
+        null,
+    );
+    const pageRef = useRef(0);
+    const inFlightRef = useRef(false);
+    const exhaustedRef = useRef(false);
+
+    const loadMoreImages = useCallback(() => {
+        if (inFlightRef.current || exhaustedRef.current) return;
+        inFlightRef.current = true;
+        const next = pageRef.current + 1;
+        findImagesByGallery(item.galleryId, LIGHTBOX_PAGE_SIZE, next)
+            .then((page) => {
+                pageRef.current = next;
+                // A short page means the gallery ran out, whatever
+                // image_count claimed: Stash's count can lag a rescan.
+                if (page.length < LIGHTBOX_PAGE_SIZE)
+                    exhaustedRef.current = true;
+                // Seeded from nothing, not from item.images: page 1
+                // starts at the same image the carousel did, so seeding
+                // would repeat the opening images and then skip a page.
+                setPagedImages((prev) => [...(prev ?? []), ...page]);
+            })
+            .catch(() => {
+                // Stop asking rather than retry on every index change.
+                // The user keeps whatever loaded; closing and reopening
+                // the lightbox is not a retry, but a broken gallery
+                // query will not spin the network either.
+                exhaustedRef.current = true;
+            })
+            .finally(() => {
+                inFlightRef.current = false;
+            });
+    }, [item.galleryId]);
+
+    const lightboxImages = pagedImages ?? item.images;
 
     const { openProfile } = usePerformerProfile();
     const primaryPerformer = item.performers[0];
@@ -204,8 +254,10 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
 
             {lightboxOpenAt !== null && item.images.length > 0 && (
                 <ImageLightbox
-                    images={item.images}
+                    images={lightboxImages}
                     startIndex={lightboxOpenAt}
+                    totalCount={item.imageCount}
+                    onNeedMore={loadMoreImages}
                     onClose={() => setLightboxOpenAt(null)}
                 />
             )}
