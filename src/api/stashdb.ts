@@ -977,10 +977,13 @@ const SCENE_PERFORMERS_CACHE_KEY = "binge.stashdb.scenePerformers.v1";
 // Ids per request. StashDB is a shared community service, so this
 // trades a slightly larger document for far fewer requests.
 const SCENE_PERFORMERS_BATCH = 20;
-// Ceiling per feed load, so a first run on a big library cannot fire
-// dozens of requests. Anything past it simply goes without a poster
-// until a later visit, by which point the earlier ones are cached.
-const SCENE_PERFORMERS_MAX_FETCH = 200;
+// Ceiling per feed load. Set at 200 when the batches ran one after
+// another and every one of them was on the critical path; that left 426
+// of this library's 626 matched scenes falling back to a studio name on
+// a cold cache, which is the wrong answer for a card whose whole purpose
+// is to say who is in it. The batches now run together, so the ceiling
+// only has to stop a runaway, not pay for latency.
+const SCENE_PERFORMERS_MAX_FETCH = 1500;
 
 type PerformerCache = Record<string, MatchedScenePerformer[]>;
 
@@ -1027,10 +1030,17 @@ export async function getMatchedScenePerformers(
     if (missing.length === 0) return out;
 
     const toFetch = missing.slice(0, SCENE_PERFORMERS_MAX_FETCH);
-    let changed = false;
+    const chunks: string[][] = [];
     for (let i = 0; i < toFetch.length; i += SCENE_PERFORMERS_BATCH) {
-        const chunk = toFetch.slice(i, i + SCENE_PERFORMERS_BATCH);
-        const query = `query BatchScenePerformers {
+        chunks.push(toFetch.slice(i, i + SCENE_PERFORMERS_BATCH));
+    }
+    let changed = false;
+    // Together rather than one after another. The browser caps how many
+    // reach StashDB at once anyway, and sequentially this was the
+    // difference between a fraction of a second and several.
+    await Promise.all(
+        chunks.map(async (chunk) => {
+            const query = `query BatchScenePerformers {
 ${chunk
     .map(
         (id, n) => `  s${n}: findScene(id: "${id}") {
@@ -1039,37 +1049,40 @@ ${chunk
     )
     .join("\n")}
 }`;
-        const data = await postStashDB<
-            Record<
-                string,
-                {
-                    performers: {
-                        performer: {
-                            id: string;
-                            name: string;
-                            gender: string | null;
-                            images: { url: string }[];
-                        };
-                    }[];
-                } | null
-            >
-        >(apiKey, query, {});
-        if (!data) break; // outage: keep whatever is cached, try later
-        chunk.forEach((id, n) => {
-            const scene = data[`s${n}`];
-            // A null scene means StashDB no longer has it. Cached as an
-            // empty list so it is not asked for again every load.
-            const performers = (scene?.performers ?? []).map((pa) => ({
-                stashId: pa.performer.id,
-                name: pa.performer.name,
-                gender: pa.performer.gender,
-                image: pa.performer.images?.[0]?.url ?? null,
-            }));
-            cache[id] = performers;
-            out.set(id, performers);
-            changed = true;
-        });
-    }
+            const data = await postStashDB<
+                Record<
+                    string,
+                    {
+                        performers: {
+                            performer: {
+                                id: string;
+                                name: string;
+                                gender: string | null;
+                                images: { url: string }[];
+                            };
+                        }[];
+                    } | null
+                >
+            >(apiKey, query, {});
+            // An outage leaves whatever is cached in place and this
+            // chunk unanswered; the next load retries it.
+            if (!data) return;
+            chunk.forEach((id, n) => {
+                const scene = data[`s${n}`];
+                // A null scene means StashDB no longer has it. Cached as an
+                // empty list so it is not asked for again every load.
+                const performers = (scene?.performers ?? []).map((pa) => ({
+                    stashId: pa.performer.id,
+                    name: pa.performer.name,
+                    gender: pa.performer.gender,
+                    image: pa.performer.images?.[0]?.url ?? null,
+                }));
+                cache[id] = performers;
+                out.set(id, performers);
+                changed = true;
+            });
+        }),
+    );
     if (changed) writeScenePerformerCache(cache);
     return out;
 }
