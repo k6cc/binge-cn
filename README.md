@@ -4,7 +4,7 @@ An Instagram-shaped social + discovery layer for [Stash](https://github.com/stas
 
 An optional companion daemon, [binge-server](https://github.com/ordureconnoisseur/binge-server), extends the same surfaces past your library: new Reddit, X and PornHub posts from the performers you already follow, and a one-tap save back into Stash. It installs from binge's own Settings page.
 
-<p align="center"><img src="screenshots/hero.png" alt="binge — reels, stories, and discovery for your Stash library" width="840" /></p>
+<p align="center"><img src="screenshots/hero.webp" alt="binge — reels, stories, and discovery for your Stash library" width="840" /></p>
 
 ---
 
@@ -21,21 +21,23 @@ An optional companion daemon, [binge-server](https://github.com/ordureconnoisseu
 
 ## What it does
 
-> Screenshots show **placeholder content**: gradient artwork and invented performer names, so nothing real appears. Surfaces that need live data (Follow/Add modals, Discover bar, social links) aren't pictured.
+> Screenshots show **placeholder content**: gradient artwork and invented performer names, so nothing real appears. A few surfaces are missing from them for the same reason — the Follow and Add-scene modals, the Discover Performers bar, discovery cards, hover cards and social links all need live StashDB data, which placeholder mode deliberately switches off so no real names can leak into a screenshot.
 
 ### Reel · For You
 
-<img align="right" width="440" src="screenshots/reel.png" alt="Vertical For You reel with the action stack" />
+<img align="right" width="440" src="screenshots/reel.webp" alt="Vertical For You reel with the action stack" />
 
 Vertical swipe through scenes. Tap to play/pause, double-tap to like, swipe to advance. Right-side action stack: **Heart · Rate · Multiview · Scribe · Bookmark · ⋯**. Filter chips at top constrain the random feed by performer / tag / studio and persist as you scroll.
 
 <br clear="all" />
 
-<!-- TODO: 18-reel-more-menu — reel ⋯ menu (Auto-scroll + Open in Stash) -->
+<p align="center"><img width="560" src="screenshots/reel-menu.webp" alt="Reel ⋯ menu — Auto-scroll toggle and Open in Stash" /></p>
+
+The **⋯** opens a sheet with auto-scroll (advance when a scene ends) and a link straight to the scene in Stash.
 
 ### Home
 
-<img align="right" width="440" src="screenshots/home.png" alt="Home — stories row over a scene feed with a collapsed pack card" />
+<img align="right" width="440" src="screenshots/home.webp" alt="Home — stories row over a scene feed with a collapsed pack card" />
 
 **Stories row** of performers with fresh content: library scenes within your lookback, StashDB new releases, and (with binge-server running) their latest Reddit posts and PornHub uploads. Tap a bubble → IG-style story viewer with auto-advance and a "Watch full scene" CTA into the reel. Off-site posts carry a source badge, a link out, and a **Save to Stash** button.
 
@@ -47,13 +49,13 @@ The filter menu beside the Home title hides whole card categories (Discover, Tre
 
 <br clear="all" />
 
-<p align="center"><img width="460" src="screenshots/story.png" alt="Story viewer — performer carousel, progress strip, Watch full scene" /></p>
+<p align="center"><img width="460" src="screenshots/story.webp" alt="Story viewer — performer carousel, progress strip, Watch full scene" /></p>
 
 <!-- TODO (live data): discovery-card — DISCOVER/TRENDING pill + avatar stack + Follow + @mentions -->
 
 ### Explore
 
-<img align="right" width="440" src="screenshots/explore.png" alt="Explore — tag chips over a scene grid" />
+<img align="right" width="440" src="screenshots/explore.webp" alt="Explore — tag chips over a scene grid" />
 
 Search bar (Stash's `q` filter), recent-tag chips (from your interaction history), tile grid of scenes. A **Discover Performers** bubble row at top scrolls through StashDB's recent-activity performers (filtered to your enabled genders). Tap → profile.
 
@@ -63,20 +65,20 @@ Search bar (Stash's `q` filter), recent-tag chips (from your interaction history
 
 ### Following · Saved
 
-<img align="right" width="440" src="screenshots/following.png" alt="Following — favourites + all performers" />
+<img align="right" width="440" src="screenshots/following.webp" alt="Following — favourites + all performers" />
 
 Following lists performers you've favourited, sorted by recent activity. Saved holds your collections (Watch Later, Favourite ★, and any custom ones); each opens a 3-column grid.
 
 <br clear="all" />
 
 <p align="center">
-  <img src="screenshots/saved.png" width="44%" alt="Saved — collections with cover mosaics" />
-  <img src="screenshots/collection.png" width="44%" alt="Collection detail — 3-column grid" />
+  <img src="screenshots/saved.webp" width="44%" alt="Saved — collections with cover mosaics" />
+  <img src="screenshots/collection.webp" width="44%" alt="Collection detail — 3-column grid" />
 </p>
 
 ### Performer profile
 
-<img align="right" width="440" src="screenshots/profile.png" alt="Performer profile — bio, stats, scene grid" />
+<img align="right" width="440" src="screenshots/profile.webp" alt="Performer profile — bio, stats, scene grid" />
 
 Full-screen page mirroring Instagram's profile layout: avatar (with binge's pink→purple→blue story ring on new content), bio, stats, **social-link row**, Favourite/Follow action, Scenes + Images tabs. StashDB-only profiles get a **+ Follow** button instead of the favourite toggle, plus a Stash-style scrape modal. Hash-routed: `#/p/<localId>` and `#/sdbp/<stashDBId>` — both deep-linkable.
 
@@ -145,7 +147,10 @@ At ≤720px:
 - **Menu page** lists Saved + Settings as cards.
 - Sheets use Stash's native bottom-sheet pattern with detents. `safe-area-inset-bottom` respected.
 
-<!-- TODO: 13-mobile-home / 14-mobile-reel / 15-mobile-menu / 16-mobile-nav -->
+<p align="center">
+  <img src="screenshots/mobile-home.webp" width="30%" alt="Home on a phone — stories row, feed card, bottom nav" />
+  <img src="screenshots/mobile-explore.webp" width="30%" alt="Explore on a phone — search, tag chips, scene grid" />
+</p>
 
 ---
 
@@ -161,6 +166,10 @@ Detected at runtime — install whichever you want; binge degrades gracefully wh
 | stash-scribe (not public yet)                                                       | Scribe pencil → LLM-powered review writing                                                                 |
 | [binge-server](https://github.com/ordureconnoisseur/binge-server)                   | Reddit, X and PornHub posts, and Save to Stash (separate Go daemon, installable from Settings)             |
 | forage (not public yet)                                                             | "Send to forage" on discovery scenes, adding them to that daemon's watchlist. Hidden until you set its URL |
+
+<p align="center"><img width="560" src="screenshots/rating.webp" alt="Per-criterion rating modal from stash-advanced-rating, opened inside the reel" /></p>
+
+With [stash-advanced-rating](https://github.com/ordureconnoisseur/stash-advanced-rating) installed, the star in the action stack opens its per-criterion modal without leaving the reel. binge writes the same score tags that plugin does, so the two stay in step.
 
 ---
 
@@ -190,6 +199,8 @@ Preferences live in `localStorage` under `binge.*`. The only things binge writes
 ## Settings
 
 Open binge → ⋯ → Settings (desktop) or Menu → Settings (mobile).
+
+<p align="center"><img width="720" src="screenshots/settings.webp" alt="Settings page" /></p>
 
 | Setting                      | Default                    | Notes                                                                                                        |
 | ---------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------ |
@@ -283,13 +294,24 @@ scp binge.yml dist/binge.entry.js dist/index.html \
 
 AGPL-3.0. See [LICENSE](./LICENSE). (Matches Stash's own license.)
 
-<!-- screenshots/ holds placeholder-content captures: hero/reel, home,
-     story, profile, explore, following, saved, collection.
+<!-- screenshots/ are WebP, captured 2026-08-14 against a throwaway Stash
+     with binge's placeholder mode on: an invented cast and procedural
+     gradient artwork, so nothing real is in them. WebP because these are
+     flat UI captures and it costs ~40x less than PNG for the same
+     picture (595 KB for all fourteen).
 
-     STILL MISSING (these surfaces need live data, so capture them with
-     Privacy blur on before hosting):
+     STILL MISSING, and all for the same reason: placeholder mode switches
+     StashDB and the social integrations off, so these surfaces have no
+     data to show and cannot be captured without real content:
        discovery-card · profile-stashdb · profile-mixin · other-links-popup
        explore-discover-bar · follow-modal · add-scene-modal · hovercard
-       settings · reel-more-menu · mobile (home/reel/menu/nav, ≤720px)
-       binge-server install card · story viewer with a Save button
+
+     To capture any of them, blurred, against a real library:
+       git revert --no-commit 25b9709   (restores placeholder mode; expect
+       conflicts in collections.ts, SceneSlide.tsx and useFeed.ts, and the
+       demo rows need the current RecentSceneRow shape)
+     then drive headless Chrome over CDP with binge.showcaseBlur set. Scope
+     the Stash API key to Stash's own origin with Fetch.enable — a global
+     extra header goes to stashdb.org too, which 401s it and makes every
+     StashDB feature look broken.
 -->
