@@ -143,9 +143,16 @@ export async function getLinkedPerformers(): Promise<LinkedPerformer[]> {
     return out;
 }
 
+// Filtered to scenes that HAVE a stash id. Without the filter Stash
+// serialises an empty array for every other scene in the library, which
+// on a 131k-scene library is 4.47 MB and 12.0s against 2.64 MB and 1.19s
+// for the same answer.
 const FIND_OWNED_STASH_IDS = /* GraphQL */ `
     query OwnedStashIds {
-        findScenes(filter: { per_page: -1 }) {
+        findScenes(
+            scene_filter: { stash_id_endpoint: { modifier: NOT_NULL } }
+            filter: { per_page: -1 }
+        ) {
             scenes {
                 stash_ids {
                     endpoint
@@ -156,7 +163,28 @@ const FIND_OWNED_STASH_IDS = /* GraphQL */ `
     }
 `;
 
-export async function getOwnedStashDBSceneIds(): Promise<Set<string>> {
+// Shared across callers for the lifetime of a page load. Both the
+// discovery feed and the stories row need this, and they used to ask
+// independently — two of the single most expensive requests binge makes,
+// in flight at the same time, for identical answers.
+let ownedIdsPromise: Promise<Set<string>> | null = null;
+
+export function invalidateOwnedStashDBSceneIds(): void {
+    ownedIdsPromise = null;
+}
+
+export function getOwnedStashDBSceneIds(): Promise<Set<string>> {
+    if (!ownedIdsPromise) {
+        ownedIdsPromise = fetchOwnedStashDBSceneIds().catch((err) => {
+            // Never cache a failure: the next caller should retry.
+            ownedIdsPromise = null;
+            throw err;
+        });
+    }
+    return ownedIdsPromise;
+}
+
+async function fetchOwnedStashDBSceneIds(): Promise<Set<string>> {
     const data = await gql<{
         findScenes: {
             scenes: {
@@ -920,6 +948,10 @@ export function invalidateStashDBCache(): void {
     } catch {
         /* ignore */
     }
+    // The owned-ids memo is part of the same picture: a refresh that
+    // left it in place would keep hiding scenes the user has since
+    // added, or keep offering ones they have.
+    invalidateOwnedStashDBSceneIds();
 }
 
 // ── Performers for already-matched scenes ───────────────────────────

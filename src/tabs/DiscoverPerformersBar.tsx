@@ -6,6 +6,7 @@ import {
     type StashDBTrendingPerformer,
 } from "../api/stashdb";
 import { usePerformerProfile } from "../performer/PerformerProfileContext";
+import { useTab } from "./TabContext";
 import { PerformerHoverCard } from "../home/PerformerHoverCard";
 import {
     useAllowedGenders,
@@ -32,6 +33,13 @@ export function DiscoverPerformersBar() {
     // still fetching. Read here rather than in Explore so the rule sits
     // with the thing it governs.
     const includeStashDB = useIncludeStashDB();
+    // Explore stays mounted while the user is on Home — it is hidden
+    // with CSS, not unmounted — so this row used to fire five StashDB
+    // trending queries on boot, up to 7.6s each, competing for
+    // connections with the requests Home is actually waiting on. It
+    // fetches when it is the tab being looked at, and not before.
+    const { tab } = useTab();
+    const visible = tab === "explore";
     const [state, setState] = useState<
         | { kind: "loading" }
         | { kind: "ready"; performers: BarItem[] }
@@ -45,7 +53,7 @@ export function DiscoverPerformersBar() {
     // effect (the Set reference changes on every render).
     const genderKey = orderedGenders(allowedGenders).join(",");
     useEffect(() => {
-        if (!includeStashDB) return;
+        if (!includeStashDB || !visible) return;
         let alive = true;
         (async () => {
             try {
@@ -82,7 +90,7 @@ export function DiscoverPerformersBar() {
             alive = false;
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [genderKey, includeStashDB]);
+    }, [genderKey, includeStashDB, visible]);
 
     // Track scroll edges to show/hide chevrons.
     useEffect(() => {

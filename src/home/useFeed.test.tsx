@@ -957,3 +957,65 @@ describe("hidden genders never reach a card", () => {
         expect((items[0] as { label: string }).label).toBe("Evil Angel");
     });
 });
+
+// The feed used to await StashDB discovery alongside its own queries,
+// so a library feed that was ready in a second sat unrendered for
+// fifteen while an optional garnish loaded. This is the behaviour that
+// fixes, and it is easy to undo by accident: putting the discovery
+// promise back into the Promise.all reads as a tidy-up.
+describe("discovery does not hold the feed back", () => {
+    it("renders the library's scenes before discovery resolves", async () => {
+        let release: (v: unknown[]) => void = () => {};
+        fetchDiscoveryFeedItems.mockReturnValue(
+            new Promise((resolve) => {
+                release = resolve;
+            }),
+        );
+        getRecentScenes.mockResolvedValue([sceneRow()]);
+        const hook = renderHook(() => useFeed());
+        await waitFor(() =>
+            expect(hook.result.current.state.kind).toBe("ready"),
+        );
+        const state = hook.result.current.state;
+        expect(state.kind === "ready" && state.items).toHaveLength(1);
+        release([]);
+    });
+
+    it("folds discovery in once it lands", async () => {
+        let release: (v: unknown[]) => void = () => {};
+        fetchDiscoveryFeedItems.mockReturnValue(
+            new Promise((resolve) => {
+                release = resolve;
+            }),
+        );
+        getRecentScenes.mockResolvedValue([sceneRow()]);
+        const hook = renderHook(() => useFeed());
+        await waitFor(() =>
+            expect(hook.result.current.state.kind).toBe("ready"),
+        );
+        release([
+            {
+                key: "disc:1",
+                effectiveAt: daysAgo(0),
+                source: "trending",
+            } as unknown as Record<string, unknown>,
+        ]);
+        await waitFor(() => {
+            const s = hook.result.current.state;
+            expect(s.kind === "ready" && s.items).toHaveLength(2);
+        });
+        const s = hook.result.current.state;
+        expect(s.kind === "ready" && s.items[0].kind).toBe("discovery");
+    });
+
+    it("still renders the feed when discovery fails outright", async () => {
+        fetchDiscoveryFeedItems.mockRejectedValue(new Error("stashdb down"));
+        getRecentScenes.mockResolvedValue([sceneRow()]);
+        const hook = renderHook(() => useFeed());
+        await waitFor(() =>
+            expect(hook.result.current.state.kind).toBe("ready"),
+        );
+        const state = hook.result.current.state;
+        expect(state.kind === "ready" && state.items).toHaveLength(1);
+    });
+});

@@ -17,6 +17,10 @@ vi.mock("../api/stashdb", () => ({
         getTrendingStashDBPerformers(...a),
     getLinkedPerformers: (...a: unknown[]) => getLinkedPerformers(...a),
 }));
+const tab = { current: "explore" };
+vi.mock("./TabContext", () => ({
+    useTab: () => ({ tab: tab.current }),
+}));
 vi.mock("../performer/PerformerProfileContext", () => ({
     usePerformerProfile: () => ({
         openProfile: vi.fn(),
@@ -37,6 +41,7 @@ globalThis.ResizeObserver ??=
     NoopResizeObserver as unknown as typeof ResizeObserver;
 
 beforeEach(() => {
+    tab.current = "explore";
     localStorage.clear();
     getStashDBBox.mockReset();
     getTrendingStashDBPerformers.mockReset();
@@ -81,5 +86,27 @@ describe("the StashDB setting governs this row", () => {
         await new Promise((r) => setTimeout(r, 50));
         expect(getStashDBBox).not.toHaveBeenCalled();
         expect(getTrendingStashDBPerformers).not.toHaveBeenCalled();
+    });
+});
+
+describe("it waits until Explore is the tab being looked at", () => {
+    it("does not fetch while the user is on Home", async () => {
+        // Explore is hidden with CSS rather than unmounted, so without
+        // this the row fired five slow StashDB queries on boot while
+        // Home was waiting on requests of its own.
+        tab.current = "home";
+        render(<DiscoverPerformersBar />);
+        await new Promise((r) => setTimeout(r, 50));
+        expect(getStashDBBox).not.toHaveBeenCalled();
+    });
+
+    it("fetches once Explore is opened", async () => {
+        tab.current = "home";
+        const { rerender } = render(<DiscoverPerformersBar />);
+        await new Promise((r) => setTimeout(r, 20));
+        expect(getStashDBBox).not.toHaveBeenCalled();
+        tab.current = "explore";
+        rerender(<DiscoverPerformersBar />);
+        await waitFor(() => expect(getStashDBBox).toHaveBeenCalled());
     });
 });
