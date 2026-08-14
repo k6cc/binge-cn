@@ -726,7 +726,9 @@ describe("who StashDB says is in a matched scene", () => {
     };
 
     it("attaches them to the card as the poster", async () => {
-        withBox([{ stashId: "sp1", name: "Vera", gender: null, image: null }]);
+        withBox([
+            { stashId: "sp1", name: "Vera", gender: "FEMALE", image: null },
+        ]);
         getRecentScenes.mockResolvedValue([sceneRow({ performerId: null })]);
         const { items } = await ready();
         expect(
@@ -738,7 +740,9 @@ describe("who StashDB says is in a matched scene", () => {
     it("does not put them in `performers`, which means in-library", async () => {
         // The card uses that list to offer a profile, and there is no
         // profile to open for someone who has not been added.
-        withBox([{ stashId: "sp1", name: "Vera", gender: null, image: null }]);
+        withBox([
+            { stashId: "sp1", name: "Vera", gender: "FEMALE", image: null },
+        ]);
         getRecentScenes.mockResolvedValue([sceneRow({ performerId: null })]);
         const { items } = await ready();
         expect((items[0] as { performers: unknown[] }).performers).toEqual([]);
@@ -767,7 +771,7 @@ describe("who StashDB says is in a matched scene", () => {
                         {
                             stashId: "sp1",
                             name: "Vera",
-                            gender: null,
+                            gender: "FEMALE",
                             image: null,
                         },
                     ],
@@ -845,5 +849,111 @@ describe("counting what the rule left out", () => {
         );
         const state = hook.result.current.state;
         expect(state.kind === "ready" && state.unidentifiedCount).toBe(0);
+    });
+});
+
+// "Genders to surface" is a content preference, not a discovery-only
+// knob. A StashDB match names everyone in the scene, and roughly half
+// those names on this library are male, so without this the setting
+// would be quietly ignored on exactly the cards it was added for.
+describe("hidden genders never reach a card", () => {
+    const boxed = (performers: Record<string, unknown>[]) => {
+        getStashDBBox.mockResolvedValue({
+            endpoint: "https://stashdb.org/graphql",
+            api_key: "k",
+            index: 0,
+        });
+        getMatchedScenePerformers.mockResolvedValue(
+            new Map([["sd-s1", performers]]),
+        );
+    };
+    const names = (items: unknown[]) =>
+        (
+            items[0] as { matchedPerformers: { name: string }[] }
+        ).matchedPerformers.map((p) => p.name);
+
+    it("keeps everyone when every gender is allowed", async () => {
+        boxed([
+            { stashId: "1", name: "Vera", gender: "FEMALE", image: null },
+            { stashId: "2", name: "Tyler", gender: "MALE", image: null },
+        ]);
+        getRecentScenes.mockResolvedValue([sceneRow({ performerId: null })]);
+        const { items } = await ready();
+        expect(names(items)).toEqual(["Vera", "Tyler"]);
+    });
+
+    it("drops the male performer when male is hidden", async () => {
+        localStorage.setItem("binge.allowedGenders", "FEMALE");
+        boxed([
+            { stashId: "1", name: "Vera", gender: "FEMALE", image: null },
+            { stashId: "2", name: "Tyler", gender: "MALE", image: null },
+        ]);
+        getRecentScenes.mockResolvedValue([sceneRow({ performerId: null })]);
+        const { items } = await ready();
+        expect(names(items)).toEqual(["Vera"]);
+    });
+
+    it("drops a performer whose gender is unknown", async () => {
+        // Matches the discovery feed's rule, which does not let an
+        // absent gender through a gender gate.
+        localStorage.setItem("binge.allowedGenders", "FEMALE");
+        boxed([{ stashId: "1", name: "Nobody", gender: null, image: null }]);
+        getRecentScenes.mockResolvedValue([sceneRow({ performerId: null })]);
+        const { items } = await ready();
+        expect(names(items)).toEqual([]);
+    });
+
+    it("still shows the scene when everyone in it is hidden", async () => {
+        // The scene is identified and owned; the setting is about whose
+        // face goes on the card, not about hiding what you have.
+        localStorage.setItem("binge.allowedGenders", "FEMALE");
+        boxed([{ stashId: "2", name: "Tyler", gender: "MALE", image: null }]);
+        getRecentScenes.mockResolvedValue([
+            sceneRow({ performerId: null, studioName: "Evil Angel" }),
+        ]);
+        const { items } = await ready();
+        expect(items).toHaveLength(1);
+        expect(names(items)).toEqual([]);
+        expect(
+            (items[0] as { impliedSource: string | null }).impliedSource,
+        ).toBe("Evil Angel");
+    });
+
+    it("does not let a hidden performer become the key a batch groups under", async () => {
+        // Otherwise a pack card would be titled with a name the user
+        // asked not to see.
+        localStorage.setItem("binge.allowedGenders", "FEMALE");
+        getStashDBBox.mockResolvedValue({
+            endpoint: "https://stashdb.org/graphql",
+            api_key: "k",
+            index: 0,
+        });
+        const rows = Array.from({ length: 12 }, (_, i) =>
+            sceneRow({
+                sceneId: "g-" + i,
+                performerId: null,
+                sceneCreatedAt: daysAgo(2),
+                studioName: "Evil Angel",
+            }),
+        );
+        getMatchedScenePerformers.mockResolvedValue(
+            new Map(
+                rows.map((r) => [
+                    "sd-" + (r as unknown as { sceneId: string }).sceneId,
+                    [
+                        {
+                            stashId: "m1",
+                            name: "Tyler",
+                            gender: "MALE",
+                            image: null,
+                        },
+                    ],
+                ]),
+            ),
+        );
+        getRecentScenes.mockResolvedValue(rows);
+        const { items } = await ready();
+        expect(items).toHaveLength(1);
+        expect((items[0] as { label: string }).label).toBe("Evil Angel");
     });
 });

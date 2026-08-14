@@ -17,6 +17,8 @@ import {
     useIncludeStashDB,
     useLibraryFolderNames,
     useGalleryIgnoreFolders,
+    useAllowedGenders,
+    orderedGenders,
 } from "./pluginSettings";
 import {
     fetchDiscoveryFeedItems,
@@ -329,6 +331,11 @@ export function useFeed(): FeedHookResult {
     const libraryFolderKey = libraryFolderNames.join(",");
     const galleryIgnoreFolders = useGalleryIgnoreFolders();
     const galleryIgnoreKey = galleryIgnoreFolders.join(",");
+    // "Genders to surface" applies here too. A StashDB match tells us
+    // who is in the scene, and if the user has hidden a gender, the card
+    // must not put one of them on the front of it.
+    const allowedGenders = useAllowedGenders();
+    const allowedGenderKey = orderedGenders(allowedGenders).join(",");
     // Bumped by retry() to force the effect below to re-run.
     const [reloadTick, setReloadTick] = useState(0);
 
@@ -546,11 +553,23 @@ export function useFeed(): FeedHookResult {
                             box.api_key,
                         );
                         if (!alive) return;
+                        const allowed = new Set(
+                            allowedGenderKey.split(",").filter(Boolean),
+                        );
                         for (const [sceneId, item] of sceneItems) {
                             if (item.performers.length > 0) continue;
                             const sid = stashIdBySceneId.get(sceneId);
                             if (!sid) continue;
-                            item.matchedPerformers = byStashId.get(sid) ?? [];
+                            // Same rule the discovery feed uses: an
+                            // unknown gender does not pass. Filtered
+                            // before anything reads the list, so a
+                            // hidden performer cannot title a card or
+                            // become the key a batch groups under.
+                            item.matchedPerformers = (
+                                byStashId.get(sid) ?? []
+                            ).filter(
+                                (p) => !!p.gender && allowed.has(p.gender),
+                            );
                         }
                     }
                 }
@@ -596,6 +615,7 @@ export function useFeed(): FeedHookResult {
         includeStashDB,
         libraryFolderKey,
         galleryIgnoreKey,
+        allowedGenderKey,
         reloadTick,
     ]);
 
