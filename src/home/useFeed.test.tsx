@@ -28,6 +28,17 @@ vi.mock("../api/queries", () => ({
 vi.mock("./discoveryFeed", () => ({
     fetchDiscoveryFeedItems: (...a: unknown[]) => fetchDiscoveryFeedItems(...a),
 }));
+// Performerless scenes are looked up against StashDB for a poster. The
+// default here is "no stash-box configured", which is the case for any
+// user who has not set one up, and the scenes must still reach the feed.
+const getStashDBBox = vi.fn();
+const getMatchedScenePerformers = vi.fn();
+vi.mock("../api/stashdb", () => ({
+    STASHDB_ENDPOINT: "https://stashdb.org/graphql",
+    getStashDBBox: (...a: unknown[]) => getStashDBBox(...a),
+    getMatchedScenePerformers: (...a: unknown[]) =>
+        getMatchedScenePerformers(...a),
+}));
 
 const { useFeed } = await import("./useFeed");
 
@@ -73,6 +84,18 @@ function sceneRow(over: SceneRowOverrides = {}): RecentSceneRow {
         sceneTags: [],
         studioName: null,
         filePath: null,
+        // Performerless rows need a StashDB match to reach the feed at
+        // all, so the helper gives them one by default. `stashIds: []`
+        // is how a test says "an unidentified file".
+        stashIds:
+            performerId === null
+                ? [
+                      {
+                          endpoint: "https://stashdb.org/graphql",
+                          stashId: "sd-" + (over.sceneId ?? "s1"),
+                      },
+                  ]
+                : [],
         performer:
             performerId === null
                 ? null
@@ -132,9 +155,13 @@ beforeEach(() => {
         getGalleriesByDate,
         findImagesByGallery,
         fetchDiscoveryFeedItems,
+        getStashDBBox,
+        getMatchedScenePerformers,
     ]) {
         m.mockReset();
     }
+    getStashDBBox.mockResolvedValue(null);
+    getMatchedScenePerformers.mockResolvedValue(new Map());
     getRecentScenes.mockResolvedValue([]);
     getScenesByDate.mockResolvedValue([]);
     getRecentGalleries.mockResolvedValue([]);
@@ -624,5 +651,158 @@ describe("working out the library root from the batch", () => {
             .map((i) => (i as { impliedSource: string | null }).impliedSource)
             .sort();
         expect(labels).toEqual(["Ada", "Bea", "Cleo", "Dee"]);
+    });
+});
+
+// The rule that keeps Home usable. A scene with nobody linked and no
+// StashDB match is an unidentified file: no title, no studio, no cast,
+// nothing to say about it. On this library that is 7,156 of the 7,782
+// performerless scenes added in a month, and letting them in buried
+// everything else. A match, typically written by forage on import,
+// means the performers ARE knowable even though they are not local.
+describe("only identified scenes get in without a performer", () => {
+    it("drops a performerless scene with no stash-box match", async () => {
+        getRecentScenes.mockResolvedValue([
+            sceneRow({ performerId: null, stashIds: [] }),
+        ]);
+        const { items } = await ready();
+        expect(items).toEqual([]);
+    });
+
+    it("keeps a performerless scene that StashDB has matched", async () => {
+        getRecentScenes.mockResolvedValue([sceneRow({ performerId: null })]);
+        const { items } = await ready();
+        expect(items).toHaveLength(1);
+    });
+
+    it("never drops a scene that has a performer", async () => {
+        // The rule is about identification, not about stash ids: a
+        // local performer is identification enough.
+        getRecentScenes.mockResolvedValue([sceneRow({ stashIds: [] })]);
+        const { items } = await ready();
+        expect(items).toHaveLength(1);
+    });
+
+    it("ignores a match from some other stash-box", async () => {
+        // Only StashDB can be asked who is in the scene, so a match
+        // against a different box is not the identification this rule
+        // is about.
+        getRecentScenes.mockResolvedValue([
+            sceneRow({
+                performerId: null,
+                stashIds: [
+                    { endpoint: "https://other.example/graphql", stashId: "x" },
+                ],
+            }),
+        ]);
+        const { items } = await ready();
+        expect(items).toEqual([]);
+    });
+
+    it("does not drop a whole batch of unmatched scenes into a pack", async () => {
+        // They must not survive by grouping either.
+        getRecentScenes.mockResolvedValue(
+            packOf(20, {
+                performerId: null,
+                stashIds: [],
+                filePath: "Z:/Media/Some Pack/a.mp4",
+            }),
+        );
+        const { items } = await ready();
+        expect(items).toEqual([]);
+    });
+});
+
+describe("who StashDB says is in a matched scene", () => {
+    const withBox = (performers: Record<string, unknown>[]) => {
+        getStashDBBox.mockResolvedValue({
+            endpoint: "https://stashdb.org/graphql",
+            api_key: "k",
+            index: 0,
+        });
+        getMatchedScenePerformers.mockResolvedValue(
+            new Map([["sd-s1", performers]]),
+        );
+    };
+
+    it("attaches them to the card as the poster", async () => {
+        withBox([{ stashId: "sp1", name: "Vera", gender: null, image: null }]);
+        getRecentScenes.mockResolvedValue([sceneRow({ performerId: null })]);
+        const { items } = await ready();
+        expect(
+            (items[0] as { matchedPerformers: { name: string }[] })
+                .matchedPerformers[0].name,
+        ).toBe("Vera");
+    });
+
+    it("does not put them in `performers`, which means in-library", async () => {
+        // The card uses that list to offer a profile, and there is no
+        // profile to open for someone who has not been added.
+        withBox([{ stashId: "sp1", name: "Vera", gender: null, image: null }]);
+        getRecentScenes.mockResolvedValue([sceneRow({ performerId: null })]);
+        const { items } = await ready();
+        expect((items[0] as { performers: unknown[] }).performers).toEqual([]);
+    });
+
+    it("groups a batch by the matched performer, not the folder", async () => {
+        // Same performer, two import folders: one batch, not two.
+        getStashDBBox.mockResolvedValue({
+            endpoint: "https://stashdb.org/graphql",
+            api_key: "k",
+            index: 0,
+        });
+        const rows = Array.from({ length: 12 }, (_, i) =>
+            sceneRow({
+                sceneId: "m-" + i,
+                performerId: null,
+                sceneCreatedAt: daysAgo(2),
+                filePath: i % 2 === 0 ? "Z:/Media/A/x.mp4" : "Z:/Media/B/y.mp4",
+            }),
+        );
+        getMatchedScenePerformers.mockResolvedValue(
+            new Map(
+                rows.map((r) => [
+                    "sd-" + (r as unknown as { sceneId: string }).sceneId,
+                    [
+                        {
+                            stashId: "sp1",
+                            name: "Vera",
+                            gender: null,
+                            image: null,
+                        },
+                    ],
+                ]),
+            ),
+        );
+        getRecentScenes.mockResolvedValue(rows);
+        const { items } = await ready();
+        expect(items).toHaveLength(1);
+        expect(items[0].kind).toBe("pack");
+        expect((items[0] as { label: string }).label).toBe("Vera");
+    });
+
+    it("still shows the scene when no stash-box is configured", async () => {
+        // The lookup is a nicety. Losing it must not lose the scene,
+        // which is identified whether or not binge can ask about it.
+        getStashDBBox.mockResolvedValue(null);
+        getRecentScenes.mockResolvedValue([
+            sceneRow({ performerId: null, studioName: "Evil Angel" }),
+        ]);
+        const { items } = await ready();
+        expect(items).toHaveLength(1);
+        expect(
+            (items[0] as { impliedSource: string | null }).impliedSource,
+        ).toBe("Evil Angel");
+    });
+
+    it("does not ask StashDB about scenes that have local performers", async () => {
+        getStashDBBox.mockResolvedValue({
+            endpoint: "https://stashdb.org/graphql",
+            api_key: "k",
+            index: 0,
+        });
+        getRecentScenes.mockResolvedValue([sceneRow()]);
+        await ready();
+        expect(getMatchedScenePerformers).not.toHaveBeenCalled();
     });
 });

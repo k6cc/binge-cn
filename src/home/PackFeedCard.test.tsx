@@ -14,6 +14,7 @@ const item = (over: Partial<PackFeedItem> = {}): PackFeedItem =>
         kind: "pack",
         key: "pack:s:Xohanna Joy Video Pack:2026-08-01T00:00:00Z",
         primaryPerformer: null,
+        matchedPerformer: null,
         label: "Xohanna Joy Video Pack",
         sceneCount: 944,
         createdAt: "2026-08-01T00:00:00Z",
@@ -26,6 +27,7 @@ const item = (over: Partial<PackFeedItem> = {}): PackFeedItem =>
                 sceneId: "1",
                 screenshot: "/shot-1.jpg",
                 performers: [],
+                matchedPerformers: [],
             },
             {
                 kind: "scene",
@@ -33,6 +35,7 @@ const item = (over: Partial<PackFeedItem> = {}): PackFeedItem =>
                 sceneId: "2",
                 screenshot: "/shot-2.jpg",
                 performers: [],
+                matchedPerformers: [],
             },
         ],
         ...over,

@@ -926,6 +926,12 @@ export interface RecentSceneRow {
     // its source (a performer, a site, a pack).
     studioName: string | null;
     filePath: string | null;
+    // Stash-box scene matches. A performerless scene with one of these
+    // has been identified against StashDB (typically by forage), so the
+    // performers are knowable even though none are in the library.
+    // Without one, a performerless scene is an unidentified file and
+    // does not belong in a feed.
+    stashIds: { endpoint: string; stashId: string }[];
 }
 
 export interface RecentScenePerformer {
@@ -967,6 +973,10 @@ function buildFindRecentScenesQuery(): string {
                     }
                     studio {
                         name
+                    }
+                    stash_ids {
+                        endpoint
+                        stash_id
                     }
                     performers {
                         id
@@ -1021,6 +1031,10 @@ function buildFindScenesByDateQuery(): string {
                     studio {
                         name
                     }
+                    stash_ids {
+                        endpoint
+                        stash_id
+                    }
                     performers {
                         id
                         name
@@ -1061,6 +1075,7 @@ type RawSceneNode = {
         preview: string | null;
     };
     studio: { name: string } | null;
+    stash_ids: { endpoint: string; stash_id: string }[] | null;
     performers: {
         id: string;
         name: string;
@@ -1094,6 +1109,10 @@ function flattenSceneNodes(scenes: RawSceneNode[]): RecentSceneRow[] {
             sceneTags,
             studioName: s.studio?.name ?? null,
             filePath: firstFile?.path ?? null,
+            stashIds: (s.stash_ids ?? []).map((x) => ({
+                endpoint: x.endpoint,
+                stashId: x.stash_id,
+            })),
         };
         // Stash can occasionally return a scene with null `performers`
         // during partial writes — guard so one bad row doesn't crash

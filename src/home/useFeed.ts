@@ -24,6 +24,12 @@ import {
 } from "./discoveryFeed";
 import { buildSourceResolver } from "./impliedSource";
 import { buildGalleryNoiseMatcher } from "./galleryNoise";
+import {
+    getStashDBBox,
+    getMatchedScenePerformers,
+    STASHDB_ENDPOINT,
+    type MatchedScenePerformer,
+} from "../api/stashdb";
 
 // Performer summary inside a feed item. Multiple performers per item are
 // kept so the card can show their names and route taps to the correct
@@ -72,6 +78,12 @@ export interface SceneFeedItem {
     /// group and label it, never written back to Stash. Null when the
     /// scene has performers, or when nothing could be derived.
     impliedSource: string | null;
+    /// For a scene with no LOCAL performers but a StashDB match: who
+    /// StashDB says is in it. They are not in the library, so they have
+    /// no profile to open and no local id — the card offers to add them
+    /// instead. Empty when the scene has local performers, when StashDB
+    /// is off, or when the lookup has not landed.
+    matchedPerformers: MatchedScenePerformer[];
 }
 
 // One gallery-as-post. `images` is the first MAX_GALLERY_IMAGES of the
@@ -115,6 +127,10 @@ export interface PackFeedItem {
     /// The performer the whole batch shares, or null when the batch is
     /// unattributed and was grouped by where it came from instead.
     primaryPerformer: FeedPerformer | null;
+    /// Set when there is no local performer but StashDB knows who is in
+    /// the batch. The card shows them as the poster and offers to add
+    /// them to the library, since that is the missing step.
+    matchedPerformer: MatchedScenePerformer | null;
     /// What the card is titled with: the performer's name, or the
     /// implied source for an unattributed batch. Always non-empty, so
     /// the card never has to invent a heading.
@@ -178,6 +194,11 @@ const PACK_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 function packGroupKey(s: SceneFeedItem): string | null {
     const performerId = s.performers[0]?.id;
     if (performerId) return `p:${performerId}`;
+    // A StashDB match is a real identity, so it beats the folder: two
+    // scenes of the same performer belong together even when they were
+    // imported into different directories.
+    const matched = s.matchedPerformers[0]?.stashId;
+    if (matched) return `m:${matched}`;
     return s.impliedSource ? `s:${s.impliedSource}` : null;
 }
 
@@ -220,9 +241,11 @@ function assemblePacks(
         if (inWindow.length < PACK_MIN_SIZE) continue;
         const newestScene = sortedByCreated[0];
         const primary = newestScene.performers[0] ?? null;
-        // Grouped scenes share whichever of the two produced the key, so
-        // reading it off the newest is safe.
-        const label = primary?.name ?? newestScene.impliedSource;
+        const matched = newestScene.matchedPerformers[0] ?? null;
+        // Grouped scenes share whichever of the three produced the key,
+        // so reading it off the newest is safe.
+        const label =
+            primary?.name ?? matched?.name ?? newestScene.impliedSource;
         // Unreachable: a group only forms when one of these exists.
         if (!label) continue;
         // Newest scraped release date across the batch. If even that
@@ -240,6 +263,7 @@ function assemblePacks(
             kind: "pack",
             key: `pack:${groupKey}:${sortedByCreated[0].createdAt}`,
             primaryPerformer: primary,
+            matchedPerformer: primary ? null : matched,
             label,
             scenes: inWindow,
             sceneCount: inWindow.length,
@@ -378,6 +402,9 @@ export function useFeed(): FeedHookResult {
                     libraryFolderKey.split(",").filter(Boolean),
                 );
 
+                // StashDB scene match per scene, or null. Only scenes
+                // with one may appear without a performer.
+                const stashIdBySceneId = new Map<string, string | null>();
                 const sceneItems = new Map<string, SceneFeedItem>();
                 for (const r of sceneRows) {
                     let item = sceneItems.get(r.sceneId);
@@ -416,7 +443,14 @@ export function useFeed(): FeedHookResult {
                                 r.studioName,
                                 r.filePath,
                             ),
+                            matchedPerformers: [],
                         };
+                        stashIdBySceneId.set(
+                            r.sceneId,
+                            r.stashIds.find(
+                                (x) => x.endpoint === STASHDB_ENDPOINT,
+                            )?.stashId ?? null,
+                        );
                         sceneItems.set(r.sceneId, item);
                     }
                     // Null for a scene with nobody linked. That row
@@ -470,6 +504,45 @@ export function useFeed(): FeedHookResult {
                         paths: g.paths,
                     }),
                 );
+
+                // A scene with nobody linked earns its place only if it
+                // has been identified against StashDB — typically by
+                // forage, which matches on import. Then its performers
+                // are knowable and the card has a poster, even though
+                // they are not in this library. Without a match it is an
+                // unidentified file with no title, no studio and no
+                // cast, and a feed is the wrong place for it.
+                for (const [sceneId, item] of sceneItems) {
+                    if (item.performers.length > 0) continue;
+                    if (!stashIdBySceneId.get(sceneId)) {
+                        sceneItems.delete(sceneId);
+                    }
+                }
+
+                // Who StashDB says is in the survivors. Cached across
+                // loads, capped per load, and entirely optional: without
+                // a StashDB key the scenes still show, titled by their
+                // studio, just without a face on them.
+                const needPerformers = [...sceneItems.entries()]
+                    .filter(([, i]) => i.performers.length === 0)
+                    .map(([id]) => stashIdBySceneId.get(id))
+                    .filter((x): x is string => Boolean(x));
+                if (needPerformers.length > 0 && includeStashDB) {
+                    const box = await getStashDBBox();
+                    if (box) {
+                        const byStashId = await getMatchedScenePerformers(
+                            needPerformers,
+                            box.api_key,
+                        );
+                        if (!alive) return;
+                        for (const [sceneId, item] of sceneItems) {
+                            if (item.performers.length > 0) continue;
+                            const sid = stashIdBySceneId.get(sceneId);
+                            if (!sid) continue;
+                            item.matchedPerformers = byStashId.get(sid) ?? [];
+                        }
+                    }
+                }
 
                 // Assemble packs (bulk imports → one pack card). No
                 // total slice — the whole window is shown; the

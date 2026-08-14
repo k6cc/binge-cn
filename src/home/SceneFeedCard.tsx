@@ -379,18 +379,30 @@ export function SceneFeedCard({ item, feedSceneIds }: SceneFeedCardProps) {
                             </button>
                         </PerformerHoverCard>
                     ) : (
-                        // Nobody linked in Stash. Name it after where it
-                        // came from when the import folder or studio
-                        // says something, which is far more use than
-                        // "Unknown" now that these scenes reach Home at
-                        // all. The mark says the identity is missing,
-                        // not that the label is a performer.
+                        // Nobody linked locally. The scene only reached
+                        // the feed at all because it has a StashDB
+                        // match, so StashDB usually knows the cast: name
+                        // them, and mark them as not-in-library rather
+                        // than as missing. The studio is the fallback
+                        // for a match StashDB lists no performers for.
                         <span className="binge-feed-card-name">
-                            {item.impliedSource ?? "Unidentified"}
+                            {item.matchedPerformers.length > 0
+                                ? item.matchedPerformers
+                                      .map((p) => p.name)
+                                      .join(", ")
+                                : (item.impliedSource ?? "Unidentified")}
                             <span
                                 className="binge-feed-card-verified is-unidentified"
-                                aria-label="No performer linked"
-                                title="No performer linked"
+                                aria-label={
+                                    item.matchedPerformers.length > 0
+                                        ? "Not in your library"
+                                        : "No performer linked"
+                                }
+                                title={
+                                    item.matchedPerformers.length > 0
+                                        ? "Not in your library"
+                                        : "No performer linked"
+                                }
                             >
                                 <UnidentifiedIcon />
                             </span>

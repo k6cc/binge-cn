@@ -19,7 +19,7 @@
 
 import { gql } from "./graphql";
 
-const STASHDB_ENDPOINT = "https://stashdb.org/graphql";
+export const STASHDB_ENDPOINT = "https://stashdb.org/graphql";
 
 export interface StashBoxConfig {
     endpoint: string;
@@ -920,4 +920,124 @@ export function invalidateStashDBCache(): void {
     } catch {
         /* ignore */
     }
+}
+
+// ── Performers for already-matched scenes ───────────────────────────
+//
+// A scene in the library with a StashDB stash_id but no performers
+// linked locally still has knowable performers: StashDB has them, they
+// just are not in this library. This is how such a scene gets a poster
+// instead of being an anonymous file.
+//
+// Batched with GraphQL aliases (one request per BATCH_SIZE ids) because
+// the feed can ask about hundreds at once, and cached in localStorage
+// because a StashDB scene's cast does not change. Home is already slow
+// to first paint; this must not add a round-trip per card.
+
+export interface MatchedScenePerformer {
+    stashId: string;
+    name: string;
+    gender: string | null;
+    image: string | null;
+}
+
+const SCENE_PERFORMERS_CACHE_KEY = "binge.stashdb.scenePerformers.v1";
+// Ids per request. StashDB is a shared community service, so this
+// trades a slightly larger document for far fewer requests.
+const SCENE_PERFORMERS_BATCH = 20;
+// Ceiling per feed load, so a first run on a big library cannot fire
+// dozens of requests. Anything past it simply goes without a poster
+// until a later visit, by which point the earlier ones are cached.
+const SCENE_PERFORMERS_MAX_FETCH = 200;
+
+type PerformerCache = Record<string, MatchedScenePerformer[]>;
+
+function readScenePerformerCache(): PerformerCache {
+    try {
+        const raw = localStorage.getItem(SCENE_PERFORMERS_CACHE_KEY);
+        if (!raw) return {};
+        const parsed: unknown = JSON.parse(raw);
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+            return {};
+        return parsed as PerformerCache;
+    } catch {
+        return {};
+    }
+}
+
+function writeScenePerformerCache(cache: PerformerCache): void {
+    try {
+        localStorage.setItem(SCENE_PERFORMERS_CACHE_KEY, JSON.stringify(cache));
+    } catch {
+        // Quota. The lookups still worked for this session; they will
+        // just be repeated next time.
+    }
+}
+
+// A stash id is a UUID, but it arrives from Stash's database rather
+// than from us, so it is checked before being spliced into a GraphQL
+// document as an alias.
+const STASH_ID_SHAPE = /^[0-9a-f-]{8,64}$/i;
+
+export async function getMatchedScenePerformers(
+    sceneStashIds: readonly string[],
+    apiKey: string,
+): Promise<Map<string, MatchedScenePerformer[]>> {
+    const cache = readScenePerformerCache();
+    const out = new Map<string, MatchedScenePerformer[]>();
+    const missing: string[] = [];
+    for (const id of sceneStashIds) {
+        if (!STASH_ID_SHAPE.test(id)) continue;
+        const hit = cache[id];
+        if (hit) out.set(id, hit);
+        else if (!missing.includes(id)) missing.push(id);
+    }
+    if (missing.length === 0) return out;
+
+    const toFetch = missing.slice(0, SCENE_PERFORMERS_MAX_FETCH);
+    let changed = false;
+    for (let i = 0; i < toFetch.length; i += SCENE_PERFORMERS_BATCH) {
+        const chunk = toFetch.slice(i, i + SCENE_PERFORMERS_BATCH);
+        const query = `query BatchScenePerformers {
+${chunk
+    .map(
+        (id, n) => `  s${n}: findScene(id: "${id}") {
+    performers { performer { id name gender images { url } } }
+  }`,
+    )
+    .join("\n")}
+}`;
+        const data = await postStashDB<
+            Record<
+                string,
+                {
+                    performers: {
+                        performer: {
+                            id: string;
+                            name: string;
+                            gender: string | null;
+                            images: { url: string }[];
+                        };
+                    }[];
+                } | null
+            >
+        >(apiKey, query, {});
+        if (!data) break; // outage: keep whatever is cached, try later
+        chunk.forEach((id, n) => {
+            const scene = data[`s${n}`];
+            // A null scene means StashDB no longer has it. Cached as an
+            // empty list so it is not asked for again every load.
+            const performers = (scene?.performers ?? []).map((pa) => ({
+                stashId: pa.performer.id,
+                name: pa.performer.name,
+                gender: pa.performer.gender,
+                image: pa.performer.images?.[0]?.url ?? null,
+            }));
+            cache[id] = performers;
+            out.set(id, performers);
+            changed = true;
+        });
+    }
+    if (changed) writeScenePerformerCache(cache);
+    return out;
 }

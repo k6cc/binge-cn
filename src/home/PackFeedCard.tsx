@@ -209,7 +209,15 @@ function UnattributedPackCard({
     sheetOpen,
     setSheetOpen,
 }: PackCardProps) {
-    const cover = item.scenes.find((s) => s.screenshot)?.screenshot ?? null;
+    // A StashDB match means there IS a face for this batch, it just is
+    // not in the library. Prefer it over a scene still, and say "not in
+    // your library" rather than "no performer linked", which would be
+    // untrue: the performer is known, they are simply not added.
+    const matched = item.matchedPerformer;
+    const cover =
+        matched?.image ??
+        item.scenes.find((s) => s.screenshot)?.screenshot ??
+        null;
     return (
         <>
             <article className="binge-feed-card binge-pack-card">
@@ -262,8 +270,16 @@ function UnattributedPackCard({
                                 {item.label}
                                 <span
                                     className="binge-feed-card-verified is-unidentified"
-                                    aria-label="No performer linked"
-                                    title="No performer linked"
+                                    aria-label={
+                                        matched
+                                            ? "Not in your library"
+                                            : "No performer linked"
+                                    }
+                                    title={
+                                        matched
+                                            ? "Not in your library"
+                                            : "No performer linked"
+                                    }
                                 >
                                     <UnidentifiedIcon />
                                 </span>
