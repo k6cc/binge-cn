@@ -9,6 +9,7 @@ import { timeAgo } from "./timeAgo";
 import { PackDetailSheet } from "./PackDetailSheet";
 import { RepostIcon } from "../components/ActionStack";
 import { UnidentifiedIcon } from "./UnidentifiedIcon";
+import { SceneCardMenu } from "./SceneCardMenu";
 
 // Number of cover tiles rendered in the 3×3 mosaic. The pack may
 // hold dozens or hundreds of scenes; the tile grid surfaces only
@@ -251,7 +252,11 @@ function UnattributedPackCard({
                                 e.stopPropagation();
                                 setSheetOpen(true);
                             }}
-                            aria-label={`${item.label} — open batch`}
+                            // No aria-label: the button's own text is
+                            // the name plus the scene count, which says
+                            // more than a label would, and repeating the
+                            // avatar's label here would announce the
+                            // same control twice.
                         >
                             <span className="binge-feed-card-name">
                                 {item.label}
@@ -273,6 +278,24 @@ function UnattributedPackCard({
                     <span className="binge-feed-card-time">
                         {timeAgo(item.effectiveAt)}
                     </span>
+                    <SceneCardMenu
+                        items={[
+                            {
+                                label: "Find in Stash",
+                                // Attaching a performer is Stash's job,
+                                // and its scene list can do the whole
+                                // batch at once, which matters when the
+                                // batch runs to hundreds of scenes.
+                                sub: "Search your library for these, to attach a performer",
+                                onClick: () =>
+                                    window.open(
+                                        `/scenes?q=${encodeURIComponent(item.label)}`,
+                                        "_blank",
+                                        "noopener,noreferrer",
+                                    ),
+                            },
+                        ]}
+                    />
                 </header>
                 <PackMosaic item={item} onOpen={() => setSheetOpen(true)} />
             </article>
