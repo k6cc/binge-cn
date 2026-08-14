@@ -1069,9 +1069,9 @@ describe("galleries need a performer too", () => {
         );
         const state = hook.result.current.state;
         expect(state.kind === "ready" && state.unidentifiedCount).toBe(1);
-        expect(
-            state.kind === "ready" && state.unidentifiedGalleryCount,
-        ).toBe(2);
+        expect(state.kind === "ready" && state.unidentifiedGalleryCount).toBe(
+            2,
+        );
     });
 
     it("does not count a gallery the noise filter already removed", async () => {
@@ -1085,8 +1085,8 @@ describe("galleries need a performer too", () => {
             expect(hook.result.current.state.kind).toBe("ready"),
         );
         const state = hook.result.current.state;
-        expect(
-            state.kind === "ready" && state.unidentifiedGalleryCount,
-        ).toBe(0);
+        expect(state.kind === "ready" && state.unidentifiedGalleryCount).toBe(
+            0,
+        );
     });
 });
