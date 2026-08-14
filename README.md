@@ -21,7 +21,7 @@ An optional companion daemon, [binge-server](https://github.com/ordureconnoisseu
 
 ## What it does
 
-> Screenshots show **placeholder content**: gradient artwork and invented performer names, so nothing real appears. A few surfaces are missing from them for the same reason — the Follow and Add-scene modals, the Discover Performers bar, discovery cards, hover cards and social links all need live StashDB data, which placeholder mode deliberately switches off so no real names can leak into a screenshot.
+> Screenshots show **placeholder content**: gradient artwork and invented performer names, so nothing real appears. A few surfaces are missing from them for the same reason. The Follow and Add-scene modals, the Discover Performers bar, discovery cards, hover cards and social links all need live StashDB data, which placeholder mode deliberately switches off so no real names can leak into a screenshot.
 
 ### Reel · For You
 
@@ -31,7 +31,7 @@ Vertical swipe through scenes. Tap to play/pause, double-tap to like, swipe to a
 
 <br clear="all" />
 
-<p align="center"><img width="560" src="screenshots/reel-menu.webp" alt="Reel ⋯ menu — Auto-scroll toggle and Open in Stash" /></p>
+<p align="center"><img width="560" src="screenshots/reel-menu.webp" alt="Reel overflow menu with the auto-scroll toggle and Open in Stash" /></p>
 
 The **⋯** opens a sheet with auto-scroll (advance when a scene ends) and a link straight to the scene in Stash.
 
@@ -148,8 +148,8 @@ At ≤720px:
 - Sheets use Stash's native bottom-sheet pattern with detents. `safe-area-inset-bottom` respected.
 
 <p align="center">
-  <img src="screenshots/mobile-home.webp" width="30%" alt="Home on a phone — stories row, feed card, bottom nav" />
-  <img src="screenshots/mobile-explore.webp" width="30%" alt="Explore on a phone — search, tag chips, scene grid" />
+  <img src="screenshots/mobile-home.webp" width="30%" alt="Home on a phone: stories row, feed card, bottom nav" />
+  <img src="screenshots/mobile-explore.webp" width="30%" alt="Explore on a phone: search, tag chips, scene grid" />
 </p>
 
 ---
