@@ -15,6 +15,7 @@ const LABELS: Record<FeedCategory, string> = {
     trending: "Trending",
     posts: "Posts",
     reposts: "Reposts",
+    unidentified: "Unidentified",
 };
 
 export function FeedFilterMenu() {

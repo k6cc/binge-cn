@@ -17,7 +17,13 @@ function feedCategory(it: FeedItem): FeedCategory | null {
         case "discovery":
             return it.source === "trending" ? "trending" : "discover";
         case "scene":
+            // Nobody linked: its own category, so a library full of
+            // unidentified imports can turn them off without also
+            // losing everything else.
+            if (it.performers.length === 0) return "unidentified";
+            return it.isRepost ? "reposts" : "posts";
         case "pack":
+            if (!it.primaryPerformer) return "unidentified";
             return it.isRepost ? "reposts" : "posts";
         default:
             return null;
