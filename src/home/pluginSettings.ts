@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { gql } from "../api/graphql";
 import { DEFAULT_LIBRARY_FOLDER_NAMES } from "./impliedSource";
+import { DEFAULT_GALLERY_IGNORE_FOLDERS } from "./galleryNoise";
 
 // Plugin-settings the reel SPA shares with the Stash settings panel
 // injected by binge.entry.js. Storage is plain localStorage keyed under
@@ -459,6 +460,60 @@ export function useLibraryFolderNames(): string[] {
 export function setLibraryFolderNames(values: readonly string[]): void {
     writeString(
         LIBRARY_FOLDER_NAMES_KEY,
+        values
+            .map((s) => s.trim())
+            .filter(Boolean)
+            .join(", "),
+    );
+}
+
+// ── Gallery folders to ignore ───────────────────────────────────────
+// Folder names whose galleries are artwork rather than photo sets
+// (screenshot sheets, cover art). Whole-segment match, "*" suffix for a
+// prefix match. Which names those are is a property of one person's
+// disk, so the list is theirs; DEFAULT_GALLERY_IGNORE_FOLDERS is only a
+// starting point. An empty stored value means "hide nothing", which is
+// distinct from never having set one.
+const GALLERY_IGNORE_FOLDERS_KEY = "binge.galleryIgnoreFolders";
+
+export function readGalleryIgnoreFolders(): string[] {
+    try {
+        const stored = localStorage.getItem(GALLERY_IGNORE_FOLDERS_KEY);
+        if (stored === null) return [...DEFAULT_GALLERY_IGNORE_FOLDERS];
+        return stored
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean);
+    } catch {
+        return [...DEFAULT_GALLERY_IGNORE_FOLDERS];
+    }
+}
+
+export function useGalleryIgnoreFolders(): string[] {
+    const [value, setValue] = useState<string[]>(() =>
+        readGalleryIgnoreFolders(),
+    );
+    useEffect(() => {
+        const update = () => setValue(readGalleryIgnoreFolders());
+        const localHandler = (changedKey: string) => {
+            if (changedKey === GALLERY_IGNORE_FOLDERS_KEY) update();
+        };
+        const storageHandler = (e: StorageEvent) => {
+            if (e.key === GALLERY_IGNORE_FOLDERS_KEY) update();
+        };
+        listeners.add(localHandler);
+        window.addEventListener("storage", storageHandler);
+        return () => {
+            listeners.delete(localHandler);
+            window.removeEventListener("storage", storageHandler);
+        };
+    }, []);
+    return value;
+}
+
+export function setGalleryIgnoreFolders(values: readonly string[]): void {
+    writeString(
+        GALLERY_IGNORE_FOLDERS_KEY,
         values
             .map((s) => s.trim())
             .filter(Boolean)

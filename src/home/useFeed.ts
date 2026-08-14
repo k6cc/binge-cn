@@ -16,12 +16,14 @@ import {
     useLookbackDays,
     useIncludeStashDB,
     useLibraryFolderNames,
+    useGalleryIgnoreFolders,
 } from "./pluginSettings";
 import {
     fetchDiscoveryFeedItems,
     type DiscoveryFeedItem,
 } from "./discoveryFeed";
 import { buildSourceResolver } from "./impliedSource";
+import { buildGalleryNoiseMatcher } from "./galleryNoise";
 
 // Performer summary inside a feed item. Multiple performers per item are
 // kept so the card can show their names and route taps to the correct
@@ -274,30 +276,6 @@ function assemblePacks(
 // "View gallery →" panel and open in the existing ImageLightbox.
 const MAX_GALLERY_IMAGES = 10;
 
-// Path patterns that identify auto-generated / non-photo-set galleries
-// the user doesn't want surfaced in the Home feed. The `screen[^/]*`
-// rule catches every "screen-prefixed" folder convention we've seen so
-// far — Screen, Screens, Screenshot, Screenshots, Screenlist,
-// Screenlists, "Screen Previews", "Screen Lists", etc. Plus the
-// previously-confirmed short `scr` folder and Cover/Proof art.
-// Matched case-insensitively; path separators kept generic so Windows
-// (`\`) and Unix (`/`) layouts both work.
-const NOISE_GALLERY_PATTERNS: RegExp[] = [
-    /[\\/]screen[^\\/]*(?=[\\/]|$)/i,
-    /[\\/]scr(?=[\\/]|$)/i,
-    /[\\/]covers?(?=[\\/]|$)/i,
-    /[\\/]proof(?=[\\/]|$)/i,
-];
-
-function isNoiseGallery(paths: string[]): boolean {
-    for (const p of paths) {
-        for (const re of NOISE_GALLERY_PATTERNS) {
-            if (re.test(p)) return true;
-        }
-    }
-    return false;
-}
-
 export interface FeedHookResult {
     state: FeedState;
     /// Re-run the load. Exposed so a failed feed can offer a retry
@@ -316,6 +294,8 @@ export function useFeed(): FeedHookResult {
     // hook returns a fresh array each read, and depending on the array
     // itself would refetch the whole feed on every render.
     const libraryFolderKey = libraryFolderNames.join(",");
+    const galleryIgnoreFolders = useGalleryIgnoreFolders();
+    const galleryIgnoreKey = galleryIgnoreFolders.join(",");
     // Bumped by retry() to force the effect below to re-run.
     const [reloadTick, setReloadTick] = useState(0);
 
@@ -379,10 +359,13 @@ export function useFeed(): FeedHookResult {
                     ...scenesByCreated,
                     ...scenesByDate,
                 ]);
+                const noiseMatcher = buildGalleryNoiseMatcher(
+                    galleryIgnoreKey.split(",").filter(Boolean),
+                );
                 const galleryRows = dedupeGalleries([
                     ...galleriesByCreated,
                     ...galleriesByDate,
-                ]).filter((g) => !isNoiseGallery(g.paths));
+                ]).filter((g) => !noiseMatcher.isNoise(g.paths));
 
                 // Collapse scene rows (one row per scene/performer pair)
                 // into one item per scene; gather all matching performers.
@@ -528,6 +511,7 @@ export function useFeed(): FeedHookResult {
         showGalleries,
         includeStashDB,
         libraryFolderKey,
+        galleryIgnoreKey,
         reloadTick,
     ]);
 

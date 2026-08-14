@@ -35,6 +35,8 @@ import {
     useShowGalleries,
     useLibraryFolderNames,
     setLibraryFolderNames,
+    useGalleryIgnoreFolders,
+    setGalleryIgnoreFolders,
     useShowcaseBlur,
     useTranscodeType,
     type ForageWatchTarget,
@@ -52,6 +54,7 @@ import { parseCookiesTxt, describeParse } from "../api/cookiesTxt";
 import { BingeServerInstallCard } from "./BingeServerInstallCard";
 import { fetchStashApiKey } from "../api/queries";
 import { DEFAULT_LIBRARY_FOLDER_NAMES } from "../home/impliedSource";
+import { DEFAULT_GALLERY_IGNORE_FOLDERS } from "../home/galleryNoise";
 
 // In-app settings page — all preferences that used to live in Stash's
 // plugin settings UI now live here. Same localStorage keys + pubsub,
@@ -81,6 +84,7 @@ export function SettingsPage() {
                 <GenderRow />
                 <TranscodeRow />
                 <GalleriesRow />
+                <GalleryIgnoreRow />
                 <LibraryFolderNamesRow />
                 <LookbackRow />
                 <StashDBRow />
@@ -303,6 +307,52 @@ function LibraryFolderNamesRow() {
                     className="binge-settings-inline-btn"
                     onClick={() =>
                         setLibraryFolderNames(DEFAULT_LIBRARY_FOLDER_NAMES)
+                    }
+                >
+                    Reset
+                </button>
+            </div>
+        </SettingRow>
+    );
+}
+
+// Galleries living in these folders are artwork rather than photo sets.
+// Same reasoning as LibraryFolderNamesRow: which names those are is a
+// fact about one person's disk, so it cannot be a constant in a plugin
+// other people install.
+function GalleryIgnoreRow() {
+    const stored = useGalleryIgnoreFolders();
+    const joined = stored.join(", ");
+    const [draft, setDraft] = useState(joined);
+    useEffect(() => {
+        setDraft(joined);
+    }, [joined]);
+
+    return (
+        <SettingRow
+            title="Gallery folders to ignore"
+            description="Galleries inside these folders stay out of the Home feed — screenshot sheets and cover art rather than photo sets. Matches a whole folder name, case-insensitively; end an entry with * for a prefix match, so screen* covers Screens, Screenshots and Screenlists. Comma-separated; clear it to hide nothing."
+        >
+            <div className="binge-settings-url-row">
+                <input
+                    type="text"
+                    className="binge-settings-input"
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    onBlur={() => {
+                        if (draft !== joined)
+                            setGalleryIgnoreFolders(draft.split(","));
+                    }}
+                    spellCheck={false}
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                    placeholder="screen*, cover, proof"
+                />
+                <button
+                    type="button"
+                    className="binge-settings-inline-btn"
+                    onClick={() =>
+                        setGalleryIgnoreFolders(DEFAULT_GALLERY_IGNORE_FOLDERS)
                     }
                 >
                     Reset
