@@ -150,7 +150,24 @@ export function Feed({ scrollContainerRef }: FeedProps) {
                 <div className="binge-feed-empty">
                     {state.kind === "ready" && state.items.length > 0
                         ? "everything's filtered out — adjust the filter."
-                        : "nothing new in your recent window."}
+                        : state.kind === "ready" && state.unidentifiedCount > 0
+                          ? // The likeliest case on a library that has
+                            // been scanned but not tagged, where
+                            // "nothing new" would be plainly wrong.
+                            `${state.unidentifiedCount} recent ${
+                                state.unidentifiedCount === 1
+                                    ? "scene has"
+                                    : "scenes have"
+                            } no performer and no StashDB match, so ${
+                                state.unidentifiedCount === 1
+                                    ? "it is"
+                                    : "they are"
+                            } not shown. Identify ${
+                                state.unidentifiedCount === 1 ? "it" : "them"
+                            } in Stash to see ${
+                                state.unidentifiedCount === 1 ? "it" : "them"
+                            } here.`
+                          : "nothing new in your recent window."}
                 </div>
             </section>
         );

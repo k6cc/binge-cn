@@ -158,7 +158,16 @@ export type FeedItem =
 
 export type FeedState =
     | { kind: "loading" }
-    | { kind: "ready"; items: FeedItem[] }
+    | {
+          kind: "ready";
+          items: FeedItem[];
+          /// How many recent scenes were left out for having neither a
+          /// performer nor a StashDB match. The empty state needs this:
+          /// "nothing new in your recent window" is wrong and confusing
+          /// on a freshly scanned library, where there IS plenty new and
+          /// none of it is identified yet.
+          unidentifiedCount: number;
+      }
     | { kind: "error"; message: string };
 
 // The feed shows a single FIXED window — the user's configured recent
@@ -512,10 +521,12 @@ export function useFeed(): FeedHookResult {
                 // they are not in this library. Without a match it is an
                 // unidentified file with no title, no studio and no
                 // cast, and a feed is the wrong place for it.
+                let unidentifiedCount = 0;
                 for (const [sceneId, item] of sceneItems) {
                     if (item.performers.length > 0) continue;
                     if (!stashIdBySceneId.get(sceneId)) {
                         sceneItems.delete(sceneId);
+                        unidentifiedCount++;
                     }
                 }
 
@@ -563,7 +574,7 @@ export function useFeed(): FeedHookResult {
                     ...wrappedDiscovery,
                 ].sort((a, b) => b.effectiveAt.localeCompare(a.effectiveAt));
 
-                setState({ kind: "ready", items: all });
+                setState({ kind: "ready", items: all, unidentifiedCount });
             } catch (err) {
                 if (!alive) return;
                 setState({

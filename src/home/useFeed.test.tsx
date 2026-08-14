@@ -806,3 +806,44 @@ describe("who StashDB says is in a matched scene", () => {
         expect(getMatchedScenePerformers).not.toHaveBeenCalled();
     });
 });
+
+// The empty state has to be able to tell the difference between "your
+// library has nothing new" and "your library has plenty new and none of
+// it is identified". On a freshly scanned Stash the second is the
+// normal case, and saying the first would send the user looking for a
+// bug that is not there.
+describe("counting what the rule left out", () => {
+    it("reports how many scenes were dropped as unidentified", async () => {
+        getRecentScenes.mockResolvedValue([
+            sceneRow({ sceneId: "a", performerId: null, stashIds: [] }),
+            sceneRow({ sceneId: "b", performerId: null, stashIds: [] }),
+        ]);
+        const hook = renderHook(() => useFeed());
+        await waitFor(() =>
+            expect(hook.result.current.state.kind).toBe("ready"),
+        );
+        const state = hook.result.current.state;
+        expect(state.kind === "ready" && state.unidentifiedCount).toBe(2);
+    });
+
+    it("counts nothing when every scene is identified", async () => {
+        getRecentScenes.mockResolvedValue([sceneRow()]);
+        const hook = renderHook(() => useFeed());
+        await waitFor(() =>
+            expect(hook.result.current.state.kind).toBe("ready"),
+        );
+        const state = hook.result.current.state;
+        expect(state.kind === "ready" && state.unidentifiedCount).toBe(0);
+    });
+
+    it("does not count a scene that was kept", async () => {
+        // A StashDB match keeps it, so it is shown rather than dropped.
+        getRecentScenes.mockResolvedValue([sceneRow({ performerId: null })]);
+        const hook = renderHook(() => useFeed());
+        await waitFor(() =>
+            expect(hook.result.current.state.kind).toBe("ready"),
+        );
+        const state = hook.result.current.state;
+        expect(state.kind === "ready" && state.unidentifiedCount).toBe(0);
+    });
+});
