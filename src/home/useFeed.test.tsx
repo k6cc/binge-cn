@@ -41,7 +41,25 @@ const daysAgo = (n: number) =>
     new Date(NOW.getTime() - n * 24 * 3600 * 1000).toISOString();
 const dayStamp = (n: number) => daysAgo(n).slice(0, 10);
 
-function sceneRow(over: Partial<RecentSceneRow> = {}): RecentSceneRow {
+// Rows carry at most one performer, as a nested object. The helper keeps
+// taking the flat fields because that reads better at the call sites;
+// `performerId: null` is how a test says "nobody is linked to this
+// scene", which is the state 84% of this library's recent imports are in.
+type SceneRowOverrides = Omit<Partial<RecentSceneRow>, "performer"> & {
+    performerId?: string | null;
+    performerName?: string;
+    performerImagePath?: string | null;
+    performerFavorite?: boolean;
+};
+
+function sceneRow(over: SceneRowOverrides = {}): RecentSceneRow {
+    const {
+        performerId = "p1",
+        performerName = "Ada",
+        performerImagePath = "/ada.jpg",
+        performerFavorite = false,
+        ...rest
+    } = over;
     return {
         sceneId: "s1",
         sceneTitle: "A scene",
@@ -53,11 +71,19 @@ function sceneRow(over: Partial<RecentSceneRow> = {}): RecentSceneRow {
         sceneWidth: 1920,
         sceneHeight: 1080,
         sceneTags: [],
-        performerId: "p1",
-        performerName: "Ada",
-        performerImagePath: "/ada.jpg",
-        performerFavorite: false,
-        ...over,
+        studioName: null,
+        filePath: null,
+        performer:
+            performerId === null
+                ? null
+                : {
+                      id: performerId,
+                      name: performerName,
+                      imagePath: performerImagePath,
+                      favorite: performerFavorite,
+                      gender: null,
+                  },
+        ...rest,
     } as unknown as RecentSceneRow;
 }
 
@@ -76,7 +102,7 @@ function galleryRow(over: Partial<RecentGalleryRow> = {}): RecentGalleryRow {
 }
 
 // A batch import: n scenes for one performer, all created within a day.
-const packOf = (n: number, over: Partial<RecentSceneRow> = {}) =>
+const packOf = (n: number, over: SceneRowOverrides = {}) =>
     Array.from({ length: n }, (_, i) =>
         sceneRow({
             sceneId: "pack-" + i,
@@ -403,5 +429,130 @@ describe("failure handling", () => {
         await waitFor(() =>
             expect(hook.result.current.state.kind).toBe("ready"),
         );
+    });
+});
+
+// Scenes with nobody linked in Stash. These used to be invisible: the
+// flattener emitted one row per scene/performer pair, so zero performers
+// meant zero rows and the scene could never reach Home. That is most of
+// what this library imports, so surfacing them is the point — but doing
+// it naively would bury everything else, since a single unidentified
+// pack folder can hold hundreds of scenes.
+describe("scenes with no performer", () => {
+    it("reaches the feed at all", async () => {
+        getRecentScenes.mockResolvedValue([sceneRow({ performerId: null })]);
+        const { items } = await ready();
+        expect(items).toHaveLength(1);
+        expect(items[0].kind).toBe("scene");
+        expect((items[0] as { performers: unknown[] }).performers).toEqual([]);
+    });
+
+    it("is labelled by the folder it was imported into", async () => {
+        getRecentScenes.mockResolvedValue([
+            sceneRow({
+                performerId: null,
+                filePath: "Z:\\Media\\Unfiled\\Explicit Kait\\a.mp4",
+            }),
+        ]);
+        const { items } = await ready();
+        expect(
+            (items[0] as { impliedSource: string | null }).impliedSource,
+        ).toBe("Explicit Kait");
+    });
+
+    it("prefers the studio over the folder", async () => {
+        getRecentScenes.mockResolvedValue([
+            sceneRow({
+                performerId: null,
+                studioName: "Evil Angel",
+                filePath: "Z:/Media/Whatever/a.mp4",
+            }),
+        ]);
+        const { items } = await ready();
+        expect(
+            (items[0] as { impliedSource: string | null }).impliedSource,
+        ).toBe("Evil Angel");
+    });
+
+    it("collapses a bulk import into one card instead of hundreds", async () => {
+        // The whole reason this needs grouping: 500 loose scenes from one
+        // pack folder would otherwise be 500 cards.
+        getRecentScenes.mockResolvedValue(
+            packOf(40, {
+                performerId: null,
+                filePath: "Z:/Media/Xohanna Joy Video Pack/a.mp4",
+            }),
+        );
+        const { items } = await ready();
+        expect(items).toHaveLength(1);
+        expect(items[0].kind).toBe("pack");
+        const pack = items[0] as { label: string; primaryPerformer: unknown };
+        expect(pack.label).toBe("Xohanna Joy Video Pack");
+        expect(pack.primaryPerformer).toBeNull();
+    });
+
+    it("keeps two different folders as two batches", async () => {
+        getRecentScenes.mockResolvedValue([
+            ...packOf(10, {
+                performerId: null,
+                filePath: "Z:/Media/Pack A/a.mp4",
+            }).map((r, i) => ({ ...r, sceneId: "a-" + i })),
+            ...packOf(10, {
+                performerId: null,
+                filePath: "Z:/Media/Pack B/a.mp4",
+            }).map((r, i) => ({ ...r, sceneId: "b-" + i })),
+        ]);
+        const { items } = await ready();
+        expect(items).toHaveLength(2);
+        expect(items.map((i) => (i as { label: string }).label).sort()).toEqual(
+            ["Pack A", "Pack B"],
+        );
+    });
+
+    it("never groups scenes whose source could not be worked out", async () => {
+        // No studio, and a file sitting straight in the library root.
+        // Batching those together would invent a relationship between
+        // scenes that have nothing in common but being unidentified.
+        getRecentScenes.mockResolvedValue(
+            packOf(20, { performerId: null, filePath: "Z:/Media/a.mp4" }).map(
+                (r, i) => ({ ...r, sceneId: "x-" + i }),
+            ),
+        );
+        const { items } = await ready();
+        expect(items).toHaveLength(20);
+        expect(items.every((i) => i.kind === "scene")).toBe(true);
+    });
+
+    it("does not mix an unattributed batch with a performer's", async () => {
+        // A performer id and a folder name are different namespaces, and
+        // a performer whose id is "Ada" must not absorb folder "Ada".
+        getRecentScenes.mockResolvedValue([
+            ...packOf(10).map((r, i) => ({ ...r, sceneId: "p-" + i })),
+            ...packOf(10, {
+                performerId: null,
+                filePath: "Z:/Media/p1/a.mp4",
+            }).map((r, i) => ({ ...r, sceneId: "u-" + i })),
+        ]);
+        const { items } = await ready();
+        expect(items).toHaveLength(2);
+        const labels = items.map((i) => (i as { label: string }).label).sort();
+        expect(labels).toEqual(["Ada", "p1"]);
+    });
+
+    it("still packs by performer when one is linked", async () => {
+        // The folder is present but irrelevant: a linked performer wins,
+        // so this must not split into folder batches.
+        getRecentScenes.mockResolvedValue(
+            packOf(10, { filePath: "Z:/Media/Some Folder/a.mp4" }),
+        );
+        const { items } = await ready();
+        expect(items).toHaveLength(1);
+        expect((items[0] as { label: string }).label).toBe("Ada");
+    });
+
+    it("gives a performer's pack their name as the label", async () => {
+        getRecentScenes.mockResolvedValue(packOf(10));
+        const { items } = await ready();
+        expect((items[0] as { label: string }).label).toBe("Ada");
     });
 });

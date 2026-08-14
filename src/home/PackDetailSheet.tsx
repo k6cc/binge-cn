@@ -53,13 +53,11 @@ export function PackDetailSheet({
             <div
                 className="binge-sheet binge-pack-sheet"
                 role="dialog"
-                aria-label={`${pack.primaryPerformer.name} — pack`}
+                aria-label={`${pack.label} — pack`}
             >
                 <div className="binge-sheet-handle" aria-hidden="true" />
                 <header className="binge-pack-sheet-header">
-                    <div className="binge-pack-sheet-title">
-                        {pack.primaryPerformer.name}
-                    </div>
+                    <div className="binge-pack-sheet-title">{pack.label}</div>
                     <div className="binge-pack-sheet-sub">
                         {pack.sceneCount} new scenes
                     </div>

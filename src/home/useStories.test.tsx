@@ -61,7 +61,23 @@ const dayStamp = (n: number) => daysAgo(n).slice(0, 10);
 const utcDaysAgo = (n: number) =>
     Math.floor((NOW.getTime() - n * 24 * 3600 * 1000) / 1000);
 
-function row(over: Partial<RecentSceneRow> = {}): RecentSceneRow {
+// See useFeed.test.tsx: the row's performer is a nested object, and
+// `performerId: null` means the scene has nobody linked.
+type RowOverrides = Omit<Partial<RecentSceneRow>, "performer"> & {
+    performerId?: string | null;
+    performerName?: string;
+    performerImagePath?: string | null;
+    performerFavorite?: boolean;
+};
+
+function row(over: RowOverrides = {}): RecentSceneRow {
+    const {
+        performerId = "p1",
+        performerName = "Ada",
+        performerImagePath = "/ada.jpg",
+        performerFavorite = false,
+        ...rest
+    } = over;
     return {
         sceneId: "s1",
         sceneTitle: "A scene",
@@ -71,11 +87,19 @@ function row(over: Partial<RecentSceneRow> = {}): RecentSceneRow {
         sceneDate: dayStamp(1),
         sceneWidth: 1920,
         sceneHeight: 1080,
-        performerId: "p1",
-        performerName: "Ada",
-        performerImagePath: "/ada.jpg",
-        performerFavorite: false,
-        ...over,
+        studioName: null,
+        filePath: null,
+        performer:
+            performerId === null
+                ? null
+                : {
+                      id: performerId,
+                      name: performerName,
+                      imagePath: performerImagePath,
+                      favorite: performerFavorite,
+                      gender: null,
+                  },
+        ...rest,
     } as unknown as RecentSceneRow;
 }
 

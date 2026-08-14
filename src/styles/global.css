@@ -5002,6 +5002,15 @@ body,
     color: rgba(244, 114, 182, 1);
     filter: drop-shadow(0 0 4px rgba(244, 114, 182, 0.55));
 }
+/* No performer linked. Muted rather than coloured: the other two marks
+   claim something about a person, this one only reports an absence, and
+   it should not compete with them for attention. Slightly larger than
+   the tick because a dashed ring reads thinner at the same size. */
+.binge-feed-card-verified.is-unidentified {
+    width: 14px;
+    height: 14px;
+    color: rgba(255, 255, 255, 0.42);
+}
 .binge-feed-card-verified svg {
     width: 100%;
     height: 100%;
@@ -8215,6 +8224,13 @@ body,
 .binge-pack-card .binge-pack-card-avatar-initial {
     font-size: 0.85rem;
     font-weight: 700;
+}
+/* Unattributed batch: the avatar is a scene still, not a person, so a
+   dashed ring keeps it from reading as a profile picture. Same dashed
+   language as the mark beside the name. */
+.binge-pack-card .binge-pack-card-avatar-unattributed {
+    border: 1px dashed rgba(255, 255, 255, 0.32);
+    background-position: center;
 }
 .binge-pack-card-sub {
     display: block;

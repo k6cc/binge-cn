@@ -40,6 +40,7 @@ import {
     subscribeCollections,
 } from "../api/collections";
 import { timeAgo } from "./timeAgo";
+import { UnidentifiedIcon } from "./UnidentifiedIcon";
 import { useScribeModal } from "../scribe/ScribeContext";
 
 interface SceneFeedCardProps {
@@ -378,7 +379,22 @@ export function SceneFeedCard({ item, feedSceneIds }: SceneFeedCardProps) {
                             </button>
                         </PerformerHoverCard>
                     ) : (
-                        <span className="binge-feed-card-name">Unknown</span>
+                        // Nobody linked in Stash. Name it after where it
+                        // came from when the import folder or studio
+                        // says something, which is far more use than
+                        // "Unknown" now that these scenes reach Home at
+                        // all. The mark says the identity is missing,
+                        // not that the label is a performer.
+                        <span className="binge-feed-card-name">
+                            {item.impliedSource ?? "Unidentified"}
+                            <span
+                                className="binge-feed-card-verified is-unidentified"
+                                aria-label="No performer linked"
+                                title="No performer linked"
+                            >
+                                <UnidentifiedIcon />
+                            </span>
+                        </span>
                     )}
                 </div>
                 <span className="binge-feed-card-time">

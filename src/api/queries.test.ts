@@ -79,7 +79,7 @@ describe("flattening scenes", () => {
         ]);
         const rows = await findRecentScenes("2026-06-01");
         expect(rows).toHaveLength(2);
-        expect(rows.map((r) => r.performerName)).toEqual(["Ada", "Bea"]);
+        expect(rows.map((r) => r.performer?.name)).toEqual(["Ada", "Bea"]);
         // The scene half of each row is identical; only the performer differs.
         expect(rows[0].sceneId).toBe(rows[1].sceneId);
     });
@@ -94,9 +94,11 @@ describe("flattening scenes", () => {
             scenePreview: "/preview.mp4",
             sceneWidth: 1920,
             sceneHeight: 1080,
-            performerId: "p1",
-            performerFavorite: false,
-            performerGender: "FEMALE",
+            performer: {
+                id: "p1",
+                favorite: false,
+                gender: "FEMALE",
+            },
         });
         expect(row.sceneTags).toEqual([{ id: "t1", name: "Blonde" }]);
     });
@@ -112,13 +114,18 @@ describe("flattening scenes", () => {
     });
 
     it("survives a scene with null performers or tags", async () => {
+        // A partial write can null the whole list. That is treated the
+        // same as an empty one: the scene still gets its row, with
+        // nobody on it, rather than throwing and taking the feed down.
         scenesReturn([
             sceneNode({ performers: null, tags: null }),
             sceneNode({ id: "ok" }),
         ]);
         const rows = await findRecentScenes("2026-06-01");
-        expect(rows).toHaveLength(1);
-        expect(rows[0].sceneId).toBe("ok");
+        expect(rows).toHaveLength(2);
+        expect(rows[0].performer).toBeNull();
+        expect(rows[0].sceneTags).toEqual([]);
+        expect(rows[1].sceneId).toBe("ok");
     });
 
     it("survives a scene with null paths", async () => {
@@ -155,17 +162,43 @@ describe("flattening scenes", () => {
             }),
         ]);
         const [row] = await findRecentScenes("2026-06-01");
-        expect(row.performerGender).toBeNull();
+        expect(row.performer?.gender).toBeNull();
     });
 
-    it("drops a scene that has no performers at all", async () => {
-        // DOCUMENTING, not endorsing. One row per scene/performer pair
-        // means a scene with nobody attached produces no rows, so it can
-        // never reach Home. On the maintainer's library that is 41% of
-        // all scenes. assemblePacks in useFeed still carries a branch for
-        // scenes with no primary performer, which nothing can now reach.
+    it("still emits one row for a scene with no performers at all", async () => {
+        // This used to emit NONE, which is why such scenes could never
+        // reach Home: one row per scene/performer pair means zero pairs
+        // is zero rows. 84% of what this library imported in a recent
+        // 30-day window has nobody linked, so that silently hid most of
+        // the feed's input.
         scenesReturn([sceneNode({ performers: [] })]);
-        await expect(findRecentScenes("2026-06-01")).resolves.toEqual([]);
+        const rows = await findRecentScenes("2026-06-01");
+        expect(rows).toHaveLength(1);
+        expect(rows[0].performer).toBeNull();
+        // The scene half still has to be filled in, or the card has
+        // nothing to render.
+        expect(rows[0].sceneId).toBe("s1");
+        expect(rows[0].sceneScreenshot).toBe("/shot.jpg");
+    });
+
+    it("carries the studio and file path used to identify such a scene", async () => {
+        scenesReturn([
+            sceneNode({
+                performers: [],
+                studio: { name: "Evil Angel" },
+                files: [{ width: 1920, height: 1080, path: "Z:/a/b.mp4" }],
+            }),
+        ]);
+        const [row] = await findRecentScenes("2026-06-01");
+        expect(row.studioName).toBe("Evil Angel");
+        expect(row.filePath).toBe("Z:/a/b.mp4");
+    });
+
+    it("leaves both null when Stash knows neither", async () => {
+        scenesReturn([sceneNode({ performers: [], studio: null, files: [] })]);
+        const [row] = await findRecentScenes("2026-06-01");
+        expect(row.studioName).toBeNull();
+        expect(row.filePath).toBeNull();
     });
 
     it("returns nothing for an empty result", async () => {

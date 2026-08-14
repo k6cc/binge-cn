@@ -20,6 +20,7 @@ import {
     fetchDiscoveryFeedItems,
     type DiscoveryFeedItem,
 } from "./discoveryFeed";
+import { impliedSourceName } from "./impliedSource";
 
 // Performer summary inside a feed item. Multiple performers per item are
 // kept so the card can show their names and route taps to the correct
@@ -63,6 +64,11 @@ export interface SceneFeedItem {
     /// the recent-`created_at` query. The card surfaces it by import
     /// time (not the old date) and shows a "reposted" mark.
     isRepost: boolean;
+    /// For a scene with NO performers linked: what it appears to belong
+    /// to, from its studio or the folder it was imported into. Used to
+    /// group and label it, never written back to Stash. Null when the
+    /// scene has performers, or when nothing could be derived.
+    impliedSource: string | null;
 }
 
 // One gallery-as-post. `images` is the first MAX_GALLERY_IMAGES of the
@@ -103,7 +109,13 @@ export interface DiscoveryFeedItemWrapped extends DiscoveryFeedItem {
 export interface PackFeedItem {
     kind: "pack";
     key: string;
-    primaryPerformer: FeedPerformer;
+    /// The performer the whole batch shares, or null when the batch is
+    /// unattributed and was grouped by where it came from instead.
+    primaryPerformer: FeedPerformer | null;
+    /// What the card is titled with: the performer's name, or the
+    /// implied source for an unattributed batch. Always non-empty, so
+    /// the card never has to invent a heading.
+    label: string;
     scenes: SceneFeedItem[];
     sceneCount: number;
     /// Newest createdAt in the batch — used for "added X ago"
@@ -156,6 +168,16 @@ const PACK_MIN_SIZE = 8;
 /// (or drop each below PACK_MIN_SIZE entirely).
 const PACK_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
+// What a scene groups under, or null when it groups under nothing and
+// can only appear as its own card. The prefixes keep the two namespaces
+// apart, so a performer whose id is "12" cannot collide with a folder
+// named "12".
+function packGroupKey(s: SceneFeedItem): string | null {
+    const performerId = s.performers[0]?.id;
+    if (performerId) return `p:${performerId}`;
+    return s.impliedSource ? `s:${s.impliedSource}` : null;
+}
+
 function assemblePacks(
     scenes: SceneFeedItem[],
     repostCutoff: string,
@@ -166,22 +188,25 @@ function assemblePacks(
     // pack is a "repost" when even its newest scene's scraped release
     // date is older than that cutoff.
 
-    // Group by primary performer.
+    // Group by primary performer, or, for scenes with nobody linked, by
+    // where they came from. An unidentified bulk import is still a bulk
+    // import: without this, 500 loose scenes from one pack folder would
+    // each get a card and bury everything else on Home.
     const byPrimary = new Map<string, SceneFeedItem[]>();
     for (const s of scenes) {
-        const pid = s.performers[0]?.id;
-        if (!pid) continue;
-        const list = byPrimary.get(pid);
+        const key = packGroupKey(s);
+        if (!key) continue;
+        const list = byPrimary.get(key);
         if (list) list.push(s);
-        else byPrimary.set(pid, [s]);
+        else byPrimary.set(key, [s]);
     }
 
     // For each performer, look at how many of their scenes were
     // created within a tight window of their most recent one.
     // If that count exceeds PACK_MIN_SIZE → batch import.
-    const packPerformers = new Set<string>();
+    const packedKeys = new Set<string>();
     const out: FeedItem[] = [];
-    for (const [pid, list] of byPrimary) {
+    for (const [groupKey, list] of byPrimary) {
         const sortedByCreated = [...list].sort((a, b) =>
             b.createdAt.localeCompare(a.createdAt),
         );
@@ -190,7 +215,13 @@ function assemblePacks(
             (s) => newest - new Date(s.createdAt).getTime() <= PACK_WINDOW_MS,
         );
         if (inWindow.length < PACK_MIN_SIZE) continue;
-        const primary = sortedByCreated[0].performers[0];
+        const newestScene = sortedByCreated[0];
+        const primary = newestScene.performers[0] ?? null;
+        // Grouped scenes share whichever of the two produced the key, so
+        // reading it off the newest is safe.
+        const label = primary?.name ?? newestScene.impliedSource;
+        // Unreachable: a group only forms when one of these exists.
+        if (!label) continue;
         // Newest scraped release date across the batch. If even that
         // is older than the recent-window cutoff, the whole pack is
         // back-catalog → "reposted". Scenes with no date don't count
@@ -204,8 +235,9 @@ function assemblePacks(
         const isRepost = newestDate !== null && newestDate < repostCutoff;
         out.push({
             kind: "pack",
-            key: `pack:${pid}:${sortedByCreated[0].createdAt}`,
+            key: `pack:${groupKey}:${sortedByCreated[0].createdAt}`,
             primaryPerformer: primary,
+            label,
             scenes: inWindow,
             sceneCount: inWindow.length,
             createdAt: sortedByCreated[0].createdAt,
@@ -217,20 +249,22 @@ function assemblePacks(
             effectiveAt: sortedByCreated[0].createdAt,
             isRepost,
         });
-        packPerformers.add(pid);
+        packedKeys.add(groupKey);
     }
 
-    // A performer who formed a pack is represented by that pack card,
-    // so skip their loose individual scenes — otherwise a bulk-import
-    // performer would flood the feed with a pack AND dozens of cards.
-    // Everyone else shows all their scenes in the window (no cap).
+    // A group that formed a pack is represented by that pack card, so
+    // skip its loose individual scenes — otherwise a bulk import would
+    // flood the feed with a pack AND dozens of cards. Everything else
+    // shows all its scenes in the window (no cap), including scenes
+    // with neither a performer nor a derivable source, which can only
+    // ever appear on their own.
     for (const s of scenes) {
-        const pid = s.performers[0]?.id;
-        if (!pid) {
+        const key = packGroupKey(s);
+        if (!key) {
             out.push(s);
             continue;
         }
-        if (packPerformers.has(pid)) continue;
+        if (packedKeys.has(key)) continue;
         out.push(s);
     }
     return out;
@@ -375,15 +409,29 @@ export function useFeed(): FeedHookResult {
                             performers: [],
                             tags: r.sceneTags,
                             isRepost,
+                            // Scene-level, so it is the same on every
+                            // row for this scene. Derived even when a
+                            // performer IS linked so the value is
+                            // consistent, but only ever read for the
+                            // scenes that have nobody.
+                            impliedSource: impliedSourceName(
+                                r.studioName,
+                                r.filePath,
+                            ),
                         };
                         sceneItems.set(r.sceneId, item);
                     }
-                    item.performers.push({
-                        id: r.performerId,
-                        name: r.performerName,
-                        imagePath: r.performerImagePath,
-                        favorite: r.performerFavorite,
-                    });
+                    // Null for a scene with nobody linked. That row
+                    // exists precisely so the scene still reaches the
+                    // feed, so it must not be dropped here.
+                    if (r.performer) {
+                        item.performers.push({
+                            id: r.performer.id,
+                            name: r.performer.name,
+                            imagePath: r.performer.imagePath,
+                            favorite: r.performer.favorite,
+                        });
+                    }
                 }
 
                 // Fetch the first N images for each gallery in
@@ -470,7 +518,7 @@ function dedupeSceneRows(rows: RecentSceneRow[]): RecentSceneRow[] {
     const seen = new Set<string>();
     const out: RecentSceneRow[] = [];
     for (const r of rows) {
-        const key = `${r.sceneId}:${r.performerId}`;
+        const key = `${r.sceneId}:${r.performer?.id ?? ""}`;
         if (seen.has(key)) continue;
         seen.add(key);
         out.push(r);
