@@ -192,7 +192,12 @@ async function checkRoutesMount() {
 async function checkHomePopulates() {
     await check("Home shows stories and feed cards", async () => {
         await goto("#/home");
-        await sleep(14000);
+        // Measured on the maintainer's library with StashDB reachable:
+        // first story at 15.1s, first feed card at 16.1s. This check is
+        // "did anything render", not a latency budget, so the wait is
+        // generous — but that latency is a real problem in its own right
+        // and worth attacking rather than waiting out.
+        await sleep(25000);
         const info = await evaluate(`JSON.stringify({
             stories: document.querySelectorAll('.binge-story').length,
             cards: document.querySelectorAll('.binge-feed-card-wrapper').length,
@@ -432,6 +437,22 @@ async function main() {
         });
         ws.onmessage = (ev) => {
             const m = JSON.parse(ev.data);
+            if (m.method === "Fetch.requestPaused") {
+                // Only Stash's own requests are paused (see the pattern
+                // below), so the key goes nowhere else.
+                send("Fetch.continueRequest", {
+                    requestId: m.params.requestId,
+                    headers: [
+                        ...Object.entries(m.params.request.headers).map(
+                            ([name, value]) => ({ name, value: String(value) }),
+                        ),
+                        { name: "ApiKey", value: KEY },
+                    ],
+                }).catch(() => {
+                    /* request already gone */
+                });
+                return;
+            }
             if (m.id && pending.has(m.id)) {
                 const { resolve, reject } = pending.get(m.id);
                 pending.delete(m.id);
@@ -452,9 +473,15 @@ async function main() {
             deviceScaleFactor: 1,
             mobile: false,
         });
+        // Scoped to Stash's own origin via request interception rather
+        // than Network.setExtraHTTPHeaders, which attaches the header to
+        // EVERY request the page makes. The plugin talks to stashdb.org
+        // directly, and StashDB answers 401 to a Stash API key — so the
+        // global header silently disabled every StashDB feature and made
+        // this harness blind to them.
         if (KEY) {
-            await send("Network.setExtraHTTPHeaders", {
-                headers: { ApiKey: KEY },
+            await send("Fetch.enable", {
+                patterns: [{ urlPattern: `${BASE}/*` }],
             });
         }
 
