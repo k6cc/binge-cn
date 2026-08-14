@@ -556,3 +556,73 @@ describe("scenes with no performer", () => {
         expect((items[0] as { label: string }).label).toBe("Ada");
     });
 });
+
+// The label comes from a folder, and which folder is the library root
+// can only be worked out by comparing the paths against each other.
+// Getting that wrong is not cosmetic: it collapses everything into one
+// batch named after a directory that means nothing.
+describe("working out the library root from the batch", () => {
+    const rowsUnder = (paths: string[]) =>
+        paths.map((filePath, i) =>
+            sceneRow({
+                sceneId: "s-" + i,
+                performerId: null,
+                filePath,
+            }),
+        );
+
+    it("does not label a whole library after a home directory", () => {
+        getRecentScenes.mockResolvedValue(
+            rowsUnder([
+                "/home/bob/media/Vixen/a.mp4",
+                "/home/bob/media/Tushy/b.mp4",
+            ]),
+        );
+        return ready().then(({ items }) => {
+            const labels = items
+                .map(
+                    (i) =>
+                        (i as { impliedSource: string | null }).impliedSource,
+                )
+                .sort();
+            expect(labels).toEqual(["Tushy", "Vixen"]);
+        });
+    });
+
+    it("keeps them apart rather than merging into one batch", async () => {
+        // The failure this guards: with everything resolving to "bob",
+        // eight scenes from unrelated sources become a single pack.
+        getRecentScenes.mockResolvedValue(
+            rowsUnder(
+                Array.from({ length: 10 }, (_, i) =>
+                    i % 2 === 0
+                        ? `/home/bob/media/Vixen/${i}.mp4`
+                        : `/home/bob/media/Tushy/${i}.mp4`,
+                ),
+            ).map((r, i) => ({
+                ...r,
+                sceneCreatedAt: daysAgo(2),
+                sceneId: "x" + i,
+            })),
+        );
+        const { items } = await ready();
+        expect(items.every((i) => i.kind === "scene")).toBe(true);
+        expect(items).toHaveLength(10);
+    });
+
+    it("measures each drive separately when a library spans two", async () => {
+        getRecentScenes.mockResolvedValue(
+            rowsUnder([
+                "Z:\\Media\\Ada\\a.mp4",
+                "Z:\\Media\\Bea\\b.mp4",
+                "D:\\Porn\\Cleo\\c.mp4",
+                "D:\\Porn\\Dee\\d.mp4",
+            ]),
+        );
+        const { items } = await ready();
+        const labels = items
+            .map((i) => (i as { impliedSource: string | null }).impliedSource)
+            .sort();
+        expect(labels).toEqual(["Ada", "Bea", "Cleo", "Dee"]);
+    });
+});

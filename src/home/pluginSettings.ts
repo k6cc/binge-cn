@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { gql } from "../api/graphql";
+import { DEFAULT_LIBRARY_FOLDER_NAMES } from "./impliedSource";
 
 // Plugin-settings the reel SPA shares with the Stash settings panel
 // injected by binge.entry.js. Storage is plain localStorage keyed under
@@ -348,12 +349,18 @@ export function setAllowedGenders(values: ReadonlySet<Gender>): void {
 // HIDDEN categories (empty = show everything, the default). Galleries
 // are intentionally NOT a category here — they have their own
 // "Show galleries" toggle.
-export type FeedCategory = "discover" | "trending" | "posts" | "reposts";
+// "unidentified" is scenes and batches with no performer linked. They
+// are their own category rather than part of posts/reposts because
+// there can be a great many of them (most of what an untidy library
+// imports) and whether they belong on Home is a matter of taste.
+export type FeedCategory =
+    "discover" | "trending" | "posts" | "reposts" | "unidentified";
 export const ALL_FEED_CATEGORIES: ReadonlyArray<FeedCategory> = [
     "discover",
     "trending",
     "posts",
     "reposts",
+    "unidentified",
 ];
 const FEED_HIDDEN_KEY = "binge.feedHidden";
 
@@ -401,6 +408,62 @@ export function setHiddenFeedCategories(
     // Preserve canonical order so the stored value is stable.
     const ordered = ALL_FEED_CATEGORIES.filter((c) => values.has(c));
     writeString(FEED_HIDDEN_KEY, ordered.join(","));
+}
+
+// ── Library folder names ────────────────────────────────────────────
+// Folder names that describe a library rather than a source, used when
+// naming a scene that has no performer linked. binge measures the shared
+// root of the library from the paths themselves, so this only has to
+// catch a bucket that some scenes sit in and others do not ("Unfiled",
+// "New"). Every layout is different, so the list is the user's, with
+// DEFAULT_LIBRARY_FOLDER_NAMES as a starting point rather than a rule.
+// Stored comma-separated; an empty stored value means "none", which is
+// distinct from never having set one.
+const LIBRARY_FOLDER_NAMES_KEY = "binge.libraryFolderNames";
+
+export function readLibraryFolderNames(): string[] {
+    try {
+        const stored = localStorage.getItem(LIBRARY_FOLDER_NAMES_KEY);
+        if (stored === null) return [...DEFAULT_LIBRARY_FOLDER_NAMES];
+        return stored
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean);
+    } catch {
+        return [...DEFAULT_LIBRARY_FOLDER_NAMES];
+    }
+}
+
+export function useLibraryFolderNames(): string[] {
+    const [value, setValue] = useState<string[]>(() =>
+        readLibraryFolderNames(),
+    );
+    useEffect(() => {
+        const update = () => setValue(readLibraryFolderNames());
+        const localHandler = (changedKey: string) => {
+            if (changedKey === LIBRARY_FOLDER_NAMES_KEY) update();
+        };
+        const storageHandler = (e: StorageEvent) => {
+            if (e.key === LIBRARY_FOLDER_NAMES_KEY) update();
+        };
+        listeners.add(localHandler);
+        window.addEventListener("storage", storageHandler);
+        return () => {
+            listeners.delete(localHandler);
+            window.removeEventListener("storage", storageHandler);
+        };
+    }, []);
+    return value;
+}
+
+export function setLibraryFolderNames(values: readonly string[]): void {
+    writeString(
+        LIBRARY_FOLDER_NAMES_KEY,
+        values
+            .map((s) => s.trim())
+            .filter(Boolean)
+            .join(", "),
+    );
 }
 
 export function useShowGalleries(): boolean {

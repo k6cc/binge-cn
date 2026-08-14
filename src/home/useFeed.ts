@@ -15,12 +15,13 @@ import {
     useShowGalleries,
     useLookbackDays,
     useIncludeStashDB,
+    useLibraryFolderNames,
 } from "./pluginSettings";
 import {
     fetchDiscoveryFeedItems,
     type DiscoveryFeedItem,
 } from "./discoveryFeed";
-import { impliedSourceName } from "./impliedSource";
+import { buildSourceResolver } from "./impliedSource";
 
 // Performer summary inside a feed item. Multiple performers per item are
 // kept so the card can show their names and route taps to the correct
@@ -310,6 +311,11 @@ export function useFeed(): FeedHookResult {
     const [state, setState] = useState<FeedState>({ kind: "loading" });
     const showGalleries = useShowGalleries();
     const includeStashDB = useIncludeStashDB();
+    const libraryFolderNames = useLibraryFolderNames();
+    // Joined so the effect re-runs when the list CONTENTS change; the
+    // hook returns a fresh array each read, and depending on the array
+    // itself would refetch the whole feed on every render.
+    const libraryFolderKey = libraryFolderNames.join(",");
     // Bumped by retry() to force the effect below to re-run.
     const [reloadTick, setReloadTick] = useState(0);
 
@@ -380,6 +386,15 @@ export function useFeed(): FeedHookResult {
 
                 // Collapse scene rows (one row per scene/performer pair)
                 // into one item per scene; gather all matching performers.
+                // Built from every path in this batch, because what the
+                // paths share is the library root, and only what is below
+                // it names a source. Has to be built before the collapse
+                // below, which needs an answer per scene.
+                const sources = buildSourceResolver(
+                    sceneRows.map((r) => r.filePath),
+                    libraryFolderKey.split(",").filter(Boolean),
+                );
+
                 const sceneItems = new Map<string, SceneFeedItem>();
                 for (const r of sceneRows) {
                     let item = sceneItems.get(r.sceneId);
@@ -414,7 +429,7 @@ export function useFeed(): FeedHookResult {
                             // performer IS linked so the value is
                             // consistent, but only ever read for the
                             // scenes that have nobody.
-                            impliedSource: impliedSourceName(
+                            impliedSource: sources.resolve(
                                 r.studioName,
                                 r.filePath,
                             ),
@@ -505,7 +520,16 @@ export function useFeed(): FeedHookResult {
         return () => {
             alive = false;
         };
-    }, [lookbackDays, showGalleries, includeStashDB, reloadTick]);
+        // libraryFolderKey rather than the array: the hook returns a
+        // fresh array each render, so depending on it would refetch the
+        // whole feed on every paint.
+    }, [
+        lookbackDays,
+        showGalleries,
+        includeStashDB,
+        libraryFolderKey,
+        reloadTick,
+    ]);
 
     return { state, retry: () => setReloadTick((t) => t + 1) };
 }

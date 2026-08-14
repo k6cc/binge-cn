@@ -33,6 +33,8 @@ import {
     useRefractIntegration,
     useShowDebug,
     useShowGalleries,
+    useLibraryFolderNames,
+    setLibraryFolderNames,
     useShowcaseBlur,
     useTranscodeType,
     type ForageWatchTarget,
@@ -49,6 +51,7 @@ import { getForageHealth } from "../api/forageServer";
 import { parseCookiesTxt, describeParse } from "../api/cookiesTxt";
 import { BingeServerInstallCard } from "./BingeServerInstallCard";
 import { fetchStashApiKey } from "../api/queries";
+import { DEFAULT_LIBRARY_FOLDER_NAMES } from "../home/impliedSource";
 
 // In-app settings page — all preferences that used to live in Stash's
 // plugin settings UI now live here. Same localStorage keys + pubsub,
@@ -78,6 +81,7 @@ export function SettingsPage() {
                 <GenderRow />
                 <TranscodeRow />
                 <GalleriesRow />
+                <LibraryFolderNamesRow />
                 <LookbackRow />
                 <StashDBRow />
                 <StashDBProfileRow />
@@ -257,6 +261,53 @@ function GalleriesRow() {
                 onChange={(v) => setShowGalleries(v)}
                 label="Show galleries"
             />
+        </SettingRow>
+    );
+}
+
+// Scenes with no performer linked are named after the folder they sit
+// in. binge works out the library root by comparing the paths against
+// each other, so this list only has to name the intermediate buckets
+// that some scenes sit in and others do not. Which words those are is
+// entirely a property of one person's disk, so it is theirs to set.
+function LibraryFolderNamesRow() {
+    const stored = useLibraryFolderNames();
+    const joined = stored.join(", ");
+    const [draft, setDraft] = useState(joined);
+    useEffect(() => {
+        setDraft(joined);
+    }, [joined]);
+
+    return (
+        <SettingRow
+            title="Folder names to ignore"
+            description="When a scene has no performer, binge names it after the folder it was imported into. Folders listed here are skipped as containers rather than treated as a name. Comma-separated; the library root itself is worked out automatically and does not need listing."
+        >
+            <div className="binge-settings-url-row">
+                <input
+                    type="text"
+                    className="binge-settings-input"
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    onBlur={() => {
+                        if (draft !== joined)
+                            setLibraryFolderNames(draft.split(","));
+                    }}
+                    spellCheck={false}
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                    placeholder="unfiled, misc, new"
+                />
+                <button
+                    type="button"
+                    className="binge-settings-inline-btn"
+                    onClick={() =>
+                        setLibraryFolderNames(DEFAULT_LIBRARY_FOLDER_NAMES)
+                    }
+                >
+                    Reset
+                </button>
+            </div>
         </SettingRow>
     );
 }
