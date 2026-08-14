@@ -169,6 +169,10 @@ export type FeedState =
           /// on a freshly scanned library, where there IS plenty new and
           /// none of it is identified yet.
           unidentifiedCount: number;
+          /// The same for galleries, which are held to the same bar but
+          /// counted apart because the reason differs: a gallery cannot
+          /// have a stash id, so a performer is its only way in.
+          unidentifiedGalleryCount: number;
       }
     | { kind: "error"; message: string };
 
@@ -405,10 +409,20 @@ export function useFeed(): FeedHookResult {
                 const noiseMatcher = buildGalleryNoiseMatcher(
                     galleryIgnoreKey.split(",").filter(Boolean),
                 );
-                const galleryRows = dedupeGalleries([
+                const cleanGalleryRows = dedupeGalleries([
                     ...galleriesByCreated,
                     ...galleriesByDate,
                 ]).filter((g) => !noiseMatcher.isNoise(g.paths));
+                // Same bar as scenes: a gallery nobody is linked to is
+                // an unidentified folder of images. Stash has no
+                // stash_ids field on galleries at all, so unlike a scene
+                // there is no second way for one to qualify — a
+                // performer is the only evidence available.
+                const galleryRows = cleanGalleryRows.filter(
+                    (g) => (g.performers ?? []).length > 0,
+                );
+                const unidentifiedGalleryCount =
+                    cleanGalleryRows.length - galleryRows.length;
 
                 // Collapse scene rows (one row per scene/performer pair)
                 // into one item per scene; gather all matching performers.
@@ -592,7 +606,12 @@ export function useFeed(): FeedHookResult {
                 );
 
                 // Show the library's own feed the moment it is ready.
-                setState({ kind: "ready", items: local, unidentifiedCount });
+                setState({
+                    kind: "ready",
+                    items: local,
+                    unidentifiedCount,
+                    unidentifiedGalleryCount,
+                });
 
                 // Then fold discovery in whenever it arrives. The cards
                 // sort into the list by date, so a reader who has

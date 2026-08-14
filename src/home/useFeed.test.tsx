@@ -118,7 +118,12 @@ function galleryRow(over: Partial<RecentGalleryRow> = {}): RecentGalleryRow {
         imageCount: 3,
         createdAt: daysAgo(1),
         date: dayStamp(1),
-        performers: [],
+        // A gallery needs a linked performer to reach the feed, so the
+        // default fixture has one. `performers: []` is how a test says
+        // "an unidentified folder of images".
+        performers: [
+            { id: "p1", name: "Ada", image_path: null, favorite: false },
+        ],
         paths: ["/media/sets/a-gallery"],
         ...over,
     } as unknown as RecentGalleryRow;
@@ -1017,5 +1022,71 @@ describe("discovery does not hold the feed back", () => {
         );
         const state = hook.result.current.state;
         expect(state.kind === "ready" && state.items).toHaveLength(1);
+    });
+});
+
+// Galleries are held to the same bar as scenes, on the user's call.
+// They cannot carry a stash id — Stash has no such field on a gallery —
+// so a linked performer is the only evidence one can offer.
+describe("galleries need a performer too", () => {
+    it("drops a gallery with nobody linked", async () => {
+        getRecentGalleries.mockResolvedValue([galleryRow({ performers: [] })]);
+        const { items } = await ready();
+        expect(items).toEqual([]);
+    });
+
+    it("keeps a gallery that has one", async () => {
+        getRecentGalleries.mockResolvedValue([
+            galleryRow({
+                performers: [
+                    {
+                        id: "p1",
+                        name: "Ada",
+                        image_path: null,
+                        favorite: false,
+                    },
+                ],
+            }),
+        ]);
+        const { items } = await ready();
+        expect(items).toHaveLength(1);
+        expect(items[0].kind).toBe("gallery");
+    });
+
+    it("counts the dropped galleries separately from scenes", async () => {
+        // The empty state names both, and the reasons differ, so they
+        // cannot share a counter.
+        getRecentGalleries.mockResolvedValue([
+            galleryRow({ galleryId: "a", performers: [] }),
+            galleryRow({ galleryId: "b", performers: [] }),
+        ]);
+        getRecentScenes.mockResolvedValue([
+            sceneRow({ performerId: null, stashIds: [] }),
+        ]);
+        const hook = renderHook(() => useFeed());
+        await waitFor(() =>
+            expect(hook.result.current.state.kind).toBe("ready"),
+        );
+        const state = hook.result.current.state;
+        expect(state.kind === "ready" && state.unidentifiedCount).toBe(1);
+        expect(
+            state.kind === "ready" && state.unidentifiedGalleryCount,
+        ).toBe(2);
+    });
+
+    it("does not count a gallery the noise filter already removed", async () => {
+        // It was never a candidate, so calling it unidentified would
+        // overstate what the rule is doing.
+        getRecentGalleries.mockResolvedValue([
+            galleryRow({ paths: ["/media/Set/Screenshots"], performers: [] }),
+        ]);
+        const hook = renderHook(() => useFeed());
+        await waitFor(() =>
+            expect(hook.result.current.state.kind).toBe("ready"),
+        );
+        const state = hook.result.current.state;
+        expect(
+            state.kind === "ready" && state.unidentifiedGalleryCount,
+        ).toBe(0);
     });
 });

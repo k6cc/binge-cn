@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useFeed, type FeedItem } from "./useFeed";
+import { useFeed, type FeedItem, type FeedState } from "./useFeed";
 import { SceneFeedCard } from "./SceneFeedCard";
 import { GalleryFeedCard } from "./GalleryFeedCard";
 import { DiscoveryFeedCard } from "./DiscoveryFeedCard";
@@ -28,6 +28,30 @@ function feedCategory(it: FeedItem): FeedCategory | null {
         default:
             return null;
     }
+}
+
+// What to say when there is nothing to show. The distinction matters on
+// a library that has been scanned but not tagged: there IS plenty new,
+// none of it is identified, and "nothing new in your recent window"
+// would send the reader looking for a bug that is not there.
+function emptyMessage(state: FeedState): string {
+    if (state.kind !== "ready") return "nothing new in your recent window.";
+    if (state.items.length > 0)
+        return "everything's filtered out — adjust the filter.";
+    const scenes = state.unidentifiedCount;
+    const galleries = state.unidentifiedGalleryCount;
+    if (scenes === 0 && galleries === 0)
+        return "nothing new in your recent window.";
+    const parts: string[] = [];
+    if (scenes > 0)
+        parts.push(`${scenes} ${scenes === 1 ? "scene" : "scenes"}`);
+    if (galleries > 0)
+        parts.push(`${galleries} ${galleries === 1 ? "gallery" : "galleries"}`);
+    return `${parts.join(" and ")} arrived recently with nobody linked, so ${
+        scenes + galleries === 1 ? "it is" : "they are"
+    } not shown. Link a performer in Stash to see ${
+        scenes + galleries === 1 ? "it" : "them"
+    } here.`;
 }
 
 interface FeedProps {
@@ -147,28 +171,7 @@ export function Feed({ scrollContainerRef }: FeedProps) {
     if (items.length === 0) {
         return (
             <section className="binge-feed">
-                <div className="binge-feed-empty">
-                    {state.kind === "ready" && state.items.length > 0
-                        ? "everything's filtered out — adjust the filter."
-                        : state.kind === "ready" && state.unidentifiedCount > 0
-                          ? // The likeliest case on a library that has
-                            // been scanned but not tagged, where
-                            // "nothing new" would be plainly wrong.
-                            `${state.unidentifiedCount} recent ${
-                                state.unidentifiedCount === 1
-                                    ? "scene has"
-                                    : "scenes have"
-                            } no performer and no StashDB match, so ${
-                                state.unidentifiedCount === 1
-                                    ? "it is"
-                                    : "they are"
-                            } not shown. Identify ${
-                                state.unidentifiedCount === 1 ? "it" : "them"
-                            } in Stash to see ${
-                                state.unidentifiedCount === 1 ? "it" : "them"
-                            } here.`
-                          : "nothing new in your recent window."}
-                </div>
+                <div className="binge-feed-empty">{emptyMessage(state)}</div>
             </section>
         );
     }
