@@ -7,7 +7,11 @@ import {
 } from "../api/stashdb";
 import { usePerformerProfile } from "../performer/PerformerProfileContext";
 import { PerformerHoverCard } from "../home/PerformerHoverCard";
-import { useAllowedGenders, orderedGenders } from "../home/pluginSettings";
+import {
+    useAllowedGenders,
+    orderedGenders,
+    useIncludeStashDB,
+} from "../home/pluginSettings";
 
 // Horizontal scroll-snap row of StashDB performer bubbles, mirroring
 // the homepage stories row. Mounts at the top of Explore. Data comes
@@ -23,6 +27,11 @@ import { useAllowedGenders, orderedGenders } from "../home/pluginSettings";
 export function DiscoverPerformersBar() {
     const { openProfile, openStashDBProfile } = usePerformerProfile();
     const allowedGenders = useAllowedGenders();
+    // This row is nothing but StashDB, so the StashDB setting governs
+    // it. Turning the integration off used to leave the row on Explore,
+    // still fetching. Read here rather than in Explore so the rule sits
+    // with the thing it governs.
+    const includeStashDB = useIncludeStashDB();
     const [state, setState] = useState<
         | { kind: "loading" }
         | { kind: "ready"; performers: BarItem[] }
@@ -36,6 +45,7 @@ export function DiscoverPerformersBar() {
     // effect (the Set reference changes on every render).
     const genderKey = orderedGenders(allowedGenders).join(",");
     useEffect(() => {
+        if (!includeStashDB) return;
         let alive = true;
         (async () => {
             try {
@@ -72,7 +82,7 @@ export function DiscoverPerformersBar() {
             alive = false;
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [genderKey]);
+    }, [genderKey, includeStashDB]);
 
     // Track scroll edges to show/hide chevrons.
     useEffect(() => {
@@ -100,6 +110,9 @@ export function DiscoverPerformersBar() {
         el.scrollBy({ left: delta, behavior: "smooth" });
     };
 
+    // After every hook, so the hook order cannot change with the
+    // setting.
+    if (!includeStashDB) return null;
     if (state.kind === "error") return null; // graceful no-op
     return (
         <section className="binge-discover-bar">

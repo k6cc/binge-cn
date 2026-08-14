@@ -575,9 +575,6 @@ export function useIncludePornhub(): boolean {
 export function useAutoScroll(): boolean {
     return useStoredBool(AUTO_SCROLL_KEY, false);
 }
-export function readAutoScroll(): boolean {
-    return readBool(AUTO_SCROLL_KEY, false);
-}
 export function setAutoScroll(value: boolean): void {
     writeBool(AUTO_SCROLL_KEY, value);
 }
@@ -603,9 +600,6 @@ export function setRefractIntegration(value: boolean): void {
 // lives in styles/global.css. Off by default.
 export function useShowcaseBlur(): boolean {
     return useStoredBool(SHOWCASE_BLUR_KEY, false);
-}
-export function readShowcaseBlur(): boolean {
-    return readBool(SHOWCASE_BLUR_KEY, false);
 }
 export function setShowcaseBlur(value: boolean): void {
     writeBool(SHOWCASE_BLUR_KEY, value);
