@@ -161,7 +161,7 @@ Detected at runtime, install whichever you want; binge degrades gracefully when 
 | Plugin                                                                              | What it adds                                                                                               |
 | ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | [Refract](https://github.com/ordureconnoisseur/stash-refract)                       | Tints binge's accent to match your refract palette (opt-in toggle)                                         |
-| [stash-multiview](https://github.com/ordureconnoisseur/stash-multiview)             | 4-cell grid button in the action stack, tap to queue, hold to open                                        |
+| [stash-multiview](https://github.com/ordureconnoisseur/stash-multiview)             | 4-cell grid button in the action stack, tap to queue, hold to open                                         |
 | [stash-advanced-rating](https://github.com/ordureconnoisseur/stash-advanced-rating) | Per-criterion 0–5 rating modal in reel + profile                                                           |
 | stash-scribe (not public yet)                                                       | Scribe pencil → LLM-powered review writing                                                                 |
 | [binge-server](https://github.com/ordureconnoisseur/binge-server)                   | Reddit, X and PornHub posts, and Save to Stash (separate Go daemon, installable from Settings)             |
