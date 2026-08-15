@@ -22,8 +22,10 @@ vi.mock("./recentScenesCache", () => ({
     getRecentGalleries: (...a: unknown[]) => getRecentGalleries(...a),
     getGalleriesByDate: (...a: unknown[]) => getGalleriesByDate(...a),
 }));
+const countUnidentifiedScenes = vi.fn();
 vi.mock("../api/queries", () => ({
     findImagesByGallery: (...a: unknown[]) => findImagesByGallery(...a),
+    countUnidentifiedScenes: (...a: unknown[]) => countUnidentifiedScenes(...a),
 }));
 vi.mock("./discoveryFeed", () => ({
     fetchDiscoveryFeedItems: (...a: unknown[]) => fetchDiscoveryFeedItems(...a),
@@ -162,9 +164,11 @@ beforeEach(() => {
         fetchDiscoveryFeedItems,
         getStashDBBox,
         getMatchedScenePerformers,
+        countUnidentifiedScenes,
     ]) {
         m.mockReset();
     }
+    countUnidentifiedScenes.mockResolvedValue(0);
     getStashDBBox.mockResolvedValue(null);
     getMatchedScenePerformers.mockResolvedValue(new Map());
     getRecentScenes.mockResolvedValue([]);
@@ -823,6 +827,10 @@ describe("who StashDB says is in a matched scene", () => {
 // bug that is not there.
 describe("counting what the rule left out", () => {
     it("reports how many scenes were dropped as unidentified", async () => {
+        // The query no longer returns these, so the number comes from a
+        // count query. Rows are still fed in to prove the client-side
+        // sweep agrees with the server-side filter.
+        countUnidentifiedScenes.mockResolvedValue(2);
         getRecentScenes.mockResolvedValue([
             sceneRow({ sceneId: "a", performerId: null, stashIds: [] }),
             sceneRow({ sceneId: "b", performerId: null, stashIds: [] }),
@@ -1055,7 +1063,10 @@ describe("galleries need a performer too", () => {
 
     it("counts the dropped galleries separately from scenes", async () => {
         // The empty state names both, and the reasons differ, so they
-        // cannot share a counter.
+        // cannot share a counter. Galleries are still counted from the
+        // rows; scenes come from the count query now that the scene
+        // query filters them out server-side.
+        countUnidentifiedScenes.mockResolvedValue(1);
         getRecentGalleries.mockResolvedValue([
             galleryRow({ galleryId: "a", performers: [] }),
             galleryRow({ galleryId: "b", performers: [] }),

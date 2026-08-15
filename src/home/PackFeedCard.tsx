@@ -8,7 +8,6 @@ import { useStoryViewer } from "./StoryViewerContext";
 import { timeAgo } from "./timeAgo";
 import { PackDetailSheet } from "./PackDetailSheet";
 import { RepostIcon } from "../components/ActionStack";
-import { UnidentifiedIcon } from "./UnidentifiedIcon";
 import { SceneCardMenu } from "./SceneCardMenu";
 
 // Number of cover tiles rendered in the 3×3 mosaic. The pack may
@@ -268,21 +267,6 @@ function UnattributedPackCard({
                         >
                             <span className="binge-feed-card-name">
                                 {item.label}
-                                <span
-                                    className="binge-feed-card-verified is-unidentified"
-                                    aria-label={
-                                        matched
-                                            ? "Not in your library"
-                                            : "No performer linked"
-                                    }
-                                    title={
-                                        matched
-                                            ? "Not in your library"
-                                            : "No performer linked"
-                                    }
-                                >
-                                    <UnidentifiedIcon />
-                                </span>
                             </span>
                             <span className="binge-pack-card-sub">
                                 {item.isRepost

@@ -5024,14 +5024,12 @@ body,
     color: rgba(244, 114, 182, 1);
     filter: drop-shadow(0 0 4px rgba(244, 114, 182, 0.55));
 }
-/* No performer linked. Muted rather than coloured: the other two marks
-   claim something about a person, this one only reports an absence, and
-   it should not compete with them for attention. Slightly larger than
-   the tick because a dashed ring reads thinner at the same size. */
-.binge-feed-card-verified.is-unidentified {
-    width: 14px;
-    height: 14px;
-    color: rgba(255, 255, 255, 0.42);
+/* Names beyond the first two collapse to a count. Muted, because it is
+   a quantity rather than another name, but not so faint that it reads as
+   disabled: it is the only thing saying the cast is larger than shown. */
+.binge-feed-card-name-overflow {
+    color: rgba(255, 255, 255, 0.55);
+    white-space: nowrap;
 }
 .binge-feed-card-verified svg {
     width: 100%;

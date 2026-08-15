@@ -3,6 +3,7 @@ import { SceneCardMenu } from "./SceneCardMenu";
 import { PerformerHoverCard } from "./PerformerHoverCard";
 import { Fragment } from "react";
 import type { FeedPerformer, FeedTag, SceneFeedItem } from "./useFeed";
+import type { MatchedScenePerformer } from "../api/stashdb";
 import { VerifiedIcon } from "../performer/PerformerProfile";
 import { useSharedStories } from "./StoriesContext";
 import { useStoryViewer } from "./StoryViewerContext";
@@ -40,8 +41,20 @@ import {
     subscribeCollections,
 } from "../api/collections";
 import { timeAgo } from "./timeAgo";
-import { UnidentifiedIcon } from "./UnidentifiedIcon";
 import { useScribeModal } from "../scribe/ScribeContext";
+
+// How many performers are named before the row switches to a count.
+// The verified marks beside each name do not shrink, so a long cast
+// squeezed the names away and left a row of bare ticks.
+const NAME_LIMIT = 2;
+
+// "Alice, Bree +12". Kept as a plain string because the matched-name
+// branch has no per-name markup to interleave.
+function nameList(names: string[]): string {
+    const shown = names.slice(0, NAME_LIMIT).join(", ");
+    const rest = names.length - NAME_LIMIT;
+    return rest > 0 ? `${shown} +${rest}` : shown;
+}
 
 interface SceneFeedCardProps {
     item: SceneFeedItem;
@@ -74,7 +87,7 @@ export function SceneFeedCard({ item, feedSceneIds }: SceneFeedCardProps) {
     const { replace } = useFilter();
     const { setTab, setPinFirstSceneId, setReelMode, setPinnedQueue } =
         useTab();
-    const { openProfile } = usePerformerProfile();
+    const { openProfile, openStashDBProfile } = usePerformerProfile();
     const { open: openStoryViewer } = useStoryViewer();
     const storiesState = useSharedStories();
     // Set of localIds with an active story right now. Used by the
@@ -296,6 +309,18 @@ export function SceneFeedCard({ item, feedSceneIds }: SceneFeedCardProps) {
         <article className="binge-feed-card" ref={containerRef}>
             <header className="binge-feed-card-header">
                 <div className="binge-feed-card-author">
+                    {item.performers.length === 0 &&
+                    item.matchedPerformers.length > 0 ? (
+                        // Nobody linked locally, so the stack above has
+                        // nothing to draw and the card named its cast
+                        // against an empty space. StashDB knows these
+                        // people and hosts their images, so they get
+                        // faces from there instead.
+                        <MatchedAvatarStack
+                            performers={item.matchedPerformers}
+                            onClick={(stashId) => openStashDBProfile(stashId)}
+                        />
+                    ) : null}
                     <AvatarStack
                         performers={item.performers}
                         isRepost={item.isRepost}
@@ -349,63 +374,64 @@ export function SceneFeedCard({ item, feedSceneIds }: SceneFeedCardProps) {
                                 aria-label={primaryPerformer.name}
                             >
                                 <span className="binge-feed-card-name">
-                                    {item.performers.map((p, idx) => (
-                                        <Fragment key={p.id}>
-                                            {idx > 0 && ", "}
-                                            {p.name}
-                                            <span
-                                                className={
-                                                    "binge-feed-card-verified" +
-                                                    (p.favorite
-                                                        ? " is-favorite"
-                                                        : "")
-                                                }
-                                                aria-label={
-                                                    p.favorite
-                                                        ? "Favourited"
-                                                        : "In library"
-                                                }
-                                                title={
-                                                    p.favorite
-                                                        ? "Favourited"
-                                                        : "In library"
-                                                }
-                                            >
-                                                <VerifiedIcon />
-                                            </span>
-                                        </Fragment>
-                                    ))}
+                                    {item.performers
+                                        .slice(0, NAME_LIMIT)
+                                        .map((p, idx) => (
+                                            <Fragment key={p.id}>
+                                                {idx > 0 && ", "}
+                                                {p.name}
+                                                <span
+                                                    className={
+                                                        "binge-feed-card-verified" +
+                                                        (p.favorite
+                                                            ? " is-favorite"
+                                                            : "")
+                                                    }
+                                                    aria-label={
+                                                        p.favorite
+                                                            ? "Favourited"
+                                                            : "In library"
+                                                    }
+                                                    title={
+                                                        p.favorite
+                                                            ? "Favourited"
+                                                            : "In library"
+                                                    }
+                                                >
+                                                    <VerifiedIcon />
+                                                </span>
+                                            </Fragment>
+                                        ))}
+                                    {item.performers.length > NAME_LIMIT && (
+                                        <span className="binge-feed-card-name-overflow">
+                                            {" +"}
+                                            {item.performers.length -
+                                                NAME_LIMIT}
+                                        </span>
+                                    )}
                                 </span>
                             </button>
                         </PerformerHoverCard>
                     ) : (
                         // Nobody linked locally. The scene only reached
                         // the feed at all because it has a StashDB
-                        // match, so StashDB usually knows the cast: name
-                        // them, and mark them as not-in-library rather
-                        // than as missing. The studio is the fallback
-                        // for a match StashDB lists no performers for.
+                        // match, so StashDB usually knows the cast:
+                        // name them. The studio is the fallback for a
+                        // match StashDB lists no performers for.
+                        //
+                        // No marker beside the names. There used to be
+                        // one, explained only by a hover tooltip, which
+                        // meant it explained nothing on a touch screen
+                        // and read as an error state. The distinction
+                        // survives without it: a performer in the
+                        // library carries a verified mark and these do
+                        // not, so the absence is the signal.
                         <span className="binge-feed-card-name">
                             {item.matchedPerformers.length > 0
-                                ? item.matchedPerformers
-                                      .map((p) => p.name)
-                                      .join(", ")
+                                ? nameList(
+                                      item.matchedPerformers.map((p) => p.name),
+                                  )
                                 : (item.impliedSource ?? "Unidentified")}
-                            <span
-                                className="binge-feed-card-verified is-unidentified"
-                                aria-label={
-                                    item.matchedPerformers.length > 0
-                                        ? "Not in your library"
-                                        : "No performer linked"
-                                }
-                                title={
-                                    item.matchedPerformers.length > 0
-                                        ? "Not in your library"
-                                        : "No performer linked"
-                                }
-                            >
-                                <UnidentifiedIcon />
-                            </span>
                         </span>
                     )}
                 </div>
@@ -646,6 +672,73 @@ function FeedCaption({
                         less
                     </button>
                 </div>
+            )}
+        </div>
+    );
+}
+
+// The same stacked row for performers StashDB named on a scene
+// nobody is linked to locally. Shares the avatar-stack styling so
+// the two are indistinguishable in layout, and differs only where
+// the data does: no story ring (a story belongs to someone in the
+// library), no repost badge, and the hover card says not-in-library.
+// Clicking opens the StashDB profile, since there is no local one.
+function MatchedAvatarStack({
+    performers,
+    onClick,
+}: {
+    performers: MatchedScenePerformer[];
+    onClick: (stashId: string) => void;
+}) {
+    if (performers.length === 0) return null;
+    const visible = performers.slice(0, 3);
+    const overflow = performers.length - visible.length;
+    return (
+        <div className="binge-feed-card-avatar-stack">
+            {visible.map((p, i) => (
+                <PerformerHoverCard
+                    key={p.stashId}
+                    name={p.name}
+                    image={p.image}
+                    gender={p.gender}
+                    birthDate={null}
+                    inLibrary={false}
+                    favorite={false}
+                    onOpenProfile={() => onClick(p.stashId)}
+                >
+                    <span
+                        className="binge-feed-card-stack-avatar"
+                        style={{
+                            zIndex: visible.length - i,
+                            position: "relative",
+                            ...(p.image
+                                ? { backgroundImage: `url(${p.image})` }
+                                : {}),
+                        }}
+                        title={p.name}
+                        aria-label={p.name}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onClick(p.stashId);
+                        }}
+                        role="button"
+                        tabIndex={0}
+                    >
+                        {!p.image && (
+                            <span className="binge-feed-card-stack-initial">
+                                {p.name.charAt(0).toUpperCase()}
+                            </span>
+                        )}
+                    </span>
+                </PerformerHoverCard>
+            ))}
+            {overflow > 0 && (
+                <span
+                    className="binge-feed-card-stack-avatar binge-feed-card-stack-overflow"
+                    aria-hidden="true"
+                >
+                    +{overflow}
+                </span>
             )}
         </div>
     );

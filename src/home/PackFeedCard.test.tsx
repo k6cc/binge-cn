@@ -53,12 +53,17 @@ describe("an unattributed batch", () => {
         expect(screen.getByText("added 944 new scenes")).toBeTruthy();
     });
 
-    it("says outright that nobody is linked", () => {
-        // Without this the folder name reads as a performer's name, and
-        // the label is a guess at a file layout, not a claim about a
-        // person.
+    it("claims nothing about a person", () => {
+        // The label is a guess at a file layout, not a claim about
+        // someone, so it must never carry a mark that says otherwise.
+        // There used to be a marker here saying so outright; it was
+        // explained only by a hover tooltip, so it said nothing on a
+        // touch screen. What remains is the absence of any in-library
+        // mark, which is the same distinction drawn more quietly.
         render(<PackFeedCard item={item()} />);
-        expect(screen.getByLabelText("No performer linked")).toBeTruthy();
+        expect(screen.queryByLabelText("In library")).toBeNull();
+        expect(screen.queryByLabelText("Favourited")).toBeNull();
+        expect(screen.queryByLabelText("Not in your library")).toBeNull();
     });
 
     it("offers no profile to open", () => {
