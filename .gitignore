@@ -6,6 +6,9 @@ AGENTS.md
 # 本地草稿文件（社区分享贴草稿、上游 issue 草稿等，不推送）
 drafts/
 
+# TRAE 生成的临时 HTML 分享包，不推送
+.trae-html-share-packages/
+
 # Personal deploy shortcuts — `npm run push` reads scripts/push.sh,
 # which is meant to be a per-user file (host alias + Stash plugins dir).
 scripts/push.sh
