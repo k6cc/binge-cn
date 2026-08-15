@@ -268,17 +268,30 @@ export function Reel() {
                     setOOverrides({});
                     setRatingOverrides({});
                     setCollectionOverrides({});
-                    // Defer scroll until the slides are laid out —
+                    // Defer scroll until the slides are laid out:
                     // before commit, scrollHeight is still 0 and
                     // scrollTo floors to top.
-                    window.requestAnimationFrame(() => {
+                    //
+                    // One frame is not enough. When the slides are
+                    // still committing, the container is shorter than
+                    // the target offset, the browser clamps the scroll
+                    // to 0, and the reel opens on the FIRST scene in
+                    // the queue instead of the one that was tapped.
+                    // Measured: tapping "Watch full scene" on a card
+                    // well down Home opened the reel on the newest
+                    // scene in the feed every time. So keep asking
+                    // across frames until the position actually sticks.
+                    const settle = (tries: number) => {
+                        if (token !== fetchTokenRef.current) return;
                         const el = scrollRef.current;
                         if (!el) return;
-                        el.scrollTo({
-                            top: idx * el.clientHeight,
-                            behavior: "auto",
-                        });
-                    });
+                        const want = idx * el.clientHeight;
+                        el.scrollTo({ top: want, behavior: "auto" });
+                        if (Math.abs(el.scrollTop - want) < 2) return;
+                        if (tries >= 30) return;
+                        window.requestAnimationFrame(() => settle(tries + 1));
+                    };
+                    window.requestAnimationFrame(() => settle(0));
                     setPinnedQueue(null);
                 })
                 .catch((err: Error) => {

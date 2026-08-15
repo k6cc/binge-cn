@@ -946,17 +946,17 @@ function buildFindRecentScenesQuery(): string {
     return /* GraphQL */ `
         query RecentScenes($since: String!, $per_page: Int!) {
             findScenes(
-                // The identification rule, moved into the query. Home
-                // discards every scene with nobody linked and no StashDB
-                // match, and downloading them first cost 78% of the
-                // response for rows thrown away a millisecond later:
-                // 9,327 scenes fetched to show 2,073.
-                //
-                // Stash ORs the sub-filter against the whole conjunction
-                // at this level, so the window bound is repeated inside
-                // it. Without that repetition the branch is unbounded and
-                // matches the entire library: measured, 23,925 rows for a
-                // window holding 9,327.
+                # The identification rule, moved into the query. Home
+                # discards every scene with nobody linked and no StashDB
+                # match, and downloading them first cost 78% of the
+                # response for rows thrown away a millisecond later:
+                # 9,327 scenes fetched to show 2,073.
+                #
+                # Stash ORs the sub-filter against the whole conjunction
+                # at this level, so the window bound is repeated inside
+                # it. Without that repetition the branch is unbounded and
+                # matches the entire library: measured, 23,925 rows for a
+                # window holding 9,327.
                 scene_filter: {
                     created_at: { value: $since, modifier: GREATER_THAN }
                     performer_count: { value: 0, modifier: GREATER_THAN }
@@ -1022,17 +1022,17 @@ function buildFindScenesByDateQuery(): string {
     return /* GraphQL */ `
         query ScenesByDate($since: String!, $per_page: Int!) {
             findScenes(
-                // The identification rule, moved into the query. Home
-                // discards every scene with nobody linked and no StashDB
-                // match, and downloading them first cost 78% of the
-                // response for rows thrown away a millisecond later:
-                // 9,327 scenes fetched to show 2,073.
-                //
-                // Stash ORs the sub-filter against the whole conjunction
-                // at this level, so the window bound is repeated inside
-                // it. Without that repetition the branch is unbounded and
-                // matches the entire library: measured, 23,925 rows for a
-                // window holding 9,327.
+                # The identification rule, moved into the query. Home
+                # discards every scene with nobody linked and no StashDB
+                # match, and downloading them first cost 78% of the
+                # response for rows thrown away a millisecond later:
+                # 9,327 scenes fetched to show 2,073.
+                #
+                # Stash ORs the sub-filter against the whole conjunction
+                # at this level, so the window bound is repeated inside
+                # it. Without that repetition the branch is unbounded and
+                # matches the entire library: measured, 23,925 rows for a
+                # window holding 9,327.
                 scene_filter: {
                     date: { value: $since, modifier: GREATER_THAN }
                     performer_count: { value: 0, modifier: GREATER_THAN }
