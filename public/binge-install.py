@@ -20,6 +20,7 @@ asking a user to pip install something before they can install anything
 would defeat the point.
 """
 
+import hashlib
 import json
 import os
 import platform
@@ -205,6 +206,44 @@ def latest_release():
         return json.loads(r.read().decode("utf-8"))
 
 
+def _expected_sha256(rel, filename):
+    """The published SHA256 for filename, or None if unavailable.
+
+    None means "no list to check against" (an older release, or the
+    upload failed), which is not treated as a failure: the installer
+    still works exactly as it did before this check existed.
+    """
+    url = None
+    for a in rel.get("assets", []):
+        if a.get("name") == "SHA256SUMS":
+            url = a.get("browser_download_url")
+            break
+    if not url:
+        return None
+    try:
+        req = urllib.request.Request(
+            url, headers={"User-Agent": "binge-installer"})
+        with urllib.request.urlopen(req, timeout=60) as r:
+            body = r.read(1 << 20).decode("utf-8", "replace")
+    except Exception as exc:  # noqa: BLE001
+        log("Couldn't fetch SHA256SUMS (%s); continuing without it." % exc)
+        return None
+    for line in body.splitlines():
+        parts = line.split()
+        # "<hex>  <name>", and sha256sum prefixes binary mode with '*'.
+        if len(parts) == 2 and parts[1].lstrip("*") == filename:
+            return parts[0].lower()
+    return None
+
+
+def _file_sha256(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
 def _within(base, target):
     """True if target resolves inside base. Blocks ../ escape members."""
     base = os.path.realpath(base)
@@ -267,6 +306,25 @@ def install_binary():
         except Exception as exc:  # noqa: BLE001
             log("Download failed: %s" % exc)
             return False
+
+        # Verify against the published list when there is one. A mismatch
+        # is fatal: the bytes are not what the release says they are, and
+        # running them would be worse than not installing.
+        want = _expected_sha256(rel, os.path.basename(url))
+        if want:
+            got = _file_sha256(archive)
+            if got != want:
+                log("Checksum mismatch for %s." % os.path.basename(url))
+                log("  expected %s" % want)
+                log("  got      %s" % got)
+                log("Refusing to run it. Try again; if it persists, the "
+                    "download is being tampered with or the release is "
+                    "broken.")
+                return False
+            log("Checksum verified.")
+        else:
+            log("No SHA256SUMS published for this release; skipping the "
+                "checksum check.")
 
         try:
             if archive.endswith(".zip"):
