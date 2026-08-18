@@ -206,6 +206,46 @@ export function isTrustedDaemonUrl(raw: string): boolean {
     return confirmedDaemonOrigins().includes(u.origin);
 }
 
+/// Could the daemon use this address to reach Stash?
+///
+/// The daemon refuses to store a public Stash URL, and rightly: it is
+/// the guard that stops a config write pointing the API key at someone
+/// else's host. So sending the browser's own origin only works when that
+/// origin is itself local. For Stash behind a public domain the honest
+/// answer is that the browser does not know how the daemon reaches
+/// Stash, and the daemon's own configured value (localhost by default,
+/// which is correct when it runs beside Stash) is the better one.
+export function daemonCanReachStashAt(raw: string): boolean {
+    let u: URL;
+    try {
+        u = new URL(raw);
+    } catch {
+        return false;
+    }
+    if (u.protocol !== "https:" && u.protocol !== "http:") return false;
+    const host = u.hostname.toLowerCase();
+    if (host === "localhost" || host === "127.0.0.1" || host === "::1")
+        return true;
+    if (
+        host.endsWith(".local") ||
+        host.endsWith(".internal") ||
+        host.endsWith(".ts.net")
+    )
+        return true;
+    if (host.startsWith("[") && host.endsWith("]"))
+        return isPrivateIPv6(host.slice(1, -1));
+    if (!host.includes(".")) return true;
+    const m = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+    if (!m) return false;
+    const a = Number(m[1]);
+    const b = Number(m[2]);
+    if (a === 10) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 100 && b >= 64 && b <= 127) return true;
+    return false;
+}
+
 /// The host serving this page, or "" outside a browser.
 function pageHostname(): string {
     try {

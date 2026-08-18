@@ -43,6 +43,7 @@ import {
     type Gender,
 } from "../home/pluginSettings";
 import {
+    daemonCanReachStashAt,
     getBingeServerConfig,
     getBingeServerHealth,
     setBingeServerConfig,
@@ -636,8 +637,12 @@ function BingeServerConfigCard() {
     // reachable but doesn't have one. Fetch from Stash same-origin →
     // POST to binge-server → refresh local config state.
     useEffect(() => {
-        if (config === null) return;
-        if (config.stashApiKeySet) return;
+        // Runs on a null config too. A daemon that has no key yet refuses
+        // GET /config, so config is null in exactly the case the push
+        // exists to resolve; returning early here meant an unconfigured
+        // daemon could never be configured from the browser at all.
+        if (!health || health === "pending") return;
+        if (config?.stashApiKeySet) return;
         let alive = true;
         (async () => {
             try {
@@ -652,11 +657,19 @@ function BingeServerConfigCard() {
                     );
                     return;
                 }
-                const stashUrl = window.location.origin;
-                const result = await setBingeServerConfig({
-                    stashUrl,
-                    stashApiKey: apiKey,
-                });
+                // Only offer the browser's origin when the daemon could
+                // actually use it. Stash behind a public domain was being
+                // sent that public URL, which the daemon rejects outright,
+                // so the whole write failed and the key never landed. In
+                // that case say nothing about the URL and leave the
+                // daemon's own value alone: it defaults to localhost,
+                // which is right when it runs beside Stash.
+                const origin = window.location.origin;
+                const result = await setBingeServerConfig(
+                    daemonCanReachStashAt(origin)
+                        ? { stashUrl: origin, stashApiKey: apiKey }
+                        : { stashApiKey: apiKey },
+                );
                 if (!alive) return;
                 if (result.ok) {
                     setKeyError(null);
@@ -679,7 +692,7 @@ function BingeServerConfigCard() {
         return () => {
             alive = false;
         };
-    }, [config]);
+    }, [config, health]);
 
     // Parses in the browser and sends only the values binge understands.
     // The file itself never leaves the page — a cookies.txt exported from a
