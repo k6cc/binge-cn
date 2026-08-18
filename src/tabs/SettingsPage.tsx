@@ -558,6 +558,9 @@ function BingeServerConfigCard() {
     const [cookieInput, setCookieInput] = useState("");
     const [cookieBusy, setCookieBusy] = useState(false);
     const [cookieError, setCookieError] = useState<string | null>(null);
+    // Why the Stash key never got through. Silence here used to read as
+    // "still working on it" no matter how long you waited.
+    const [keyError, setKeyError] = useState<string | null>(null);
     const [cookieSaved, setCookieSaved] = useState(false);
     // cookies.txt import — one file drop instead of two devtools digs.
     const [importMsg, setImportMsg] = useState<string | null>(null);
@@ -611,7 +614,16 @@ function BingeServerConfigCard() {
         (async () => {
             try {
                 const apiKey = await fetchStashApiKey();
-                if (!alive || !apiKey) return;
+                if (!alive) return;
+                if (!apiKey) {
+                    // Stash with authentication switched off has no key to
+                    // find. Nothing is wrong, but the card would otherwise
+                    // claim to be setting one up forever.
+                    setKeyError(
+                        "Stash has no API key to send. Turn on authentication in Stash (Settings, Security) and reload, or set STASH_API_KEY on the daemon.",
+                    );
+                    return;
+                }
                 const stashUrl = window.location.origin;
                 const result = await setBingeServerConfig({
                     stashUrl,
@@ -619,10 +631,20 @@ function BingeServerConfigCard() {
                 });
                 if (!alive) return;
                 if (result.ok) {
+                    setKeyError(null);
                     const refreshed = await getBingeServerConfig();
                     if (alive) setConfig(refreshed);
+                } else {
+                    // This used to be dropped, which is why a daemon
+                    // refusing the write showed as a permanent
+                    // "Setting up..." with no reason given anywhere.
+                    setKeyError(result.error);
                 }
             } catch (err) {
+                if (alive)
+                    setKeyError(
+                        err instanceof Error ? err.message : String(err),
+                    );
                 console.warn("[binge] auto-push Stash API key failed", err);
             }
         })();
@@ -775,7 +797,9 @@ function BingeServerConfigCard() {
     // Daemon is reachable — render the full config card.
     const stashKeyState = config?.stashApiKeySet
         ? "✓ Auto-detected"
-        : "Setting up…";
+        : keyError
+          ? "Not set"
+          : "Setting up…";
     const cookieIsSet = !!config?.redditCookieSet;
     const xCookiesSet = !!config?.xCookiesSet;
     // Only set once the poller has actually been rejected, and cleared by
@@ -817,6 +841,9 @@ function BingeServerConfigCard() {
                     {stashKeyState}
                 </span>
             </div>
+            {keyError && !config?.stashApiKeySet && (
+                <p className="binge-server-config-error">{keyError}</p>
+            )}
 
             {cookieExpiredAt && (
                 <p className="binge-server-config-stale">
