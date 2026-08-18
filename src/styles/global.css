@@ -8587,3 +8587,17 @@ body,
 .binge-settings-support a:hover {
     color: #fff;
 }
+
+/* Where the credentials in this card are being sent. Quiet by default:
+   it is a fact you should be able to check, not a warning. */
+.binge-settings-card-destination {
+    margin: -0.35rem 0 0.75rem;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+.binge-settings-card-destination code {
+    color: var(--text-primary, #fff);
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 0.25rem;
+    padding: 0.05rem 0.3rem;
+}

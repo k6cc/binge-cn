@@ -10,9 +10,46 @@ import { isTrustedDaemonUrl } from "./bingeServer";
 // host of their choosing. So these read as attacks, not as happy paths.
 
 describe("isTrustedDaemonUrl", () => {
-    it("accepts https anywhere, since the transport protects the secret", () => {
-        expect(isTrustedDaemonUrl("https://binge.example.com")).toBe(true);
+    // https used to short-circuit to trusted before any host check ran,
+    // which meant an attacker who could rewrite the daemon-URL setting
+    // (the very case this file exists for) only had to point it at an
+    // https host of their own. Transport secrecy is not the same as
+    // knowing who is on the other end.
+    it("accepts https to the local machine, LAN and tailnet", () => {
         expect(isTrustedDaemonUrl("https://foo.ts.net:7878")).toBe(true);
+        expect(isTrustedDaemonUrl("https://localhost:7878")).toBe(true);
+        expect(isTrustedDaemonUrl("https://mini.local")).toBe(true);
+        expect(isTrustedDaemonUrl("https://mini")).toBe(true);
+        expect(isTrustedDaemonUrl("https://192.168.1.10:7878")).toBe(true);
+    });
+
+    it("refuses https to an unrelated public host that was never set", () => {
+        expect(isTrustedDaemonUrl("https://evil.example.com")).toBe(false);
+        expect(isTrustedDaemonUrl("https://binge.example.com")).toBe(false);
+    });
+
+    it("accepts https under the same domain as the Stash page", () => {
+        // The ordinary reverse-proxy deployment: Stash on one subdomain,
+        // the daemon on another. No confirmation needed for it.
+        vi.stubGlobal("location", { hostname: "stash.example.com" });
+        expect(isTrustedDaemonUrl("https://binge.example.com")).toBe(true);
+        expect(isTrustedDaemonUrl("https://stash.example.com:7878")).toBe(true);
+        expect(isTrustedDaemonUrl("https://evil.com")).toBe(false);
+        vi.unstubAllGlobals();
+    });
+
+    it("accepts a public host once its origin has been recorded", () => {
+        // setBingeServerUrl records the origin, so typing it in Settings
+        // or seeding it from Stash's plugin config both land here. A URL
+        // that appeared by neither route stays untrusted.
+        localStorage.setItem("binge.daemonOriginsMigrated", "1");
+        localStorage.setItem(
+            "binge.daemonOriginsOk",
+            JSON.stringify(["https://binge.example.com"]),
+        );
+        expect(isTrustedDaemonUrl("https://binge.example.com")).toBe(true);
+        expect(isTrustedDaemonUrl("https://other.example.org")).toBe(false);
+        localStorage.clear();
     });
 
     it("accepts plain http to the local machine", () => {

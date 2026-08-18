@@ -1,5 +1,6 @@
 import { fetchStashApiKey } from "./queries";
 import {
+    confirmedDaemonOrigins,
     readBingeServerUrl,
     ensureBingeServerUrlSeeded,
 } from "../home/pluginSettings";
@@ -156,9 +157,13 @@ export function isTrustedDaemonUrl(raw: string): boolean {
     } catch {
         return false;
     }
-    if (u.protocol === "https:") return true;
-    if (u.protocol !== "http:") return false;
+    if (u.protocol !== "https:" && u.protocol !== "http:") return false;
     const host = u.hostname.toLowerCase();
+
+    // Local, private and tailnet hosts are trusted on either scheme. This
+    // block used to sit behind an `https -> return true` short circuit, so
+    // it only ever ran for http, and every https host was trusted
+    // outright no matter whose it was.
     if (host === "localhost" || host === "127.0.0.1" || host === "::1")
         return true;
     if (
@@ -167,11 +172,10 @@ export function isTrustedDaemonUrl(raw: string): boolean {
         host.endsWith(".ts.net")
     )
         return true;
-    // IPv6 literal, which the URL parser hands back in brackets. This has
-    // to be settled BEFORE the bare-hostname rule below: an IPv6 address
-    // contains no dots, so "no dot means LAN name" would wave a public
-    // address like [2001:4860:4860::8888] straight through and post the
-    // credentials to it in cleartext.
+    // IPv6 literal, which the URL parser hands back in brackets. Settled
+    // BEFORE the bare-hostname rule: an IPv6 address contains no dots, so
+    // "no dot means LAN name" would wave a public address like
+    // [2001:4860:4860::8888] straight through.
     if (host.startsWith("[") && host.endsWith("]")) {
         return isPrivateIPv6(host.slice(1, -1));
     }
@@ -188,8 +192,43 @@ export function isTrustedDaemonUrl(raw: string): boolean {
         if (a === 100 && b >= 64 && b <= 127) return true; // CGNAT / tailnet
         return false;
     }
-    // Dotted public hostname → untrusted for cleartext credentials.
-    return false;
+
+    // A public hostname. Cleartext to one is never acceptable.
+    if (u.protocol !== "https:") return false;
+    // A daemon under the same registrable domain as the Stash page is the
+    // ordinary reverse-proxy deployment (Stash at stash.example.com, the
+    // daemon at binge.example.com), so it needs no confirmation.
+    if (sharesRegistrableDomain(host, pageHostname())) return true;
+    // Anything else: only if this origin was set deliberately. Typing it
+    // into Settings and seeding it from Stash's plugin config both record
+    // it, so this costs no setup step. It is the check for an address
+    // that appeared without either.
+    return confirmedDaemonOrigins().includes(u.origin);
+}
+
+/// The host serving this page, or "" outside a browser.
+function pageHostname(): string {
+    try {
+        return window.location.hostname.toLowerCase();
+    } catch {
+        return "";
+    }
+}
+
+/// Do two hostnames belong to the same registered domain?
+///
+/// Compares the last two labels, which is not a public-suffix list: it
+/// treats a.co.uk and b.co.uk as related when they are not. That errs
+/// toward trusting a host, which here means "an existing setup keeps
+/// working" rather than "a stranger gets the key" -- the value still has
+/// to be an https host that someone put in the settings. A real PSL is a
+/// large table for a check this small.
+function sharesRegistrableDomain(a: string, b: string): boolean {
+    if (!a || !b) return false;
+    if (a === b) return true;
+    const tail = (h: string) => h.split(".").slice(-2).join(".");
+    const ta = tail(a);
+    return ta !== "" && ta === tail(b);
 }
 
 // xHandleFromUrls mirrors binge-server's HandleFromURLs — pulls the

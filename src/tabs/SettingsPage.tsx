@@ -834,6 +834,15 @@ function BingeServerConfigCard() {
     // the daemon as soon as a working cookie is saved, so this does not
     // need its own dismissal.
     const cookieExpiredAt = config?.redditCookieExpiredAt;
+    // Host only: the full URL is long enough to wrap and the host is the
+    // part that answers "is this mine?".
+    const destinationHost = (() => {
+        try {
+            return new URL(url).host;
+        } catch {
+            return url;
+        }
+    })();
     const expiredAgo = cookieExpiredAt ? relativeOrEmpty(cookieExpiredAt) : "";
 
     return (
@@ -859,6 +868,13 @@ function BingeServerConfigCard() {
                 in your browser rather than in Stash, so they have to come from
                 you: importing a cookies.txt fills both in one step, or paste
                 them by hand below.
+            </p>
+            {/* Name the destination where the secrets are entered. The
+                daemon URL is a setting, and a setting can be changed by
+                something other than you, so the one place that must never
+                be ambiguous is the moment you hand over a credential. */}
+            <p className="binge-settings-card-destination">
+                Sending to <code>{destinationHost}</code>
             </p>
 
             <div className="binge-settings-card-field">

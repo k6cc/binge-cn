@@ -795,6 +795,72 @@ export function setBingeServerUrl(value: string): void {
     // Strip trailing slash so concatenations are predictable.
     const trimmed = value.trim().replace(/\/+$/, "");
     writeString(BINGE_SERVER_URL_KEY, trimmed);
+    // Setting the URL IS the confirmation. Both routes here are
+    // deliberate acts: someone typed it into binge's Settings, or an
+    // admin put it in Stash's plugin config and it was seeded. Recording
+    // it here is what keeps this change free of extra setup steps -- the
+    // banner in Settings then only appears for a URL that arrived
+    // without either, which is the case worth looking at.
+    confirmDaemonOrigin(trimmed);
+}
+
+// ── daemon origins the user has effectively vouched for ─────────────
+//
+// Only consulted for a PUBLIC https daemon host that is unrelated to the
+// Stash origin. Local, private, tailnet and same-domain hosts never
+// reach this, so the list stays empty for almost everyone.
+//
+// Not a security boundary: anything that can write the URL key can write
+// this one too. Its job is that a daemon address which appeared without
+// you setting it does not silently receive your credentials.
+const DAEMON_OK_KEY = "binge.daemonOriginsOk";
+const DAEMON_OK_MIGRATED_KEY = "binge.daemonOriginsMigrated";
+
+function originOf(raw: string): string {
+    try {
+        return new URL(raw).origin;
+    } catch {
+        return "";
+    }
+}
+
+export function confirmedDaemonOrigins(): string[] {
+    try {
+        // One-time grandfather: a URL already configured before this
+        // existed was set deliberately by someone, so carry it over
+        // rather than interrupting a working install to re-confirm it.
+        if (localStorage.getItem(DAEMON_OK_MIGRATED_KEY) === null) {
+            localStorage.setItem(DAEMON_OK_MIGRATED_KEY, "1");
+            const existing = originOf(
+                localStorage.getItem(BINGE_SERVER_URL_KEY) ?? "",
+            );
+            if (existing) {
+                localStorage.setItem(DAEMON_OK_KEY, JSON.stringify([existing]));
+                return [existing];
+            }
+        }
+        const raw = localStorage.getItem(DAEMON_OK_KEY);
+        if (!raw) return [];
+        const parsed: unknown = JSON.parse(raw);
+        return Array.isArray(parsed)
+            ? parsed.filter((v): v is string => typeof v === "string")
+            : [];
+    } catch {
+        return [];
+    }
+}
+
+export function confirmDaemonOrigin(raw: string): void {
+    const origin = originOf(raw);
+    if (!origin) return;
+    try {
+        const list = confirmedDaemonOrigins();
+        if (list.includes(origin)) return;
+        list.push(origin);
+        localStorage.setItem(DAEMON_OK_KEY, JSON.stringify(list));
+    } catch {
+        /* storage unavailable; the gate just stays closed */
+    }
 }
 export function setLookbackDays(value: number): void {
     if (!ALLOWED_LOOKBACK_DAYS.includes(value)) return;
