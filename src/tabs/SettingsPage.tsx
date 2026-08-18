@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTab } from "./TabContext";
 import { useAutoHideTabBar } from "../hooks/useAutoHideTabBar";
 import {
+    confirmDaemonOrigin,
     ALLOWED_FORAGE_TARGETS,
     ALLOWED_LOOKBACK_DAYS,
     ALLOWED_TRANSCODE,
@@ -44,6 +45,7 @@ import {
 } from "../home/pluginSettings";
 import {
     daemonCanReachStashAt,
+    isTrustedDaemonUrl,
     getBingeServerConfig,
     getBingeServerHealth,
     setBingeServerConfig,
@@ -773,6 +775,14 @@ function BingeServerConfigCard() {
         setXBusy(false);
     };
 
+    const destinationHost = (() => {
+        try {
+            return new URL(url).host;
+        } catch {
+            return url;
+        }
+    })();
+
     const handleSaveSocialPaths = async () => {
         setSocBusy(true);
         setSocError(null);
@@ -790,6 +800,47 @@ function BingeServerConfigCard() {
         }
         setSocBusy(false);
     };
+
+    // binge is withholding the credentials from this URL, so the card
+    // below could not do anything even though the daemon may answer.
+    // Without this the only sign was a line in the browser console, and
+    // the page cheerfully said Connected while nothing worked.
+    if (!isTrustedDaemonUrl(url)) {
+        const isHttps = url.trim().toLowerCase().startsWith("https:");
+        return (
+            <div className="binge-settings-card">
+                <div className="binge-settings-card-header">
+                    <h3 className="binge-settings-card-title">
+                        binge-server configuration
+                    </h3>
+                </div>
+                <p className="binge-server-config-stale">
+                    <span className="binge-server-config-stale-icon">!</span>
+                    <span>
+                        Not sending your Stash key or cookies to{" "}
+                        <code>{destinationHost}</code>.{" "}
+                        {isHttps
+                            ? "That is a public address which was not set up here, so binge cannot tell whether it is yours. If you set this daemon up, confirm it below."
+                            : "Credentials only travel in the clear to your own machine, LAN or tailnet. Serve this daemon over https, or use a local address."}
+                    </span>
+                </p>
+                {isHttps && (
+                    <button
+                        type="button"
+                        className="binge-server-config-cookie-save"
+                        onClick={() => {
+                            confirmDaemonOrigin(url);
+                            // Re-read through the same path a URL change
+                            // takes, so the card rebuilds with it trusted.
+                            setBingeServerUrl(url);
+                        }}
+                    >
+                        Use this daemon
+                    </button>
+                )}
+            </div>
+        );
+    }
 
     if (health === "pending") {
         return (
@@ -847,15 +898,6 @@ function BingeServerConfigCard() {
     // the daemon as soon as a working cookie is saved, so this does not
     // need its own dismissal.
     const cookieExpiredAt = config?.redditCookieExpiredAt;
-    // Host only: the full URL is long enough to wrap and the host is the
-    // part that answers "is this mine?".
-    const destinationHost = (() => {
-        try {
-            return new URL(url).host;
-        } catch {
-            return url;
-        }
-    })();
     const expiredAgo = cookieExpiredAt ? relativeOrEmpty(cookieExpiredAt) : "";
 
     return (
