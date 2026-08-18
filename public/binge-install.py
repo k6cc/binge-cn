@@ -205,6 +205,29 @@ def latest_release():
         return json.loads(r.read().decode("utf-8"))
 
 
+def _within(base, target):
+    """True if target resolves inside base. Blocks ../ escape members."""
+    base = os.path.realpath(base)
+    full = os.path.realpath(os.path.join(base, target))
+    return full == base or full.startswith(base + os.sep)
+
+
+def _safe_extract_zip(z, dest):
+    for name in z.namelist():
+        if not _within(dest, name):
+            raise ValueError("unsafe path in archive: %s" % name)
+    z.extractall(dest)
+
+
+def _safe_extract_tar(t, dest):
+    for m in t.getmembers():
+        if not _within(dest, m.name):
+            raise ValueError("unsafe path in archive: %s" % m.name)
+        if m.issym() or m.islnk():
+            raise ValueError("link member in archive: %s" % m.name)
+    t.extractall(dest)
+
+
 def install_binary():
     target = asset_name()
     if target is None:
@@ -248,10 +271,19 @@ def install_binary():
         try:
             if archive.endswith(".zip"):
                 with zipfile.ZipFile(archive) as z:
-                    z.extractall(tmp)
+                    _safe_extract_zip(z, tmp)
             else:
                 with tarfile.open(archive) as t:
-                    t.extractall(tmp)
+                    # filter="data" (Python 3.12+) refuses members that
+                    # escape the destination or carry unsafe metadata. A
+                    # release asset should never contain such a member, so
+                    # this only matters if the download were tampered with,
+                    # but the extract runs on the Stash host so the belt is
+                    # cheap. Fall back to a manual guard on older Pythons.
+                    try:
+                        t.extractall(tmp, filter="data")
+                    except TypeError:
+                        _safe_extract_tar(t, tmp)
         except Exception as exc:  # noqa: BLE001
             log("Couldn't unpack the download: %s" % exc)
             return False
