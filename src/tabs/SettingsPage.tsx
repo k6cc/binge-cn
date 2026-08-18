@@ -778,6 +778,11 @@ function BingeServerConfigCard() {
         : "Setting up…";
     const cookieIsSet = !!config?.redditCookieSet;
     const xCookiesSet = !!config?.xCookiesSet;
+    // Only set once the poller has actually been rejected, and cleared by
+    // the daemon as soon as a working cookie is saved, so this does not
+    // need its own dismissal.
+    const cookieExpiredAt = config?.redditCookieExpiredAt;
+    const expiredAgo = cookieExpiredAt ? relativeOrEmpty(cookieExpiredAt) : "";
 
     return (
         <div className="binge-settings-card">
@@ -797,10 +802,11 @@ function BingeServerConfigCard() {
                 </span>
             </div>
             <p className="binge-settings-card-description">
-                Credentials the daemon uses to poll Reddit on your behalf. The
-                Stash API key is filled in automatically; the Reddit session
-                cookie has to be pasted (it lives in your browser, not in
-                Stash).
+                Credentials the daemon uses to poll Reddit and X on your behalf.
+                The Stash API key is filled in automatically. The cookies live
+                in your browser rather than in Stash, so they have to come from
+                you: importing a cookies.txt fills both in one step, or paste
+                them by hand below.
             </p>
 
             <div className="binge-settings-card-field">
@@ -811,6 +817,19 @@ function BingeServerConfigCard() {
                     {stashKeyState}
                 </span>
             </div>
+
+            {cookieExpiredAt && (
+                <p className="binge-server-config-stale">
+                    <span className="binge-server-config-stale-icon">!</span>
+                    <span>
+                        Reddit rejected your session cookie
+                        {expiredAgo && ` ${expiredAgo}`}, so stories have
+                        stopped updating. Sessions age out every few months.
+                        Import a fresh cookies.txt or paste a new value below to
+                        start them again.
+                    </span>
+                </p>
+            )}
 
             <div className="binge-settings-card-field is-stacked">
                 <span className="binge-settings-card-field-label">
@@ -860,9 +879,11 @@ function BingeServerConfigCard() {
                             setCookieError(null);
                         }}
                         placeholder={
-                            cookieIsSet
-                                ? "✓ Set · paste a new value to rotate"
-                                : "Paste your reddit_session value"
+                            cookieExpiredAt
+                                ? "Expired · paste a new value"
+                                : cookieIsSet
+                                  ? "✓ Set · paste a new value to rotate"
+                                  : "Paste your reddit_session value"
                         }
                         spellCheck={false}
                         autoCapitalize="off"
@@ -1053,10 +1074,17 @@ function BingeServerConfigCard() {
     );
 }
 
+/// Same as formatRelative, but yields "" rather than a placeholder when
+/// the timestamp is unusable, so callers can drop the clause entirely
+/// instead of printing punctuation with nothing in it.
+function relativeOrEmpty(iso: string): string {
+    return Number.isFinite(Date.parse(iso)) ? formatRelative(iso) : "";
+}
+
 // Compact relative-time formatter: "2 min ago", "3 h ago", "yesterday".
 function formatRelative(iso: string): string {
     const t = Date.parse(iso);
-    if (!Number.isFinite(t)) return "—";
+    if (!Number.isFinite(t)) return "unknown";
     const diffMs = Date.now() - t;
     const secs = Math.floor(diffMs / 1000);
     if (secs < 60) return "just now";

@@ -57,6 +57,13 @@ export interface BingeServerConfigState {
     // daemon never returns the secret values themselves.
     stashApiKeySet: boolean;
     redditCookieSet: boolean;
+    // RFC3339 time the daemon first found the Reddit cookie rejected,
+    // absent while it works. Cookies expire every few months and the
+    // only other symptom is stories quietly stopping, so this is what
+    // turns "binge is broken" into "paste a new cookie".
+    // Added in binge-server v0.3 — older daemons never send it, which
+    // reads correctly as "not expired".
+    redditCookieExpiredAt?: string;
     // X (Twitter) auth_token + ct0 pair — true once both are stored.
     xCookiesSet?: boolean;
     // Social "save to Stash" library roots (not secret) + whether both set.

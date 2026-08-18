@@ -8546,3 +8546,25 @@ body,
     line-height: 1.45;
     opacity: 0.6;
 }
+
+/* Expired-credential banner in the binge-server card. Amber rather than
+   red: nothing is broken, a cookie just aged out, and the fix is one
+   paste away. Sits above the fields it is telling you to refill. */
+.binge-server-config-stale {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-start;
+    margin: 0 0 0.75rem;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid rgba(251, 191, 36, 0.35);
+    border-radius: 0.5rem;
+    background: rgba(251, 191, 36, 0.1);
+    color: #fbbf24;
+    font-size: 0.8rem;
+    line-height: 1.45;
+}
+.binge-server-config-stale-icon {
+    flex: none;
+    font-weight: 700;
+    line-height: 1.45;
+}
