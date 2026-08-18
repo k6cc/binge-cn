@@ -45,15 +45,28 @@ function parseRows(text: string): Row[] {
         } else if (line.startsWith("#")) {
             continue;
         }
-        // Tab-separated by spec; some exporters emit runs of spaces.
-        const parts = line.split(/\t+/);
-        const fields = parts.length >= 7 ? parts : line.split(/\s{1,}/);
+        // Tab-separated by spec, one tab per field boundary. Splitting
+        // on /\t+/ instead collapses an EMPTY field into its neighbour
+        // and shifts every field after it left by one, which drops the
+        // line for falling under seven fields. Session cookies hit this
+        // every time: they carry no expiry, so field five is empty, and
+        // `reddit_session` is usually a session cookie. The import then
+        // reported finding nothing while the cookie sat in the file.
+        let fields = line.split("\t");
+        let sep = "\t";
+        if (fields.length < 7) {
+            // Not tab-separated at all: some exporters use spaces. Only
+            // reached once the tab reading has failed, so an empty field
+            // in a genuine tab file is never re-split this way.
+            fields = line.split(/\s+/);
+            sep = " ";
+        }
         if (fields.length < 7) continue;
         const domain = fields[0].replace(/^\./, "").toLowerCase();
         const name = fields[5];
-        // Values can legitimately contain whitespace-free junk only, but
-        // rejoin the tail defensively in case a value held a separator.
-        const value = fields.slice(6).join("");
+        // Rejoin the tail with the separator it was split on, so a value
+        // that happened to contain one survives intact.
+        const value = fields.slice(6).join(sep);
         if (!domain || !name || !value) continue;
         rows.push({ domain, name, value });
     }
