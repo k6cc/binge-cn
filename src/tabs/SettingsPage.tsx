@@ -101,7 +101,35 @@ export function SettingsPage() {
                 <ShowcaseRow />
                 <DebugRow />
             </div>
+
+            <SupportFooter />
         </div>
+    );
+}
+
+// Quiet footer under the settings list. No toggle, no dismiss state, no nag:
+// it just sits at the bottom of the page for anyone who scrolls that far.
+function SupportFooter() {
+    return (
+        <p className="binge-settings-support">
+            Binge is free.{" "}
+            <a
+                href="https://github.com/sponsors/ordureconnoisseur"
+                target="_blank"
+                rel="noopener noreferrer"
+            >
+                Sponsor
+            </a>{" "}
+            or{" "}
+            <a
+                href="https://ko-fi.com/ordureconnoisseur"
+                target="_blank"
+                rel="noopener noreferrer"
+            >
+                Ko-fi
+            </a>{" "}
+            if you would like to chip in.
+        </p>
     );
 }
 

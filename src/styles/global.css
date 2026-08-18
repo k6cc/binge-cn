@@ -8568,3 +8568,22 @@ body,
     font-weight: 700;
     line-height: 1.45;
 }
+
+/* Support footer at the bottom of the Settings page. Deliberately quiet:
+   muted, small, and below every real setting. */
+.binge-settings-support {
+    margin: 0;
+    padding: 1.5rem 1.25rem 2.5rem;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.38);
+}
+.binge-settings-support a {
+    color: rgba(255, 255, 255, 0.62);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+.binge-settings-support a:hover {
+    color: #fff;
+}

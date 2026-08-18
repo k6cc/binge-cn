@@ -290,6 +290,16 @@ scp binge.yml dist/binge.entry.js dist/index.html \
 
 ---
 
+## Support
+
+Free, and staying that way. If it has earned a place in your setup and you feel like
+chipping in, there is [GitHub Sponsors](https://github.com/sponsors/ordureconnoisseur)
+and [Ko-fi](https://ko-fi.com/ordureconnoisseur).
+
+Current goal: an Apple Developer Program membership (99 USD/year). That is the one
+thing standing between the iOS ports of binge and multiview and a build that lasts
+longer than seven days on someone else's phone.
+
 ## License
 
 AGPL-3.0. See [LICENSE](./LICENSE). (Matches Stash's own license.)
