@@ -25,6 +25,43 @@ import {
 //     surfaces their StashDB scenes and a Follow CTA).
 //   - hover → mini-profile card (same hover card the discovery feed
 //     uses), with Follow + Open profile buttons inside.
+// Last good row, per gender selection. Six hours: long enough that
+// this is warm whenever you open Explore in a session, short enough
+// that "recently active" still means something.
+const CACHE_KEY = "binge.discoverPerformers";
+const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+
+function readCache(genderKey: string): BarItem[] | null {
+    try {
+        const raw = localStorage.getItem(CACHE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw) as {
+            at: number;
+            genders: string;
+            items: BarItem[];
+        };
+        if (parsed.genders !== genderKey) return null;
+        if (Date.now() - parsed.at > CACHE_TTL_MS) return null;
+        return Array.isArray(parsed.items) && parsed.items.length > 0
+            ? parsed.items
+            : null;
+    } catch {
+        return null;
+    }
+}
+
+function writeCache(genderKey: string, items: BarItem[]): void {
+    if (items.length === 0) return;
+    try {
+        localStorage.setItem(
+            CACHE_KEY,
+            JSON.stringify({ at: Date.now(), genders: genderKey, items }),
+        );
+    } catch {
+        /* quota or private mode; the row just refetches next time */
+    }
+}
+
 export function DiscoverPerformersBar() {
     const { openProfile, openStashDBProfile } = usePerformerProfile();
     const allowedGenders = useAllowedGenders();
@@ -55,6 +92,14 @@ export function DiscoverPerformersBar() {
     useEffect(() => {
         if (!includeStashDB || !visible) return;
         let alive = true;
+        // Serve the last answer immediately while a fresh one is
+        // fetched. Explore fires over a hundred StashDB requests of its
+        // own, and this one queues behind them, so even a fast query
+        // lands late enough to look broken. What it returns is the most
+        // recently active performers on StashDB, which does not change
+        // meaningfully within a day.
+        const cached = readCache(genderKey);
+        if (cached) setState({ kind: "ready", performers: cached });
         (async () => {
             try {
                 const box = await getStashDBBox();
@@ -80,10 +125,15 @@ export function DiscoverPerformersBar() {
                     ...p,
                     localId: linkedByStashId.get(p.id) ?? null,
                 }));
+                writeCache(genderKey, performers);
                 setState({ kind: "ready", performers });
             } catch {
                 if (!alive) return;
-                setState({ kind: "error" });
+                // A cached row already on screen is better than blanking
+                // it because the refresh failed.
+                setState((prev) =>
+                    prev.kind === "ready" ? prev : { kind: "error" },
+                );
             }
         })();
         return () => {

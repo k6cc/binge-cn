@@ -220,6 +220,12 @@ async function postStashDB<T>(
                 ApiKey: apiKey,
             },
             body: JSON.stringify({ query, variables }),
+            // A request with no deadline can leave a caller waiting
+            // forever, and one of them renders a loading skeleton while
+            // it does. StashDB is a third party on the open internet;
+            // it does not owe us a reply. 25s is well past its slowest
+            // observed answer and well short of a user giving up.
+            signal: AbortSignal.timeout(25_000),
         });
         if (!res.ok) {
             console.warn(
@@ -728,11 +734,43 @@ export async function getTrendingStashDBPerformers(
     genders: ReadonlyArray<string> = ["FEMALE"],
 ): Promise<StashDBTrendingPerformer[]> {
     if (genders.length === 0) return [];
-    // queryPerformers takes a single `gender` enum (or omitted for
-    // all). Fire one request per selected gender in parallel and
-    // dedupe by id. Interleave to keep early slots gender-balanced
-    // rather than dumping one gender's entire page first — Explore's
-    // Discover row reads better with mixed leading bubbles.
+    // Ask once, without a gender, and sort the answer out here.
+    //
+    // queryPerformers takes a single gender enum, so this used to fire
+    // one request per selected gender. That is up to six, and the
+    // gender filter is the expensive part of this query on StashDB's
+    // side: measured against the live endpoint, a filtered page takes
+    // between 6 and 19 seconds while the same query without one takes
+    // about 1.5. Since the row cannot render until the slowest of them
+    // lands, the whole thing sat on skeletons for twenty seconds and
+    // people reasonably concluded it was broken.
+    //
+    // One unfiltered page, filtered here, is the same answer an order
+    // of magnitude faster. Ask for more rows than we need so there is
+    // something left after filtering.
+    const wide = await postStashDB<{
+        queryPerformers: {
+            performers: TrendingRow[];
+        };
+    }>(apiKey, QUERY_TRENDING_PERFORMERS, {
+        input: {
+            sort: "LAST_SCENE",
+            direction: "DESC",
+            page: 1,
+            per_page: Math.max(perPage * 3, 90),
+        },
+    });
+    const allowed = new Set(genders);
+    const wideRows = (wide?.queryPerformers?.performers ?? []).filter(
+        (r) => r.gender != null && allowed.has(r.gender),
+    );
+    // Enough to work with, which is the usual case. A narrow gender
+    // selection can come up short here, because an unfiltered page is
+    // mostly the commonest gender, and only then is it worth paying
+    // for the per-gender queries below.
+    if (wideRows.length >= Math.min(perPage, 12)) {
+        return interleaveByGender(wideRows, genders, perPage);
+    }
     const perGender = await Promise.all(
         genders.map(async (gender) => {
             try {
@@ -767,13 +805,42 @@ export async function getTrendingStashDBPerformers(
             }
         }),
     );
+    return interleaveRows(perGender, perPage);
+}
+
+/// One row as StashDB returns it.
+interface TrendingRow {
+    id: string;
+    name: string;
+    gender: string | null;
+    birth_date: string | null;
+    images: { url: string }[];
+    scene_count: number;
+}
+
+/// Split a mixed list into per-gender buckets, then interleave. Keeps
+/// the front of the row mixed instead of leading with a run of the
+/// commonest gender, which is what an unfiltered page arrives as.
+function interleaveByGender(
+    rows: TrendingRow[],
+    genders: ReadonlyArray<string>,
+    perPage: number,
+): StashDBTrendingPerformer[] {
+    const buckets = genders.map((g) => rows.filter((r) => r.gender === g));
+    return interleaveRows(buckets, perPage);
+}
+
+/// Round-robin across buckets so each gender gets a fair shot at the
+/// front of the row. Stops once perPage is filled.
+function interleaveRows(
+    buckets: TrendingRow[][],
+    perPage: number,
+): StashDBTrendingPerformer[] {
     const seen = new Set<string>();
     const merged: StashDBTrendingPerformer[] = [];
-    // Round-robin across gender buckets so each gender gets a fair
-    // shot at the front of the row. Stop once we've filled perPage.
-    const maxLen = Math.max(...perGender.map((g) => g.length), 0);
+    const maxLen = Math.max(...buckets.map((g) => g.length), 0);
     for (let i = 0; i < maxLen && merged.length < perPage; i++) {
-        for (const bucket of perGender) {
+        for (const bucket of buckets) {
             const p = bucket[i];
             if (!p || seen.has(p.id)) continue;
             seen.add(p.id);
