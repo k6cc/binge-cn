@@ -480,7 +480,7 @@ async function findOrCreateTag(name: string): Promise<string> {
 async function buildUpdatedTagIds(
     scene: SceneForScribe,
     criteria: Criterion[],
-    scoresByCriterion: Record<string, number>,
+    scoresByCriterion: Record<string, number | null>,
     autoCreate: boolean,
     freshTags?: { id: string; name: string }[],
 ): Promise<string[]> {
@@ -489,19 +489,22 @@ async function buildUpdatedTagIds(
     // anything written elsewhere while the modal sat open would
     // otherwise be dropped by this save.
     const existingTags = freshTags ?? scene.tags ?? [];
-    // Only the criteria being written lose their old score tag.
+    // A criterion the caller mentions is a criterion the caller owns.
     //
-    // Every configured criterion used to be stripped and then only
-    // those present in scoresByCriterion re-added, so saving a review
-    // with one slider set deleted the scores on all the others. On a
-    // scene hand-rated across eight criteria, setting one and saving
-    // destroyed seven, and the Advanced Rating hook then recomputed the
-    // scene's rating from the one that survived. The LLM path did the
-    // same whenever the model echoed back only some of the criterion
-    // names.
+    // Present with a number means "set it to this"; present with null
+    // means "clear it"; absent means "this one is not mine to touch".
+    // Absent is what protects a rating the modal never showed, which is
+    // the bug this replaced: every configured criterion used to be
+    // stripped and only those with scores re-added, so saving a review
+    // with one slider set destroyed the rest.
+    //
+    // The first attempt at that used "has a number" as the test, which
+    // fixed the destruction and made clearing a rating impossible,
+    // because a cleared score and an untouched one are both just
+    // missing. Distinguishing them is the whole point of the null.
     const touched = new Set(
         criteria
-            .filter((c) => scoresByCriterion[c.id] != null)
+            .filter((c) => Object.hasOwn(scoresByCriterion, c.id))
             .map((c) => c.name),
     );
     const keep = existingTags.filter((t) => {
@@ -539,7 +542,7 @@ export async function saveSceneReview(args: {
     scene: SceneForScribe;
     reviewText: string;
     criteria: Criterion[];
-    scoresByCriterion: Record<string, number>;
+    scoresByCriterion: Record<string, number | null>;
     autoCreate: boolean;
 }): Promise<void> {
     const { scene, reviewText, criteria, scoresByCriterion, autoCreate } = args;
@@ -893,7 +896,7 @@ export async function savePerformerReview(args: {
     performer: PerformerForScribe;
     reviewText: string;
     criteria: Criterion[];
-    scoresByCriterion: Record<string, number>;
+    scoresByCriterion: Record<string, number | null>;
     autoCreate: boolean;
 }): Promise<void> {
     const { performer, reviewText, criteria, scoresByCriterion, autoCreate } =
@@ -962,11 +965,18 @@ export async function savePerformerReview(args: {
 // Generic "replace this subject's score tags" — same body as
 // buildUpdatedTagIds but typed against a subject-with-tags so the
 // performer path can reuse it. The subject only needs `.tags`.
+// Exposed for tests only. The rule this function encodes decides which
+// of a subject's tags survive a review save, and it has been wrong in
+// both directions: once destroying scores it was not given, once making
+// a cleared score impossible to express. A test that re-implements the
+// rule cannot catch either, so the test calls this.
+export const __testBuildUpdatedTagIds = buildUpdatedTagIds;
+
 async function buildUpdatedTagIdsForSubject(
     subject: { tags: SceneTag[] },
     freshTags: SceneTag[],
     criteria: Criterion[],
-    scoresByCriterion: Record<string, number>,
+    scoresByCriterion: Record<string, number | null>,
     autoCreate: boolean,
 ): Promise<string[]> {
     return buildUpdatedTagIds(

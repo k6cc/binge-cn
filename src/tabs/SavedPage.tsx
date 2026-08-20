@@ -73,7 +73,10 @@ export function SavedPage() {
     ): Promise<CollectionCover | null> {
         // The collections module owns the tag-id map. Defer to it.
         const { getCollectionTagIds } = await import("../api/collections");
-        const map = await getCollectionTagIds();
+        // false: rendering the Saved page is a read. This was missed
+        // when the reel and the feed card were converted, so opening
+        // the tab still created the default tags.
+        const map = await getCollectionTagIds(false);
         const id = map.get(tagName);
         if (!id) return null;
         setTagIds((prev) => new Map(prev).set(tagName, id));

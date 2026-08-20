@@ -1088,7 +1088,11 @@ function isPerformerList(v: unknown): v is MatchedScenePerformer[] {
             (p) =>
                 !!p &&
                 typeof p === "object" &&
-                typeof (p as { id?: unknown }).id === "string" &&
+                // stashId, not id. MatchedScenePerformer has no `id`
+                // field, so checking for one rejected every real entry
+                // and made the cache write-only: the batches it exists
+                // to avoid ran on every single load.
+                typeof (p as { stashId?: unknown }).stashId === "string" &&
                 typeof (p as { name?: unknown }).name === "string",
         )
     );

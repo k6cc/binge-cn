@@ -115,3 +115,39 @@ describe("a daemon nobody configured is not trusted", () => {
         });
     });
 });
+
+// Under a shared suffix, two names share a landlord rather than an
+// owner. Comparing the last two labels made every duckdns.org name look
+// like every other, so a daemon at <anything>.duckdns.org was trusted
+// with the Stash key by anyone whose Stash was also there. Self-hosted
+// Stash lives under these constantly, which is the population the
+// same-domain rule exists to serve.
+describe("a shared public suffix is not a shared owner", () => {
+    const cases: Array<[string, string]> = [
+        ["stash.duckdns.org", "https://evil.duckdns.org"],
+        ["stash.no-ip.org", "https://evil.no-ip.org"],
+        ["nas.synology.me", "https://evil.synology.me"],
+        ["me.github.io", "https://someone-else.github.io"],
+        ["stash.co.uk", "https://evil.co.uk"],
+        ["a.example.co.uk", "https://b.example.co.uk"],
+    ];
+    for (const [stashHost, daemon] of cases) {
+        it(`refuses ${daemon} for a Stash at ${stashHost}`, () => {
+            withStashAt(stashHost, () => {
+                expect(isTrustedDaemonUrl(daemon)).toBe(false);
+            });
+        });
+    }
+
+    it("still trusts a genuine sibling of an ordinary domain", () => {
+        withStashAt("stash.example.com", () => {
+            expect(isTrustedDaemonUrl("https://binge.example.com")).toBe(true);
+        });
+    });
+
+    it("still trusts the very same host under a shared suffix", () => {
+        withStashAt("stash.duckdns.org", () => {
+            expect(isTrustedDaemonUrl("https://stash.duckdns.org")).toBe(true);
+        });
+    });
+});

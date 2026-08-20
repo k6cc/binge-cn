@@ -61,6 +61,10 @@ function stripSuffix(tagName: string): string {
 
 let cachedCollectionsPromise: Promise<CollectionDef[]> | null = null;
 let cachedTagIdsPromise: Promise<Map<string, string>> | null = null;
+// The same map, resolved without creating anything. Kept separate so a
+// read can never be served a result that skipped creation to a caller
+// that needed it, nor the other way round.
+let cachedReadOnlyTagIdsPromise: Promise<Map<string, string>> | null = null;
 type Subscriber = () => void;
 const subscribers = new Set<Subscriber>();
 function notifySubscribers(): void {
@@ -164,10 +168,27 @@ function ensureCollectionsParentTagId(): Promise<string> {
 export function getCollectionTagIds(
     create = true,
 ): Promise<Map<string, string>> {
-    if (!create) return resolveCollectionTagIds(false);
+    if (!create) {
+        // Cached like the creating path. Leaving it uncached meant one
+        // lookup per collection, serially, on every slide and card
+        // mount, and both live under a virtualizer that remounts them
+        // constantly: a fifty-slide scroll became hundreds of queries.
+        // The rule this module states a hundred lines up is one round
+        // trip per session, and the read-only path was doing the
+        // opposite of it.
+        if (cachedReadOnlyTagIdsPromise) return cachedReadOnlyTagIdsPromise;
+        cachedReadOnlyTagIdsPromise = resolveCollectionTagIds(false).catch(
+            (err) => {
+                cachedReadOnlyTagIdsPromise = null;
+                throw err;
+            },
+        );
+        return cachedReadOnlyTagIdsPromise;
+    }
     if (cachedTagIdsPromise) return cachedTagIdsPromise;
     cachedTagIdsPromise = resolveCollectionTagIds(true).catch((err) => {
         cachedTagIdsPromise = null;
+        cachedReadOnlyTagIdsPromise = null;
         throw err;
     });
     return cachedTagIdsPromise;
@@ -251,6 +272,7 @@ export async function createCollection(
     }
     cachedCollectionsPromise = null;
     cachedTagIdsPromise = null;
+    cachedReadOnlyTagIdsPromise = null;
     notifySubscribers();
     return {
         name: trimmed,
@@ -277,6 +299,7 @@ export async function deleteCollection(tagName: string): Promise<boolean> {
     await tagDestroy(id);
     cachedCollectionsPromise = null;
     cachedTagIdsPromise = null;
+    cachedReadOnlyTagIdsPromise = null;
     notifySubscribers();
     return true;
 }

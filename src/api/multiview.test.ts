@@ -271,22 +271,25 @@ describe("subscribeMultiviewQueue", () => {
 // answer, and the caller writes back afterwards. A GraphQL 200 carrying
 // an errors array, which is what an auth blip looks like, therefore
 // replaced a full queue with a single entry.
+//
+// These assert on what was written. An earlier version relied on a
+// throw inside the mutation mock to fail the test, which applyIntent
+// catches and swallows, so both tests passed even with the bug present.
 describe("a queue that cannot be read is not an empty queue", () => {
-    it("refuses to write when the read returns graphql errors", async () => {
+    it("writes nothing when the read returns graphql errors", async () => {
         const state = fakeStash();
         state.queue = ["theirs-1", "theirs-2"];
+        const good = globalThis.fetch as typeof fetch;
         vi.stubGlobal(
             "fetch",
-            vi.fn(async (_url: string, init?: RequestInit) => {
+            vi.fn(async (url: string, init?: RequestInit) => {
                 const body = JSON.parse(String(init?.body ?? "{}"));
                 if (String(body.query).includes("mutation")) {
-                    throw new Error("must not write");
+                    return good(url, init);
                 }
                 return {
                     ok: true,
-                    json: async () => ({
-                        errors: [{ message: "not authorised" }],
-                    }),
+                    json: async () => ({ errors: [{ message: "nope" }] }),
                 } as unknown as Response;
             }),
         );
@@ -294,18 +297,20 @@ describe("a queue that cannot be read is not an empty queue", () => {
         toggleMultiviewQueueScene("mine");
         startMultiviewSync();
         await settle();
-        // The assertion is simply that nothing threw an unhandled write:
-        // the mutation mock above fails the test if it is ever reached.
-        expect(true).toBe(true);
+        expect(state.writes).toHaveLength(0);
+        expect(state.queue).toEqual(["theirs-1", "theirs-2"]);
     });
 
-    it("refuses to write when the response is not ok", async () => {
+    it("writes nothing when the response is not ok", async () => {
+        const state = fakeStash();
+        state.queue = ["theirs-1", "theirs-2"];
+        const good = globalThis.fetch as typeof fetch;
         vi.stubGlobal(
             "fetch",
-            vi.fn(async (_url: string, init?: RequestInit) => {
+            vi.fn(async (url: string, init?: RequestInit) => {
                 const body = JSON.parse(String(init?.body ?? "{}"));
                 if (String(body.query).includes("mutation")) {
-                    throw new Error("must not write");
+                    return good(url, init);
                 }
                 return { ok: false, status: 502 } as unknown as Response;
             }),
@@ -314,6 +319,7 @@ describe("a queue that cannot be read is not an empty queue", () => {
         toggleMultiviewQueueScene("mine");
         startMultiviewSync();
         await settle();
-        expect(true).toBe(true);
+        expect(state.writes).toHaveLength(0);
+        expect(state.queue).toEqual(["theirs-1", "theirs-2"]);
     });
 });

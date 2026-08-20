@@ -25,7 +25,7 @@ interface LoadedState {
 
 interface Generated {
     review: string;
-    scores: Record<string, number>;
+    scores: Record<string, number | null>;
 }
 
 function buildFreshSystem(loaded: LoadedState, tone: VoiceMode): LLMMessage {
@@ -67,7 +67,10 @@ export function ScribeModal({
     const [busy, setBusy] = useState(false);
     const [busyMsg, setBusyMsg] = useState("");
     const [reviewText, setReviewText] = useState("");
-    const [scores, setScores] = useState<Record<string, number>>({});
+    // null is a score the user cleared, which is different from a
+    // criterion they never touched: the save strips the first and
+    // leaves the second alone.
+    const [scores, setScores] = useState<Record<string, number | null>>({});
     const [editMode, setEditMode] = useState(false);
     const transcriptRef = useRef<HTMLDivElement>(null);
 
@@ -278,8 +281,11 @@ export function ScribeModal({
             // parseGenerated only fills criteria whose names the model
             // echoed back, so replacing wholesale silently dropped every
             // score it happened not to mention.
-            const merged = {
-                ...loaded.subject.initialScores,
+            // Over the scores as they stand, not over the ones the
+            // subject started with: merging the originals back in
+            // resurrected any score the user had deliberately cleared.
+            const merged: Record<string, number | null> = {
+                ...scores,
                 ...parsed.scores,
             };
             setScores(merged);
@@ -294,7 +300,7 @@ export function ScribeModal({
             setBusy(false);
             setBusyMsg("");
         }
-    }, [loaded, busy, canGenerate, messages, persist]);
+    }, [loaded, busy, canGenerate, messages, persist, scores]);
 
     const backToInterview = useCallback(() => {
         if (!loaded) return;
@@ -573,13 +579,14 @@ export function ScribeModal({
                                         criterion={c}
                                         value={scores[c.id] ?? null}
                                         onChange={(v) =>
-                                            setScores((prev) => {
-                                                const next = { ...prev };
-                                                if (v == null)
-                                                    delete next[c.id];
-                                                else next[c.id] = v;
-                                                return next;
-                                            })
+                                            setScores((prev) => ({
+                                                ...prev,
+                                                // null, not deleted: the
+                                                // save cannot tell a
+                                                // removed key from one
+                                                // that was never set.
+                                                [c.id]: v,
+                                            }))
                                         }
                                     />
                                 ))}

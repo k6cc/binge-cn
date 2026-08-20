@@ -44,7 +44,9 @@ export interface LoadedSubject {
     sessionKey: string;
     save: (args: {
         reviewText: string;
-        scoresByCriterion: Record<string, number>;
+        // A criterion present with null is one the user cleared; absent
+        // means the caller is not speaking for it.
+        scoresByCriterion: Record<string, number | null>;
         autoCreate: boolean;
     }) => Promise<void>;
 }

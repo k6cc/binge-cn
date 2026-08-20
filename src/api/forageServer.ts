@@ -71,6 +71,14 @@ export async function getForageHealth(): Promise<ForageHealth | null> {
     const base = readForageUrl();
     if (!base) return null;
     if (mixedContentBlocked(base)) return null;
+    // The same gate the write path applies, after the seed so a
+    // server-configured URL is still probed. Without it this reached
+    // whatever origin the setting names, on every Settings render and
+    // on a timer: a liveness probe of any host and port an attacker
+    // chooses, reduced to a status dot. No credential rides on it, so
+    // this is not a key leak; it is a beacon that costs nothing to
+    // close.
+    if (!isTrustedDaemonUrl(base)) return null;
     try {
         const resp = await fetch(base + "/healthz", {
             signal: AbortSignal.timeout(8000),

@@ -6,7 +6,12 @@ import type { LLMMessage } from "./api";
 
 export interface ScribeSession {
     messages: LLMMessage[];
-    generated: { review: string; scores: Record<string, number> } | null;
+    // number | null so a draft remembers a score the user cleared;
+    // dropping the key would make it look untouched when reloaded.
+    generated: {
+        review: string;
+        scores: Record<string, number | null>;
+    } | null;
 }
 
 export function sessionKeyForScene(sceneId: string): string {

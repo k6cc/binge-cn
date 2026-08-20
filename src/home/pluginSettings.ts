@@ -688,7 +688,8 @@ export function ensureBingeServerUrlSeeded(): Promise<void> {
     return ensureSeededFromPluginConfig(
         BINGE_SERVER_URL_KEY,
         "serverUrl",
-        setBingeServerUrl,
+        // Stored, not vouched for. See setBingeServerUrl.
+        (v: string) => setBingeServerUrl(v, { confirm: false }),
     );
 }
 
@@ -817,17 +818,25 @@ export function setIncludeX(value: boolean): void {
 export function setIncludePornhub(value: boolean): void {
     writeBool(INCLUDE_PORNHUB_KEY, value);
 }
-export function setBingeServerUrl(value: string): void {
+export function setBingeServerUrl(
+    value: string,
+    { confirm = true }: { confirm?: boolean } = {},
+): void {
     // Strip trailing slash so concatenations are predictable.
     const trimmed = value.trim().replace(/\/+$/, "");
     writeString(BINGE_SERVER_URL_KEY, trimmed);
-    // Setting the URL IS the confirmation. Both routes here are
-    // deliberate acts: someone typed it into binge's Settings, or an
-    // admin put it in Stash's plugin config and it was seeded. Recording
-    // it here is what keeps this change free of extra setup steps -- the
-    // banner in Settings then only appears for a URL that arrived
-    // without either, which is the case worth looking at.
-    confirmDaemonOrigin(trimmed);
+    // Typing a URL into binge's Settings is a deliberate act, so that
+    // route confirms the origin and nothing extra is asked of the user.
+    //
+    // The seed from Stash's plugin config is not: it is a value read off
+    // the server and applied to every browser and device that loads
+    // binge, including ones that never had a daemon. Confirming it here
+    // meant one configurePlugin mutation could point every client at a
+    // chosen host and have the Stash API key sent to it, with the
+    // Settings banner that exists to catch precisely this never
+    // appearing. A seeded public host now surfaces that banner and waits
+    // to be vouched for.
+    if (confirm) confirmDaemonOrigin(trimmed);
 }
 
 // ── daemon origins the user has effectively vouched for ─────────────

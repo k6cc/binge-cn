@@ -263,9 +263,61 @@ function pageHostname(): string {
 /// working" rather than "a stranger gets the key" -- the value still has
 /// to be an https host that someone put in the settings. A real PSL is a
 /// large table for a check this small.
+// Suffixes under which second-level names belong to different people.
+// Two names sharing one of these share a landlord, not an owner, so the
+// last two labels say nothing about whether the same person controls
+// both. Self-hosted Stash lives under these constantly, which is
+// exactly the population this check was meant to serve.
+//
+// Not a full public suffix list, which is a large table for a check
+// this small; just the families a self-hoster actually lands on, plus
+// the shape of the multi-part country domains.
+const SHARED_SUFFIXES = [
+    "duckdns.org",
+    "no-ip.org",
+    "no-ip.com",
+    "ddns.net",
+    "synology.me",
+    "myqnapcloud.com",
+    "github.io",
+    "ngrok-free.app",
+    "ngrok.app",
+    "ngrok.io",
+    "trycloudflare.com",
+    "netlify.app",
+    "vercel.app",
+    "pages.dev",
+    "workers.dev",
+];
+
+function isSharedSuffix(host: string): boolean {
+    if (SHARED_SUFFIXES.some((sfx) => host === sfx || host.endsWith("." + sfx)))
+        return true;
+    // co.uk, com.au, co.nz and the rest: a two-part suffix whose first
+    // label is one of the usual second-level names.
+    const parts = host.split(".");
+    if (parts.length >= 3) {
+        const second = parts[parts.length - 2];
+        const tld = parts[parts.length - 1];
+        if (
+            tld.length === 2 &&
+            ["co", "com", "net", "org", "ac", "gov", "edu"].includes(second)
+        ) {
+            return true;
+        }
+    }
+    return false;
+}
+
 function sharesRegistrableDomain(a: string, b: string): boolean {
     if (!a || !b) return false;
     if (a === b) return true;
+    // Under a shared suffix, only an exact host match means anything.
+    // Comparing the last two labels made every duckdns.org name look
+    // like every other one, so a daemon URL of <anything>.duckdns.org
+    // was trusted with the Stash key by anyone whose Stash was also
+    // there -- which is most of the people this rule exists for.
+    if (isSharedSuffix(a) || isSharedSuffix(b)) return false;
     const tail = (h: string) => h.split(".").slice(-2).join(".");
     const ta = tail(a);
     return ta !== "" && ta === tail(b);

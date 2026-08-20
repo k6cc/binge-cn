@@ -1,3 +1,4 @@
+import { safeExternalUrl } from "../util/externalUrl";
 import {
     useCallback,
     useEffect,
@@ -254,11 +255,13 @@ export function StoryViewer() {
         if (currentScene.source === "reddit") {
             // Reddit posts open on reddit.com in a new tab — that's
             // where comments + interaction live.
-            window.open(
-                currentScene.permalink,
-                "_blank",
-                "noopener,noreferrer",
-            );
+            // Through the same guard the performer links use. This is
+            // the only URL sink in the app taking a fully remote value
+            // with no scheme check, and it comes from the daemon, whose
+            // responses are cast rather than validated.
+            const safe = safeExternalUrl(currentScene.permalink);
+            if (!safe) return;
+            window.open(safe, "_blank", "noopener,noreferrer");
             close();
             return;
         }
