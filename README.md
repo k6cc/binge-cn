@@ -1,6 +1,6 @@
 # Binge（汉化版）
 
-> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.6.1**。
+> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.6.2**。
 
 为 [Stash](https://github.com/stashapp/stash) 提供的 Instagram 风格社交与发现层：竖屏 Reel、Stories、演员档案、StashDB 驱动的发现功能——全部基于 Stash 既有的 GraphQL API。Web 插件形态。
 
@@ -39,6 +39,10 @@ v0.4.17 将原硬编码中文迁移为基于 `react-i18next` 的动态多语言�
 - 详见 [汉化及修复.md](./汉化及修复.md)
 
 ### 功能修复
+
+#### v0.6.2
+
+- **演员详情页 PornHub 瓦片黑屏修复**：hover 预览（mediabook）在多数商业片源上不存在，preview 代理返回 404 时原实现留下黑色矩形盖住封面；现在加载失败即自动隐藏视频层，保留封面、时长与标题正常显示。封面不显示（thumb 代理 410，CDN 签名 URL 过期）的彻底修复在 binge-server 侧——thumb 代理遇 410/403 自动回源 watch 页重提新签名 URL 并自愈缓存行，需另行部署更新版 daemon
 
 #### v0.6.1
 

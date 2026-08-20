@@ -644,10 +644,14 @@ function PornhubTile({
     const title = video.title?.trim() || "";
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const srcArmedRef = useRef(false);
+    // Most studio videos have no hover-preview (mediabook); their
+    // preview proxy 404s. Unmount the video layer on error so the
+    // poster stays visible on hover instead of a black rectangle.
+    const [previewFailed, setPreviewFailed] = useState(false);
 
     const handleEnter = () => {
         const v = videoRef.current;
-        if (!v) return;
+        if (!v || previewFailed) return;
         if (!srcArmedRef.current) {
             v.src = previewUrl;
             srcArmedRef.current = true;
@@ -680,15 +684,18 @@ function PornhubTile({
                         style={{ backgroundImage: `url(${poster})` }}
                     />
                 )}
-                <video
-                    ref={videoRef}
-                    className="binge-profile-scene-preview"
-                    muted
-                    loop
-                    playsInline
-                    preload="none"
-                    aria-hidden="true"
-                />
+                {!previewFailed && (
+                    <video
+                        ref={videoRef}
+                        className="binge-profile-scene-preview"
+                        muted
+                        loop
+                        playsInline
+                        preload="none"
+                        aria-hidden="true"
+                        onError={() => setPreviewFailed(true)}
+                    />
+                )}
                 <span className="binge-profile-scene-source-badge">PH</span>
                 <span className="binge-profile-scene-hover">
                     <span className="binge-profile-scene-hover-stats">
