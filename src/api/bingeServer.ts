@@ -65,13 +65,6 @@ export interface BingeServerConfigState {
     // Added in binge-server v0.3 — older daemons never send it, which
     // reads correctly as "not expired".
     redditCookieExpiredAt?: string;
-    // RFC3339 time the daemon first found Reddit refusing every request
-    // it made, absent otherwise. Different from an expired cookie and
-    // worth saying differently: a blanket refusal is usually about the
-    // address the daemon calls from, so telling someone to paste a new
-    // cookie would send them round a loop that cannot end.
-    // Added in binge-server v0.4 - older daemons never send it.
-    redditBlockedAt?: string;
     // X (Twitter) auth_token + ct0 pair — true once both are stored.
     xCookiesSet?: boolean;
     // Social "save to Stash" library roots (not secret) + whether both set.

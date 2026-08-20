@@ -899,12 +899,6 @@ function BingeServerConfigCard() {
     // need its own dismissal.
     const cookieExpiredAt = config?.redditCookieExpiredAt;
     const expiredAgo = cookieExpiredAt ? relativeOrEmpty(cookieExpiredAt) : "";
-    // Reddit refusing everything is a different problem with a different
-    // answer, so it gets its own message. Shown instead of the expiry
-    // one, never alongside it: two warnings about the same silence, each
-    // suggesting something else, is worse than either on its own.
-    const blockedAt = config?.redditBlockedAt;
-    const blockedAgo = blockedAt ? relativeOrEmpty(blockedAt) : "";
 
     return (
         <div className="binge-settings-card">
@@ -950,30 +944,18 @@ function BingeServerConfigCard() {
                 <p className="binge-server-config-error">{keyError}</p>
             )}
 
-            {blockedAt && (
+            {cookieExpiredAt && (
                 <p className="binge-server-config-stale">
                     <span className="binge-server-config-stale-icon">!</span>
                     <span>
-                        Reddit refused every request binge-server made
-                        {blockedAgo && ` ${blockedAgo}`}, so stories have
-                        stopped updating. This is usually the address the daemon
-                        connects from rather than your cookie, so a new cookie
-                        may not help. If binge-server runs behind a VPN or on a
-                        hosted server, try a different exit or run it from your
-                        home connection.
-                    </span>
-                </p>
-            )}
-
-            {cookieExpiredAt && !blockedAt && (
-                <p className="binge-server-config-stale">
-                    <span className="binge-server-config-stale-icon">!</span>
-                    <span>
-                        Reddit rejected your session cookie
+                        Reddit stopped answering binge-server
                         {expiredAgo && ` ${expiredAgo}`}, so stories have
-                        stopped updating. Sessions age out every few months.
-                        Import a fresh cookies.txt or paste a new value below to
-                        start them again.
+                        stopped updating. Sessions age out every few months, so
+                        the usual fix is a new cookie: import a fresh
+                        cookies.txt or paste a new value below. If a new one
+                        does not help, Reddit may be refusing the address the
+                        daemon connects from, which hosted servers and some VPN
+                        exits run into.
                     </span>
                 </p>
             )}
