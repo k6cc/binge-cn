@@ -186,11 +186,22 @@ export function getCollectionTagIds(
         return cachedReadOnlyTagIdsPromise;
     }
     if (cachedTagIdsPromise) return cachedTagIdsPromise;
-    cachedTagIdsPromise = resolveCollectionTagIds(true).catch((err) => {
-        cachedTagIdsPromise = null;
-        cachedReadOnlyTagIdsPromise = null;
-        throw err;
-    });
+    cachedTagIdsPromise = resolveCollectionTagIds(true)
+        .then((map) => {
+            // The creating path may have just made the tags the
+            // read-only path failed to find, so its cached answer is
+            // now wrong. Clearing only on failure left a fresh install
+            // showing empty membership everywhere until a reload,
+            // because a slide mounts and caches "nothing exists"
+            // before the first save creates anything.
+            cachedReadOnlyTagIdsPromise = null;
+            return map;
+        })
+        .catch((err) => {
+            cachedTagIdsPromise = null;
+            cachedReadOnlyTagIdsPromise = null;
+            throw err;
+        });
     return cachedTagIdsPromise;
 }
 

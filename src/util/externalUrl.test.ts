@@ -42,3 +42,15 @@ describe("safeExternalUrl", () => {
         expect(safeExternalUrl("http://")).toBeNull();
     });
 });
+
+// These are links out to another site. A relative value used to be
+// resolved against Stash's own origin and returned as "safe", so a
+// daemon handing back "/settings" became a link that acts on the
+// user's own Stash.
+describe("relative values are not external links", () => {
+    it("refuses them", () => {
+        for (const rel of ["/settings", "settings", "../admin", "//evil.com"]) {
+            expect(safeExternalUrl(rel)).toBeNull();
+        }
+    });
+});

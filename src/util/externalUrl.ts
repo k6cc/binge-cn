@@ -17,13 +17,15 @@ export function safeExternalUrl(value: unknown): string | null {
     if (typeof value !== "string") return null;
     const trimmed = value.trim();
     if (!trimmed) return null;
-    // Parse rather than pattern-match, so that a scheme hidden behind
+    // Parse rather than pattern-match, so a scheme hidden behind
     // whitespace, control characters or case is still seen for what it
-    // is. A relative URL resolves against the page, which is Stash's
-    // own origin and therefore fine.
+    // is. Parsed WITHOUT a base, so a relative value is rejected rather
+    // than quietly resolved against Stash's own origin: these are links
+    // out to another site, and a daemon handing back "/settings" should
+    // not become a link that acts on the user's Stash.
     let parsed: URL;
     try {
-        parsed = new URL(trimmed, window.location.href);
+        parsed = new URL(trimmed);
     } catch {
         return null;
     }

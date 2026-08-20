@@ -273,7 +273,22 @@ function pageHostname(): string {
 // this small; just the families a self-hoster actually lands on, plus
 // the shape of the multi-part country domains.
 const SHARED_SUFFIXES = [
+    // Tailscale: every tailnet is a sibling under ts.net, and Funnel
+    // makes those names publicly resolvable, so two of them share a
+    // landlord in exactly the sense this list is about.
+    "ts.net",
     "duckdns.org",
+    "hopto.org",
+    "zapto.org",
+    "myftp.org",
+    "dynu.net",
+    "myds.me",
+    "diskstation.me",
+    "dscloud.me",
+    "quickconnect.to",
+    "nip.io",
+    "sslip.io",
+    "cloudflareaccess.com",
     "no-ip.org",
     "no-ip.com",
     "ddns.net",

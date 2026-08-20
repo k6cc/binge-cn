@@ -662,6 +662,15 @@ function ensureSeededFromPluginConfig(
     if (!pending) {
         pending = (async () => {
             if (readFreeString(storageKey, "")) return; // user set it
+            // Settle the grandfather migration before writing anything.
+            //
+            // That migration vouches for whatever daemon URL it finds
+            // the first time it runs, which is how the previous attempt
+            // at this achieved nothing: the seed wrote the URL, the
+            // migration then ran, found the value the seed had just
+            // written, and confirmed it. Running it first means it can
+            // only ever grandfather a URL that was already there.
+            confirmedDaemonOrigins();
             try {
                 const data = await gql<{
                     configuration?: {
