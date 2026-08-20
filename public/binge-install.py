@@ -267,7 +267,7 @@ def _safe_extract_tar(t, dest):
     t.extractall(dest)
 
 
-def install_binary():
+def install_binary(publish=PUBLISH_LOOPBACK):
     target = asset_name()
     if target is None:
         log("No binge-server build is published for %s/%s."
@@ -275,7 +275,7 @@ def install_binary():
         return False
     suffix, _ext = target
 
-    log("Docker not available - installing the release binary instead.")
+    log("Installing the release binary.")
     try:
         rel = latest_release()
     except Exception as exc:  # noqa: BLE001
@@ -365,6 +365,18 @@ def install_binary():
     log("Starting %s ..." % final)
     env = dict(os.environ)
     env["BINGE_DB_PATH"] = os.path.join(data_dir(), "binge-server.db")
+    # Bind where the caller asked, exactly as the Docker path publishes
+    # where the caller asked. Without this the binary always took the
+    # daemon's own 127.0.0.1 default, so a Docker-less Stash host with
+    # the user browsing from a laptop got an install that reported
+    # success - the health check runs on the Stash host, so it passed -
+    # wrote its address into Stash's plugin config for every browser,
+    # and could not be reached from any of them. The hazard is spelled
+    # out at the top of this file; only the Docker half acted on it.
+    if publish == PUBLISH_LAN:
+        env["BINGE_LISTEN_ADDR"] = "0.0.0.0:%d" % PORT
+    else:
+        env["BINGE_LISTEN_ADDR"] = "127.0.0.1:%d" % PORT
     try:
         kwargs = {"stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL,
                   "env": env, "cwd": data_dir()}
@@ -424,7 +436,7 @@ def main():
     else:
         log("No Docker on this machine.")
     if method is None:
-        method = "binary" if install_binary() else None
+        method = "binary" if install_binary(publish) else None
 
     if method is None:
         log("")

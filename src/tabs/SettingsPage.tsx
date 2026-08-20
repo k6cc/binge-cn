@@ -508,7 +508,7 @@ function BingeServerRow() {
     return (
         <SettingRow
             title="binge-server URL"
-            description="HTTP address of the binge-server daemon. Default is http://localhost:7878 — change it if you run binge-server on a different host or port. Status dot pings /healthz."
+            description="Address of the binge-server daemon. Defaults to port 7878 on whatever host you are browsing Stash on, which is right when the daemon sits beside Stash. Change it if it lives somewhere else. Status dot pings /healthz."
         >
             <div className="binge-settings-url-row">
                 <input

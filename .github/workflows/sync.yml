@@ -39,12 +39,22 @@ jobs:
               run: |
                   rm -rf plugins-repo/plugins/binge
                   mkdir -p plugins-repo/plugins/binge
-                  # Three files: manifest, the Stash-side entry shim, and the
-                  # SPA bundle. Same set npm run push:pc deploys to a local
+                  # Four files: manifest, the Stash-side entry shim, the
+                  # SPA bundle, and the installer binge.yml execs by
+                  # path. Same set npm run push:pc deploys to a local
                   # Stash install.
+                  #
+                  # The installer was missing here for as long as this
+                  # workflow has existed, so every published copy of the
+                  # plugin registered an Install binge-server task that
+                  # could only fail. Anyone who pressed it was told the
+                  # daemon did not answer on port 7878, which sounds
+                  # like a daemon problem and is not one.
                   cp binge.yml plugins-repo/plugins/binge/
                   cp dist/binge.entry.js plugins-repo/plugins/binge/
                   cp dist/index.html plugins-repo/plugins/binge/
+                  cp dist/binge-install.py plugins-repo/plugins/binge/
+                  test -f plugins-repo/plugins/binge/binge-install.py
 
             - name: Commit and push
               run: |

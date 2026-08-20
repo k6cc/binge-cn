@@ -37,7 +37,13 @@ jobs:
             - name: Stage plugin files
               run: |
                   mkdir -p release/binge
-                  cp binge.yml dist/binge.entry.js dist/index.html release/binge/
+                  # binge-install.py belongs here as much as the other
+                  # three: binge.yml execs it by path, so a plugin dir
+                  # without it registers the Install binge-server task
+                  # and then fails with a missing file the moment
+                  # anyone presses the button.
+                  cp binge.yml dist/binge.entry.js dist/index.html dist/binge-install.py release/binge/
+                  test -f release/binge/binge-install.py
 
             - name: Pack zip
               run: |

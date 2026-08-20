@@ -131,13 +131,21 @@ export function composeSnippet(): string {
 }
 
 /** The paste-this-instead command, for hosts where the task can't run (no
- *  python, Stash in a container without Docker access, a remote daemon). */
+ *  python, Stash in a container without Docker access, a remote daemon).
+ *
+ *  It holds your Stash API key, so this is a LAN publish, not an
+ *  internet-facing one. */
 export function manualInstallCommand(): string {
     return [
         "docker run -d \\",
         "  --name binge-server \\",
         "  --restart unless-stopped \\",
-        "  -p 127.0.0.1:7878:7878 \\",
+        // Published to the LAN, not to loopback. This command is handed
+        // to people whose browser is not on the Stash host, which is the
+        // whole reason the task could not run for them, and the compose
+        // snippet directly above says as much. Binding it to 127.0.0.1
+        // guaranteed the one thing they needed would not work.
+        "  -p 7878:7878 \\",
         "  -v ~/binge-server-data:/data \\",
         "  ghcr.io/ordureconnoisseur/binge-server:latest",
     ].join("\n");
