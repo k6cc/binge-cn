@@ -26,6 +26,7 @@ import os
 import platform
 import re
 import shutil
+import socket
 import subprocess
 import sys
 import tarfile
@@ -83,6 +84,31 @@ def health(timeout=3):
             json.loads(r.read().decode("utf-8"))
             return True
     except Exception:  # noqa: BLE001 - absence is the normal case here
+        return False
+
+
+def reachable_off_host(timeout=3):
+    """True when the running daemon answers on a non-loopback address.
+
+    health() runs on the Stash host and so cannot tell a daemon bound to
+    127.0.0.1 from one bound to every interface. That distinction is the
+    whole point of the bind argument: a loopback-bound daemon installs
+    perfectly, passes its own health check, and is unreachable from the
+    laptop that needs it.
+    """
+    try:
+        host = socket.gethostbyname(socket.gethostname())
+    except Exception:  # noqa: BLE001
+        return False
+    if not host or host.startswith("127."):
+        # Nothing else to try from here; assume it is fine rather than
+        # reinstalling on a machine we cannot probe.
+        return True
+    try:
+        with urllib.request.urlopen(
+                "http://%s:%d/healthz" % (host, PORT), timeout=timeout) as r:
+            return r.status == 200
+    except Exception:  # noqa: BLE001
         return False
 
 
@@ -373,10 +399,12 @@ def install_binary(publish=PUBLISH_LOOPBACK):
     # wrote its address into Stash's plugin config for every browser,
     # and could not be reached from any of them. The hazard is spelled
     # out at the top of this file; only the Docker half acted on it.
-    if publish == PUBLISH_LAN:
-        env["BINGE_LISTEN_ADDR"] = "0.0.0.0:%d" % PORT
-    else:
-        env["BINGE_LISTEN_ADDR"] = "127.0.0.1:%d" % PORT
+    # Left alone when the operator has set one themselves: they know
+    # something about their network that this script does not.
+    if not env.get("BINGE_LISTEN_ADDR"):
+        env["BINGE_LISTEN_ADDR"] = (
+            "0.0.0.0:%d" % PORT if publish == PUBLISH_LAN
+            else "127.0.0.1:%d" % PORT)
     try:
         kwargs = {"stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL,
                   "env": env, "cwd": data_dir()}
@@ -396,6 +424,16 @@ def install_binary(publish=PUBLISH_LOOPBACK):
 # ── entry ────────────────────────────────────────────────────────────
 
 
+def installed_url(want_lan):
+    """The address to report back, which for a LAN bind is not localhost."""
+    if want_lan:
+        try:
+            return "http://%s:%d" % (socket.gethostname(), PORT)
+        except Exception:  # noqa: BLE001
+            pass
+    return "http://localhost:%d" % PORT
+
+
 def main():
     try:
         payload = json.loads(sys.stdin.read() or "{}")
@@ -408,21 +446,46 @@ def main():
         print(json.dumps({"running": health()}))
         return 0
 
-    if health():
-        log("binge-server is already running on port %d - nothing to do."
-            % PORT)
-        print(json.dumps({"ok": True, "url": "http://localhost:%d" % PORT,
-                          "method": "already-running"}))
-        return 0
-
     # "lan" when the user is browsing from another machine, so the daemon
     # has to be reachable off the Stash host to be any use to them.
-    publish = (PUBLISH_LAN if args.get("bind") == "lan"
-               else PUBLISH_LOOPBACK)
+    want_lan = args.get("bind") == "lan"
+    publish = PUBLISH_LAN if want_lan else PUBLISH_LOOPBACK
+
+    if health():
+        # Already running is only good news if it is running somewhere
+        # the browser can get to. Anyone installed by an earlier build
+        # got a loopback-bound daemon whatever their situation, and
+        # short-circuiting here told them everything was fine while the
+        # settings card said Unreachable: the exact people this needed
+        # to reach were the ones it turned away.
+        if not want_lan or reachable_off_host():
+            log("binge-server is already running on port %d - nothing to do."
+                % PORT)
+            print(json.dumps({"ok": True, "url": installed_url(want_lan),
+                              "method": "already-running"}))
+            return 0
+        log("binge-server is running but only on this machine's loopback, "
+            "and your browser is somewhere else. Reinstalling it so it "
+            "listens on the network.")
 
     method = None
     if docker_available():
         method = "docker" if install_docker(publish) else None
+        if method is None and in_container():
+            # Falling through to the binary here would put the daemon
+            # inside the Stash container, on a port nothing outside can
+            # reach, gone on the next restart. That is what in_container
+            # exists to prevent, and it was only consulted when Docker
+            # was absent entirely rather than when Docker was present
+            # and failed.
+            log("")
+            log("Docker is available but the image could not be pulled, and "
+                "Stash is running inside a container. Installing the binary "
+                "in here would put binge-server on a port nothing outside "
+                "can reach, and it would vanish on the next restart. Add it "
+                "as a service alongside Stash instead - binge's Settings "
+                "page has the compose snippet to paste.")
+            return 1
     elif in_container():
         # Refuse rather than install something unreachable. See in_container.
         log("Stash is running inside a container, and that container has no "

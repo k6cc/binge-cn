@@ -42,6 +42,7 @@ import {
     useTranscodeType,
     type ForageWatchTarget,
     type Gender,
+    hasChosenBingeServer,
 } from "../home/pluginSettings";
 import {
     daemonCanReachStashAt,
@@ -55,7 +56,6 @@ import {
 import { getForageHealth } from "../api/forageServer";
 import { parseCookiesTxt, describeParse } from "../api/cookiesTxt";
 import { BingeServerInstallCard } from "./BingeServerInstallCard";
-import { hasChosenBingeServer } from "../home/pluginSettings";
 import {
     PLUGIN_ID_ADVANCED_RATING,
     PLUGIN_ID_MULTIVIEW,
@@ -121,8 +121,10 @@ function CompanionPluginsCard() {
                 </h3>
             </div>
             <p className="binge-settings-card-description">
-                All optional. binge picks these up on its own when they are
-                installed, and hides what belongs to the ones that are not.
+                All optional. binge picks these up on its own and hides what
+                belongs to the ones it cannot see. A plugin you have installed
+                but left switched off reads the same as one you do not have, so
+                check Stash's plugin list before going to fetch anything.
             </p>
             <ul className="binge-companion-list">
                 {COMPANIONS.map((c) => {
@@ -139,7 +141,7 @@ function CompanionPluginsCard() {
                                         (installed ? " is-present" : "")
                                     }
                                 >
-                                    {installed ? "Installed" : "Not installed"}
+                                    {installed ? "Installed" : "Not enabled"}
                                 </span>
                             </div>
                             <p className="binge-companion-adds">
@@ -632,7 +634,13 @@ function BingeServerRow() {
                     autoCorrect="off"
                     placeholder="http://localhost:7878"
                 />
-                <BingeServerHealthDot url={stored} />
+                {/* Only once somebody has actually asked for a daemon.
+                    Otherwise a fresh install showed a red fault dot
+                    beside the very card explaining that binge-server is
+                    optional, which is the thing this was meant to stop.
+                    Read at render from the same source as the card, so
+                    the two always agree. */}
+                {hasChosenBingeServer() && <BingeServerHealthDot url={stored} />}
             </div>
         </SettingRow>
     );
@@ -981,10 +989,12 @@ function BingeServerConfigCard() {
                     </h3>
                 </div>
                 <p className="binge-settings-card-description">
-                    Everything above works without it. Add binge-server only if
-                    you want Reddit, X and PornHub posts in your stories row,
-                    and the button to save one into your library. Use Install
-                    binge-server above, or point binge at one you already run.
+                    The reel, your own library's stories, discovery and the
+                    performer pages all work without it. Add binge-server only
+                    if you want Reddit, X and PornHub posts in your stories row
+                    as well, and the button to save one into your library. Use
+                    Install binge-server above, or point binge at one you
+                    already run.
                 </p>
             </div>
         );

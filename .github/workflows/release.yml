@@ -6,7 +6,8 @@
 #   └── binge/
 #       ├── binge.yml
 #       ├── binge.entry.js
-#       └── index.html
+#       ├── index.html
+#       └── binge-install.py   (binge.yml execs this by path)
 #
 # To cut a release: `git tag v0.1.0 && git push --tags`.
 name: release

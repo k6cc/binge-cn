@@ -618,14 +618,26 @@ export function useBingeServerUrl(): string {
 // derived default that exists for everybody. Lets Settings tell "never
 // wanted one" apart from "had one and it broke", which are the same
 // state to every other check and want opposite messages.
+//
+// Reads only. It is called during render, and confirmedDaemonOrigins
+// performs a one-time migration that writes to localStorage, so calling
+// that here would make rendering a component persist state. Harmless
+// today because the migration is idempotent, but a render React
+// discards would still have committed it, so the stored list is read
+// directly instead and the migration left to the paths that already
+// run it outside render.
 export function hasChosenBingeServer(): boolean {
     try {
         const stored = localStorage.getItem(BINGE_SERVER_URL_KEY);
         if (stored !== null && stored.length > 0) return true;
+        const raw = localStorage.getItem(DAEMON_OK_KEY);
+        if (!raw) return false;
+        const parsed: unknown = JSON.parse(raw);
+        return Array.isArray(parsed) && parsed.length > 0;
     } catch {
-        /* no storage; treat as never chosen */
+        /* no storage, or unreadable; treat as never chosen */
     }
-    return confirmedDaemonOrigins().length > 0;
+    return false;
 }
 
 export function readBingeServerUrl(): string {

@@ -32,3 +32,4 @@ dist-ssr
 *.sln
 *.sw?
 walkthrough-out/
+__pycache__/

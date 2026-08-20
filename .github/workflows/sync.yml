@@ -5,8 +5,8 @@
 #
 # Mirrors the sync pattern used by stash-multiview and stash-refract,
 # but with the extra build step — binge is a Vite SPA, so only the
-# three runtime files (binge.yml + dist/binge.entry.js +
-# dist/index.html) get copied across, not the source tree.
+# runtime files (binge.yml + dist/binge.entry.js + dist/index.html +
+# dist/binge-install.py) get copied across, not the source tree.
 #
 # Requires the PLUGINS_REPO_TOKEN secret (same PAT used by the other
 # plugin sync workflows) on this repo.
@@ -41,7 +41,7 @@ jobs:
                   mkdir -p plugins-repo/plugins/binge
                   # Four files: manifest, the Stash-side entry shim, the
                   # SPA bundle, and the installer binge.yml execs by
-                  # path. Same set npm run push:pc deploys to a local
+                  # path. Same set npm run push deploys to a local
                   # Stash install.
                   #
                   # The installer was missing here for as long as this
