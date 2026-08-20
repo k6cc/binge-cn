@@ -3,6 +3,10 @@ import { loadRatingConfig } from "../rating/config";
 import type { Criterion } from "../rating/types";
 import { TAG_SUFFIX } from "../rating/types";
 import {
+    fetchPerformerTagsAndRating,
+    fetchSceneTagsAndRating,
+} from "../rating/mutations";
+import {
     DEFAULT_MODEL,
     DEFAULT_OLLAMA_URL,
     DEFAULT_VOICES,
@@ -472,13 +476,32 @@ async function buildUpdatedTagIds(
     criteria: Criterion[],
     scoresByCriterion: Record<string, number>,
     autoCreate: boolean,
+    freshTags?: { id: string; name: string }[],
 ): Promise<string[]> {
-    const existingTags = scene.tags ?? [];
+    // Prefer what the server holds now over the copy taken when the
+    // modal opened. sceneUpdate replaces the whole tag array, so
+    // anything written elsewhere while the modal sat open would
+    // otherwise be dropped by this save.
+    const existingTags = freshTags ?? scene.tags ?? [];
+    // Only the criteria being written lose their old score tag.
+    //
+    // Every configured criterion used to be stripped and then only
+    // those present in scoresByCriterion re-added, so saving a review
+    // with one slider set deleted the scores on all the others. On a
+    // scene hand-rated across eight criteria, setting one and saving
+    // destroyed seven, and the Advanced Rating hook then recomputed the
+    // scene's rating from the one that survived. The LLM path did the
+    // same whenever the model echoed back only some of the criterion
+    // names.
+    const touched = new Set(
+        criteria
+            .filter((c) => scoresByCriterion[c.id] != null)
+            .map((c) => c.name),
+    );
     const keep = existingTags.filter((t) => {
         const m = (t.name || "").match(RATING_TAG_RE);
         if (!m) return true;
-        const criterionName = m[1].trim();
-        return !criteria.some((c) => c.name === criterionName);
+        return !touched.has(m[1].trim());
     });
     const newTagIds = keep.map((t) => t.id);
     for (const c of criteria) {
@@ -519,11 +542,13 @@ export async function saveSceneReview(args: {
     const cleaned = stripReviewBlock(scene.details);
     if (cleaned !== (scene.details ?? "")) input.details = cleaned;
     if (Object.keys(scoresByCriterion).length > 0) {
+        const fresh = await fetchSceneTagsAndRating(scene.id);
         input.tag_ids = await buildUpdatedTagIds(
             scene,
             criteria,
             scoresByCriterion,
             autoCreate,
+            fresh.tags,
         );
     }
     await gql(
@@ -869,8 +894,10 @@ export async function savePerformerReview(args: {
         args;
     const baseInput: PerformerUpdateInput = { id: performer.id };
     if (Object.keys(scoresByCriterion).length > 0) {
+        const freshPerformer = await fetchPerformerTagsAndRating(performer.id);
         baseInput.tag_ids = await buildUpdatedTagIdsForSubject(
             performer,
+            freshPerformer.tags,
             criteria,
             scoresByCriterion,
             autoCreate,
@@ -931,6 +958,7 @@ export async function savePerformerReview(args: {
 // performer path can reuse it. The subject only needs `.tags`.
 async function buildUpdatedTagIdsForSubject(
     subject: { tags: SceneTag[] },
+    freshTags: SceneTag[],
     criteria: Criterion[],
     scoresByCriterion: Record<string, number>,
     autoCreate: boolean,
@@ -940,6 +968,7 @@ async function buildUpdatedTagIdsForSubject(
         criteria,
         scoresByCriterion,
         autoCreate,
+        freshTags,
     );
 }
 

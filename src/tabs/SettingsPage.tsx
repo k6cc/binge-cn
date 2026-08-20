@@ -640,7 +640,9 @@ function BingeServerRow() {
                     optional, which is the thing this was meant to stop.
                     Read at render from the same source as the card, so
                     the two always agree. */}
-                {hasChosenBingeServer() && <BingeServerHealthDot url={stored} />}
+                {hasChosenBingeServer() && (
+                    <BingeServerHealthDot url={stored} />
+                )}
             </div>
         </SettingRow>
     );

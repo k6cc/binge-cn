@@ -213,7 +213,10 @@ export function ScribeModal({
         if (!loaded) return;
         setEditMode(true);
         setReviewText("");
-        setScores({});
+        // Seeded from what the subject already has, not blank. Starting
+        // empty meant the sliders showed nothing for criteria that were
+        // rated, and the save then wrote that emptiness back.
+        setScores(loaded.subject.initialScores);
         setPhase("result");
     }, [loaded]);
 
@@ -271,10 +274,18 @@ export function ScribeModal({
             const reply = await callLLM(genMessages, loaded.config);
             const parsed = parseGenerated(reply, loaded.subject.criteria);
             setReviewText(parsed.review);
-            setScores(parsed.scores);
+            // Merged over what is already there, not substituted for it.
+            // parseGenerated only fills criteria whose names the model
+            // echoed back, so replacing wholesale silently dropped every
+            // score it happened not to mention.
+            const merged = {
+                ...loaded.subject.initialScores,
+                ...parsed.scores,
+            };
+            setScores(merged);
             persist(messages, {
                 review: parsed.review,
-                scores: parsed.scores,
+                scores: merged,
             });
             setPhase("result");
         } catch (e) {
