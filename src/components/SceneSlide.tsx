@@ -409,26 +409,35 @@ export function SceneSlide({
     // Attempt playback at the user's persisted mute preference, with
     // the autoplay-policy fallback. Centralised so the IO observer,
     // the tap handler, and the src-settle effect all behave the same.
-    const playPreferred = (video: HTMLVideoElement) => {
-        const pref = getPersistedMuted();
-        video.muted = pref;
-        void video
-            .play()
-            .then(() => {
-                if (muted !== pref) setMutedSession(pref);
-            })
-            .catch((err: unknown) => {
-                // A play() interrupted by pause()/load() (scroll-away,
-                // src swap) rejects with AbortError — NOT an autoplay
-                // block, so don't flip to muted or force a replay.
-                if ((err as DOMException | null)?.name === "AbortError") {
-                    return;
-                }
-                video.muted = true;
-                if (!muted) setMutedSession(true);
-                void video.play().catch(() => {});
-            });
-    };
+    // muted 的 ref 镜像（同 seekOffsetRef 模式）：让 playPreferred 可以
+    // 用 useCallback 固定引用（依赖 setMutedSession——模块级函数，引用
+    // 稳定），避免 seekToTime 因依赖不稳定的 playPreferred 每次渲染
+    // 重建、连带 loadedmetadata 监听器反复解绑/重绑。
+    const mutedRef = useRef(muted);
+    mutedRef.current = muted;
+    const playPreferred = useCallback(
+        (video: HTMLVideoElement) => {
+            const pref = getPersistedMuted();
+            video.muted = pref;
+            void video
+                .play()
+                .then(() => {
+                    if (mutedRef.current !== pref) setMutedSession(pref);
+                })
+                .catch((err: unknown) => {
+                    // A play() interrupted by pause()/load() (scroll-away,
+                    // src swap) rejects with AbortError — NOT an autoplay
+                    // block, so don't flip to muted or force a replay.
+                    if ((err as DOMException | null)?.name === "AbortError") {
+                        return;
+                    }
+                    video.muted = true;
+                    if (!mutedRef.current) setMutedSession(true);
+                    void video.play().catch(() => {});
+                });
+        },
+        [setMutedSession]
+    );
 
     // Imperative <video src> management. We do this in a useEffect
     // instead of binding `src` as a React prop because:
@@ -617,7 +626,7 @@ export function SceneSlide({
             // 安全兜底：8 秒后若仍未播放，移除监听器避免泄漏
             window.setTimeout(cleanup, 8000);
         },
-        [needsTranscodeSeek, scene.id]
+        [needsTranscodeSeek, playPreferred]
     );
 
     // 随机时段：元数据就绪后应用随机起点。
@@ -981,7 +990,7 @@ export function SceneSlide({
                 }
             }).catch(() => {});
         }
-    }, [scene.id]);
+    }, []);
 
     useEffect(() => {
         const onChange = () => {
@@ -1190,7 +1199,9 @@ export function SceneSlide({
             scene.title ||
             scene.performers.map((p) => p.name).join(", ") ||
             t("scene.scene_id", { id: scene.id }),
-        [scene.id, scene.title, scene.performers]
+        // t 必须在依赖里：语言切换时 t 引用变化触发重算，无标题场景
+        // 的占位文案才能跟随切换语言。
+        [scene.id, scene.title, scene.performers, t]
     );
     const detailsLine = scene.details?.trim() || "";
 
