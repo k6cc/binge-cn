@@ -262,6 +262,7 @@ body,
 }
 .binge-slide.is-fullscreen.fs-ui-hidden .binge-overlay,
 .binge-slide.is-fullscreen.fs-ui-hidden .binge-caption,
+.binge-slide.is-fullscreen.fs-ui-hidden .binge-progress-time,
 .binge-actions.is-fullscreen.fs-ui-hidden {
     opacity: 0;
     pointer-events: none;
@@ -277,6 +278,7 @@ body,
     transition: opacity 0.3s ease, height 0.3s ease, padding 0.3s ease, bottom 0.28s ease;
 }
 .binge-progress.is-fs-collapsed {
+    bottom: 0;             /* 细条贴底（时间码此时已淡出隐藏） */
     height: 10px;          /* 热区缩小但保证可点中 */
     padding: 0 0;          /* 去掉左右内边距，细条横贯底部 */
     opacity: 0.55;
@@ -327,6 +329,9 @@ body,
     height: 100%;
     object-fit: contain;
     background: #000;
+    /* 非全屏大黑边时的内容上移（JS 设 translateY）与全屏进出归位
+       的平滑过渡。 */
+    transition: transform 0.3s ease;
 }
 
 /* ── Caption (subtitle) styling ────────────────────────────────
@@ -440,7 +445,9 @@ body,
 .binge-paused-overlay {
     position: absolute;
     left: 50%;
-    top: 50%;
+    /* 跟随视频内容上移（letterbox shift，由 JS 写入容器变量），
+       保持按钮组相对视频画面居中；无偏移时回落到容器中心。 */
+    top: calc(50% - var(--binge-video-shift, 0px));
     transform: translate(-50%, -50%);
     display: flex;
     flex-direction: column;
@@ -449,7 +456,7 @@ body,
     z-index: 4; /* above tap-target (z:2), below overlay/action stack */
     pointer-events: none; /* children opt back in */
     opacity: 1;
-    transition: opacity 0.28s ease;
+    transition: opacity 0.28s ease, top 0.3s ease;
 }
 .binge-paused-overlay.is-hidden {
     opacity: 0;
@@ -510,11 +517,13 @@ body,
 }
 
 /* ── Progress bar (bottom edge, drawn against Stash duration) ──────── */
+/* 时间码行高度（约 1.15rem）：进度条抬升到时间码上方，overlay 的
+   padding-bottom 也按此值增加，其他底部元素同步上移。 */
 .binge-progress {
     position: absolute;
     left: 0;
     right: 0;
-    bottom: 0;
+    bottom: 1.15rem; /* 时间码行高度 */
     height: 14px; /* enlarged hit-target; only the inner 2px is visible */
     z-index: 7;
     cursor: pointer;
@@ -561,6 +570,29 @@ body,
     bottom: 0.35rem;
 }
 
+/* 时间码行：进度条下方，左已播放 / 右总时长。字号随视口宽度
+   clamp 自适应（10px~13px，能看清即可）；tabular-nums 等宽数字
+   防止跳动。竖屏非全屏常驻显示；全屏 UI 淡出时随之隐藏。 */
+.binge-progress-time {
+    position: absolute;
+    /* 左右各留 ~4 个数字宽度（em 随字号缩放）：现代手机屏幕圆角
+       会遮挡贴边内容。 */
+    left: 2.4em;
+    right: 2.4em;
+    bottom: 0.08rem;
+    display: flex;
+    justify-content: space-between;
+    z-index: 7;
+    font-size: clamp(10px, 0.9vw, 13px);
+    line-height: 1.2;
+    font-variant-numeric: tabular-nums;
+    color: rgba(255, 255, 255, 0.78);
+    font-weight: 500;
+    letter-spacing: 0.03em;
+    pointer-events: none;
+    transition: opacity 0.3s ease, bottom 0.28s ease;
+}
+
 /* ── Scene overlay (bottom-left) ───────────────────────────────────── */
 .binge-overlay {
     position: absolute;
@@ -568,8 +600,9 @@ body,
     right: 0;
     bottom: 0;
     /* Full-width so the gradient reaches the right edge; padding-right
-       reserves space for the action stack so text never sits under it. */
-    padding: 1.5rem 5.5rem 2.25rem 1.25rem;
+       reserves space for the action stack so text never sits under it.
+       padding-bottom 含进度条 + 时间码行（1.15rem）的空间。 */
+    padding: 1.5rem 5.5rem 3.4rem 1.25rem;
     background: linear-gradient(
         to top,
         rgba(0, 0, 0, 0.75) 0%,
@@ -596,7 +629,10 @@ body,
     bottom: calc(8.5rem + env(safe-area-inset-bottom, 0));
 }
 .binge-app:has(.binge-bottom-nav:not(.is-hidden)) .binge-slide:not(.is-fullscreen) .binge-progress {
-    bottom: calc(3.5rem + env(safe-area-inset-bottom, 0));
+    bottom: calc(3.5rem + env(safe-area-inset-bottom, 0) + 1.15rem);
+}
+.binge-app:has(.binge-bottom-nav:not(.is-hidden)) .binge-slide:not(.is-fullscreen) .binge-progress-time {
+    bottom: calc(3.5rem + env(safe-area-inset-bottom, 0) + 0.08rem);
 }
 
 .binge-studio {
@@ -2409,6 +2445,63 @@ body,
 .binge-more-sheet-switch.is-on .binge-more-sheet-switch-thumb {
     transform: translateX(calc(2.4rem - 1.35rem));
 }
+/* Random-start seconds input — appears under the toggle row when the
+   random-start switch is on. Left label + right compact input (about
+   4 digits wide). Empty input = play to the end. */
+.binge-more-sheet-random-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.15rem 1.1rem 0.85rem;
+}
+.binge-more-sheet-random-label {
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    flex: 1;
+    min-width: 0; /* 允许换行，不挤压右侧输入框 */
+}
+.binge-more-sheet-random-fields {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex: 0 0 auto;
+}
+.binge-more-sheet-random-input {
+    width: 5ch; /* ~4 位数字 + 边距 */
+    min-width: 0;
+    appearance: none;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 0.55rem;
+    color: #fff;
+    font-size: 0.9rem;
+    padding: 0.45rem 0.4rem;
+    text-align: center;
+    outline: none;
+}
+.binge-more-sheet-random-input:focus {
+    border-color: rgba(255, 255, 255, 0.35);
+    background: rgba(255, 255, 255, 0.1);
+}
+.binge-more-sheet-random-input::placeholder {
+    color: rgba(255, 255, 255, 0.35);
+}
+/* Hide number-input spinners — the "s" unit suffix is clearer. */
+.binge-more-sheet-random-input::-webkit-outer-spin-button,
+.binge-more-sheet-random-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.binge-more-sheet-random-input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+.binge-more-sheet-random-unit {
+    flex: 0 0 auto;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
 
 /* Lifts a sheet root above the performer-profile overlay (z:90).
    Used by the rating modal so it can be summoned from the profile. */
@@ -2818,13 +2911,26 @@ body,
     display: grid;
     /* IG-style compact tiles. auto-fill so wide screens get more
        columns rather than stretching tiles to absurd sizes; max-width
-       caps the whole grid so it doesn't span the full window. */
+       caps the whole grid so it doesn't span the full window.
+       注意：auto-fill 的列数按 track 的 max 尺寸（180px）计算而非
+       min——2 列需要视口 ≥ ~405px（2×180 + gap + padding），更窄
+       的宽度由下方媒体查询强制 2 列。 */
     grid-template-columns: repeat(auto-fill, minmax(150px, 180px));
     justify-content: center;
     gap: 1.1rem;
     padding: 1.25rem 0.85rem 2rem;
     max-width: 55rem;
     margin: 0 auto;
+}
+/* 窄屏（≤420px）强制两列：auto-fill 在此宽度按 180px max 只能
+   排 1 列（375px 的 iPhone SE 实测掉列）。1fr 平分让卡片随列宽
+   自动缩放；420px 也覆盖桌面滚动条占宽的边角情况。 */
+@media (max-width: 420px) {
+    .binge-saved-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.7rem;
+        padding: 1rem 0.6rem 2rem;
+    }
 }
 .binge-saved-tile {
     appearance: none;

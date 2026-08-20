@@ -1,6 +1,6 @@
 # Binge（汉化版）
 
-> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.5.7**。
+> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.5.8**。
 
 为 [Stash](https://github.com/stashapp/stash) 提供的 Instagram 风格社交与发现层：竖屏 Reel、Stories、演员档案、StashDB 驱动的发现功能——全部基于 Stash 既有的 GraphQL API。Web 插件形态。
 
@@ -40,30 +40,26 @@ v0.4.17 将原硬编码中文迁移为基于 `react-i18next` 的动态多语言�
 
 ### 功能修复
 
-#### v0.5.7
+#### v0.5.8
 
-- **合并上游 v0.5.0–v0.5.5**（25 个提交，125 文件，+10848/-4909 行）
-- **Stash 写入容错**：`flattenSceneNodes` / `mapGalleryNodes` 对 `paths` / `cover?.paths` / `performers` 加 null guard，部分写入不再让整个 feed 崩溃
-- **StashDB 缓存健壮性**：`readStashDBCache` 加 `Array.isArray` 校验 + `age<0` 防时钟回退 + `pruneOldCacheVersions` 清旧版本缓存避免 quota 溢出
-- **保存过滤器修复**：`transformObjectFilter` 对 `StashIDCriterionInput` 等无 value 字段的 criterion 不再发送 `value`，修复"近期到达"等过滤器返回空
-- **评分四舍五入对齐**：`rating100` 改用 round-half-to-even 匹配 Python 插件，解决预览与实际存储值不一致
-- **IPv6 安全检查**：`isPrivateIPv6()` 检查，公网 IPv6 daemon 不再传 API key 明文
-- **详情卡片滚动**：sheet 加 `overflow-y: auto`，窄屏可滚动查看完整技术信息
-- **详情卡片 handle 始终可见**：sticky 顶部，与其他 sheet 一致
-- **社交 tab 重试按钮**：error/empty 态末尾加 `⟳ 重试` 按钮，覆盖网络瞬时失败场景
+- **随机时段播放**：更多选项新增开关 + "循环时长"输入框（秒）。从随机位置开始播放；留空 = 播到影片结尾（自动滚动开则切下一个场景，关则结尾后 A→B 循环）；填秒数 = 该时长后回随机起点循环或切换下一个。手动拖进度条即取消本场景的循环时长；进入全屏立即中断计时，持续播放到结尾。转码流用 `?start=` 预置随机起点，无双重等待
+- **进度条时间码**：进度条下方左侧已播放 / 右侧总时长（`00:00` / `000:00` 分钟制）。等宽数字防跳动，字号随屏宽缩放，两侧留 4 数字宽避让手机圆角。竖屏常驻，全屏 UI 淡出时同步隐藏
+- **竖屏播放横屏视频位置优化**：非全屏上下黑边过大（≥60px）时视频内容上移黑边的 40%，缓解画面整体偏下；字幕与暂停播放/静音按钮组跟随移动，全屏恢复居中
+- **Saved 页窄屏两列**：≤420px 强制两列，修复 375px（iPhone SE）收藏夹卡片掉成单列（`auto-fill` 列数按 track max 计算的坑）
 
-#### v0.5.0–v0.5.6
+#### v0.5.0–v0.5.7
 
+- **合并上游 v0.5.0–v0.5.5**（25 个提交，125 文件）：Stash 写入容错（null guard）、StashDB 缓存健壮性、保存过滤器修复（`StashIDCriterionInput` 不发 value）、评分 round-half-to-even 对齐、IPv6 安全检查（公网 daemon 不传 API key 明文）
 - **StashDB 网络降级**：`postStashDB` 加超时（Stories/Feed 10s、发现页头像 20s）+ 12h 缓存 + 刷新按钮联动清缓存，断网时快速降级不再卡死
 - **全屏体验**：操作栈全屏按钮、UI 3 秒自动隐藏、水平滑动快进快退、长按 2× 倍速；进入前固定 height 防止 virtualizer 卸载，退出时等 `orientationchange` 完成再 `scrollToIndex`
 - **移动端容器高度**：`100dvh` + `estimateSize` 用 `clientHeight`，解决 mobile Chrome 地址栏遮挡
 - **字幕**：自动加载 Stash sidecar `.srt`/`.vtt`，`text-shadow` 描边替代黑底，位置随 `object-fit:contain` 内容区，字体随视频宽度缩放
 - **binge-server 集成**：API Key 认证（query param）、URL 派生、一键安装（docker 优先）、cookies.txt 导入
+- **详情卡片**：窄屏可滚动查看完整技术信息 + handle 始终可见 + 社交 tab 失败重试按钮
 - **UI 细节**：移动端地址栏背景色、回到顶部按钮、Stories 头像缩小、顶部导航放大、Lightbox 箭头描边、设置页 max-width 1100px、窄屏断点统一 720px
 - **移除 demo 模式 + 隐藏标签**：清理 459 行 demoContent + `HIDDEN_TAG_IDS`
 - **导航按钮改用 PluginApi.patch**：SPA 重渲染无需重注入，可在 Stash 设置勾选显隐
-- **演员分页放宽**：`PAGE_SIZE` 24→60
-- **锁定 Prettier 配置**：`.prettierrc.json` + `.prettierignore`
+- **演员分页放宽**：`PAGE_SIZE` 24→60；**锁定 Prettier 配置**：`.prettierrc.json` + `.prettierignore`
 
 #### v0.4.17–v0.4.19
 
@@ -157,6 +153,7 @@ unzip binge-vX.Y.Z.zip -d ~/.stash/plugins/binge/
 | binge-server 配置 | — | 自动检测 Stash API 密钥 + 接受 Reddit cookie。仅在 binge-server 可达时可见。 |
 | 跟随 refract 强调色 | 关 | 将 refract 的强调色调色板镜像到 binge |
 | 自动滚动 | 关 | 当前场景结束时前进到下一个（reel ⋯ 菜单） |
+| 随机时段 | 关 | 从随机位置开始播放；循环时长留空播到结尾，填秒数到时循环/切换（reel ⋯ 菜单） |
 | 显示调试覆盖层 | 关 | 每个幻灯片的调试 HUD；reel 中按 `\` 热键 |
 
 ---

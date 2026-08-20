@@ -26,6 +26,17 @@ interface SceneProgressProps {
     onInteract?: () => void;
 }
 
+// 时间码格式：分钟:秒。分钟补零到至少 2 位（"00:05"），超过 99
+// 分钟自然增长到 3 位（"120:00"），与需求示例 "00:00" / "000:00"
+// 一致——不换算成小时，纯 分:秒 显示。
+function formatTimecode(seconds: number): string {
+    if (!Number.isFinite(seconds) || seconds < 0) return "00:00";
+    const s = Math.floor(seconds);
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+}
+
 // Thin Instagram-style progress bar. Pinned to the bottom of the slide,
 // 2px tall by default, expands slightly on hover. Drawn against Stash's
 // known duration so it shows real progress through a 2-hour scene, not
@@ -42,6 +53,11 @@ export function SceneProgress({
     const { t } = useTranslation();
     const [progress, setProgress] = useState(0);
     const [hovering, setHovering] = useState(false);
+    // 时间码：左侧已播放（含转码 seek 偏移量）、右侧总时长。
+    // 优先用 Stash 数据库时长；缺失时回退 video.duration（元数据
+    // 加载后由 timeupdate/loadedmetadata 监听补齐）。
+    const [elapsed, setElapsed] = useState(0);
+    const [total, setTotal] = useState(0);
     // 用 ref 镜像 seekOffset：事件监听器只绑定一次，每次触发时从 ref
     // 读取最新值。避免 seekOffset 变化时旧监听器（闭包固定了旧值 0）
     // 在 React 重新绑定前抢先触发 timeupdate，把进度条瞬间重置为 0。
@@ -58,6 +74,7 @@ export function SceneProgress({
             // 转码硬 seek 后新流的 currentTime 从 0 计起，需加上偏移量
             // 才能得到在整段视频中的真实位置。
             const t = video.currentTime + seekOffsetRef.current;
+            setElapsed(t);
             const d =
                 duration && duration > 0
                     ? duration
@@ -65,14 +82,17 @@ export function SceneProgress({
                       ? video.duration
                       : 0;
             if (d > 0) {
+                setTotal(d);
                 setProgress(Math.min(1, t / d));
             }
         };
         video.addEventListener("timeupdate", handle);
         video.addEventListener("seeked", handle);
+        video.addEventListener("loadedmetadata", handle);
         return () => {
             video.removeEventListener("timeupdate", handle);
             video.removeEventListener("seeked", handle);
+            video.removeEventListener("loadedmetadata", handle);
         };
     }, [videoRef, duration]);
 
@@ -104,30 +124,39 @@ export function SceneProgress({
     };
 
     return (
-        <div
-            className={
-                "binge-progress" +
-                (hovering ? " is-hovering" : "") +
-                (fsCollapsed ? " is-fs-collapsed" : "")
-            }
-            onMouseEnter={() => {
-                setHovering(true);
-                // 鼠标移入细条时唤出完整 UI（桌面端）。移动端无 hover，
-                // 由 onClick 路径唤出。
-                if (fsCollapsed) onInteract?.();
-            }}
-            onMouseLeave={() => setHovering(false)}
-            onClick={handleSeek}
-            role="slider"
-            aria-valuemin={0}
-            aria-valuemax={1}
-            aria-valuenow={progress}
-            aria-label={t("scene.progress")}
-        >
+        <>
             <div
-                className="binge-progress-fill"
-                style={{ transform: `scaleX(${progress})` }}
-            />
-        </div>
+                className={
+                    "binge-progress" +
+                    (hovering ? " is-hovering" : "") +
+                    (fsCollapsed ? " is-fs-collapsed" : "")
+                }
+                onMouseEnter={() => {
+                    setHovering(true);
+                    // 鼠标移入细条时唤出完整 UI（桌面端）。移动端无 hover，
+                    // 由 onClick 路径唤出。
+                    if (fsCollapsed) onInteract?.();
+                }}
+                onMouseLeave={() => setHovering(false)}
+                onClick={handleSeek}
+                role="slider"
+                aria-valuemin={0}
+                aria-valuemax={1}
+                aria-valuenow={progress}
+                aria-label={t("scene.progress")}
+            >
+                <div
+                    className="binge-progress-fill"
+                    style={{ transform: `scaleX(${progress})` }}
+                />
+            </div>
+            {/* 时间码行：进度条下方，左已播放 / 右总时长。aria-hidden
+                避免屏幕阅读器随 timeupdate 频繁播报。显示/隐藏（全屏
+                UI 淡出）由 CSS 控制。 */}
+            <div className="binge-progress-time" aria-hidden="true">
+                <span>{formatTimecode(elapsed)}</span>
+                <span>{formatTimecode(total)}</span>
+            </div>
+        </>
     );
 }

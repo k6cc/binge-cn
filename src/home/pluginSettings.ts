@@ -21,6 +21,8 @@ const INCLUDE_X_KEY = "binge.includeX";
 const INCLUDE_PORNHUB_KEY = "binge.includePornhub";
 const AUTO_SCROLL_KEY = "binge.autoScroll";
 const AUTO_LOAD_CAPTIONS_KEY = "binge.autoLoadCaptions";
+const RANDOM_START_KEY = "binge.randomStart";
+const RANDOM_START_SECONDS_KEY = "binge.randomStartSeconds";
 const REFRACT_INTEGRATION_KEY = "binge.refractIntegration";
 const SHOWCASE_BLUR_KEY = "binge.showcaseBlur";
 const BINGE_SERVER_URL_KEY = "binge.bingeServerUrl";
@@ -463,6 +465,34 @@ export function readAutoScroll(): boolean {
 }
 export function setAutoScroll(value: boolean): void {
     writeBool(AUTO_SCROLL_KEY, value);
+}
+
+// Random start — when on, each scene starts playing from a random
+// position instead of the beginning. The optional seconds input
+// defines the playback window: empty = from the random position to
+// the end of the video; N seconds = N seconds from the random
+// position, then A→B loop (auto-scroll off) or auto-advance to the
+// next scene (auto-scroll on).
+export function useRandomStart(): boolean {
+    return useStoredBool(RANDOM_START_KEY, false);
+}
+export function setRandomStart(value: boolean): void {
+    writeBool(RANDOM_START_KEY, value);
+}
+// Raw text of the seconds input ("" = play to the end). Stored
+// verbatim so the input round-trips; consumers parse defensively.
+export function useRandomStartSeconds(): string {
+    return useStoredFreeString(RANDOM_START_SECONDS_KEY, "");
+}
+export function setRandomStartSeconds(value: string): void {
+    writeString(RANDOM_START_SECONDS_KEY, value.trim());
+}
+// Parsed window length in seconds; null when empty/invalid (= play
+// from the random position to the end of the video).
+export function parseRandomStartSeconds(raw: string): number | null {
+    const n = parseInt(raw, 10);
+    if (!Number.isFinite(n) || n <= 0) return null;
+    return n;
 }
 
 // Auto-load captions — when on, the active slide's <video> gets a

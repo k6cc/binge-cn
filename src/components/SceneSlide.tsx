@@ -38,6 +38,9 @@ import {
     useAutoScroll,
     useAutoLoadCaptions,
     useTranscodeType,
+    useRandomStart,
+    useRandomStartSeconds,
+    parseRandomStartSeconds,
 } from "../home/pluginSettings";
 import { useScribeModal } from "../scribe/ScribeContext";
 
@@ -98,6 +101,62 @@ const BURST_LIFETIME_MS = 2700;
 // browser convention. Single-click play/pause is delayed by this amount.
 const DOUBLE_TAP_WINDOW_MS = 280;
 
+// 随机时段：计算本次播放的 A→B 窗口（影片绝对时间）。
+//   seconds = null（输入框空）→ 随机起点，播放到影片结束（end=null）
+//   seconds = N → 窗口恰好 N 秒（end = start + N），随机放置在影片内
+// 影片时长不足 N 秒时退化为"随机起点 + 播到结束"。
+function computeRandomWindow(
+    duration: number,
+    seconds: number | null
+): { start: number; end: number | null } {
+    if (seconds !== null && seconds > 0 && seconds < duration) {
+        const start = Math.random() * (duration - seconds);
+        return { start, end: start + seconds };
+    }
+    // 无明确时长（或时长 ≥ 影片）：随机起点 + 播放到结束。留 2 秒
+    // 余量，避免随机点落在片尾导致"一开就结束"。
+    const start = duration > 2 ? Math.random() * (duration - 2) : 0;
+    return { start, end: null };
+}
+
+// ── 竖屏播放横屏视频的位置优化 ──────────────────────────────
+// 非全屏时若上下黑边（letterbox）过大，视频内容上移黑边的 40%，
+// 缓解"上半屏纯空、内容整体偏下"的观感；全屏保持居中（标准播放
+// 器行为）。阈值与比例集中定义，字幕定位复用同一份测量结果。
+const LETTERBOX_SHIFT_THRESHOLD_PX = 60; // 单侧黑边 ≥60px 才上移
+const LETTERBOX_SHIFT_RATIO = 0.4; // 上移单侧黑边的 40%
+
+// 测量 object-fit: contain 下视频内容的渲染尺寸与上移量。
+// allowShift=false（全屏）时 shift 恒为 0。
+function measureVideoContent(
+    video: HTMLVideoElement,
+    allowShift: boolean
+): { rw: number; rh: number; shift: number } {
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
+    const cw = video.clientWidth;
+    const ch = video.clientHeight;
+    if (!vw || !vh || !cw || !ch) return { rw: 0, rh: 0, shift: 0 };
+    const ratio = vw / vh;
+    const cr = cw / ch;
+    let rw: number, rh: number;
+    if (ratio > cr) {
+        rw = cw;
+        rh = cw / ratio;
+    } else {
+        rh = ch;
+        rw = ch * ratio;
+    }
+    let shift = 0;
+    if (allowShift && ratio > cr) {
+        const bar = (ch - rh) / 2;
+        if (bar >= LETTERBOX_SHIFT_THRESHOLD_PX) {
+            shift = Math.round(bar * LETTERBOX_SHIFT_RATIO);
+        }
+    }
+    return { rw, rh, shift };
+}
+
 export function SceneSlide({
     scene,
     preload = "metadata",
@@ -114,6 +173,17 @@ export function SceneSlide({
     const { t } = useTranslation();
     const autoScroll = useAutoScroll();
     const autoLoadCaptions = useAutoLoadCaptions();
+    // 随机时段（MoreSheet 开关 + 秒数输入框）。seconds 为 null 表示
+    // 输入框为空 = 随机起点播放到影片结束。
+    const randomStart = useRandomStart();
+    const randomStartSecondsRaw = useRandomStartSeconds();
+    const randomSeconds = useMemo(
+        () => parseRandomStartSeconds(randomStartSecondsRaw),
+        [randomStartSecondsRaw]
+    );
+    // Stash's authoritative duration. Falls back to video.duration inside
+    // SceneProgress when this is null.
+    const stashDuration = scene.files?.[0]?.duration ?? null;
     // Caption <track> src — only when the toggle is on AND Stash reported
     // at least one caption for this scene. We always pick the first;
     // local libraries typically have a single subtitle file and the
@@ -164,45 +234,6 @@ export function SceneSlide({
         return () => video.removeEventListener("loadstart", setup);
     }, [captionTrack, scene.id]);
 
-    // Position + font-size: recompute whenever the video element
-    // resizes (orientation change, fullscreen toggle, virtualizer
-    // re-measure). ResizeObserver covers all cases without needing
-    // per-event listeners.
-    useEffect(() => {
-        if (!captionTrack) return;
-        const video = videoRef.current;
-        const el = captionRef.current;
-        if (!video || !el) return;
-        const update = () => {
-            const vw = video.videoWidth;
-            const vh = video.videoHeight;
-            if (!vw || !vh) return;
-            const ratio = vw / vh;
-            const cr = video.clientWidth / video.clientHeight;
-            // object-fit: contain → video content is centered & scaled
-            let rw: number, rh: number;
-            if (ratio > cr) {
-                rw = video.clientWidth;
-                rh = rw / ratio;
-            } else {
-                rh = video.clientHeight;
-                rw = rh * ratio;
-            }
-            // Bottom offset = distance from element bottom to content
-            // bottom (letterbox gap) + 8px padding.
-            el.style.bottom = `${Math.max(8, (video.clientHeight - rh) / 2 + 8)}px`;
-            // Font size ~3% of rendered video width, clamped ≥10px.
-            el.style.fontSize = `${Math.max(10, rw * 0.03)}px`;
-        };
-        update();
-        video.addEventListener("loadedmetadata", update);
-        const ro = new ResizeObserver(update);
-        ro.observe(video);
-        return () => {
-            video.removeEventListener("loadedmetadata", update);
-            ro.disconnect();
-        };
-    }, [captionTrack, scene.id]);
     // Reactive — re-points mounted <video> src when the user changes
     // the stream type in Settings (the old getTranscodeType() read was
     // non-reactive, so mounted slides kept the stale stream).
@@ -218,6 +249,69 @@ export function SceneSlide({
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [fullscreenUIVisible, setFullscreenUIVisible] = useState(true);
     const fullscreenUITimerRef = useRef<number | null>(null);
+
+    // 非全屏 + 上下黑边过大时上移视频内容（见 measureVideoContent 注
+    // 释）。命令式操作 transform：ResizeObserver 回调里即时生效，且不
+    // 触发额外重渲染。全屏状态下清除偏移保持居中。UI 元素（overlay/
+    // 进度条/操作栈）全部是 video 的兄弟节点，不受 transform 影响。
+    // 偏移量同时写入容器 CSS 变量 --binge-video-shift，供需要跟随视
+    // 频内容移动的元素（暂停时居中的播放/静音按钮组）用 calc 消费。
+    useEffect(() => {
+        const video = videoRef.current;
+        const container = containerRef.current;
+        if (!video) return;
+        const update = () => {
+            const { shift } = measureVideoContent(video, !isFullscreen);
+            video.style.transform =
+                shift > 0 ? `translateY(-${shift}px)` : "";
+            container?.style.setProperty(
+                "--binge-video-shift",
+                `${shift}px`
+            );
+        };
+        update();
+        video.addEventListener("loadedmetadata", update);
+        const ro = new ResizeObserver(update);
+        ro.observe(video);
+        return () => {
+            video.removeEventListener("loadedmetadata", update);
+            ro.disconnect();
+            video.style.transform = "";
+            container?.style.removeProperty("--binge-video-shift");
+        };
+    }, [scene.id, isFullscreen]);
+
+    // 字幕定位 + 字号：recompute whenever the video element resizes
+    // (orientation change, fullscreen toggle, virtualizer re-measure)。
+    // ResizeObserver covers all cases。复用 measureVideoContent 的测量，
+    // bottom 计入视频上移量——字幕始终贴着视频内容底部（视频上移后
+    // 跟随，不留在原黑边位置）。
+    useEffect(() => {
+        if (!captionTrack) return;
+        const video = videoRef.current;
+        const el = captionRef.current;
+        if (!video || !el) return;
+        const update = () => {
+            const { rw, rh, shift } = measureVideoContent(
+                video,
+                !isFullscreen
+            );
+            if (!rw) return;
+            // Bottom offset = distance from element bottom to content
+            // bottom (letterbox gap + 上移量) + 8px padding.
+            el.style.bottom = `${Math.max(8, (video.clientHeight - rh) / 2 + 8 + shift)}px`;
+            // Font size ~3% of rendered video width, clamped ≥10px.
+            el.style.fontSize = `${Math.max(10, rw * 0.03)}px`;
+        };
+        update();
+        video.addEventListener("loadedmetadata", update);
+        const ro = new ResizeObserver(update);
+        ro.observe(video);
+        return () => {
+            video.removeEventListener("loadedmetadata", update);
+            ro.disconnect();
+        };
+    }, [captionTrack, scene.id, isFullscreen]);
 
     // ── Touch gesture state: horizontal swipe seek + long-press 2× ──
     const touchStartRef = useRef<{ x: number; y: number; time: number; videoTime: number } | null>(null);
@@ -357,6 +451,26 @@ export function SceneSlide({
     // currentTime 从 0 重新计起，进度条需知道偏移量才能显示真实位置。
     // 加载新基础流（换场景/重进视口）时重置为 0。
     const [seekOffset, setSeekOffset] = useState(0);
+    // seekOffset 的 ref 镜像：onTimeUpdate 闭包里读取最新值，避免
+    // setSeekOffset 触发重渲染前旧闭包拿过期偏移量误判 B 点。
+    const seekOffsetRef = useRef(0);
+    seekOffsetRef.current = seekOffset;
+    // 本次加载的随机播放窗口（A→B）。null = 未计算（随机时段关闭，
+    // 或 Stash 元数据缺失、等 loadedmetadata 用 video.duration 计算）。
+    const randomWindowRef = useRef<{ start: number; end: number | null } | null>(
+        null
+    );
+    // 随机设置的签名（"0" / "1:{秒数}"）：区分真实的设置变化与
+    // isActive/currentlyScrolling 引起的 effect 重跑，避免滑动返回时
+    // 重新随机一个正在加载的视频。
+    const randomSigRef = useRef("");
+    // 用户已手动 seek（进度条点击/手势滑动）标记：本场景的随机时段
+    // 已被取消。阻止 loadedmetadata 回退路径在转码硬 seek 重载后
+    // 把已清除的窗口重新计算回来。新设置周期（reroll）时重置。
+    const userSeekedRef = useRef(false);
+    // B 点已触发自动切换的一次性守卫：timeupdate 每 ~250ms 一次，
+    // scrollToIndex 平滑滚动完成前可能重复触发 onAutoAdvance。
+    const randomAdvancedRef = useRef(false);
     // 上一次硬 seek 注册的事件监听清理函数。新一轮 seek 前先清理上一轮，
     // 避免快速连续 seek 时监听器堆积；卸载时也调用。
     const seekCleanupRef = useRef<(() => void) | null>(null);
@@ -366,13 +480,59 @@ export function SceneSlide({
         if (currentlyScrolling) return;
         // 仅视口内（active）卡片加载视频源。
         if (!isActive) return;
-        const url = pickStreamUrl(scene, transcodeType);
+        // 随机时段：签名变化（开关/秒数提交）才算新的加载周期；
+        // isActive 抖动等重跑沿用已计算的窗口，不重新随机。
+        const sig = randomStart ? `1:${randomSeconds}` : "0";
+        const reroll = randomSigRef.current !== sig;
+        randomSigRef.current = sig;
+        let win = randomWindowRef.current;
+        if (reroll) {
+            win = null;
+            randomAdvancedRef.current = false;
+            // 新的设置周期：用户手动 seek 的取消标记随之复位。
+            userSeekedRef.current = false;
+            if (randomStart) {
+                const d = stashDuration;
+                if (d !== null && Number.isFinite(d) && d > 0) {
+                    win = computeRandomWindow(d, randomSeconds);
+                }
+                // Stash 时长缺失时留 null，由 loadedmetadata 监听用
+                // video.duration 计算后补一次 seek。
+            }
+            randomWindowRef.current = win;
+        }
+        let url = pickStreamUrl(scene, transcodeType);
+        let initialOffset = 0;
+        // 转码流直接用 ?start= 预置随机起点，避免"先从头转码再硬
+        // seek"的双重等待；直连流在 loadedmetadata 后原生 seek。
+        if (win && needsTranscodeSeek && win.start > 0.5) {
+            url = buildTranscodeSeekUrl(url, win.start);
+            initialOffset = win.start;
+        }
         baseStreamUrlRef.current = url;
         if (video.src !== url) {
             video.src = url;
             video.load();
-            // 新基础流从头开始，清除转码 seek 偏移量。
-            setSeekOffset(0);
+            randomAdvancedRef.current = false;
+            // 新基础流：从 0 开始或已预置起点，同步转码 seek 偏移量。
+            setSeekOffset(initialOffset);
+        } else {
+            setSeekOffset(initialOffset);
+            // URL 未变：设置变化发生在已加载的直连流上 → 原地重掷
+            // 起点位置（转码流的 ?start= 变化会走上面的重载分支）。
+            if (
+                reroll &&
+                win &&
+                !needsTranscodeSeek &&
+                video.readyState >= 1 &&
+                win.start > 0.5
+            ) {
+                try {
+                    video.currentTime = win.start;
+                } catch {
+                    /* 尚不可 seek，忽略 */
+                }
+            }
         }
         // Kick playback for the active slide once src is settled. If
         // the IO fired play() mid-scroll (before src was assigned) it
@@ -382,7 +542,7 @@ export function SceneSlide({
         if (video.paused) {
             playPreferred(video);
         }
-    }, [currentlyScrolling, scene.id, isActive, transcodeType, needsTranscodeSeek]);
+    }, [currentlyScrolling, scene.id, isActive, transcodeType, needsTranscodeSeek, randomStart, randomSeconds, stashDuration]);
 
     // 需求2 修复：转码流（avi/wmv/mkv/...）的 seek 处理。
     // 原生 <video>.currentTime = N 依赖 HTTP Range 请求，而 Stash 的 live
@@ -459,6 +619,49 @@ export function SceneSlide({
         },
         [needsTranscodeSeek, scene.id]
     );
+
+    // 随机时段：元数据就绪后应用随机起点。
+    //   - 直连流：原生 currentTime = A。
+    //   - 转码流：src 已用 ?start= 预置起点（seekOffset 已同步为 A）
+    //     时无需再 seek；仅在回退路径（设置 src 时 Stash 时长未知、
+    //     窗口此刻才算出）补一次 seekToTime 硬 seek。
+    // 每次 src 重载都会重触发 loadedmetadata；窗口已存（含重进视口
+    // 沿用的窗口）时跳过重算，转码流靠 seekOffset 与 A 一致判定已预置。
+    useEffect(() => {
+        const video = videoRef.current;
+        if (!video || !randomStart) return;
+        const onMeta = () => {
+            let win = randomWindowRef.current;
+            if (!win) {
+                // 用户手动 seek 过（转码硬 seek 重载也会触发本事件）：
+                // 随机时段已取消，不重新计算窗口。
+                if (userSeekedRef.current) return;
+                const d = video.duration;
+                if (!Number.isFinite(d) || d <= 0) return;
+                win = computeRandomWindow(d, randomSeconds);
+                // 先进入全屏、元数据后到才算出窗口：循环时长同样立即
+                // 中断（与 fullscreenchange 路径行为一致）。
+                if (document.fullscreenElement === containerRef.current) {
+                    win = { ...win, end: null };
+                }
+                randomWindowRef.current = win;
+            }
+            if (win.start <= 0.5) return;
+            if (needsTranscodeSeek) {
+                if (Math.abs(seekOffsetRef.current - win.start) > 0.5) {
+                    seekToTime(win.start);
+                }
+            } else {
+                try {
+                    video.currentTime = win.start;
+                } catch {
+                    /* 尚不可 seek，忽略 */
+                }
+            }
+        };
+        video.addEventListener("loadedmetadata", onMeta);
+        return () => video.removeEventListener("loadedmetadata", onMeta);
+    }, [randomStart, randomSeconds, scene.id, needsTranscodeSeek, seekToTime]);
 
     // Explicit decoder cleanup on unmount. The browser doesn't release
     // hardware decoder slots aggressively — they linger until GC. Calling
@@ -791,6 +994,18 @@ export function SceneSlide({
             //      → 调用 exitFullscreen → "闪一下退出" → resize → 视频重载
             const fsEl = document.fullscreenElement;
             const isMine = fsEl === containerRef.current;
+            // 进入全屏：立即中断本场景的"循环时长"计时——把 B 点置
+            // null（保留随机起点；转码流 URL 含 ?start= 不变、视频不
+            // 重载）。此后无论全屏中还是退出后都持续播放到影片结
+            // 尾，再按"输入框空"的语义收尾：自动滚动开则切换下一
+            // 部，关则回随机起点循环。这样全屏期间看过了 B 点、退
+            // 出时不会立刻跳下一部。
+            if (isMine) {
+                const win = randomWindowRef.current;
+                if (win && win.end !== null) {
+                    randomWindowRef.current = { ...win, end: null };
+                }
+            }
             setIsFullscreen(isMine);
             if (isMine) {
                 showFullscreenUI();
@@ -929,6 +1144,10 @@ export function SceneSlide({
                 let target = touchStartRef.current.videoTime + deltaSec;
                 if (target < 0) target = 0;
                 if (duration > 0 && target > duration) target = duration;
+                // 用户手势 seek 与进度条点击同理：取消本场景随机时段，
+                // 之后播放到影片结束。
+                randomWindowRef.current = null;
+                userSeekedRef.current = true;
                 seekToTime(target);
             }
             setSeekIndicator(null);
@@ -975,10 +1194,6 @@ export function SceneSlide({
     );
     const detailsLine = scene.details?.trim() || "";
 
-    // Stash's authoritative duration. Falls back to video.duration inside
-    // SceneProgress when this is null.
-    const stashDuration = scene.files?.[0]?.duration ?? null;
-
     return (
         <article
             ref={containerRef}
@@ -1000,10 +1215,49 @@ export function SceneSlide({
                 playsInline
                 /* When auto-scroll is enabled we disable loop so `ended`
                    actually fires; otherwise videos loop forever like
-                   Instagram Reels and the user advances manually. */
-                loop={!autoScroll}
+                   Instagram Reels and the user advances manually.
+                   随机时段同样需要 loop=false：ended 是"播放到影片结
+                   束"时回 A 点（A→B 循环）或自动切换的触发点。 */
+                loop={!autoScroll && !randomStart}
                 muted={muted}
+                onTimeUpdate={() => {
+                    // 随机时段：到达明确 B 点（输入了秒数）时按模式
+                    // 处理——自动滚动切换下一场景，否则回 A 点循环。
+                    // 输入框为空（end=null）的结尾处理走 ended 事件。
+                    if (!randomStart) return;
+                    const video = videoRef.current;
+                    const win = randomWindowRef.current;
+                    if (!video || !win || win.end === null) return;
+                    const abs = needsTranscodeSeek
+                        ? video.currentTime + seekOffsetRef.current
+                        : video.currentTime;
+                    if (abs < win.end - 0.3) return;
+                    if (autoScroll) {
+                        if (isActive && !randomAdvancedRef.current) {
+                            randomAdvancedRef.current = true;
+                            onAutoAdvance?.();
+                        }
+                    } else {
+                        // A→B 循环：回到随机起点。转码流由 seekToTime
+                        // 硬 seek 重建 src，直连流原生 seek 瞬时完成。
+                        seekToTime(win.start);
+                    }
+                }}
                 onEnded={() => {
+                    // 随机时段 + 播到影片结尾（输入框空）：结束后
+                    // A→B 循环或自动切换，与 timeupdate 的显式 B 点
+                    // 逻辑保持一致。
+                    if (randomStart && randomWindowRef.current) {
+                        if (autoScroll) {
+                            if (isActive && !randomAdvancedRef.current) {
+                                randomAdvancedRef.current = true;
+                                onAutoAdvance?.();
+                            }
+                        } else {
+                            seekToTime(randomWindowRef.current.start);
+                        }
+                        return;
+                    }
                     if (!autoScroll || !isActive) return;
                     onAutoAdvance?.();
                 }}
@@ -1150,7 +1404,15 @@ export function SceneSlide({
             <SceneProgress
                 videoRef={videoRef}
                 duration={stashDuration}
-                onSeekToTime={seekToTime}
+                onSeekToTime={(time) => {
+                    // 用户点击进度条主动 seek → 取消本场景的随机时段
+                    // （清除 B 点窗口），此后播放到影片结束：自动滚动开
+                    // 则切换下一个场景，否则停在结尾。滑走再滑回（组件
+                    // 重挂载）后随机时段重新生效。
+                    randomWindowRef.current = null;
+                    userSeekedRef.current = true;
+                    seekToTime(time);
+                }}
                 seekOffset={seekOffset}
                 isFullscreen={isFullscreen}
                 fullscreenUIVisible={fullscreenUIVisible}

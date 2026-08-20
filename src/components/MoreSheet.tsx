@@ -1,7 +1,16 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useSheetClose } from "../hooks/useSheetClose";
-import { setAutoScroll, useAutoScroll, setAutoLoadCaptions, useAutoLoadCaptions } from "../home/pluginSettings";
+import {
+    setAutoScroll,
+    useAutoScroll,
+    setAutoLoadCaptions,
+    useAutoLoadCaptions,
+    setRandomStart,
+    useRandomStart,
+    setRandomStartSeconds,
+    useRandomStartSeconds,
+} from "../home/pluginSettings";
 import { useTranslation } from "react-i18next";
 
 interface MoreSheetProps {
@@ -16,7 +25,31 @@ export function MoreSheet({ sceneId, onClose }: MoreSheetProps) {
     const { isExiting, beginClose } = useSheetClose(onClose);
     const autoScroll = useAutoScroll();
     const autoLoadCaptions = useAutoLoadCaptions();
+    const randomStart = useRandomStart();
+    const randomStartSeconds = useRandomStartSeconds();
     const { t } = useTranslation();
+
+    // Local edit buffer for the seconds input. Commits to localStorage
+    // on blur/Enter (and on unmount) so every keystroke doesn't
+    // re-roll the active video's random window — SceneSlide reloads
+    // whenever the stored value changes.
+    const [secondsDraft, setSecondsDraft] = useState<string | null>(null);
+    const secondsValue = secondsDraft ?? randomStartSeconds;
+    const secondsDraftRef = useRef<string | null>(null);
+    secondsDraftRef.current = secondsDraft;
+    useEffect(
+        () => () => {
+            if (secondsDraftRef.current !== null) {
+                setRandomStartSeconds(secondsDraftRef.current);
+            }
+        },
+        []
+    );
+    const commitSeconds = () => {
+        if (secondsDraft === null) return;
+        setRandomStartSeconds(secondsDraft);
+        setSecondsDraft(null);
+    };
 
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
@@ -68,6 +101,68 @@ export function MoreSheet({ sceneId, onClose }: MoreSheetProps) {
                                 <span className="binge-more-sheet-switch-thumb" />
                             </span>
                         </button>
+                    </li>
+                    <li>
+                        <button
+                            type="button"
+                            className="binge-more-sheet-row"
+                            onClick={() => setRandomStart(!randomStart)}
+                            aria-pressed={randomStart}
+                        >
+                            <span className="binge-more-sheet-row-label">
+                                <span>{t("action.random_start")}</span>
+                                <small className="binge-more-sheet-row-sub">
+                                    {t("action.random_start_desc")}
+                                </small>
+                            </span>
+                            <span
+                                className={
+                                    "binge-more-sheet-switch" +
+                                    (randomStart ? " is-on" : "")
+                                }
+                                aria-hidden="true"
+                            >
+                                <span className="binge-more-sheet-switch-thumb" />
+                            </span>
+                        </button>
+                        {randomStart && (
+                            <div className="binge-more-sheet-random-row">
+                                <span className="binge-more-sheet-random-label">
+                                    {t("action.random_start_seconds_label")}
+                                </span>
+                                <span className="binge-more-sheet-random-fields">
+                                    <input
+                                        type="number"
+                                        inputMode="numeric"
+                                        min={1}
+                                        step={1}
+                                        className="binge-more-sheet-random-input"
+                                        placeholder={t(
+                                            "action.random_start_placeholder"
+                                        )}
+                                        value={secondsValue}
+                                        onChange={(e) =>
+                                            setSecondsDraft(e.target.value)
+                                        }
+                                        onBlur={commitSeconds}
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Enter") {
+                                                e.currentTarget.blur();
+                                            }
+                                        }}
+                                        aria-label={t(
+                                            "action.random_start_seconds"
+                                        )}
+                                    />
+                                    <span
+                                        className="binge-more-sheet-random-unit"
+                                        aria-hidden="true"
+                                    >
+                                        s
+                                    </span>
+                                </span>
+                            </div>
+                        )}
                     </li>
                     <li>
                         <button
