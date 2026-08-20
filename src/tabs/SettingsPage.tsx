@@ -899,6 +899,12 @@ function BingeServerConfigCard() {
     // need its own dismissal.
     const cookieExpiredAt = config?.redditCookieExpiredAt;
     const expiredAgo = cookieExpiredAt ? relativeOrEmpty(cookieExpiredAt) : "";
+    // Reddit refusing everything is a different problem with a different
+    // answer, so it gets its own message. Shown instead of the expiry
+    // one, never alongside it: two warnings about the same silence, each
+    // suggesting something else, is worse than either on its own.
+    const blockedAt = config?.redditBlockedAt;
+    const blockedAgo = blockedAt ? relativeOrEmpty(blockedAt) : "";
 
     return (
         <div className="binge-settings-card">
@@ -944,7 +950,22 @@ function BingeServerConfigCard() {
                 <p className="binge-server-config-error">{keyError}</p>
             )}
 
-            {cookieExpiredAt && (
+            {blockedAt && (
+                <p className="binge-server-config-stale">
+                    <span className="binge-server-config-stale-icon">!</span>
+                    <span>
+                        Reddit refused every request binge-server made
+                        {blockedAgo && ` ${blockedAgo}`}, so stories have
+                        stopped updating. This is usually the address the daemon
+                        connects from rather than your cookie, so a new cookie
+                        may not help. If binge-server runs behind a VPN or on a
+                        hosted server, try a different exit or run it from your
+                        home connection.
+                    </span>
+                </p>
+            )}
+
+            {cookieExpiredAt && !blockedAt && (
                 <p className="binge-server-config-stale">
                     <span className="binge-server-config-stale-icon">!</span>
                     <span>
