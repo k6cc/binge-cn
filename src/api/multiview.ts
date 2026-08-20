@@ -55,19 +55,38 @@ export function multiviewQueueCount(): number {
 
 // ── Config (source of truth) ────────────────────────────────────────
 
+// Throws rather than returning [] when the queue could not be read.
+//
+// "Could not read" and "the queue is empty" were the same answer, and
+// the caller writes the queue back afterwards. A GraphQL 200 carrying
+// an errors array, which is what an auth blip or a plugin-config read
+// failure looks like, left j.data undefined and so read as empty: the
+// next write then replaced a queue of sixteen with a single entry,
+// destroying state shared with the Multiview plugin and both iOS
+// clients. An error here has to stay an error.
 async function fetchConfigQueue(): Promise<MultiviewQueueItem[]> {
     const r = await fetch("/graphql", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query: "{ configuration { plugins } }" }),
     });
+    if (!r.ok) throw new Error(`multiview queue read failed: ${r.status}`);
     const j = await r.json();
-    const raw = j?.data?.configuration?.plugins?.multiView?.queue;
+    if (j?.errors?.length) {
+        throw new Error("multiview queue read returned errors");
+    }
+    if (!j?.data?.configuration?.plugins) {
+        throw new Error("multiview queue read returned no plugin config");
+    }
+    const raw = j.data.configuration.plugins.multiView?.queue;
+    // A genuinely absent key is a genuinely empty queue; that is the
+    // one case where [] is the right answer.
+    if (raw == null || raw === "") return [];
     try {
-        const a = JSON.parse(raw || "[]");
-        return Array.isArray(a) ? a : [];
+        const a: unknown = JSON.parse(raw);
+        return Array.isArray(a) ? (a as MultiviewQueueItem[]) : [];
     } catch {
-        return [];
+        throw new Error("multiview queue is not readable json");
     }
 }
 

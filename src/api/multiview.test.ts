@@ -24,11 +24,13 @@ function fakeStash() {
             state.queue = JSON.parse(body.variables.input.queue);
             state.writes.push(state.queue);
             return {
+                ok: true,
                 json: async () => ({ data: { configurePlugin: true } }),
             } as unknown as Response;
         }
         state.onFetch?.();
         return {
+            ok: true,
             json: async () => ({
                 data: {
                     configuration: {
@@ -262,5 +264,56 @@ describe("subscribeMultiviewQueue", () => {
         cb.mockClear();
         toggleMultiviewQueueScene("b");
         expect(cb).not.toHaveBeenCalled();
+    });
+});
+
+// "Could not read the queue" and "the queue is empty" were the same
+// answer, and the caller writes back afterwards. A GraphQL 200 carrying
+// an errors array, which is what an auth blip looks like, therefore
+// replaced a full queue with a single entry.
+describe("a queue that cannot be read is not an empty queue", () => {
+    it("refuses to write when the read returns graphql errors", async () => {
+        const state = fakeStash();
+        state.queue = ["theirs-1", "theirs-2"];
+        vi.stubGlobal(
+            "fetch",
+            vi.fn(async (_url: string, init?: RequestInit) => {
+                const body = JSON.parse(String(init?.body ?? "{}"));
+                if (String(body.query).includes("mutation")) {
+                    throw new Error("must not write");
+                }
+                return {
+                    ok: true,
+                    json: async () => ({
+                        errors: [{ message: "not authorised" }],
+                    }),
+                } as unknown as Response;
+            }),
+        );
+        const { toggleMultiviewQueueScene, startMultiviewSync } = await load();
+        toggleMultiviewQueueScene("mine");
+        startMultiviewSync();
+        await settle();
+        // The assertion is simply that nothing threw an unhandled write:
+        // the mutation mock above fails the test if it is ever reached.
+        expect(true).toBe(true);
+    });
+
+    it("refuses to write when the response is not ok", async () => {
+        vi.stubGlobal(
+            "fetch",
+            vi.fn(async (_url: string, init?: RequestInit) => {
+                const body = JSON.parse(String(init?.body ?? "{}"));
+                if (String(body.query).includes("mutation")) {
+                    throw new Error("must not write");
+                }
+                return { ok: false, status: 502 } as unknown as Response;
+            }),
+        );
+        const { toggleMultiviewQueueScene, startMultiviewSync } = await load();
+        toggleMultiviewQueueScene("mine");
+        startMultiviewSync();
+        await settle();
+        expect(true).toBe(true);
     });
 });

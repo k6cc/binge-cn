@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
     useHasAdvancedRating,
+    usePluginLoaded,
     useHasMultiview,
     useHasScribe,
 } from "../plugins/PluginContext";
@@ -79,8 +80,14 @@ export function ActionStack({
     const hasMultiview = useHasMultiview();
     const hasScribe = useHasScribe();
     const hasAdvancedRating = useHasAdvancedRating();
+    // Gated on the plugin enumeration having landed, not just on its
+    // answer. Before it lands hasAdvancedRating is false, so a tap in
+    // that window took the branch that writes rating100 directly, which
+    // is the write Advanced Rating owns and recomputes.
+    const pluginsKnown = usePluginLoaded();
     const [rateStripOpen, setRateStripOpen] = useState(false);
-    const useAdvancedRating = hasAdvancedRating && !!onOpenAdvancedRating;
+    const useAdvancedRating =
+        pluginsKnown && hasAdvancedRating && !!onOpenAdvancedRating;
 
     return (
         <aside className="binge-actions" aria-label="scene actions">
