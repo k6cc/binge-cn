@@ -1,3 +1,4 @@
+import { gql } from "./graphql";
 import { findTagByName, findTagsContaining } from "./queries";
 import { sceneUpdate, tagCreate, tagDestroy, tagSetParents } from "./mutations";
 
@@ -249,22 +250,80 @@ export async function deleteCollection(tagName: string): Promise<boolean> {
     return true;
 }
 
-// Toggle a scene's membership in a collection. Caller passes the scene's
-// CURRENT tag ids; we diff and sceneUpdate. Returns the new state.
+// A scene's tags as Stash holds them right now.
+//
+// Deliberately not cached and not passed in. Collection membership is
+// stored as a tag, and Stash's sceneUpdate replaces the whole tag_ids
+// array, so a write built from anything but a fresh read silently
+// deletes every tag added since that read was taken.
+const SCENE_TAG_IDS = `
+    query SceneTagIds($id: ID!) {
+        findScene(id: $id) {
+            id
+            tags { id }
+        }
+    }
+`;
+
+async function currentSceneTagIds(sceneId: string): Promise<string[]> {
+    const data = await gql<{
+        findScene: { id: string; tags: { id: string }[] } | null;
+    }>(SCENE_TAG_IDS, { id: sceneId });
+    // Fail closed. A missing scene must never be read as "this scene has
+    // no tags", because the next step writes that back as the truth.
+    if (!data.findScene) {
+        throw new Error(`scene ${sceneId} not found`);
+    }
+    return data.findScene.tags.map((t) => t.id);
+}
+
+// Turn a scene's tag ids into a "which collections is it in" map, given
+// the tagName -> id mapping. Lets a caller refresh every row from the
+// tags a write returned rather than trusting its own intent.
+export function membershipFromTagIds(
+    tagIds: string[],
+    tagIdMap: Map<string, string>,
+): Record<string, boolean> {
+    const out: Record<string, boolean> = {};
+    for (const [tagName, id] of tagIdMap) {
+        out[tagName] = tagIds.includes(id);
+    }
+    return out;
+}
+
+// Toggle a scene's membership in a collection.
+//
+// The scene's current tags are read here rather than supplied by the
+// caller. They used to be passed in, and every caller had the same
+// thing to hand: the tag array from the query that first populated the
+// feed, held in React state for the life of the session and never
+// refreshed. Since this function overwrites the whole array, that made
+// an ordinary sequence destructive. Rate a scene, which writes score
+// tags through a different path, then bookmark it: the bookmark rebuilt
+// tag_ids from the page-load snapshot, the score tags were not in it,
+// and they were deleted. The Advanced Rating hook then recomputed the
+// scene's rating from the tags that survived, which were none. Two
+// bookmarks in a row lost the first. A tag added from Stash's own UI in
+// another tab was reverted by any bookmark here.
+//
+// Returns the membership Stash actually holds afterwards, not the
+// intent, so a caller cannot show a tick for a write that did not land.
 export async function setSceneInCollection(
     sceneId: string,
-    currentTagIds: string[],
     tagName: string,
     next: boolean,
-): Promise<boolean> {
+): Promise<{ inCollection: boolean; tagIds: string[] }> {
     const tagIds = await getCollectionTagIds();
     const id = tagIds.get(tagName);
-    if (!id) return !next;
-    const has = currentTagIds.includes(id);
-    if (has === next) return next;
-    const newTagIds = next
-        ? [...currentTagIds, id]
-        : currentTagIds.filter((t) => t !== id);
-    await sceneUpdate({ id: sceneId, tag_ids: newTagIds });
-    return next;
+    if (!id) return { inCollection: !next, tagIds: [] };
+
+    const current = await currentSceneTagIds(sceneId);
+    const has = current.includes(id);
+    if (has === next) return { inCollection: next, tagIds: current };
+
+    const newTagIds = next ? [...current, id] : current.filter((t) => t !== id);
+    const updated = await sceneUpdate({ id: sceneId, tag_ids: newTagIds });
+    // Prefer what came back over what we sent.
+    const after = updated?.tags?.map((t) => t.id) ?? newTagIds;
+    return { inCollection: after.includes(id), tagIds: after };
 }

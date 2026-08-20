@@ -9,6 +9,22 @@ const tagDestroy = vi.fn();
 const tagSetParents = vi.fn();
 const sceneUpdate = vi.fn();
 
+// setSceneInCollection reads the scene's live tags before writing, so
+// the tests have to say what Stash currently holds.
+const gql = vi.fn();
+let sceneTagIds: string[] | null = [];
+vi.mock("./graphql", () => ({
+    gql: (...args: unknown[]) => {
+        gql(...args);
+        return Promise.resolve({
+            findScene:
+                sceneTagIds === null
+                    ? null
+                    : { id: "s1", tags: sceneTagIds.map((id) => ({ id })) },
+        });
+    },
+}));
+
 vi.mock("./queries", () => ({
     findTagByName: (...a: unknown[]) => findTagByName(...a),
     findTagsContaining: (...a: unknown[]) => findTagsContaining(...a),
@@ -318,14 +334,14 @@ describe("setSceneInCollection", () => {
 
     it("adds the tag while keeping the scene's other tags", async () => {
         withRoadTrip();
+        sceneTagIds = ["existing"];
         const { setSceneInCollection } = await load();
         const got = await setSceneInCollection(
             "s1",
-            ["existing"],
             `Road Trip${SUFFIX}`,
             true,
         );
-        expect(got).toBe(true);
+        expect(got.inCollection).toBe(true);
         expect(sceneUpdate).toHaveBeenCalledWith({
             id: "s1",
             tag_ids: ["existing", "rt"],
@@ -334,13 +350,9 @@ describe("setSceneInCollection", () => {
 
     it("removes only the collection's tag", async () => {
         withRoadTrip();
+        sceneTagIds = ["existing", "rt"];
         const { setSceneInCollection } = await load();
-        await setSceneInCollection(
-            "s1",
-            ["existing", "rt"],
-            `Road Trip${SUFFIX}`,
-            false,
-        );
+        await setSceneInCollection("s1", `Road Trip${SUFFIX}`, false);
         expect(sceneUpdate).toHaveBeenCalledWith({
             id: "s1",
             tag_ids: ["existing"],
@@ -349,21 +361,63 @@ describe("setSceneInCollection", () => {
 
     it("skips the write when the scene is already in the wanted state", async () => {
         withRoadTrip();
+        sceneTagIds = ["rt"];
         const { setSceneInCollection } = await load();
-        await setSceneInCollection("s1", ["rt"], `Road Trip${SUFFIX}`, true);
+        await setSceneInCollection("s1", `Road Trip${SUFFIX}`, true);
         expect(sceneUpdate).not.toHaveBeenCalled();
     });
 
     it("reports the unchanged state when the collection cannot be resolved", async () => {
         stashHas([tag("p", PARENT), tag("fav", FAVOURITES)]);
         const { setSceneInCollection } = await load();
-        const got = await setSceneInCollection(
-            "s1",
-            [],
-            `Ghost${SUFFIX}`,
-            true,
-        );
-        expect(got).toBe(false);
+        const got = await setSceneInCollection("s1", `Ghost${SUFFIX}`, true);
+        expect(got.inCollection).toBe(false);
+        expect(sceneUpdate).not.toHaveBeenCalled();
+    });
+
+    // The bug this signature exists to prevent. Tags written by another
+    // path since the feed loaded, such as the score tags the rating
+    // modal writes, used to be deleted by the next bookmark, because the
+    // caller handed in the tag array it had held since page load and
+    // this function overwrote the whole thing with it.
+    it("keeps tags written since the scene was last fetched", async () => {
+        withRoadTrip();
+        // What the caller would have had at page load: ["existing"].
+        // What Stash holds now, after a rating was applied elsewhere.
+        sceneTagIds = ["existing", "score-body-4", "score-quality-5"];
+        const { setSceneInCollection } = await load();
+        await setSceneInCollection("s1", `Road Trip${SUFFIX}`, true);
+        expect(sceneUpdate).toHaveBeenCalledWith({
+            id: "s1",
+            tag_ids: ["existing", "score-body-4", "score-quality-5", "rt"],
+        });
+    });
+
+    // Two bookmarks in a row used to lose the first, for the same
+    // reason: both writes were built from the same page-load snapshot.
+    it("does not lose the previous collection on a second toggle", async () => {
+        withRoadTrip();
+        sceneTagIds = ["existing"];
+        const { setSceneInCollection } = await load();
+        await setSceneInCollection("s1", `Road Trip${SUFFIX}`, true);
+        // Stash now holds the first write.
+        sceneTagIds = ["existing", "rt"];
+        await setSceneInCollection("s1", `Watch Later${SUFFIX}`, true);
+        expect(sceneUpdate).toHaveBeenLastCalledWith({
+            id: "s1",
+            tag_ids: ["existing", "rt", "wl"],
+        });
+    });
+
+    // A missing scene must never be read as "this scene has no tags",
+    // because the next step writes that back as the truth.
+    it("refuses to write when the scene cannot be read", async () => {
+        withRoadTrip();
+        sceneTagIds = null;
+        const { setSceneInCollection } = await load();
+        await expect(
+            setSceneInCollection("s1", `Road Trip${SUFFIX}`, true),
+        ).rejects.toThrow();
         expect(sceneUpdate).not.toHaveBeenCalled();
     });
 });

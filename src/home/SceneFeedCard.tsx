@@ -163,22 +163,29 @@ export function SceneFeedCard({ item, feedSceneIds }: SceneFeedCardProps) {
     const handleOpenScribe = () => {
         scribeModal.openScene(item.sceneId);
     };
+    const collectionBusyRef = useRef<Record<string, boolean>>({});
     const handleToggleCollection = async (tagName: string) => {
+        // The reel has always serialised these; this one did not, so
+        // two quick taps could put two whole-array tag writes in flight
+        // against the same scene at once.
+        if (collectionBusyRef.current[tagName]) return;
+        collectionBusyRef.current[tagName] = true;
         const next = !inCollections[tagName];
         setInCollections((m) => ({ ...m, [tagName]: next }));
         // Same intent signal as the reel: saving = strong taste data.
         if (next) recordTagInteractions(item.tags);
         try {
-            const confirmed = await setSceneInCollection(
+            const { inCollection } = await setSceneInCollection(
                 item.sceneId,
-                item.tags.map((t) => t.id),
                 tagName,
                 next,
             );
-            setInCollections((m) => ({ ...m, [tagName]: confirmed }));
+            setInCollections((m) => ({ ...m, [tagName]: inCollection }));
         } catch {
             // Revert on error.
             setInCollections((m) => ({ ...m, [tagName]: !next }));
+        } finally {
+            collectionBusyRef.current[tagName] = false;
         }
     };
 

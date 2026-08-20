@@ -15,6 +15,7 @@ import { recordTagInteractions } from "../api/interactedTags";
 import {
     getCollections,
     getCollectionTagIds,
+    membershipFromTagIds,
     setSceneInCollection,
     subscribeCollections,
 } from "../api/collections";
@@ -147,6 +148,11 @@ export function SceneSlide({
     const [inCollections, setInCollections] = useState<Record<string, boolean>>(
         () => collectionsOverride ?? {},
     );
+    // tagName -> tag id, so a write's returned tag ids can be turned
+    // back into a membership map without another round trip.
+    const [collectionTagIds, setCollectionTagIds] = useState<
+        Map<string, string>
+    >(() => new Map());
     useEffect(() => {
         if (collectionsOverride) {
             setInCollections(collectionsOverride);
@@ -160,6 +166,7 @@ export function SceneSlide({
                     getCollectionTagIds(),
                 ]);
                 if (!alive) return;
+                setCollectionTagIds(tagIdMap);
                 const result: Record<string, boolean> = {};
                 for (const c of collections) {
                     const id = tagIdMap.get(c.tagName);
@@ -400,18 +407,20 @@ export function SceneSlide({
         // Explore as chip shortcuts. Only on saves (not removes) so
         // un-bookmarking doesn't pollute taste data.
         if (next) recordTagInteractions(scene.tags);
-        setSceneInCollection(
-            scene.id,
-            scene.tags.map((t) => t.id),
-            tagName,
-            next,
-        )
-            .then((confirmed) => {
+        setSceneInCollection(scene.id, tagName, next)
+            .then(({ inCollection, tagIds }) => {
                 setInCollections((prev) => ({
                     ...prev,
-                    [tagName]: confirmed,
+                    [tagName]: inCollection,
+                    // Every other collection re-derived from the tags
+                    // Stash just returned. The map used to be updated
+                    // one key at a time from the toggle's own intent,
+                    // so a second collection could be shown unticked
+                    // while the scene was in it, and tapping to add it
+                    // removed it instead.
+                    ...membershipFromTagIds(tagIds, collectionTagIds),
                 }));
-                onCollectionChange?.(scene.id, tagName, confirmed);
+                onCollectionChange?.(scene.id, tagName, inCollection);
             })
             .catch(() => {
                 // Roll back on failure.
