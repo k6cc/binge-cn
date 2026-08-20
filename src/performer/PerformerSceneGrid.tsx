@@ -681,7 +681,11 @@ function PornhubTile({
                 {poster && (
                     <span
                         className="binge-profile-scene-poster"
-                        style={{ backgroundImage: `url(${poster})` }}
+                        // Quoted url(): legacy phncdn thumb URLs contain
+                        // "(m=...)(mh=...)" segments — unquoted parens
+                        // terminate the CSS url token and the whole
+                        // background-image declaration is dropped.
+                        style={{ backgroundImage: `url("${poster}")` }}
                     />
                 )}
                 {!previewFailed && (

@@ -12,7 +12,6 @@ import { timeAgo } from "./timeAgo";
 import {
     rewriteRedditMediaUrl,
     rewriteRedgifsMediaUrl,
-    pornhubStreamUrl,
     saveToStash,
     getBingeServerConfig,
     type SaveToStashRequest,
@@ -730,14 +729,15 @@ function RedditCardBody({
     onEnded: () => void;
 }) {
     const [videoError, setVideoError] = useState<string | null>(null);
+    // PH videos whose mediabook preview 404'd (most studio content) —
+    // rendered as a still poster instead of an error card.
+    const [posterOnly, setPosterOnly] = useState(false);
     const { t } = useTranslation();
-    // One-shot guard for the PH preview→stream fallback below.
-    const phStreamTriedRef = useRef(false);
 
     // Reset error when scene id changes (next slide).
     useEffect(() => {
         setVideoError(null);
-        phStreamTriedRef.current = false;
+        setPosterOnly(false);
     }, [scene.id]);
 
     // X (twimg) / Reddit (v.redd.it) 视频会检查 Referer，<video> 元素的
@@ -813,19 +813,26 @@ function RedditCardBody({
     if (scene.kind === "video") {
         // PH story items carry a "ph:{viewkey}" id and play the preview
         // (mediabook) proxy. Most studio videos have no mediabook, so the
-        // proxy 404s — fall back ONCE to the stream proxy (the full
-        // progressive mp4; the 15s story cap advances as usual) before
-        // surfacing an error.
+        // proxy 404s — render the poster still instead (stories are 15s
+        // capped; the full stream belongs to the popup player, not here).
+        // The rAF cap advances to the next scene as usual.
         const isPornhub = (scene.domain || "").toLowerCase() === "pornhub.com";
+        const posterSrc = rewriteRedditMediaUrl(scene.thumbUrl);
+        if (posterOnly && posterSrc) {
+            return (
+                <img
+                    className="binge-story-viewer-image"
+                    key={scene.id}
+                    src={posterSrc}
+                    referrerPolicy="no-referrer"
+                    alt={scene.title ?? ""}
+                />
+            );
+        }
         const handleError = (e: React.SyntheticEvent<HTMLVideoElement>) => {
             const v = e.currentTarget;
-            if (
-                isPornhub &&
-                !phStreamTriedRef.current &&
-                scene.id.startsWith("ph:")
-            ) {
-                phStreamTriedRef.current = true;
-                v.src = pornhubStreamUrl(scene.id.slice(3));
+            if (isPornhub && scene.id.startsWith("ph:") && posterSrc) {
+                setPosterOnly(true);
                 return;
             }
             const err = v.error;
@@ -835,7 +842,6 @@ function RedditCardBody({
                     : t("status.unknown_video_error")
             );
         };
-        const posterSrc = rewriteRedditMediaUrl(scene.thumbUrl);
         return (
             <>
                 <video
