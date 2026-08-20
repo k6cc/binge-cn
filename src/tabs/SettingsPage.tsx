@@ -55,6 +55,7 @@ import {
 import { getForageHealth } from "../api/forageServer";
 import { parseCookiesTxt, describeParse } from "../api/cookiesTxt";
 import { BingeServerInstallCard } from "./BingeServerInstallCard";
+import { hasChosenBingeServer } from "../home/pluginSettings";
 import { fetchStashApiKey } from "../api/queries";
 import { DEFAULT_LIBRARY_FOLDER_NAMES } from "../home/impliedSource";
 import { DEFAULT_GALLERY_IGNORE_FOLDERS } from "../home/galleryNoise";
@@ -854,6 +855,30 @@ function BingeServerConfigCard() {
                         Checking…
                     </span>
                 </div>
+            </div>
+        );
+    }
+
+    if (health === null && !hasChosenBingeServer()) {
+        // Nobody has asked for a daemon here. Reporting it as
+        // unreachable, with a red dot, made an optional add-on look
+        // like a broken required component on every fresh install: the
+        // majority of people want the reel and their own library and
+        // never wanted Reddit at all. Say what it would add, and
+        // otherwise stay out of the way.
+        return (
+            <div className="binge-settings-card">
+                <div className="binge-settings-card-header">
+                    <h3 className="binge-settings-card-title">
+                        binge-server (optional)
+                    </h3>
+                </div>
+                <p className="binge-settings-card-description">
+                    Everything above works without it. Add binge-server only if
+                    you want Reddit, X and PornHub posts in your stories row,
+                    and the button to save one into your library. Use Install
+                    binge-server above, or point binge at one you already run.
+                </p>
             </div>
         );
     }

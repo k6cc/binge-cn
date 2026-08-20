@@ -614,6 +614,20 @@ export function toggleShowcaseBlur(): void {
 export function useBingeServerUrl(): string {
     return useStoredFreeString(BINGE_SERVER_URL_KEY, defaultBingeServerUrl());
 }
+// Whether a daemon URL was ever deliberately chosen, as opposed to the
+// derived default that exists for everybody. Lets Settings tell "never
+// wanted one" apart from "had one and it broke", which are the same
+// state to every other check and want opposite messages.
+export function hasChosenBingeServer(): boolean {
+    try {
+        const stored = localStorage.getItem(BINGE_SERVER_URL_KEY);
+        if (stored !== null && stored.length > 0) return true;
+    } catch {
+        /* no storage; treat as never chosen */
+    }
+    return confirmedDaemonOrigins().length > 0;
+}
+
 export function readBingeServerUrl(): string {
     return readFreeString(BINGE_SERVER_URL_KEY, defaultBingeServerUrl());
 }
