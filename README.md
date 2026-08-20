@@ -1,6 +1,6 @@
 # Binge（汉化版）
 
-> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.6.2**。
+> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.6.3**。
 
 为 [Stash](https://github.com/stashapp/stash) 提供的 Instagram 风格社交与发现层：竖屏 Reel、Stories、演员档案、StashDB 驱动的发现功能——全部基于 Stash 既有的 GraphQL API。Web 插件形态。
 
@@ -40,16 +40,14 @@ v0.4.17 将原硬编码中文迁移为基于 `react-i18next` 的动态多语言�
 
 ### 功能修复
 
-#### v0.6.2
-
-- **演员详情页 PornHub 瓦片黑屏修复**：hover 预览（mediabook）在多数商业片源上不存在，preview 代理返回 404 时原实现留下黑色矩形盖住封面；现在加载失败即自动隐藏视频层，保留封面、时长与标题正常显示。封面不显示（thumb 代理 410，CDN 签名 URL 过期）的彻底修复在 binge-server 侧——thumb 代理遇 410/403 自动回源 watch 页重提新签名 URL 并自愈缓存行，需另行部署更新版 daemon
-
-#### v0.6.1
+#### v0.6.1–v0.6.3
 
 - **合并上游全部 48 个未合并提交**（25 文件，+2200/−960）：Home 信息流（未识别场景分类开关 + 空库提示、批次卡片重构、演员名超长截断、信息来源推断、Reel 滚动落位修复）、安全加固（daemon URL 信任规则——未在此确认过的公共地址不发送 Stash API Key / Cookie，凭证卡片显示发送目标、Cookie 过期提示）、Explore / StashDB（Discover 行单次宽查询优先 + 仅 Explore 可见时才请求，保留本地 10s 超时）、安装脚本 SHA256 校验、死模块清理（筛选预设、全部演员弹窗）。跳过捐赠链接与 README/WebP 改动
 - **图库套用上游画廊改动**（本地实现保留）：准入标准与场景对齐——未关联演员的图库不再进首页动态（Stash 图库无 stash_ids，演员是唯一凭证），空状态分别提示未识别场景/图库数；Lightbox 完整图库分页——点图库卡片打开后可翻完全部图片（每页 60 张、接近末尾自动预取、计数显示真实总数），此前仅能看前 20 张
 - **首页静音图标修复**：自动播放被浏览器拦截降级静音时，图标立即显示"静音"真实状态（原来仍显示"开启"）；过滤滚动离开的 AbortError 避免误降级
 - **首页 Stories 头像行秒开**：无缓存首次打开原来要等 StashDB / Reddit / PornHub 三段外部请求串行完成（合计十多秒）才显示头像行；现在本地库数据 1–2 秒内先上屏，三个外部源后台并行合并（等待从三者之和降为最慢一个），单个源挂掉只降级不整行失败；"已拥有场景"全库查询延迟到确认有新场景后才发（缓存命中且无新场景时省 ~1.2s，与发现页共享同一请求）
+- **StoryViewer PornHub 视频播放修复**：Stories 里的 PH 条目原来直接报 `MediaError 4`（preview 代理 404——多数商业片源无 mediabook 预览）；现在自动降级切换到 stream 代理播放完整视频（弹窗同款链路，实时提取不受时效影响），15 秒上限照常推进；stream 也失败（视频下架等）时错误卡片下垫封面图，不再黑屏。无需 binge-server 配合（stream 为既有端点）
+- **演员详情页 PornHub 瓦片黑屏修复**：hover 预览（mediabook）在多数商业片源上不存在，preview 代理返回 404 时原实现留下黑色矩形盖住封面；现在加载失败即自动隐藏视频层，保留封面、时长与标题正常显示。封面不显示（thumb 代理 410，CDN 签名 URL 过期）的彻底修复在 binge-server 侧——thumb 代理遇 410/403 自动回源 watch 页重提新签名 URL 并自愈缓存行，需另行部署更新版 daemon
 - **汉化恢复**：新增 34 个 i18n key（含设置页 daemon 信任提示、cookies.txt 解析消息、未识别图库计数等），zh/en 各 585 key 零缺失
 
 #### v0.5.8

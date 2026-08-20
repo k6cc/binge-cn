@@ -12,6 +12,7 @@ import { timeAgo } from "./timeAgo";
 import {
     rewriteRedditMediaUrl,
     rewriteRedgifsMediaUrl,
+    pornhubStreamUrl,
     saveToStash,
     getBingeServerConfig,
     type SaveToStashRequest,
@@ -730,10 +731,13 @@ function RedditCardBody({
 }) {
     const [videoError, setVideoError] = useState<string | null>(null);
     const { t } = useTranslation();
+    // One-shot guard for the PH preview→stream fallback below.
+    const phStreamTriedRef = useRef(false);
 
     // Reset error when scene id changes (next slide).
     useEffect(() => {
         setVideoError(null);
+        phStreamTriedRef.current = false;
     }, [scene.id]);
 
     // X (twimg) / Reddit (v.redd.it) 视频会检查 Referer，<video> 元素的
@@ -807,34 +811,62 @@ function RedditCardBody({
         );
     }
     if (scene.kind === "video") {
+        // PH story items carry a "ph:{viewkey}" id and play the preview
+        // (mediabook) proxy. Most studio videos have no mediabook, so the
+        // proxy 404s — fall back ONCE to the stream proxy (the full
+        // progressive mp4; the 15s story cap advances as usual) before
+        // surfacing an error.
+        const isPornhub = (scene.domain || "").toLowerCase() === "pornhub.com";
+        const handleError = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+            const v = e.currentTarget;
+            if (
+                isPornhub &&
+                !phStreamTriedRef.current &&
+                scene.id.startsWith("ph:")
+            ) {
+                phStreamTriedRef.current = true;
+                v.src = pornhubStreamUrl(scene.id.slice(3));
+                return;
+            }
+            const err = v.error;
+            setVideoError(
+                err
+                    ? `MediaError ${err.code} (${err.message || t("status.no_message")})`
+                    : t("status.unknown_video_error")
+            );
+        };
+        const posterSrc = rewriteRedditMediaUrl(scene.thumbUrl);
         return (
             <>
                 <video
                     ref={setVideoRef}
                     className="binge-story-viewer-video"
                     key={scene.id}
-                    poster={rewriteRedditMediaUrl(scene.thumbUrl) ?? undefined}
+                    poster={posterSrc ?? undefined}
                     playsInline
                     muted={muted}
                     onEnded={onEnded}
-                    onError={(e) => {
-                        const v = e.currentTarget;
-                        const err = v.error;
-                        setVideoError(
-                            err
-                                ? `MediaError ${err.code} (${err.message || t("status.no_message")})`
-                                : t("status.unknown_video_error")
-                        );
-                    }}
+                    onError={handleError}
                 />
                 {videoError && (
-                    <div className="binge-story-viewer-video-error">
-                        <div>{t("status.video_play_failed")}</div>
-                        <code>{videoError}</code>
-                        <code style={{ wordBreak: "break-all" }}>
-                            {scene.mediaUrl}
-                        </code>
-                    </div>
+                    <>
+                        {/* Backdrop so a failed video isn't a black void —
+                            the thumb proxy usually still serves. */}
+                        {posterSrc && (
+                            <img
+                                className="binge-story-viewer-image"
+                                src={posterSrc}
+                                alt=""
+                            />
+                        )}
+                        <div className="binge-story-viewer-video-error">
+                            <div>{t("status.video_play_failed")}</div>
+                            <code>{videoError}</code>
+                            <code style={{ wordBreak: "break-all" }}>
+                                {scene.mediaUrl}
+                            </code>
+                        </div>
+                    </>
                 )}
             </>
         );
