@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { gql } from "../api/graphql";
+import { DEFAULT_LIBRARY_FOLDER_NAMES } from "./impliedSource";
+import { DEFAULT_GALLERY_IGNORE_FOLDERS } from "./galleryNoise";
 
 // Plugin-settings the reel SPA shares with the Stash settings panel
 // injected by binge.entry.js. Storage is plain localStorage keyed under
@@ -351,12 +353,18 @@ export function setAllowedGenders(values: ReadonlySet<Gender>): void {
 // HIDDEN categories (empty = show everything, the default). Galleries
 // are intentionally NOT a category here — they have their own
 // "Show galleries" toggle.
-export type FeedCategory = "discover" | "trending" | "posts" | "reposts";
+// "unidentified" is scenes and batches with no performer linked. They
+// are their own category rather than part of posts/reposts because
+// there can be a great many of them (most of what an untidy library
+// imports) and whether they belong on Home is a matter of taste.
+export type FeedCategory =
+    "discover" | "trending" | "posts" | "reposts" | "unidentified";
 export const ALL_FEED_CATEGORIES: ReadonlyArray<FeedCategory> = [
     "discover",
     "trending",
     "posts",
     "reposts",
+    "unidentified",
 ];
 const FEED_HIDDEN_KEY = "binge.feedHidden";
 
@@ -404,6 +412,116 @@ export function setHiddenFeedCategories(
     // Preserve canonical order so the stored value is stable.
     const ordered = ALL_FEED_CATEGORIES.filter((c) => values.has(c));
     writeString(FEED_HIDDEN_KEY, ordered.join(","));
+}
+
+// ── Library folder names ────────────────────────────────────────────
+// Folder names that describe a library rather than a source, used when
+// naming a scene that has no performer linked. binge measures the shared
+// root of the library from the paths themselves, so this only has to
+// catch a bucket that some scenes sit in and others do not ("Unfiled",
+// "New"). Every layout is different, so the list is the user's, with
+// DEFAULT_LIBRARY_FOLDER_NAMES as a starting point rather than a rule.
+// Stored comma-separated; an empty stored value means "none", which is
+// distinct from never having set one.
+const LIBRARY_FOLDER_NAMES_KEY = "binge.libraryFolderNames";
+
+export function readLibraryFolderNames(): string[] {
+    try {
+        const stored = localStorage.getItem(LIBRARY_FOLDER_NAMES_KEY);
+        if (stored === null) return [...DEFAULT_LIBRARY_FOLDER_NAMES];
+        return stored
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean);
+    } catch {
+        return [...DEFAULT_LIBRARY_FOLDER_NAMES];
+    }
+}
+
+export function useLibraryFolderNames(): string[] {
+    const [value, setValue] = useState<string[]>(() =>
+        readLibraryFolderNames(),
+    );
+    useEffect(() => {
+        const update = () => setValue(readLibraryFolderNames());
+        const localHandler = (changedKey: string) => {
+            if (changedKey === LIBRARY_FOLDER_NAMES_KEY) update();
+        };
+        const storageHandler = (e: StorageEvent) => {
+            if (e.key === LIBRARY_FOLDER_NAMES_KEY) update();
+        };
+        listeners.add(localHandler);
+        window.addEventListener("storage", storageHandler);
+        return () => {
+            listeners.delete(localHandler);
+            window.removeEventListener("storage", storageHandler);
+        };
+    }, []);
+    return value;
+}
+
+export function setLibraryFolderNames(values: readonly string[]): void {
+    writeString(
+        LIBRARY_FOLDER_NAMES_KEY,
+        values
+            .map((s) => s.trim())
+            .filter(Boolean)
+            .join(", "),
+    );
+}
+
+// ── Gallery folders to ignore ───────────────────────────────────────
+// Folder names whose galleries are artwork rather than photo sets
+// (screenshot sheets, cover art). Whole-segment match, "*" suffix for a
+// prefix match. Which names those are is a property of one person's
+// disk, so the list is theirs; DEFAULT_GALLERY_IGNORE_FOLDERS is only a
+// starting point. An empty stored value means "hide nothing", which is
+// distinct from never having set one.
+const GALLERY_IGNORE_FOLDERS_KEY = "binge.galleryIgnoreFolders";
+
+export function readGalleryIgnoreFolders(): string[] {
+    try {
+        const stored = localStorage.getItem(GALLERY_IGNORE_FOLDERS_KEY);
+        if (stored === null) return [...DEFAULT_GALLERY_IGNORE_FOLDERS];
+        return stored
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean);
+    } catch {
+        return [...DEFAULT_GALLERY_IGNORE_FOLDERS];
+    }
+}
+
+export function useGalleryIgnoreFolders(): string[] {
+    const [value, setValue] = useState<string[]>(() =>
+        readGalleryIgnoreFolders(),
+    );
+    useEffect(() => {
+        const update = () => setValue(readGalleryIgnoreFolders());
+        const localHandler = (changedKey: string) => {
+            if (changedKey === GALLERY_IGNORE_FOLDERS_KEY) update();
+        };
+        const storageHandler = (e: StorageEvent) => {
+            if (e.key === GALLERY_IGNORE_FOLDERS_KEY) update();
+        };
+        listeners.add(localHandler);
+        window.addEventListener("storage", storageHandler);
+        return () => {
+            listeners.delete(localHandler);
+            window.removeEventListener("storage", storageHandler);
+        };
+    }, []);
+    return value;
+}
+
+export function setGalleryIgnoreFolders(values: readonly string[]): void {
+    writeString(
+        GALLERY_IGNORE_FOLDERS_KEY,
+        values
+            .map((s) => s.trim())
+            .filter(Boolean)
+            .join(", "),
+    );
 }
 
 export function useShowGalleries(): boolean {
@@ -459,9 +577,6 @@ export function useIncludePornhub(): boolean {
 // User can still manually swipe at any time.
 export function useAutoScroll(): boolean {
     return useStoredBool(AUTO_SCROLL_KEY, false);
-}
-export function readAutoScroll(): boolean {
-    return readBool(AUTO_SCROLL_KEY, false);
 }
 export function setAutoScroll(value: boolean): void {
     writeBool(AUTO_SCROLL_KEY, value);
@@ -530,9 +645,6 @@ export function setRefractIntegration(value: boolean): void {
 // lives in styles/global.css. Off by default.
 export function useShowcaseBlur(): boolean {
     return useStoredBool(SHOWCASE_BLUR_KEY, false);
-}
-export function readShowcaseBlur(): boolean {
-    return readBool(SHOWCASE_BLUR_KEY, false);
 }
 export function setShowcaseBlur(value: boolean): void {
     writeBool(SHOWCASE_BLUR_KEY, value);
@@ -728,6 +840,72 @@ export function setBingeServerUrl(value: string): void {
     // Strip trailing slash so concatenations are predictable.
     const trimmed = value.trim().replace(/\/+$/, "");
     writeString(BINGE_SERVER_URL_KEY, trimmed);
+    // Setting the URL IS the confirmation. Both routes here are
+    // deliberate acts: someone typed it into binge's Settings, or an
+    // admin put it in Stash's plugin config and it was seeded. Recording
+    // it here is what keeps this change free of extra setup steps -- the
+    // banner in Settings then only appears for a URL that arrived
+    // without either, which is the case worth looking at.
+    confirmDaemonOrigin(trimmed);
+}
+
+// ── daemon origins the user has effectively vouched for ─────────────
+//
+// Only consulted for a PUBLIC https daemon host that is unrelated to the
+// Stash origin. Local, private, tailnet and same-domain hosts never
+// reach this, so the list stays empty for almost everyone.
+//
+// Not a security boundary: anything that can write the URL key can write
+// this one too. Its job is that a daemon address which appeared without
+// you setting it does not silently receive your credentials.
+const DAEMON_OK_KEY = "binge.daemonOriginsOk";
+const DAEMON_OK_MIGRATED_KEY = "binge.daemonOriginsMigrated";
+
+function originOf(raw: string): string {
+    try {
+        return new URL(raw).origin;
+    } catch {
+        return "";
+    }
+}
+
+export function confirmedDaemonOrigins(): string[] {
+    try {
+        // One-time grandfather: a URL already configured before this
+        // existed was set deliberately by someone, so carry it over
+        // rather than interrupting a working install to re-confirm it.
+        if (localStorage.getItem(DAEMON_OK_MIGRATED_KEY) === null) {
+            localStorage.setItem(DAEMON_OK_MIGRATED_KEY, "1");
+            const existing = originOf(
+                localStorage.getItem(BINGE_SERVER_URL_KEY) ?? "",
+            );
+            if (existing) {
+                localStorage.setItem(DAEMON_OK_KEY, JSON.stringify([existing]));
+                return [existing];
+            }
+        }
+        const raw = localStorage.getItem(DAEMON_OK_KEY);
+        if (!raw) return [];
+        const parsed: unknown = JSON.parse(raw);
+        return Array.isArray(parsed)
+            ? parsed.filter((v): v is string => typeof v === "string")
+            : [];
+    } catch {
+        return [];
+    }
+}
+
+export function confirmDaemonOrigin(raw: string): void {
+    const origin = originOf(raw);
+    if (!origin) return;
+    try {
+        const list = confirmedDaemonOrigins();
+        if (list.includes(origin)) return;
+        list.push(origin);
+        localStorage.setItem(DAEMON_OK_KEY, JSON.stringify(list));
+    } catch {
+        /* storage unavailable; the gate just stays closed */
+    }
 }
 export function setLookbackDays(value: number): void {
     if (!ALLOWED_LOOKBACK_DAYS.includes(value)) return;

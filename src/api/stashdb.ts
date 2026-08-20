@@ -19,7 +19,7 @@
 
 import { gql } from "./graphql";
 
-const STASHDB_ENDPOINT = "https://stashdb.org/graphql";
+export const STASHDB_ENDPOINT = "https://stashdb.org/graphql";
 
 export interface StashBoxConfig {
     endpoint: string;
@@ -143,9 +143,16 @@ export async function getLinkedPerformers(): Promise<LinkedPerformer[]> {
     return out;
 }
 
+// Filtered to scenes that HAVE a stash id. Without the filter Stash
+// serialises an empty array for every other scene in the library, which
+// on a 131k-scene library is 4.47 MB and 12.0s against 2.64 MB and 1.19s
+// for the same answer.
 const FIND_OWNED_STASH_IDS = /* GraphQL */ `
     query OwnedStashIds {
-        findScenes(filter: { per_page: -1 }) {
+        findScenes(
+            scene_filter: { stash_id_endpoint: { modifier: NOT_NULL } }
+            filter: { per_page: -1 }
+        ) {
             scenes {
                 stash_ids {
                     endpoint
@@ -156,7 +163,28 @@ const FIND_OWNED_STASH_IDS = /* GraphQL */ `
     }
 `;
 
-export async function getOwnedStashDBSceneIds(): Promise<Set<string>> {
+// Shared across callers for the lifetime of a page load. Both the
+// discovery feed and the stories row need this, and they used to ask
+// independently — two of the single most expensive requests binge makes,
+// in flight at the same time, for identical answers.
+let ownedIdsPromise: Promise<Set<string>> | null = null;
+
+export function invalidateOwnedStashDBSceneIds(): void {
+    ownedIdsPromise = null;
+}
+
+export function getOwnedStashDBSceneIds(): Promise<Set<string>> {
+    if (!ownedIdsPromise) {
+        ownedIdsPromise = fetchOwnedStashDBSceneIds().catch((err) => {
+            // Never cache a failure: the next caller should retry.
+            ownedIdsPromise = null;
+            throw err;
+        });
+    }
+    return ownedIdsPromise;
+}
+
+async function fetchOwnedStashDBSceneIds(): Promise<Set<string>> {
     const data = await gql<{
         findScenes: {
             scenes: {
@@ -714,33 +742,43 @@ export async function getTrendingStashDBPerformers(
     genders: ReadonlyArray<string> = ["FEMALE"],
 ): Promise<StashDBTrendingPerformer[]> {
     if (genders.length === 0) return [];
-
-    // 12h cache for trending performers — mirrors the Stories/Feed
-    // stashdb cache. Without this, Explore's Discover row is empty
-    // on any network where stashdb.org is unreachable, even if it
-    // was loaded successfully earlier in the day.
-    const genderKey = genders.slice().sort().join(",");
-    const cacheKey = `binge.stashdb.trendingPerformers.v1.${perPage}.${genderKey}`;
-    try {
-        const raw = localStorage.getItem(cacheKey);
-        if (raw) {
-            const entry = JSON.parse(raw) as {
-                fetchedAt: number;
-                performers: StashDBTrendingPerformer[];
-            };
-            if (Date.now() - entry.fetchedAt < 12 * 60 * 60 * 1000) {
-                return entry.performers;
-            }
-        }
-    } catch {
-        /* ignore corrupt cache */
+    // Ask once, without a gender, and sort the answer out here.
+    //
+    // queryPerformers takes a single gender enum, so this used to fire
+    // one request per selected gender. That is up to six, and the
+    // gender filter is the expensive part of this query on StashDB's
+    // side: measured against the live endpoint, a filtered page takes
+    // between 6 and 19 seconds while the same query without one takes
+    // about 1.5. Since the row cannot render until the slowest of them
+    // lands, the whole thing sat on skeletons for twenty seconds and
+    // people reasonably concluded it was broken.
+    //
+    // One unfiltered page, filtered here, is the same answer an order
+    // of magnitude faster. Ask for more rows than we need so there is
+    // something left after filtering.
+    const wide = await postStashDB<{
+        queryPerformers: {
+            performers: TrendingRow[];
+        };
+    }>(apiKey, QUERY_TRENDING_PERFORMERS, {
+        input: {
+            sort: "LAST_SCENE",
+            direction: "DESC",
+            page: 1,
+            per_page: Math.max(perPage * 3, 90),
+        },
+    });
+    const allowed = new Set(genders);
+    const wideRows = (wide?.queryPerformers?.performers ?? []).filter(
+        (r) => r.gender != null && allowed.has(r.gender),
+    );
+    // Enough to work with, which is the usual case. A narrow gender
+    // selection can come up short here, because an unfiltered page is
+    // mostly the commonest gender, and only then is it worth paying
+    // for the per-gender queries below.
+    if (wideRows.length >= Math.min(perPage, 12)) {
+        return interleaveByGender(wideRows, genders, perPage);
     }
-
-    // queryPerformers takes a single `gender` enum (or omitted for
-    // all). Fire one request per selected gender in parallel and
-    // dedupe by id. Interleave to keep early slots gender-balanced
-    // rather than dumping one gender's entire page first — Explore's
-    // Discover row reads better with mixed leading bubbles.
     const perGender = await Promise.all(
         genders.map(async (gender) => {
             try {
@@ -775,13 +813,42 @@ export async function getTrendingStashDBPerformers(
             }
         }),
     );
+    return interleaveRows(perGender, perPage);
+}
+
+/// One row as StashDB returns it.
+interface TrendingRow {
+    id: string;
+    name: string;
+    gender: string | null;
+    birth_date: string | null;
+    images: { url: string }[];
+    scene_count: number;
+}
+
+/// Split a mixed list into per-gender buckets, then interleave. Keeps
+/// the front of the row mixed instead of leading with a run of the
+/// commonest gender, which is what an unfiltered page arrives as.
+function interleaveByGender(
+    rows: TrendingRow[],
+    genders: ReadonlyArray<string>,
+    perPage: number,
+): StashDBTrendingPerformer[] {
+    const buckets = genders.map((g) => rows.filter((r) => r.gender === g));
+    return interleaveRows(buckets, perPage);
+}
+
+/// Round-robin across buckets so each gender gets a fair shot at the
+/// front of the row. Stops once perPage is filled.
+function interleaveRows(
+    buckets: TrendingRow[][],
+    perPage: number,
+): StashDBTrendingPerformer[] {
     const seen = new Set<string>();
     const merged: StashDBTrendingPerformer[] = [];
-    // Round-robin across gender buckets so each gender gets a fair
-    // shot at the front of the row. Stop once we've filled perPage.
-    const maxLen = Math.max(...perGender.map((g) => g.length), 0);
+    const maxLen = Math.max(...buckets.map((g) => g.length), 0);
     for (let i = 0; i < maxLen && merged.length < perPage; i++) {
-        for (const bucket of perGender) {
+        for (const bucket of buckets) {
             const p = bucket[i];
             if (!p || seen.has(p.id)) continue;
             seen.add(p.id);
@@ -794,22 +861,6 @@ export async function getTrendingStashDBPerformers(
                 sceneCount: p.scene_count,
             });
             if (merged.length >= perPage) break;
-        }
-    }
-
-    // Only cache if we actually got data — don't overwrite a valid
-    // cache with empty results from a flaky network.
-    if (merged.length > 0) {
-        try {
-            localStorage.setItem(
-                cacheKey,
-                JSON.stringify({
-                    fetchedAt: Date.now(),
-                    performers: merged,
-                })
-            );
-        } catch {
-            /* quota etc — ignore */
         }
     }
 
@@ -973,6 +1024,143 @@ export function invalidateStashDBCache(): void {
     } catch {
         /* ignore */
     }
+    // The owned-ids memo is part of the same picture: a refresh that
+    // left it in place would keep hiding scenes the user has since
+    // added, or keep offering ones they have.
+    invalidateOwnedStashDBSceneIds();
+}
+
+// ── Performers for already-matched scenes ───────────────────────────
+//
+// A scene in the library with a StashDB stash_id but no performers
+// linked locally still has knowable performers: StashDB has them, they
+// just are not in this library. This is how such a scene gets a poster
+// instead of being an anonymous file.
+//
+// Batched with GraphQL aliases (one request per BATCH_SIZE ids) because
+// the feed can ask about hundreds at once, and cached in localStorage
+// because a StashDB scene's cast does not change. Home is already slow
+// to first paint; this must not add a round-trip per card.
+
+export interface MatchedScenePerformer {
+    stashId: string;
+    name: string;
+    gender: string | null;
+    image: string | null;
+}
+
+const SCENE_PERFORMERS_CACHE_KEY = "binge.stashdb.scenePerformers.v1";
+// Ids per request. StashDB is a shared community service, so this
+// trades a slightly larger document for far fewer requests.
+const SCENE_PERFORMERS_BATCH = 20;
+// Ceiling per feed load. Set at 200 when the batches ran one after
+// another and every one of them was on the critical path; that left 426
+// of this library's 626 matched scenes falling back to a studio name on
+// a cold cache, which is the wrong answer for a card whose whole purpose
+// is to say who is in it. The batches now run together, so the ceiling
+// only has to stop a runaway, not pay for latency.
+const SCENE_PERFORMERS_MAX_FETCH = 1500;
+
+type PerformerCache = Record<string, MatchedScenePerformer[]>;
+
+function readScenePerformerCache(): PerformerCache {
+    try {
+        const raw = localStorage.getItem(SCENE_PERFORMERS_CACHE_KEY);
+        if (!raw) return {};
+        const parsed: unknown = JSON.parse(raw);
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+            return {};
+        return parsed as PerformerCache;
+    } catch {
+        return {};
+    }
+}
+
+function writeScenePerformerCache(cache: PerformerCache): void {
+    try {
+        localStorage.setItem(SCENE_PERFORMERS_CACHE_KEY, JSON.stringify(cache));
+    } catch {
+        // Quota. The lookups still worked for this session; they will
+        // just be repeated next time.
+    }
+}
+
+// A stash id is a UUID, but it arrives from Stash's database rather
+// than from us, so it is checked before being spliced into a GraphQL
+// document as an alias.
+const STASH_ID_SHAPE = /^[0-9a-f-]{8,64}$/i;
+
+export async function getMatchedScenePerformers(
+    sceneStashIds: readonly string[],
+    apiKey: string,
+): Promise<Map<string, MatchedScenePerformer[]>> {
+    const cache = readScenePerformerCache();
+    const out = new Map<string, MatchedScenePerformer[]>();
+    const missing: string[] = [];
+    for (const id of sceneStashIds) {
+        if (!STASH_ID_SHAPE.test(id)) continue;
+        const hit = cache[id];
+        if (hit) out.set(id, hit);
+        else if (!missing.includes(id)) missing.push(id);
+    }
+    if (missing.length === 0) return out;
+
+    const toFetch = missing.slice(0, SCENE_PERFORMERS_MAX_FETCH);
+    const chunks: string[][] = [];
+    for (let i = 0; i < toFetch.length; i += SCENE_PERFORMERS_BATCH) {
+        chunks.push(toFetch.slice(i, i + SCENE_PERFORMERS_BATCH));
+    }
+    let changed = false;
+    // Together rather than one after another. The browser caps how many
+    // reach StashDB at once anyway, and sequentially this was the
+    // difference between a fraction of a second and several.
+    await Promise.all(
+        chunks.map(async (chunk) => {
+            const query = `query BatchScenePerformers {
+${chunk
+    .map(
+        (id, n) => `  s${n}: findScene(id: "${id}") {
+    performers { performer { id name gender images { url } } }
+  }`,
+    )
+    .join("\n")}
+}`;
+            const data = await postStashDB<
+                Record<
+                    string,
+                    {
+                        performers: {
+                            performer: {
+                                id: string;
+                                name: string;
+                                gender: string | null;
+                                images: { url: string }[];
+                            };
+                        }[];
+                    } | null
+                >
+            >(apiKey, query, {});
+            // An outage leaves whatever is cached in place and this
+            // chunk unanswered; the next load retries it.
+            if (!data) return;
+            chunk.forEach((id, n) => {
+                const scene = data[`s${n}`];
+                // A null scene means StashDB no longer has it. Cached as an
+                // empty list so it is not asked for again every load.
+                const performers = (scene?.performers ?? []).map((pa) => ({
+                    stashId: pa.performer.id,
+                    name: pa.performer.name,
+                    gender: pa.performer.gender,
+                    image: pa.performer.images?.[0]?.url ?? null,
+                }));
+                cache[id] = performers;
+                out.set(id, performers);
+                changed = true;
+            });
+        }),
+    );
+    if (changed) writeScenePerformerCache(cache);
+    return out;
 }
 
 // Drop all trending-performers caches. Called separately from

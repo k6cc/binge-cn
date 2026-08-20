@@ -20,6 +20,7 @@ asking a user to pip install something before they can install anything
 would defeat the point.
 """
 
+import hashlib
 import json
 import os
 import platform
@@ -205,6 +206,67 @@ def latest_release():
         return json.loads(r.read().decode("utf-8"))
 
 
+def _expected_sha256(rel, filename):
+    """The published SHA256 for filename, or None if unavailable.
+
+    None means "no list to check against" (an older release, or the
+    upload failed), which is not treated as a failure: the installer
+    still works exactly as it did before this check existed.
+    """
+    url = None
+    for a in rel.get("assets", []):
+        if a.get("name") == "SHA256SUMS":
+            url = a.get("browser_download_url")
+            break
+    if not url:
+        return None
+    try:
+        req = urllib.request.Request(
+            url, headers={"User-Agent": "binge-installer"})
+        with urllib.request.urlopen(req, timeout=60) as r:
+            body = r.read(1 << 20).decode("utf-8", "replace")
+    except Exception as exc:  # noqa: BLE001
+        log("Couldn't fetch SHA256SUMS (%s); continuing without it." % exc)
+        return None
+    for line in body.splitlines():
+        parts = line.split()
+        # "<hex>  <name>", and sha256sum prefixes binary mode with '*'.
+        if len(parts) == 2 and parts[1].lstrip("*") == filename:
+            return parts[0].lower()
+    return None
+
+
+def _file_sha256(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _within(base, target):
+    """True if target resolves inside base. Blocks ../ escape members."""
+    base = os.path.realpath(base)
+    full = os.path.realpath(os.path.join(base, target))
+    return full == base or full.startswith(base + os.sep)
+
+
+def _safe_extract_zip(z, dest):
+    for name in z.namelist():
+        if not _within(dest, name):
+            raise ValueError("unsafe path in archive: %s" % name)
+    z.extractall(dest)
+
+
+def _safe_extract_tar(t, dest):
+    for m in t.getmembers():
+        if not _within(dest, m.name):
+            raise ValueError("unsafe path in archive: %s" % m.name)
+        if m.issym() or m.islnk():
+            raise ValueError("link member in archive: %s" % m.name)
+    t.extractall(dest)
+
+
 def install_binary():
     target = asset_name()
     if target is None:
@@ -245,13 +307,41 @@ def install_binary():
             log("Download failed: %s" % exc)
             return False
 
+        # Verify against the published list when there is one. A mismatch
+        # is fatal: the bytes are not what the release says they are, and
+        # running them would be worse than not installing.
+        want = _expected_sha256(rel, os.path.basename(url))
+        if want:
+            got = _file_sha256(archive)
+            if got != want:
+                log("Checksum mismatch for %s." % os.path.basename(url))
+                log("  expected %s" % want)
+                log("  got      %s" % got)
+                log("Refusing to run it. Try again; if it persists, the "
+                    "download is being tampered with or the release is "
+                    "broken.")
+                return False
+            log("Checksum verified.")
+        else:
+            log("No SHA256SUMS published for this release; skipping the "
+                "checksum check.")
+
         try:
             if archive.endswith(".zip"):
                 with zipfile.ZipFile(archive) as z:
-                    z.extractall(tmp)
+                    _safe_extract_zip(z, tmp)
             else:
                 with tarfile.open(archive) as t:
-                    t.extractall(tmp)
+                    # filter="data" (Python 3.12+) refuses members that
+                    # escape the destination or carry unsafe metadata. A
+                    # release asset should never contain such a member, so
+                    # this only matters if the download were tampered with,
+                    # but the extract runs on the Stash host so the belt is
+                    # cheap. Fall back to a manual guard on older Pythons.
+                    try:
+                        t.extractall(tmp, filter="data")
+                    except TypeError:
+                        _safe_extract_tar(t, tmp)
         except Exception as exc:  # noqa: BLE001
             log("Couldn't unpack the download: %s" % exc)
             return False

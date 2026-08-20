@@ -1,6 +1,6 @@
 # Binge（汉化版）
 
-> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.5.8**。
+> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.6.0**。
 
 为 [Stash](https://github.com/stashapp/stash) 提供的 Instagram 风格社交与发现层：竖屏 Reel、Stories、演员档案、StashDB 驱动的发现功能——全部基于 Stash 既有的 GraphQL API。Web 插件形态。
 
@@ -39,6 +39,13 @@ v0.4.17 将原硬编码中文迁移为基于 `react-i18next` 的动态多语言�
 - 详见 [汉化及修复.md](./汉化及修复.md)
 
 ### 功能修复
+
+#### v0.6.0
+
+- **合并上游全部 48 个未合并提交**（25 文件，+2200/−960）：Home 信息流（未识别场景分类开关 + 空库提示、批次卡片重构、演员名超长截断、信息来源推断、Reel 滚动落位修复）、安全加固（daemon URL 信任规则——未在此确认过的公共地址不发送 Stash API Key / Cookie，凭证卡片显示发送目标、Cookie 过期提示）、Explore / StashDB（Discover 行单次宽查询优先 + 仅 Explore 可见时才请求，保留本地 10s 超时）、安装脚本 SHA256 校验、死模块清理（筛选预设、全部演员弹窗）。跳过捐赠链接与 README/WebP 改动
+- **图库套用上游画廊改动**（本地实现保留）：准入标准与场景对齐——未关联演员的图库不再进首页动态（Stash 图库无 stash_ids，演员是唯一凭证），空状态分别提示未识别场景/图库数；Lightbox 完整图库分页——点图库卡片打开后可翻完全部图片（每页 60 张、接近末尾自动预取、计数显示真实总数），此前仅能看前 20 张
+- **首页静音图标修复**：自动播放被浏览器拦截降级静音时，图标立即显示"静音"真实状态（原来仍显示"开启"）；过滤滚动离开的 AbortError 避免误降级
+- **汉化恢复**：新增 34 个 i18n key（含设置页 daemon 信任提示、cookies.txt 解析消息、未识别图库计数等），zh/en 各 585 key 零缺失
 
 #### v0.5.8
 

@@ -6,8 +6,13 @@ import {
     type StashDBTrendingPerformer,
 } from "../api/stashdb";
 import { usePerformerProfile } from "../performer/PerformerProfileContext";
+import { useTab } from "./TabContext";
 import { PerformerHoverCard } from "../home/PerformerHoverCard";
-import { useAllowedGenders, orderedGenders } from "../home/pluginSettings";
+import {
+    useAllowedGenders,
+    orderedGenders,
+    useIncludeStashDB,
+} from "../home/pluginSettings";
 import { useTranslation } from "react-i18next";
 
 // Horizontal scroll-snap row of StashDB performer bubbles, mirroring
@@ -21,9 +26,58 @@ import { useTranslation } from "react-i18next";
 //     surfaces their StashDB scenes and a Follow CTA).
 //   - hover → mini-profile card (same hover card the discovery feed
 //     uses), with Follow + Open profile buttons inside.
+// Last good row, per gender selection. Six hours: long enough that
+// this is warm whenever you open Explore in a session, short enough
+// that "recently active" still means something.
+const CACHE_KEY = "binge.discoverPerformers";
+const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+
+function readCache(genderKey: string): BarItem[] | null {
+    try {
+        const raw = localStorage.getItem(CACHE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw) as {
+            at: number;
+            genders: string;
+            items: BarItem[];
+        };
+        if (parsed.genders !== genderKey) return null;
+        if (Date.now() - parsed.at > CACHE_TTL_MS) return null;
+        return Array.isArray(parsed.items) && parsed.items.length > 0
+            ? parsed.items
+            : null;
+    } catch {
+        return null;
+    }
+}
+
+function writeCache(genderKey: string, items: BarItem[]): void {
+    if (items.length === 0) return;
+    try {
+        localStorage.setItem(
+            CACHE_KEY,
+            JSON.stringify({ at: Date.now(), genders: genderKey, items }),
+        );
+    } catch {
+        /* quota or private mode; the row just refetches next time */
+    }
+}
+
 export function DiscoverPerformersBar() {
     const { openProfile, openStashDBProfile } = usePerformerProfile();
     const allowedGenders = useAllowedGenders();
+    // This row is nothing but StashDB, so the StashDB setting governs
+    // it. Turning the integration off used to leave the row on Explore,
+    // still fetching. Read here rather than in Explore so the rule sits
+    // with the thing it governs.
+    const includeStashDB = useIncludeStashDB();
+    // Explore stays mounted while the user is on Home — it is hidden
+    // with CSS, not unmounted — so this row used to fire five StashDB
+    // trending queries on boot, up to 7.6s each, competing for
+    // connections with the requests Home is actually waiting on. It
+    // fetches when it is the tab being looked at, and not before.
+    const { tab } = useTab();
+    const visible = tab === "explore";
     const [state, setState] = useState<
         | { kind: "loading" }
         | { kind: "ready"; performers: BarItem[] }
@@ -38,7 +92,16 @@ export function DiscoverPerformersBar() {
     // effect (the Set reference changes on every render).
     const genderKey = orderedGenders(allowedGenders).join(",");
     useEffect(() => {
+        if (!includeStashDB || !visible) return;
         let alive = true;
+        // Serve the last answer immediately while a fresh one is
+        // fetched. Explore fires over a hundred StashDB requests of its
+        // own, and this one queues behind them, so even a fast query
+        // lands late enough to look broken. What it returns is the most
+        // recently active performers on StashDB, which does not change
+        // meaningfully within a day.
+        const cached = readCache(genderKey);
+        if (cached) setState({ kind: "ready", performers: cached });
         (async () => {
             try {
                 const box = await getStashDBBox();
@@ -64,17 +127,22 @@ export function DiscoverPerformersBar() {
                     ...p,
                     localId: linkedByStashId.get(p.id) ?? null,
                 }));
+                writeCache(genderKey, performers);
                 setState({ kind: "ready", performers });
             } catch {
                 if (!alive) return;
-                setState({ kind: "error" });
+                // A cached row already on screen is better than blanking
+                // it because the refresh failed.
+                setState((prev) =>
+                    prev.kind === "ready" ? prev : { kind: "error" },
+                );
             }
         })();
         return () => {
             alive = false;
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [genderKey]);
+    }, [genderKey, includeStashDB, visible]);
 
     // Track scroll edges to show/hide chevrons.
     useEffect(() => {
@@ -102,6 +170,9 @@ export function DiscoverPerformersBar() {
         el.scrollBy({ left: delta, behavior: "smooth" });
     };
 
+    // After every hook, so the hook order cannot change with the
+    // setting.
+    if (!includeStashDB) return null;
     if (state.kind === "error") return null; // graceful no-op
     return (
         <section className="binge-discover-bar">

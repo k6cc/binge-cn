@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import type { RecentSceneRow, RecentScenePerformer } from "../api/queries";
 import {
     getRecentScenes,
     getScenesByDate,
@@ -182,12 +183,23 @@ export function useStories(): StoriesResult {
                 // matching both queries should contribute one row per
                 // performer, not two.
                 const seen = new Set<string>();
-                const rows = [];
+                // The performer is carried alongside the row rather than
+                // re-read from it, so the rest of this function has one
+                // that is known to exist instead of an assertion.
+                const rows: {
+                    r: RecentSceneRow;
+                    performer: RecentScenePerformer;
+                }[] = [];
                 for (const r of [...recentRows, ...dateRows]) {
-                    const key = r.sceneId + "|" + r.performerId;
+                    // A story is one performer's strip, so a scene with
+                    // nobody linked has no strip to belong to. Those
+                    // rows exist for the FEED, which shows them grouped
+                    // by where they came from; they are dropped here.
+                    if (!r.performer) continue;
+                    const key = r.sceneId + "|" + r.performer.id;
                     if (seen.has(key)) continue;
                     seen.add(key);
-                    rows.push(r);
+                    rows.push({ r, performer: r.performer });
                 }
 
                 // Group rows by performer; within each performer also
@@ -196,26 +208,23 @@ export function useStories(): StoriesResult {
                 // want it twice in one performer's strip — but the same
                 // scene CAN appear in two different performers' strips).
                 const byPerformer = new Map<string, PerformerBucket>();
-                for (const r of rows) {
-                    // Trans performers are already dropped upstream in
-                    // flattenSceneNodes (their scenes never produce rows),
-                    // so no per-row gender check is needed here.
+                for (const { r, performer } of rows) {
                     const effectiveAt = r.sceneDate ?? r.sceneCreatedAt;
-                    let bucket = byPerformer.get(r.performerId);
+                    let bucket = byPerformer.get(performer.id);
                     if (!bucket) {
                         bucket = {
                             story: {
-                                performerId: r.performerId,
-                                performerName: r.performerName,
-                                performerImagePath: r.performerImagePath,
-                                performerFavorite: r.performerFavorite,
+                                performerId: performer.id,
+                                performerName: performer.name,
+                                performerImagePath: performer.imagePath,
+                                performerFavorite: performer.favorite,
                             },
                             librarySceneIds: new Set(),
                             library: [],
                             stashdb: [],
                             reddit: [],
                         };
-                        byPerformer.set(r.performerId, bucket);
+                        byPerformer.set(performer.id, bucket);
                     }
                     if (bucket.librarySceneIds.has(r.sceneId)) continue;
                     bucket.librarySceneIds.add(r.sceneId);

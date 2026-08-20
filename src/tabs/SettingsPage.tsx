@@ -5,6 +5,7 @@ import { getTagLanguage, syncTagLanguage } from "../api/collections";
 import { useTab } from "./TabContext";
 import { useAutoHideTabBar } from "../hooks/useAutoHideTabBar";
 import {
+    confirmDaemonOrigin,
     ALLOWED_FORAGE_TARGETS,
     ALLOWED_LOOKBACK_DAYS,
     ALLOWED_TRANSCODE,
@@ -36,12 +37,18 @@ import {
     useRefractIntegration,
     useShowDebug,
     useShowGalleries,
+    useLibraryFolderNames,
+    setLibraryFolderNames,
+    useGalleryIgnoreFolders,
+    setGalleryIgnoreFolders,
     useShowcaseBlur,
     useTranscodeType,
     type ForageWatchTarget,
     type Gender,
 } from "../home/pluginSettings";
 import {
+    daemonCanReachStashAt,
+    isTrustedDaemonUrl,
     getBingeServerConfig,
     getBingeServerHealth,
     setBingeServerConfig,
@@ -52,6 +59,8 @@ import { getForageHealth } from "../api/forageServer";
 import { parseCookiesTxt, describeParse } from "../api/cookiesTxt";
 import { BingeServerInstallCard } from "./BingeServerInstallCard";
 import { fetchStashApiKey } from "../api/queries";
+import { DEFAULT_LIBRARY_FOLDER_NAMES } from "../home/impliedSource";
+import { DEFAULT_GALLERY_IGNORE_FOLDERS } from "../home/galleryNoise";
 
 // In-app settings page — all preferences that used to live in Stash's
 // plugin settings UI now live here. Same localStorage keys + pubsub,
@@ -83,6 +92,8 @@ export function SettingsPage() {
                 <GenderRow />
                 <TranscodeRow />
                 <GalleriesRow />
+                <GalleryIgnoreRow />
+                <LibraryFolderNamesRow />
                 <LookbackRow />
                 <StashDBRow />
                 <StashDBProfileRow />
@@ -321,6 +332,101 @@ function GalleriesRow() {
     );
 }
 
+// Scenes with no performer linked are named after the folder they sit
+// in. binge works out the library root by comparing the paths against
+// each other, so this list only has to name the intermediate buckets
+// that some scenes sit in and others do not. Which words those are is
+// entirely a property of one person's disk, so it is theirs to set.
+function LibraryFolderNamesRow() {
+    const stored = useLibraryFolderNames();
+    const joined = stored.join(", ");
+    const [draft, setDraft] = useState(joined);
+    const { t } = useTranslation();
+    useEffect(() => {
+        setDraft(joined);
+    }, [joined]);
+
+    return (
+        <SettingRow
+            title={t("settings.library_folders.title")}
+            description={t("settings.library_folders.desc")}
+        >
+            <div className="binge-settings-url-row">
+                <input
+                    type="text"
+                    className="binge-settings-input"
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    onBlur={() => {
+                        if (draft !== joined)
+                            setLibraryFolderNames(draft.split(","));
+                    }}
+                    spellCheck={false}
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                    placeholder="unfiled, misc, new"
+                />
+                <button
+                    type="button"
+                    className="binge-settings-inline-btn"
+                    onClick={() =>
+                        setLibraryFolderNames(DEFAULT_LIBRARY_FOLDER_NAMES)
+                    }
+                >
+                    {t("action.reset")}
+                </button>
+            </div>
+        </SettingRow>
+    );
+}
+
+// Galleries living in these folders are artwork rather than photo sets.
+// Same reasoning as LibraryFolderNamesRow: which names those are is a
+// fact about one person's disk, so it cannot be a constant in a plugin
+// other people install.
+function GalleryIgnoreRow() {
+    const stored = useGalleryIgnoreFolders();
+    const joined = stored.join(", ");
+    const [draft, setDraft] = useState(joined);
+    const { t } = useTranslation();
+    useEffect(() => {
+        setDraft(joined);
+    }, [joined]);
+
+    return (
+        <SettingRow
+            title={t("settings.gallery_ignore.title")}
+            description={t("settings.gallery_ignore.desc")}
+        >
+            <div className="binge-settings-url-row">
+                <input
+                    type="text"
+                    className="binge-settings-input"
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    onBlur={() => {
+                        if (draft !== joined)
+                            setGalleryIgnoreFolders(draft.split(","));
+                    }}
+                    spellCheck={false}
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                    placeholder="screen*, cover, proof"
+                />
+                <button
+                    type="button"
+                    className="binge-settings-inline-btn"
+                    onClick={() =>
+                        setGalleryIgnoreFolders(DEFAULT_GALLERY_IGNORE_FOLDERS)
+                    }
+                >
+                    {t("action.reset")}
+                </button>
+            </div>
+        </SettingRow>
+    );
+}
+
 function LookbackRow() {
     const value = useLookbackDays();
     const { t } = useTranslation();
@@ -526,6 +632,9 @@ function BingeServerConfigCard() {
     const [cookieInput, setCookieInput] = useState("");
     const [cookieBusy, setCookieBusy] = useState(false);
     const [cookieError, setCookieError] = useState<string | null>(null);
+    // Why the Stash key never got through. Silence here used to read as
+    // "still working on it" no matter how long you waited.
+    const [keyError, setKeyError] = useState<string | null>(null);
     const [cookieSaved, setCookieSaved] = useState(false);
     // cookies.txt import — one file drop instead of two devtools digs.
     const [importMsg, setImportMsg] = useState<string | null>(null);
@@ -573,31 +682,62 @@ function BingeServerConfigCard() {
     // reachable but doesn't have one. Fetch from Stash same-origin →
     // POST to binge-server → refresh local config state.
     useEffect(() => {
-        if (config === null) return;
-        if (config.stashApiKeySet) return;
+        // Runs on a null config too. A daemon that has no key yet refuses
+        // GET /config, so config is null in exactly the case the push
+        // exists to resolve; returning early here meant an unconfigured
+        // daemon could never be configured from the browser at all.
+        if (!health || health === "pending") return;
+        if (config?.stashApiKeySet) return;
         let alive = true;
         (async () => {
             try {
                 const apiKey = await fetchStashApiKey();
-                if (!alive || !apiKey) return;
-                const stashUrl = window.location.origin;
-                const result = await setBingeServerConfig({
-                    stashUrl,
-                    stashApiKey: apiKey,
-                });
+                if (!alive) return;
+                if (!apiKey) {
+                    // Stash with authentication switched off has no key to
+                    // find. Nothing is wrong, but the card would otherwise
+                    // claim to be setting one up forever.
+                    setKeyError(
+                        i18n.t("settings.server_config.key_missing_error"),
+                    );
+                    return;
+                }
+                // Only offer the browser's origin when the daemon could
+                // actually use it. Stash behind a public domain was being
+                // sent that public URL, which the daemon rejects outright,
+                // so the whole write failed and the key never landed. In
+                // that case say nothing about the URL and leave the
+                // daemon's own value alone: it defaults to localhost,
+                // which is right when it runs beside Stash.
+                const origin = window.location.origin;
+                const result = await setBingeServerConfig(
+                    daemonCanReachStashAt(origin)
+                        ? { stashUrl: origin, stashApiKey: apiKey }
+                        : { stashApiKey: apiKey },
+                );
                 if (!alive) return;
                 if (result.ok) {
+                    setKeyError(null);
                     const refreshed = await getBingeServerConfig();
                     if (alive) setConfig(refreshed);
+                } else {
+                    // This used to be dropped, which is why a daemon
+                    // refusing the write showed as a permanent
+                    // "Setting up..." with no reason given anywhere.
+                    setKeyError(result.error);
                 }
             } catch (err) {
+                if (alive)
+                    setKeyError(
+                        err instanceof Error ? err.message : String(err),
+                    );
                 console.warn("[binge] auto-push Stash API key failed", err);
             }
         })();
         return () => {
             alive = false;
         };
-    }, [config]);
+    }, [config, health]);
 
     // Parses in the browser and sends only the values binge understands.
     // The file itself never leaves the page — a cookies.txt exported from a
@@ -650,7 +790,7 @@ function BingeServerConfigCard() {
             const refreshed = await getBingeServerConfig();
             setConfig(refreshed);
         } else {
-            setCookieError("error" in result ? result.error : "Unknown error");
+            setCookieError("error" in result ? result.error : t("status.unknown_error"));
         }
         setCookieBusy(false);
     };
@@ -673,10 +813,18 @@ function BingeServerConfigCard() {
             const refreshed = await getBingeServerConfig();
             setConfig(refreshed);
         } else {
-            setXError("error" in result ? result.error : "Unknown error");
+            setXError("error" in result ? result.error : t("status.unknown_error"));
         }
         setXBusy(false);
     };
+
+    const destinationHost = (() => {
+        try {
+            return new URL(url).host;
+        } catch {
+            return url;
+        }
+    })();
 
     const handleSaveSocialPaths = async () => {
         setSocBusy(true);
@@ -691,10 +839,51 @@ function BingeServerConfigCard() {
             const refreshed = await getBingeServerConfig();
             setConfig(refreshed);
         } else {
-            setSocError("error" in result ? result.error : "Unknown error");
+            setSocError("error" in result ? result.error : t("status.unknown_error"));
         }
         setSocBusy(false);
     };
+
+    // binge is withholding the credentials from this URL, so the card
+    // below could not do anything even though the daemon may answer.
+    // Without this the only sign was a line in the browser console, and
+    // the page cheerfully said Connected while nothing worked.
+    if (!isTrustedDaemonUrl(url)) {
+        const isHttps = url.trim().toLowerCase().startsWith("https:");
+        return (
+            <div className="binge-settings-card">
+                <div className="binge-settings-card-header">
+                    <h3 className="binge-settings-card-title">
+                        {t("settings.server_config.title")}
+                    </h3>
+                </div>
+                <p className="binge-server-config-stale">
+                    <span className="binge-server-config-stale-icon">!</span>
+                    <span>
+                        {t("settings.server_config.not_sending")}{" "}
+                        <code>{destinationHost}</code>.{" "}
+                        {isHttps
+                            ? t("settings.server_config.not_trusted_https")
+                            : t("settings.server_config.not_trusted_http")}
+                    </span>
+                </p>
+                {isHttps && (
+                    <button
+                        type="button"
+                        className="binge-server-config-cookie-save"
+                        onClick={() => {
+                            confirmDaemonOrigin(url);
+                            // Re-read through the same path a URL change
+                            // takes, so the card rebuilds with it trusted.
+                            setBingeServerUrl(url);
+                        }}
+                    >
+                        {t("settings.server_config.use_this_daemon")}
+                    </button>
+                )}
+            </div>
+        );
+    }
 
     if (health === "pending") {
         return (
@@ -743,9 +932,16 @@ function BingeServerConfigCard() {
     // Daemon is reachable — render the full config card.
     const stashKeyState = config?.stashApiKeySet
         ? t("settings.server_config.auto_detected")
-        : t("settings.server_config.configuring");
+        : keyError
+          ? t("settings.server_config.key_not_set")
+          : t("settings.server_config.configuring");
     const cookieIsSet = !!config?.redditCookieSet;
     const xCookiesSet = !!config?.xCookiesSet;
+    // Only set once the poller has actually been rejected, and cleared by
+    // the daemon as soon as a working cookie is saved, so this does not
+    // need its own dismissal.
+    const cookieExpiredAt = config?.redditCookieExpiredAt;
+    const expiredAgo = cookieExpiredAt ? relativeOrEmpty(cookieExpiredAt) : "";
 
     return (
         <div className="binge-settings-card">
@@ -769,6 +965,14 @@ function BingeServerConfigCard() {
             <p className="binge-settings-card-description">
                 {t("settings.server_config.desc")}
             </p>
+            {/* Name the destination where the secrets are entered. The
+                daemon URL is a setting, and a setting can be changed by
+                something other than you, so the one place that must never
+                be ambiguous is the moment you hand over a credential. */}
+            <p className="binge-settings-card-destination">
+                {t("settings.server_config.sending_to")}{" "}
+                <code>{destinationHost}</code>
+            </p>
 
             <div className="binge-settings-card-field">
                 <span className="binge-settings-card-field-label">
@@ -778,6 +982,22 @@ function BingeServerConfigCard() {
                     {stashKeyState}
                 </span>
             </div>
+            {keyError && !config?.stashApiKeySet && (
+                <p className="binge-server-config-error">{keyError}</p>
+            )}
+
+            {cookieExpiredAt && (
+                <p className="binge-server-config-stale">
+                    <span className="binge-server-config-stale-icon">!</span>
+                    <span>
+                        {expiredAgo
+                            ? t("settings.server_config.cookie_expired_notice_with_time", {
+                                  ago: expiredAgo,
+                              })
+                            : t("settings.server_config.cookie_expired_notice")}
+                    </span>
+                </p>
+            )}
 
             <div className="binge-settings-card-field is-stacked">
                 <span className="binge-settings-card-field-label">
@@ -826,9 +1046,11 @@ function BingeServerConfigCard() {
                             setCookieError(null);
                         }}
                         placeholder={
-                            cookieIsSet
-                                ? t("settings.server_config.cookie_set")
-                                : t("settings.server_config.cookie_placeholder")
+                            cookieExpiredAt
+                                ? t("settings.server_config.cookie_expired")
+                                : cookieIsSet
+                                  ? t("settings.server_config.cookie_set")
+                                  : t("settings.server_config.cookie_placeholder")
                         }
                         spellCheck={false}
                         autoCapitalize="off"
@@ -1013,10 +1235,17 @@ function BingeServerConfigCard() {
     );
 }
 
+/// Same as formatRelative, but yields "" rather than a placeholder when
+/// the timestamp is unusable, so callers can drop the clause entirely
+/// instead of printing punctuation with nothing in it.
+function relativeOrEmpty(iso: string): string {
+    return Number.isFinite(Date.parse(iso)) ? formatRelative(iso) : "";
+}
+
 // Compact relative-time formatter: "2 min ago", "3 h ago", "yesterday".
 function formatRelative(iso: string): string {
     const t = Date.parse(iso);
-    if (!Number.isFinite(t)) return "—";
+    if (!Number.isFinite(t)) return "unknown";
     const diffMs = Date.now() - t;
     const secs = Math.floor(diffMs / 1000);
     // Notice: to properly translate relative times in a pure function, we need i18next instance directly.

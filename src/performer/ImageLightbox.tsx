@@ -6,7 +6,20 @@ interface ImageLightboxProps {
     images: PerformerImageCard[];
     startIndex: number;
     onClose: () => void;
+    // Optional paging, for sets larger than the caller has fetched.
+    // `totalCount` is the size of the whole set (so the counter reads
+    // "4 / 1496" rather than "4 / 60"), and `onNeedMore` is called as
+    // the user approaches the end of what is loaded. Callers with the
+    // whole set in hand, like the performer image grid, omit both and
+    // the lightbox behaves exactly as before.
+    totalCount?: number;
+    onNeedMore?: () => void;
 }
+
+// How close to the end of the loaded images the user gets before the
+// next page is requested. Three is enough to hide the round-trip at
+// arrow-key speed without fetching pages nobody looks at.
+const PREFETCH_WITHIN = 3;
 
 // Full-screen image viewer. Arrow keys + on-screen prev/next buttons
 // navigate; Esc closes. Portalled to <body> so it sits above the profile
@@ -15,9 +28,21 @@ export function ImageLightbox({
     images,
     startIndex,
     onClose,
+    totalCount,
+    onNeedMore,
 }: ImageLightboxProps) {
     const [index, setIndex] = useState(startIndex);
     const current = images[index];
+    const total = Math.max(totalCount ?? images.length, images.length);
+
+    // Ask for the next page once the user is within PREFETCH_WITHIN of
+    // the last loaded image. Re-runs when the page lands and the array
+    // grows, so a fast scroll through a large gallery keeps pulling.
+    useEffect(() => {
+        if (!onNeedMore) return;
+        if (images.length >= total) return;
+        if (index >= images.length - 1 - PREFETCH_WITHIN) onNeedMore();
+    }, [index, images.length, total, onNeedMore]);
 
     const goPrev = () => setIndex((i) => (i > 0 ? i - 1 : i));
     const goNext = () => setIndex((i) => (i < images.length - 1 ? i + 1 : i));
@@ -89,7 +114,7 @@ export function ImageLightbox({
                 </button>
             )}
             <div className="binge-lightbox-counter" aria-hidden="true">
-                {index + 1} / {images.length}
+                {index + 1} / {total}
             </div>
         </div>,
         document.body,

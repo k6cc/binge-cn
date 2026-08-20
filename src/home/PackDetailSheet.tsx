@@ -48,18 +48,24 @@ export function PackDetailSheet({
         // random 路径，只 pin 点击的场景到第一位，后续走演员 filter
         // 的随机推荐（与 SceneFeedCard.handleWatchFullScene 一致）。
         // 把主演作为筛选 chip 写入 FilterContext，让 FilterBar 显示。
+        // 未归属批次（primaryPerformer 为 null，按来源文件夹分组）没有
+        // 主演可筛选，清空筛选走纯随机推荐。
         const p = pack.primaryPerformer;
-        replace({
-            performers: [
-                {
-                    id: p.id,
-                    name: p.name,
-                    image_path: p.imagePath ?? null,
-                },
-            ],
-            tags: [],
-            studios: [],
-        });
+        replace(
+            p
+                ? {
+                      performers: [
+                          {
+                              id: p.id,
+                              name: p.name,
+                              image_path: p.imagePath ?? null,
+                          },
+                      ],
+                      tags: [],
+                      studios: [],
+                  }
+                : { performers: [], tags: [], studios: [] },
+        );
         // Bug 5 修复：setTab 会清除 pin/queue，因此 setPinFirstSceneId
         // 必须在 setTab 之后调用，利用 React 18 批处理"后写胜"语义。
         setTab("foryou");
@@ -73,13 +79,11 @@ export function PackDetailSheet({
             <div
                 className="binge-sheet binge-pack-sheet"
                 role="dialog"
-                aria-label={t("action.pack_aria_label", { name: pack.primaryPerformer.name })}
+                aria-label={t("action.pack_aria_label", { name: pack.label })}
             >
                 <div className="binge-sheet-handle" aria-hidden="true" />
                 <header className="binge-pack-sheet-header">
-                    <div className="binge-pack-sheet-title">
-                        {pack.primaryPerformer.name}
-                    </div>
+                    <div className="binge-pack-sheet-title">{pack.label}</div>
                     <div className="binge-pack-sheet-sub">
                         {t("story.new_scenes_count", { count: pack.sceneCount })}
                     </div>

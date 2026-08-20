@@ -3,6 +3,7 @@ import { SceneCardMenu } from "./SceneCardMenu";
 import { PerformerHoverCard } from "./PerformerHoverCard";
 import { Fragment } from "react";
 import type { FeedPerformer, FeedTag, SceneFeedItem } from "./useFeed";
+import type { MatchedScenePerformer } from "../api/stashdb";
 import { VerifiedIcon } from "../performer/PerformerProfile";
 import { useSharedStories } from "./StoriesContext";
 import { useStoryViewer } from "./StoryViewerContext";
@@ -43,6 +44,19 @@ import { timeAgo } from "./timeAgo";
 import { useScribeModal } from "../scribe/ScribeContext";
 import { useTranslation } from "react-i18next";
 
+// How many performers are named before the row switches to a count.
+// The verified marks beside each name do not shrink, so a long cast
+// squeezed the names away and left a row of bare ticks.
+const NAME_LIMIT = 2;
+
+// "Alice, Bree +12". Kept as a plain string because the matched-name
+// branch has no per-name markup to interleave.
+function nameList(names: string[]): string {
+    const shown = names.slice(0, NAME_LIMIT).join(", ");
+    const rest = names.length - NAME_LIMIT;
+    return rest > 0 ? `${shown} +${rest}` : shown;
+}
+
 interface SceneFeedCardProps {
     item: SceneFeedItem;
 }
@@ -59,7 +73,7 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
     const videoRef = useRef<HTMLVideoElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [isPlaying, setIsPlaying] = useState(false);
-    const [muted, setMuted] = useMuteState();
+    const [muted, setMuted, setMutedSession] = useMuteState();
     const [oCount, setOCount] = useState(0);
     const [liked, setLiked] = useState(false);
     const oBusyRef = useRef(false);
@@ -67,7 +81,7 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
 
     const { replace } = useFilter();
     const { setTab, setPinFirstSceneId, setReelMode } = useTab();
-    const { openProfile } = usePerformerProfile();
+    const { openProfile, openStashDBProfile } = usePerformerProfile();
     const { open: openStoryViewer } = useStoryViewer();
     const storiesState = useSharedStories();
     // Set of localIds with an active story right now. Used by the
@@ -178,6 +192,11 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
     // 现在 IO 只负责 play/pause，muted 完全交给下方的独立 effect 同步。
     // threshold 提高到 0.75，减少窄卡片场景下两张影片同时满足阈值
     // 而同时播放声音的问题。
+    //
+    // muted 的 ref 镜像（同 SceneSlide 的 mutedRef 模式）：IO effect
+    // 依赖为空数组，闭包读不到最新 muted，通过 ref 取实时值。
+    const mutedRef = useRef(muted);
+    mutedRef.current = muted;
     useEffect(() => {
         const container = containerRef.current;
         const video = videoRef.current;
@@ -187,9 +206,17 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
                 for (const entry of entries) {
                     const active = entry.intersectionRatio >= 0.75;
                     if (active) {
-                        void video.play().catch(() => {
-                            // Retry muted, accept failure silently.
+                        void video.play().catch((err: unknown) => {
+                            // AbortError: play() 被 pause()/load() 打断
+                            // （滚走、src 切换），不是 autoplay 拦截，
+                            // 不做静音降级。
+                            if ((err as DOMException | null)?.name === "AbortError") return;
+                            // 浏览器拦截未静音自动播放 → 降级静音重试，
+                            // 并同步共享会话状态，让静音图标显示真实
+                            // 状态（原来只改 video.muted，图标仍显示
+                            // “开启”，见 useMuteState 双层状态注释）。
                             video.muted = true;
+                            if (!mutedRef.current) setMutedSession(true);
                             void video.play().catch(() => {});
                         });
                     } else {
@@ -201,7 +228,8 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
         );
         observer.observe(container);
         return () => observer.disconnect();
-    }, []);
+        // setMutedSession 是模块级稳定引用，可安全用于空依赖闭包。
+    }, [setMutedSession]);
 
     // 同步 video.muted 与 React muted 状态。IO 不再触碰 muted，
     // 因此无论用户何时切换静音，当前及后续进入视口的卡片都会
@@ -295,6 +323,18 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
         <article className="binge-feed-card" ref={containerRef}>
             <header className="binge-feed-card-header">
                 <div className="binge-feed-card-author">
+                    {item.performers.length === 0 &&
+                    item.matchedPerformers.length > 0 ? (
+                        // Nobody linked locally, so the stack above has
+                        // nothing to draw and the card named its cast
+                        // against an empty space. StashDB knows these
+                        // people and hosts their images, so they get
+                        // faces from there instead.
+                        <MatchedAvatarStack
+                            performers={item.matchedPerformers}
+                            onClick={(stashId) => openStashDBProfile(stashId)}
+                        />
+                    ) : null}
                     <AvatarStack
                         performers={item.performers}
                         isRepost={item.isRepost}
@@ -348,38 +388,64 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
                                 aria-label={primaryPerformer.name}
                             >
                                 <span className="binge-feed-card-name">
-                                    {item.performers.map((p, idx) => (
-                                        <Fragment key={p.id}>
-                                            {idx > 0 && ", "}
-                                            {p.name}
-                                            <span
-                                                className={
-                                                    "binge-feed-card-verified" +
-                                                    (p.favorite
-                                                        ? " is-favorite"
-                                                        : "")
-                                                }
-                                                aria-label={
-                                                    p.favorite
-                                                        ? t("status.favorite")
-                                                        : t("status.in_library")
-                                                }
-                                                title={
-                                                    p.favorite
-                                                        ? t("status.favorite")
-                                                        : t("status.in_library")
-                                                }
-                                            >
-                                                <VerifiedIcon />
-                                            </span>
-                                        </Fragment>
-                                    ))}
+                                    {item.performers
+                                        .slice(0, NAME_LIMIT)
+                                        .map((p, idx) => (
+                                            <Fragment key={p.id}>
+                                                {idx > 0 && ", "}
+                                                {p.name}
+                                                <span
+                                                    className={
+                                                        "binge-feed-card-verified" +
+                                                        (p.favorite
+                                                            ? " is-favorite"
+                                                            : "")
+                                                    }
+                                                    aria-label={
+                                                        p.favorite
+                                                            ? t("status.favorite")
+                                                            : t("status.in_library")
+                                                    }
+                                                    title={
+                                                        p.favorite
+                                                            ? t("status.favorite")
+                                                            : t("status.in_library")
+                                                    }
+                                                >
+                                                    <VerifiedIcon />
+                                                </span>
+                                            </Fragment>
+                                        ))}
+                                    {item.performers.length > NAME_LIMIT && (
+                                        <span className="binge-feed-card-name-overflow">
+                                            {" +"}
+                                            {item.performers.length -
+                                                NAME_LIMIT}
+                                        </span>
+                                    )}
                                 </span>
                             </button>
                         </PerformerHoverCard>
                     ) : (
+                        // Nobody linked locally. The scene only reached
+                        // the feed at all because it has a StashDB
+                        // match, so StashDB usually knows the cast:
+                        // name them. The studio is the fallback for a
+                        // match StashDB lists no performers for.
+                        //
+                        // No marker beside the names. There used to be
+                        // one, explained only by a hover tooltip, which
+                        // meant it explained nothing on a touch screen
+                        // and read as an error state. The distinction
+                        // survives without it: a performer in the
+                        // library carries a verified mark and these do
+                        // not, so the absence is the signal.
                         <span className="binge-feed-card-name">
-                            {t("performer.unknown")}
+                            {item.matchedPerformers.length > 0
+                                ? nameList(
+                                      item.matchedPerformers.map((p) => p.name),
+                                  )
+                                : (item.impliedSource ?? t("performer.unidentified"))}
                         </span>
                     )}
                 </div>
@@ -621,6 +687,73 @@ function FeedCaption({
                         {t("action.collapse")}
                     </button>
                 </div>
+            )}
+        </div>
+    );
+}
+
+// The same stacked row for performers StashDB named on a scene
+// nobody is linked to locally. Shares the avatar-stack styling so
+// the two are indistinguishable in layout, and differs only where
+// the data does: no story ring (a story belongs to someone in the
+// library), no repost badge, and the hover card says not-in-library.
+// Clicking opens the StashDB profile, since there is no local one.
+function MatchedAvatarStack({
+    performers,
+    onClick,
+}: {
+    performers: MatchedScenePerformer[];
+    onClick: (stashId: string) => void;
+}) {
+    if (performers.length === 0) return null;
+    const visible = performers.slice(0, 3);
+    const overflow = performers.length - visible.length;
+    return (
+        <div className="binge-feed-card-avatar-stack">
+            {visible.map((p, i) => (
+                <PerformerHoverCard
+                    key={p.stashId}
+                    name={p.name}
+                    image={p.image}
+                    gender={p.gender}
+                    birthDate={null}
+                    inLibrary={false}
+                    favorite={false}
+                    onOpenProfile={() => onClick(p.stashId)}
+                >
+                    <span
+                        className="binge-feed-card-stack-avatar"
+                        style={{
+                            zIndex: visible.length - i,
+                            position: "relative",
+                            ...(p.image
+                                ? { backgroundImage: `url(${p.image})` }
+                                : {}),
+                        }}
+                        title={p.name}
+                        aria-label={p.name}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onClick(p.stashId);
+                        }}
+                        role="button"
+                        tabIndex={0}
+                    >
+                        {!p.image && (
+                            <span className="binge-feed-card-stack-initial">
+                                {p.name.charAt(0).toUpperCase()}
+                            </span>
+                        )}
+                    </span>
+                </PerformerHoverCard>
+            ))}
+            {overflow > 0 && (
+                <span
+                    className="binge-feed-card-stack-avatar binge-feed-card-stack-overflow"
+                    aria-hidden="true"
+                >
+                    +{overflow}
+                </span>
             )}
         </div>
     );

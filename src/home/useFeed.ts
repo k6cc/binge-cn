@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+    countUnidentifiedScenes,
     findImagesByGallery,
     type PerformerImageCard,
     type RecentSceneRow,
@@ -16,12 +17,24 @@ import {
     useLookbackDays,
     useIncludeStashDB,
     useHiddenFeedCategories,
+    useLibraryFolderNames,
+    useGalleryIgnoreFolders,
+    useAllowedGenders,
+    orderedGenders,
 } from "./pluginSettings";
 import {
     fetchDiscoveryFeedItems,
     type DiscoveryFeedItem,
 } from "./discoveryFeed";
 import { useSharedStories } from "./StoriesContext";
+import { buildSourceResolver } from "./impliedSource";
+import { buildGalleryNoiseMatcher } from "./galleryNoise";
+import {
+    getStashDBBox,
+    getMatchedScenePerformers,
+    STASHDB_ENDPOINT,
+    type MatchedScenePerformer,
+} from "../api/stashdb";
 
 // Performer summary inside a feed item. Multiple performers per item are
 // kept so the card can show their names and route taps to the correct
@@ -65,6 +78,17 @@ export interface SceneFeedItem {
     /// the recent-`created_at` query. The card surfaces it by import
     /// time (not the old date) and shows a "reposted" mark.
     isRepost: boolean;
+    /// For a scene with NO performers linked: what it appears to belong
+    /// to, from its studio or the folder it was imported into. Used to
+    /// group and label it, never written back to Stash. Null when the
+    /// scene has performers, or when nothing could be derived.
+    impliedSource: string | null;
+    /// For a scene with no LOCAL performers but a StashDB match: who
+    /// StashDB says is in it. They are not in the library, so they have
+    /// no profile to open and no local id — the card offers to add them
+    /// instead. Empty when the scene has local performers, when StashDB
+    /// is off, or when the lookup has not landed.
+    matchedPerformers: MatchedScenePerformer[];
 }
 
 // One gallery-as-post. `images` is the first MAX_GALLERY_IMAGES of the
@@ -105,7 +129,17 @@ export interface DiscoveryFeedItemWrapped extends DiscoveryFeedItem {
 export interface PackFeedItem {
     kind: "pack";
     key: string;
-    primaryPerformer: FeedPerformer;
+    /// The performer the whole batch shares, or null when the batch is
+    /// unattributed and was grouped by where it came from instead.
+    primaryPerformer: FeedPerformer | null;
+    /// Set when there is no local performer but StashDB knows who is in
+    /// the batch. The card shows them as the poster and offers to add
+    /// them to the library, since that is the missing step.
+    matchedPerformer: MatchedScenePerformer | null;
+    /// What the card is titled with: the performer's name, or the
+    /// implied source for an unattributed batch. Always non-empty, so
+    /// the card never has to invent a heading.
+    label: string;
     scenes: SceneFeedItem[];
     sceneCount: number;
     /// Newest createdAt in the batch — used for "added X ago"
@@ -129,7 +163,20 @@ export type FeedItem =
 
 export type FeedState =
     | { kind: "loading" }
-    | { kind: "ready"; items: FeedItem[] }
+    | {
+          kind: "ready";
+          items: FeedItem[];
+          /// How many recent scenes were left out for having neither a
+          /// performer nor a StashDB match. The empty state needs this:
+          /// "nothing new in your recent window" is wrong and confusing
+          /// on a freshly scanned library, where there IS plenty new and
+          /// none of it is identified yet.
+          unidentifiedCount: number;
+          /// The same for galleries, which are held to the same bar but
+          /// counted apart because the reason differs: a gallery cannot
+          /// have a stash id, so a performer is its only way in.
+          unidentifiedGalleryCount: number;
+      }
     | { kind: "error"; message: string };
 
 // The feed shows a single FIXED window — the user's configured recent
@@ -158,6 +205,21 @@ const PACK_MIN_SIZE = 8;
 /// (or drop each below PACK_MIN_SIZE entirely).
 const PACK_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
+// What a scene groups under, or null when it groups under nothing and
+// can only appear as its own card. The prefixes keep the two namespaces
+// apart, so a performer whose id is "12" cannot collide with a folder
+// named "12".
+function packGroupKey(s: SceneFeedItem): string | null {
+    const performerId = s.performers[0]?.id;
+    if (performerId) return `p:${performerId}`;
+    // A StashDB match is a real identity, so it beats the folder: two
+    // scenes of the same performer belong together even when they were
+    // imported into different directories.
+    const matched = s.matchedPerformers[0]?.stashId;
+    if (matched) return `m:${matched}`;
+    return s.impliedSource ? `s:${s.impliedSource}` : null;
+}
+
 function assemblePacks(
     scenes: SceneFeedItem[],
     repostCutoff: string,
@@ -168,22 +230,25 @@ function assemblePacks(
     // pack is a "repost" when even its newest scene's scraped release
     // date is older than that cutoff.
 
-    // Group by primary performer.
+    // Group by primary performer, or, for scenes with nobody linked, by
+    // where they came from. An unidentified bulk import is still a bulk
+    // import: without this, 500 loose scenes from one pack folder would
+    // each get a card and bury everything else on Home.
     const byPrimary = new Map<string, SceneFeedItem[]>();
     for (const s of scenes) {
-        const pid = s.performers[0]?.id;
-        if (!pid) continue;
-        const list = byPrimary.get(pid);
+        const key = packGroupKey(s);
+        if (!key) continue;
+        const list = byPrimary.get(key);
         if (list) list.push(s);
-        else byPrimary.set(pid, [s]);
+        else byPrimary.set(key, [s]);
     }
 
     // For each performer, look at how many of their scenes were
     // created within a tight window of their most recent one.
     // If that count exceeds PACK_MIN_SIZE → batch import.
-    const packPerformers = new Set<string>();
+    const packedKeys = new Set<string>();
     const out: FeedItem[] = [];
-    for (const [pid, list] of byPrimary) {
+    for (const [groupKey, list] of byPrimary) {
         const sortedByCreated = [...list].sort((a, b) =>
             b.createdAt.localeCompare(a.createdAt),
         );
@@ -192,7 +257,15 @@ function assemblePacks(
             (s) => newest - new Date(s.createdAt).getTime() <= PACK_WINDOW_MS,
         );
         if (inWindow.length < PACK_MIN_SIZE) continue;
-        const primary = sortedByCreated[0].performers[0];
+        const newestScene = sortedByCreated[0];
+        const primary = newestScene.performers[0] ?? null;
+        const matched = newestScene.matchedPerformers[0] ?? null;
+        // Grouped scenes share whichever of the three produced the key,
+        // so reading it off the newest is safe.
+        const label =
+            primary?.name ?? matched?.name ?? newestScene.impliedSource;
+        // Unreachable: a group only forms when one of these exists.
+        if (!label) continue;
         // Newest scraped release date across the batch. If even that
         // is older than the recent-window cutoff, the whole pack is
         // back-catalog → "reposted". Scenes with no date don't count
@@ -206,8 +279,10 @@ function assemblePacks(
         const isRepost = newestDate !== null && newestDate < repostCutoff;
         out.push({
             kind: "pack",
-            key: `pack:${pid}:${sortedByCreated[0].createdAt}`,
+            key: `pack:${groupKey}:${sortedByCreated[0].createdAt}`,
             primaryPerformer: primary,
+            matchedPerformer: primary ? null : matched,
+            label,
             scenes: inWindow,
             sceneCount: inWindow.length,
             createdAt: sortedByCreated[0].createdAt,
@@ -219,20 +294,22 @@ function assemblePacks(
             effectiveAt: sortedByCreated[0].createdAt,
             isRepost,
         });
-        packPerformers.add(pid);
+        packedKeys.add(groupKey);
     }
 
-    // A performer who formed a pack is represented by that pack card,
-    // so skip their loose individual scenes — otherwise a bulk-import
-    // performer would flood the feed with a pack AND dozens of cards.
-    // Everyone else shows all their scenes in the window (no cap).
+    // A group that formed a pack is represented by that pack card, so
+    // skip its loose individual scenes — otherwise a bulk import would
+    // flood the feed with a pack AND dozens of cards. Everything else
+    // shows all its scenes in the window (no cap), including scenes
+    // with neither a performer nor a derivable source, which can only
+    // ever appear on their own.
     for (const s of scenes) {
-        const pid = s.performers[0]?.id;
-        if (!pid) {
+        const key = packGroupKey(s);
+        if (!key) {
             out.push(s);
             continue;
         }
-        if (packPerformers.has(pid)) continue;
+        if (packedKeys.has(key)) continue;
         out.push(s);
     }
     return out;
@@ -242,30 +319,6 @@ function assemblePacks(
 // Bug 7 修复：原值 10 导致 13 张图库只显示 10 张。提升到 500（与
 // PerformerImageGrid 的上限一致），实际显示数量受图库真实图片数限制。
 export const MAX_GALLERY_IMAGES = 20;
-
-// Path patterns that identify auto-generated / non-photo-set galleries
-// the user doesn't want surfaced in the Home feed. The `screen[^/]*`
-// rule catches every "screen-prefixed" folder convention we've seen so
-// far — Screen, Screens, Screenshot, Screenshots, Screenlist,
-// Screenlists, "Screen Previews", "Screen Lists", etc. Plus the
-// previously-confirmed short `scr` folder and Cover/Proof art.
-// Matched case-insensitively; path separators kept generic so Windows
-// (`\`) and Unix (`/`) layouts both work.
-const NOISE_GALLERY_PATTERNS: RegExp[] = [
-    /[\\/]screen[^\\/]*(?=[\\/]|$)/i,
-    /[\\/]scr(?=[\\/]|$)/i,
-    /[\\/]covers?(?=[\\/]|$)/i,
-    /[\\/]proof(?=[\\/]|$)/i,
-];
-
-function isNoiseGallery(paths: string[]): boolean {
-    for (const p of paths) {
-        for (const re of NOISE_GALLERY_PATTERNS) {
-            if (re.test(p)) return true;
-        }
-    }
-    return false;
-}
 
 export interface FeedHookResult {
     state: FeedState;
@@ -286,6 +339,18 @@ export function useFeed(): FeedHookResult {
     // feed (including dropping the 12h discovery cache and pulling
     // fresh seeds from stashdb).
     const { refreshTick: storiesRefreshTick } = useSharedStories();
+    const libraryFolderNames = useLibraryFolderNames();
+    // Joined so the effect re-runs when the list CONTENTS change; the
+    // hook returns a fresh array each read, and depending on the array
+    // itself would refetch the whole feed on every render.
+    const libraryFolderKey = libraryFolderNames.join(",");
+    const galleryIgnoreFolders = useGalleryIgnoreFolders();
+    const galleryIgnoreKey = galleryIgnoreFolders.join(",");
+    // "Genders to surface" applies here too. A StashDB match tells us
+    // who is in the scene, and if the user has hidden a gender, the card
+    // must not put one of them on the front of it.
+    const allowedGenders = useAllowedGenders();
+    const allowedGenderKey = orderedGenders(allowedGenders).join(",");
     // Bumped by retry() to force the effect below to re-run.
     const [reloadTick, setReloadTick] = useState(0);
 
@@ -317,7 +382,6 @@ export function useFeed(): FeedHookResult {
                     scenesByDate,
                     galleriesByCreated,
                     galleriesByDate,
-                    discoveryItems,
                 ] = await Promise.all([
                     getRecentScenes(sinceIso),
                     getScenesByDate(sinceDate),
@@ -330,25 +394,29 @@ export function useFeed(): FeedHookResult {
                     showGalleries
                         ? getGalleriesByDate(sinceDate)
                         : Promise.resolve([] as RecentGalleryRow[]),
-                    // StashDB discovery — scenes featuring unfollowed
-                    // performers. Same toggle as the stories-row
-                    // StashDB integration; both surface or both
-                    // hide together so the user has one switch.
-                    // Failures swallowed inside fetchDiscoveryFeedItems
-                    // so a StashDB outage never breaks the feed.
-                    //
-                    // skipTrending: when the user has hidden the
-                    // "trending" feed category, skip the trending
-                    // stashdb query entirely — no point fetching data
-                    // we'd then filter out in the card layer. The
-                    // co-star seed still runs because "discover"
-                    // (costar) is a separate category.
+                ]);
+
+                // StashDB discovery is deliberately NOT awaited here.
+                // It is the slowest thing on the page by a distance —
+                // measured at 14.8s against 1.0s for the library's own
+                // scenes — and it is an optional garnish on a feed that
+                // is otherwise ready. Awaiting it alongside the queries
+                // above held a finished feed back for fourteen seconds.
+                // Started now so it runs alongside the work below, and
+                // merged when it lands.
+                //
+                // skipTrending: when the user has hidden the
+                // "trending" feed category, skip the trending
+                // stashdb query entirely — no point fetching data
+                // we'd then filter out in the card layer. The
+                // co-star seed still runs because "discover"
+                // (costar) is a separate category.
+                const discoveryPromise: Promise<DiscoveryFeedItem[]> =
                     includeStashDB
                         ? fetchDiscoveryFeedItems(sinceDate, {
                               skipTrending: hidden.has("trending"),
-                          })
-                        : Promise.resolve([] as DiscoveryFeedItem[]),
-                ]);
+                          }).catch(() => [])
+                        : Promise.resolve([]);
                 if (!alive) return;
 
                 // Dedupe rows by sceneId / galleryId — a scene might
@@ -358,13 +426,38 @@ export function useFeed(): FeedHookResult {
                     ...scenesByCreated,
                     ...scenesByDate,
                 ]);
-                const galleryRows = dedupeGalleries([
+                const noiseMatcher = buildGalleryNoiseMatcher(
+                    galleryIgnoreKey.split(",").filter(Boolean),
+                );
+                const cleanGalleryRows = dedupeGalleries([
                     ...galleriesByCreated,
                     ...galleriesByDate,
-                ]).filter((g) => !isNoiseGallery(g.paths));
+                ]).filter((g) => !noiseMatcher.isNoise(g.paths));
+                // Same bar as scenes: a gallery nobody is linked to is
+                // an unidentified folder of images. Stash has no
+                // stash_ids field on galleries at all, so unlike a scene
+                // there is no second way for one to qualify — a
+                // performer is the only evidence available.
+                const galleryRows = cleanGalleryRows.filter(
+                    (g) => (g.performers ?? []).length > 0,
+                );
+                const unidentifiedGalleryCount =
+                    cleanGalleryRows.length - galleryRows.length;
 
                 // Collapse scene rows (one row per scene/performer pair)
                 // into one item per scene; gather all matching performers.
+                // Built from every path in this batch, because what the
+                // paths share is the library root, and only what is below
+                // it names a source. Has to be built before the collapse
+                // below, which needs an answer per scene.
+                const sources = buildSourceResolver(
+                    sceneRows.map((r) => r.filePath),
+                    libraryFolderKey.split(",").filter(Boolean),
+                );
+
+                // StashDB scene match per scene, or null. Only scenes
+                // with one may appear without a performer.
+                const stashIdBySceneId = new Map<string, string | null>();
                 const sceneItems = new Map<string, SceneFeedItem>();
                 for (const r of sceneRows) {
                     let item = sceneItems.get(r.sceneId);
@@ -394,15 +487,36 @@ export function useFeed(): FeedHookResult {
                             performers: [],
                             tags: r.sceneTags,
                             isRepost,
+                            // Scene-level, so it is the same on every
+                            // row for this scene. Derived even when a
+                            // performer IS linked so the value is
+                            // consistent, but only ever read for the
+                            // scenes that have nobody.
+                            impliedSource: sources.resolve(
+                                r.studioName,
+                                r.filePath,
+                            ),
+                            matchedPerformers: [],
                         };
+                        stashIdBySceneId.set(
+                            r.sceneId,
+                            r.stashIds.find(
+                                (x) => x.endpoint === STASHDB_ENDPOINT,
+                            )?.stashId ?? null,
+                        );
                         sceneItems.set(r.sceneId, item);
                     }
-                    item.performers.push({
-                        id: r.performerId,
-                        name: r.performerName,
-                        imagePath: r.performerImagePath,
-                        favorite: r.performerFavorite,
-                    });
+                    // Null for a scene with nobody linked. That row
+                    // exists precisely so the scene still reaches the
+                    // feed, so it must not be dropped here.
+                    if (r.performer) {
+                        item.performers.push({
+                            id: r.performer.id,
+                            name: r.performer.name,
+                            imagePath: r.performer.imagePath,
+                            favorite: r.performer.favorite,
+                        });
+                    }
                 }
 
                 // Fetch the first N images for each gallery in
@@ -444,6 +558,76 @@ export function useFeed(): FeedHookResult {
                     }),
                 );
 
+                // A scene with nobody linked earns its place only if it
+                // has been identified against StashDB — typically by
+                // forage, which matches on import. Then its performers
+                // are knowable and the card has a poster, even though
+                // they are not in this library. Without a match it is an
+                // unidentified file with no title, no studio and no
+                // cast, and a feed is the wrong place for it.
+                //
+                // The query already applies this rule, so the sweep
+                // below normally deletes nothing. It stays because the
+                // query can only ask whether SOME stashdb.org id exists
+                // while the rule is about this scene's own id, and
+                // because a rule this load-bearing should not live in
+                // one place only.
+                for (const [sceneId, item] of sceneItems) {
+                    if (item.performers.length > 0) continue;
+                    if (!stashIdBySceneId.get(sceneId)) {
+                        sceneItems.delete(sceneId);
+                    }
+                }
+                // Only counted when there is nothing to show, which is
+                // the only place it is read. A normal load pays nothing
+                // for it.
+                let unidentifiedCount = 0;
+                if (sceneItems.size === 0) {
+                    try {
+                        unidentifiedCount =
+                            await countUnidentifiedScenes(sinceIso);
+                    } catch {
+                        // The empty state just says less.
+                    }
+                }
+
+                // Who StashDB says is in the survivors. Cached across
+                // loads, capped per load, and entirely optional: without
+                // a StashDB key the scenes still show, titled by their
+                // studio, just without a face on them.
+                const needPerformers = [...sceneItems.entries()]
+                    .filter(([, i]) => i.performers.length === 0)
+                    .map(([id]) => stashIdBySceneId.get(id))
+                    .filter((x): x is string => Boolean(x));
+                if (needPerformers.length > 0 && includeStashDB) {
+                    const box = await getStashDBBox();
+                    if (box) {
+                        const byStashId = await getMatchedScenePerformers(
+                            needPerformers,
+                            box.api_key,
+                        );
+                        if (!alive) return;
+                        const allowed = new Set(
+                            allowedGenderKey.split(",").filter(Boolean),
+                        );
+                        for (const [sceneId, item] of sceneItems) {
+                            if (item.performers.length > 0) continue;
+                            const sid = stashIdBySceneId.get(sceneId);
+                            if (!sid) continue;
+                            // Same rule the discovery feed uses: an
+                            // unknown gender does not pass. Filtered
+                            // before anything reads the list, so a
+                            // hidden performer cannot title a card or
+                            // become the key a batch groups under.
+                            item.matchedPerformers = (
+                                byStashId.get(sid) ?? []
+                            ).filter(
+                                (p) => !!p.gender && allowed.has(p.gender),
+                            );
+                        }
+                    }
+                }
+
                 // Assemble packs (bulk imports → one pack card). No
                 // total slice — the whole window is shown; the
                 // virtualizer renders only what's on screen.
@@ -454,16 +638,44 @@ export function useFeed(): FeedHookResult {
                     sinceDate,
                 );
 
-                const wrappedDiscovery: DiscoveryFeedItemWrapped[] =
-                    discoveryItems.map((d) => ({ kind: "discovery", ...d }));
+                const local: FeedItem[] = [...sceneList, ...galleryItems].sort(
+                    (a, b) => b.effectiveAt.localeCompare(a.effectiveAt),
+                );
 
-                const all: FeedItem[] = [
-                    ...sceneList,
-                    ...galleryItems,
-                    ...wrappedDiscovery,
-                ].sort((a, b) => b.effectiveAt.localeCompare(a.effectiveAt));
+                // Show the library's own feed the moment it is ready.
+                setState({
+                    kind: "ready",
+                    items: local,
+                    unidentifiedCount,
+                    unidentifiedGalleryCount,
+                });
 
-                setState({ kind: "ready", items: all });
+                // Then fold discovery in whenever it arrives. The cards
+                // sort into the list by date, so a reader who has
+                // scrolled will see it shift under them — which is the
+                // price of not making everyone wait fourteen seconds for
+                // a feed that was ready in one.
+                void discoveryPromise.then((discoveryItems) => {
+                    if (!alive || discoveryItems.length === 0) return;
+                    const wrapped: DiscoveryFeedItemWrapped[] =
+                        discoveryItems.map((d) => ({
+                            kind: "discovery",
+                            ...d,
+                        }));
+                    setState((prev) =>
+                        prev.kind === "ready"
+                            ? {
+                                  ...prev,
+                                  items: [...prev.items, ...wrapped].sort(
+                                      (a, b) =>
+                                          b.effectiveAt.localeCompare(
+                                              a.effectiveAt,
+                                          ),
+                                  ),
+                              }
+                            : prev,
+                    );
+                });
             } catch (err) {
                 if (!alive) return;
                 setState({
@@ -476,7 +688,20 @@ export function useFeed(): FeedHookResult {
         return () => {
             alive = false;
         };
-    }, [lookbackDays, showGalleries, includeStashDB, hidden, storiesRefreshTick, reloadTick]);
+        // libraryFolderKey rather than the array: the hook returns a
+        // fresh array each render, so depending on it would refetch the
+        // whole feed on every paint.
+    }, [
+        lookbackDays,
+        showGalleries,
+        includeStashDB,
+        hidden,
+        storiesRefreshTick,
+        libraryFolderKey,
+        galleryIgnoreKey,
+        allowedGenderKey,
+        reloadTick,
+    ]);
 
     return { state, retry: () => setReloadTick((t) => t + 1) };
 }
@@ -489,7 +714,7 @@ function dedupeSceneRows(rows: RecentSceneRow[]): RecentSceneRow[] {
     const seen = new Set<string>();
     const out: RecentSceneRow[] = [];
     for (const r of rows) {
-        const key = `${r.sceneId}:${r.performerId}`;
+        const key = `${r.sceneId}:${r.performer?.id ?? ""}`;
         if (seen.has(key)) continue;
         seen.add(key);
         out.push(r);

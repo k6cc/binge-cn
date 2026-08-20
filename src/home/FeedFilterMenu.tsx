@@ -12,7 +12,6 @@ import {
 // in localStorage (binge.feedHidden) so it persists and the Feed
 // reacts live via useHiddenFeedCategories.
 
-
 export function FeedFilterMenu() {
     const hidden = useHiddenFeedCategories();
     const [open, setOpen] = useState(false);
@@ -24,6 +23,7 @@ export function FeedFilterMenu() {
         trending: t("feed.category.trending"),
         posts: t("feed.category.posts"),
         reposts: t("feed.category.reposts"),
+        unidentified: t("feed.category.unidentified"),
     };
 
     useEffect(() => {

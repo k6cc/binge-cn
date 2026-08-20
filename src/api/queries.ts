@@ -931,19 +931,58 @@ export interface RecentSceneRow {
     // tags), so callers can dedupe down to one item per scene and read
     // tags off any row.
     sceneTags: { id: string; name: string }[];
-    performerId: string;
-    performerName: string;
-    performerImagePath: string | null;
-    performerFavorite: boolean;
-    performerGender: string | null;
+    // The one performer this row is about, or null when the scene has
+    // no performers at all. A whole object rather than loose nullable
+    // fields, so a caller cannot read the name while forgetting the id
+    // might be absent.
+    performer: RecentScenePerformer | null;
+    // What an unattributed scene appears to belong to. The studio when
+    // Stash knows one; otherwise the caller falls back to the file path,
+    // since an unidentified import usually sits in a folder named after
+    // its source (a performer, a site, a pack).
+    studioName: string | null;
+    filePath: string | null;
+    // Stash-box scene matches. A performerless scene with one of these
+    // has been identified against StashDB (typically by forage), so the
+    // performers are knowable even though none are in the library.
+    // Without one, a performerless scene is an unidentified file and
+    // does not belong in a feed.
+    stashIds: { endpoint: string; stashId: string }[];
+}
+
+export interface RecentScenePerformer {
+    id: string;
+    name: string;
+    imagePath: string | null;
+    favorite: boolean;
+    gender: string | null;
 }
 
 function buildFindRecentScenesQuery(): string {
     return /* GraphQL */ `
         query RecentScenes($since: String!, $per_page: Int!) {
             findScenes(
+                # The identification rule, moved into the query. Home
+                # discards every scene with nobody linked and no StashDB
+                # match, and downloading them first cost 78% of the
+                # response for rows thrown away a millisecond later:
+                # 9,327 scenes fetched to show 2,073.
+                #
+                # Stash ORs the sub-filter against the whole conjunction
+                # at this level, so the window bound is repeated inside
+                # it. Without that repetition the branch is unbounded and
+                # matches the entire library: measured, 23,925 rows for a
+                # window holding 9,327.
                 scene_filter: {
                     created_at: { value: $since, modifier: GREATER_THAN }
+                    performer_count: { value: 0, modifier: GREATER_THAN }
+                    OR: {
+                        created_at: { value: $since, modifier: GREATER_THAN }
+                        stash_id_endpoint: {
+                            endpoint: "https://stashdb.org/graphql"
+                            modifier: NOT_NULL
+                        }
+                    }
                 }
                 filter: {
                     page: 1
@@ -961,10 +1000,18 @@ function buildFindRecentScenesQuery(): string {
                     files {
                         width
                         height
+                        path
                     }
                     paths {
                         screenshot
                         preview
+                    }
+                    studio {
+                        name
+                    }
+                    stash_ids {
+                        endpoint
+                        stash_id
                     }
                     performers {
                         id
@@ -991,8 +1038,27 @@ function buildFindScenesByDateQuery(): string {
     return /* GraphQL */ `
         query ScenesByDate($since: String!, $per_page: Int!) {
             findScenes(
+                # The identification rule, moved into the query. Home
+                # discards every scene with nobody linked and no StashDB
+                # match, and downloading them first cost 78% of the
+                # response for rows thrown away a millisecond later:
+                # 9,327 scenes fetched to show 2,073.
+                #
+                # Stash ORs the sub-filter against the whole conjunction
+                # at this level, so the window bound is repeated inside
+                # it. Without that repetition the branch is unbounded and
+                # matches the entire library: measured, 23,925 rows for a
+                # window holding 9,327.
                 scene_filter: {
                     date: { value: $since, modifier: GREATER_THAN }
+                    performer_count: { value: 0, modifier: GREATER_THAN }
+                    OR: {
+                        date: { value: $since, modifier: GREATER_THAN }
+                        stash_id_endpoint: {
+                            endpoint: "https://stashdb.org/graphql"
+                            modifier: NOT_NULL
+                        }
+                    }
                 }
                 filter: {
                     page: 1
@@ -1010,10 +1076,18 @@ function buildFindScenesByDateQuery(): string {
                     files {
                         width
                         height
+                        path
                     }
                     paths {
                         screenshot
                         preview
+                    }
+                    studio {
+                        name
+                    }
+                    stash_ids {
+                        endpoint
+                        stash_id
                     }
                     performers {
                         id
@@ -1049,11 +1123,13 @@ type RawSceneNode = {
     details: string | null;
     created_at: string;
     date: string | null;
-    files: { width: number; height: number }[];
+    files: { width: number; height: number; path: string | null }[];
     paths: {
         screenshot: string | null;
         preview: string | null;
     };
+    studio: { name: string } | null;
+    stash_ids: { endpoint: string; stash_id: string }[] | null;
     performers: {
         id: string;
         name: string;
@@ -1074,26 +1150,46 @@ function flattenSceneNodes(scenes: RawSceneNode[]): RecentSceneRow[] {
         // write this function already guards against elsewhere would
         // still have thrown here and taken the whole feed with it.
         const paths = s.paths ?? { screenshot: null, preview: null };
+        const base = {
+            sceneId: s.id,
+            sceneTitle: s.title,
+            sceneDetails: s.details,
+            sceneScreenshot: paths.screenshot,
+            scenePreview: paths.preview,
+            sceneCreatedAt: s.created_at,
+            sceneDate: s.date,
+            sceneWidth: firstFile?.width ?? null,
+            sceneHeight: firstFile?.height ?? null,
+            sceneTags,
+            studioName: s.studio?.name ?? null,
+            filePath: firstFile?.path ?? null,
+            stashIds: (s.stash_ids ?? []).map((x) => ({
+                endpoint: x.endpoint,
+                stashId: x.stash_id,
+            })),
+        };
         // Stash can occasionally return a scene with null `performers`
         // during partial writes — guard so one bad row doesn't crash
         // the whole feed flatten.
-        for (const p of s.performers ?? []) {
+        const performers = s.performers ?? [];
+        // A scene with nobody on it still gets exactly one row. Emitting
+        // none is what used to make these scenes unreachable from Home:
+        // 84% of what this library imported in the last 30 days has no
+        // performer linked, and all of it silently produced no rows.
+        if (performers.length === 0) {
+            rows.push({ ...base, performer: null });
+            continue;
+        }
+        for (const p of performers) {
             rows.push({
-                sceneId: s.id,
-                sceneTitle: s.title,
-                sceneDetails: s.details,
-                sceneScreenshot: paths.screenshot,
-                scenePreview: paths.preview,
-                sceneCreatedAt: s.created_at,
-                sceneDate: s.date,
-                sceneWidth: firstFile?.width ?? null,
-                sceneHeight: firstFile?.height ?? null,
-                sceneTags,
-                performerId: p.id,
-                performerName: p.name,
-                performerImagePath: p.image_path,
-                performerFavorite: p.favorite,
-                performerGender: p.gender ?? null,
+                ...base,
+                performer: {
+                    id: p.id,
+                    name: p.name,
+                    imagePath: p.image_path,
+                    favorite: p.favorite,
+                    gender: p.gender ?? null,
+                },
             });
         }
     }
@@ -1116,6 +1212,39 @@ export async function findRecentScenes(
 // also catch scenes added to the library long ago but with a recent
 // release date — without this, a freshly-released scene that was
 // imported a year ago would be invisible to the Home feed.
+// How many scenes the identification rule held back. Its complement:
+// nobody linked AND no StashDB match, inside the same window. Counted
+// rather than listed, and called only when the feed came back empty,
+// which is the only place the number is shown. Deriving it from the
+// rows was free when the feed downloaded them; now that the query
+// filters them out, asking for a count is cheaper than fetching them
+// back to count them.
+export async function countUnidentifiedScenes(
+    sinceIso: string,
+): Promise<number> {
+    const data = await gql<{ findScenes: { count: number } }>(
+        /* GraphQL */ `
+            query CountUnidentified($since: String!) {
+                findScenes(
+                    scene_filter: {
+                        created_at: { value: $since, modifier: GREATER_THAN }
+                        performer_count: { value: 0, modifier: EQUALS }
+                        stash_id_endpoint: {
+                            endpoint: "https://stashdb.org/graphql"
+                            modifier: IS_NULL
+                        }
+                    }
+                    filter: { page: 1, per_page: 1 }
+                ) {
+                    count
+                }
+            }
+        `,
+        { since: sinceIso },
+    );
+    return data.findScenes.count;
+}
+
 export async function findScenesByDate(
     sinceDate: string,
     perPage = 500,
@@ -1356,11 +1485,11 @@ export async function findGalleriesByDate(
 }
 
 const FIND_IMAGES_BY_GALLERY = /* GraphQL */ `
-    query GalleryImages($id: ID!, $per_page: Int!) {
+    query GalleryImages($id: ID!, $per_page: Int!, $page: Int!) {
         findImages(
             image_filter: { galleries: { value: [$id], modifier: INCLUDES } }
             filter: {
-                page: 1
+                page: $page
                 per_page: $per_page
                 sort: "path"
                 direction: ASC
@@ -1385,19 +1514,25 @@ const FIND_IMAGES_BY_GALLERY = /* GraphQL */ `
     }
 `;
 
-// Fetch the first `perPage` images of a gallery. Sorted by path so the
-// order matches Stash's gallery view (filesystem order, which is what
-// the user typically authored). Reuses the PerformerImageCard shape
-// so existing ImageLightbox accepts the result without adaptation.
+// Fetch one page of a gallery's images. Sorted by path so the order
+// matches Stash's gallery view (filesystem order, which is what the
+// user typically authored). Reuses the PerformerImageCard shape so
+// existing ImageLightbox accepts the result without adaptation.
+//
+// `page` is 1-based, as Stash's find filter is. The feed asks for the
+// first small page to fill a card's carousel; the lightbox pages
+// through the rest as the user gets near the end of what's loaded.
 export async function findImagesByGallery(
     galleryId: string,
     perPage: number,
+    page = 1,
 ): Promise<PerformerImageCard[]> {
     const data = await gql<{
         findImages: { images: PerformerImageCard[] };
     }>(FIND_IMAGES_BY_GALLERY, {
         id: galleryId,
         per_page: perPage,
+        page,
     });
     return data.findImages.images;
 }

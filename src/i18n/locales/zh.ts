@@ -12,7 +12,8 @@ export default {
                 discover: "发现",
                 trending: "热门",
                 posts: "帖子",
-                reposts: "转发"
+                reposts: "转发",
+                unidentified: "未识别"
             },
             show_in_feed: "动态中显示"
         },
@@ -139,6 +140,13 @@ export default {
             try_again: "重试",
             all_filtered_out: "所有内容被筛选掉了 — 调整筛选条件。",
             no_new_content: "近期窗口内没有新内容。",
+            unidentified_scenes: "近期有 {{count}} 个场景未关联任何演员，因此未显示。在 Stash 中关联演员后即可在此看到。",
+            unidentified_galleries: "近期有 {{count}} 个图库未关联任何演员，因此未显示。在 Stash 中关联演员后即可在此看到。",
+            unidentified_scenes_and_galleries: "近期有 {{parts}} 未关联任何演员，因此未显示。在 Stash 中关联演员后即可在此看到。",
+            unidentified_count_scenes: "{{count}} 个场景",
+            unidentified_count_galleries: "{{count}} 个图库",
+            unidentified_joiner: "和",
+            unknown_error: "未知错误",
             current_total_image: "{{current}} / {{total}}",
             stashdb_scenes_count: "StashDB 上有 {{count}} 个场景",
             reposted: "转发了",
@@ -204,6 +212,9 @@ export default {
             watch_full_scene_arrow: "观看完整场景 →",
             open_in_stash: "在 Stash 中打开",
             open_in_stash_details: "在 Stash 界面中打开此场景",
+            find_in_stash: "在 Stash 中查找",
+            find_in_stash_sub: "在库中搜索这些场景，以关联演员",
+            reset: "重置",
             scene_actions: "场景操作",
             more_actions: "更多操作",
             enter_fullscreen: "进入全屏",
@@ -288,6 +299,7 @@ export default {
             clear_this_score: "清除这个评分",
             dont_write_this_score: "不写这个评分",
             open_pack_aria: "打开包 — {{count}} 个场景",
+            open_batch_aria: "打开批次 — {{name}}",
             download_to_stash: "下载到 Stash",
             browse_performer_content: "浏览 {{name}} 的内容",
             send_to_forage: "发送到 forage"
@@ -355,6 +367,14 @@ export default {
                 desc: "将图库帖子（图集）混入首页动态中与场景一起展示。关闭则只看场景。",
                 label: "显示图库"
             },
+            library_folders: {
+                title: "要忽略的文件夹名",
+                desc: "当场景没有关联演员时，binge 会以它导入时所在的文件夹命名。此处列出的文件夹会被视为容器跳过，而不作为名称。以逗号分隔；库根目录会自动推断，无需列出。"
+            },
+            gallery_ignore: {
+                title: "要忽略的图库文件夹",
+                desc: "这些文件夹内的图库不会出现在首页动态中 —— 它们是截图表和封面图，而非照片集。匹配整个文件夹名（不区分大小写）；条目以 * 结尾表示前缀匹配，如 screen* 可匹配 Screens、Screenshots 和 Screenlists。以逗号分隔；留空则不隐藏任何内容。"
+            },
             lookback: {
                 title: "近期窗口",
                 desc: "首页“新”内容的回溯范围。同时影响故事栏和初始动态加载。窗口越短越紧凑；窗口越长展示更多内容，但库较大时首屏加载会变慢。",
@@ -396,8 +416,15 @@ export default {
                 setup_link: "设置 binge-server →",
                 auto_detected: "✓ 已自动检测",
                 configuring: "配置中…",
+                key_not_set: "未设置",
+                key_missing_error: "Stash 没有可供发送的 API 密钥。请在 Stash 中开启身份验证（设置 → 安全）后重新加载，或在守护进程上设置 STASH_API_KEY。",
                 poll_meta: "· {{count}} 名演员 · 上次轮询 {{time}}",
                 desc: "守护进程代表你轮询 Reddit 所使用的凭据。Stash API 密钥会自动填入；Reddit 会话 Cookie 需要你手动粘贴（它保存在你的浏览器中，不在 Stash 中）。",
+                sending_to: "正在发送到",
+                not_sending: "未将你的 Stash 密钥或 Cookie 发送到",
+                not_trusted_https: "这是一个未在此处确认过的公共地址，binge 无法判断它是否属于你。如果此守护进程是你搭建的，请在下方确认。",
+                not_trusted_http: "凭证仅以明文发送到你自己的机器、局域网或 tailnet。请为此守护进程启用 https，或改用本地地址。",
+                use_this_daemon: "使用此守护进程",
                 stash_api_key: "Stash API 密钥",
                 import_cookies: "导入 cookies.txt",
                 import_choose_file: "选择文件",
@@ -406,6 +433,15 @@ export default {
                 reddit_cookie: "Reddit 会话 Cookie",
                 cookie_set: "✓ 已设置 · 粘贴新值以轮换",
                 cookie_placeholder: "粘贴你的 reddit_session 值",
+                cookie_expired: "已过期 · 粘贴新值",
+                cookie_expired_notice: "Reddit 已拒绝你的会话 Cookie，故事已停止更新。会话每隔几个月会失效一次。导入新的 cookies.txt 或在下方粘贴新值即可恢复。",
+                cookie_expired_notice_with_time: "Reddit 已于 {{ago}} 拒绝你的会话 Cookie，故事已停止更新。会话每隔几个月会失效一次。导入新的 cookies.txt 或在下方粘贴新值即可恢复。",
+                found_reddit: "Reddit 会话",
+                found_x: "X 登录",
+                found_joiner: " 和 ",
+                cookies_found: "已找到 {{names}}。",
+                cookies_not_a_file: "这看起来不是 cookies.txt 文件 —— 其中未找到任何 Cookie。",
+                cookies_no_login: "已读取 {{count}} 个域名，但没有 Reddit 或 X 的登录信息。请在登录这些站点后导出 —— 对 X 而言，auth_token 和 ct0 缺一不可。",
                 how_to_reddit: "如何找到你的 Reddit cookie",
                 help_reddit_1: "在普通浏览器标签页中登录 reddit.com。",
                 help_reddit_2: "打开开发者工具（F12）→ Application → Cookies → https://www.reddit.com",
@@ -491,6 +527,7 @@ export default {
         // 5.6 演员
         performer: {
             performer: "演员",
+            unidentified: "未识别",
             stashdb_config_error: "StashDB 未在 Stash → 设置 → 元数据提供者中配置。",
             stashdb_not_found: "在 StashDB 上未找到该演员。",
             stashdb_profile_aria_label: "StashDB 演员档案",

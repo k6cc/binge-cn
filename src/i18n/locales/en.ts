@@ -12,7 +12,8 @@ export default {
                 discover: "Discover",
                 trending: "Trending",
                 posts: "Posts",
-                reposts: "Reposts"
+                reposts: "Reposts",
+                unidentified: "Unidentified"
             },
             show_in_feed: "Show in feed"
         },
@@ -139,6 +140,13 @@ export default {
             try_again: "Try again",
             all_filtered_out: "Everything filtered out — adjust filters.",
             no_new_content: "No new content within the lookback window.",
+            unidentified_scenes: "{{count}} recent scenes arrived with nobody linked, so they are not shown. Link a performer in Stash to see them here.",
+            unidentified_galleries: "{{count}} recent galleries arrived with nobody linked, so they are not shown. Link a performer in Stash to see them here.",
+            unidentified_scenes_and_galleries: "{{parts}} arrived recently with nobody linked, so they are not shown. Link a performer in Stash to see them here.",
+            unidentified_count_scenes: "{{count}} scenes",
+            unidentified_count_galleries: "{{count}} galleries",
+            unidentified_joiner: " and ",
+            unknown_error: "Unknown error",
             current_total_image: "{{current}} / {{total}}",
             stashdb_scenes_count: "{{count}} scenes on StashDB",
             reposted: "Reposted",
@@ -204,6 +212,9 @@ export default {
             watch_full_scene_arrow: "Watch full scene →",
             open_in_stash: "Open in Stash",
             open_in_stash_details: "Open this scene in Stash interface",
+            find_in_stash: "Find in Stash",
+            find_in_stash_sub: "Search your library for these, to attach a performer",
+            reset: "Reset",
             scene_actions: "scene actions",
             more_actions: "More actions",
             enter_fullscreen: "Enter fullscreen",
@@ -288,6 +299,7 @@ export default {
             clear_this_score: "Clear this score",
             dont_write_this_score: "Don't write this score",
             open_pack_aria: "Open pack — {{count}} scenes",
+            open_batch_aria: "Open batch — {{name}}",
             download_to_stash: "Download to Stash",
             browse_performer_content: "Browse {{name}}'s content",
             send_to_forage: "Send to forage"
@@ -355,6 +367,14 @@ export default {
                 desc: "Mix gallery posts (albums) into the home feed alongside scenes. Turn off to only see scenes.",
                 label: "Show galleries"
             },
+            library_folders: {
+                title: "Folder names to ignore",
+                desc: "When a scene has no performer, binge names it after the folder it was imported into. Folders listed here are skipped as containers rather than treated as a name. Comma-separated; the library root itself is worked out automatically and does not need listing."
+            },
+            gallery_ignore: {
+                title: "Gallery folders to ignore",
+                desc: "Galleries inside these folders stay out of the Home feed — screenshot sheets and cover art rather than photo sets. Matches a whole folder name, case-insensitively; end an entry with * for a prefix match, so screen* covers Screens, Screenshots and Screenlists. Comma-separated; clear it to hide nothing."
+            },
             lookback: {
                 title: "Lookback window",
                 desc: "How far back in time to look for 'new' content in the home feed. Affects both story bar and initial feed load. Shorter window for more compact; longer window for more content, but slower initial load with large libraries.",
@@ -396,8 +416,15 @@ export default {
                 setup_link: "Set up binge-server →",
                 auto_detected: "✓ Auto-detected",
                 configuring: "Configuring…",
+                key_not_set: "Not set",
+                key_missing_error: "Stash has no API key to send. Turn on authentication in Stash (Settings, Security) and reload, or set STASH_API_KEY on the daemon.",
                 poll_meta: "· {{count}} performers · last polled {{time}}",
                 desc: "Credentials the daemon uses to poll Reddit on your behalf. Stash API key is auto-filled; Reddit session cookie requires you to paste it manually (it's stored in your browser, not in Stash).",
+                sending_to: "Sending to",
+                not_sending: "Not sending your Stash key or cookies to",
+                not_trusted_https: "That is a public address which was not set up here, so binge cannot tell whether it is yours. If you set this daemon up, confirm it below.",
+                not_trusted_http: "Credentials only travel in the clear to your own machine, LAN or tailnet. Serve this daemon over https, or use a local address.",
+                use_this_daemon: "Use this daemon",
                 stash_api_key: "Stash API key",
                 import_cookies: "Import cookies.txt",
                 import_choose_file: "Choose file",
@@ -406,6 +433,15 @@ export default {
                 reddit_cookie: "Reddit session cookie",
                 cookie_set: "✓ Set · Paste new value to rotate",
                 cookie_placeholder: "Paste your reddit_session value",
+                cookie_expired: "Expired · paste a new value",
+                cookie_expired_notice: "Reddit rejected your session cookie, so stories have stopped updating. Sessions age out every few months. Import a fresh cookies.txt or paste a new value below to start them again.",
+                cookie_expired_notice_with_time: "Reddit rejected your session cookie {{ago}}, so stories have stopped updating. Sessions age out every few months. Import a fresh cookies.txt or paste a new value below to start them again.",
+                found_reddit: "Reddit session",
+                found_x: "X login",
+                found_joiner: " and ",
+                cookies_found: "Found {{names}}.",
+                cookies_not_a_file: "That doesn't look like a cookies.txt file — no cookies found in it.",
+                cookies_no_login: "Read {{count}} domains, but no Reddit or X login in there. Export while signed in to those sites — and for X, both auth_token and ct0 are needed.",
                 how_to_reddit: "How to find your Reddit cookie",
                 help_reddit_1: "Log in to reddit.com in a normal browser tab.",
                 help_reddit_2: "Open DevTools (F12) → Application → Cookies → https://www.reddit.com",
@@ -491,6 +527,7 @@ export default {
         // 5.6 Performer
         performer: {
             performer: "Performer",
+            unidentified: "Unidentified",
             stashdb_config_error: "StashDB not configured in Stash → Settings → Metadata providers.",
             stashdb_not_found: "Performer not found on StashDB.",
             stashdb_profile_aria_label: "StashDB performer profile",

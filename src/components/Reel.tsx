@@ -391,17 +391,37 @@ export function Reel() {
                     setOOverrides({});
                     setRatingOverrides({});
                     setCollectionOverrides({});
-                    // Defer scroll until the slides are laid out —
+                    // Defer scroll until the slides are laid out:
                     // before commit, scrollHeight is still 0 and
                     // scrollTo floors to top.
-                    window.requestAnimationFrame(() => {
+                    //
+                    // Retrying across frames because one is not always
+                    // enough while the slides are still committing.
+                    //
+                    // KNOWN BUG, not fixed by this: "Watch full scene"
+                    // still opens the reel on the wrong scene. The
+                    // handoff itself is correct — instrumented, the CTA
+                    // sends scene=194036 at index 11 of 849, and the
+                    // reel resolves target=194036 found=11 — but the
+                    // view ends up elsewhere. Retrying the scroll and
+                    // going through virtualizer.scrollToIndex were both
+                    // tried and neither helped, so the cause is further
+                    // down: either activeIndex is overwritten after this
+                    // runs, or the scroll container's height disagrees
+                    // with the virtualizer's estimate. Next step is to
+                    // log scrollTop and activeIndex over the frames
+                    // after this settles.
+                    const settle = (tries: number) => {
+                        if (token !== fetchTokenRef.current) return;
                         const el = scrollRef.current;
                         if (!el) return;
-                        el.scrollTo({
-                            top: idx * el.clientHeight,
-                            behavior: "auto",
-                        });
-                    });
+                        const want = idx * el.clientHeight;
+                        el.scrollTo({ top: want, behavior: "auto" });
+                        if (Math.abs(el.scrollTop - want) < 2) return;
+                        if (tries >= 30) return;
+                        window.requestAnimationFrame(() => settle(tries + 1));
+                    };
+                    window.requestAnimationFrame(() => settle(0));
                     // Bug 5 修复：不要在这里清除 queue。pinnedQueue 在依赖
                     // 数组中，清除会立即触发 effect 重跑 → 走 random 路径
                     // → 用随机场景覆盖 queue 场景。queue 由 setTab 在用户

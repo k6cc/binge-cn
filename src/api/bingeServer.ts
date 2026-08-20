@@ -1,5 +1,6 @@
 import { fetchStashApiKey } from "./queries";
 import {
+    confirmedDaemonOrigins,
     readBingeServerUrl,
     ensureBingeServerUrlSeeded,
 } from "../home/pluginSettings";
@@ -57,6 +58,13 @@ export interface BingeServerConfigState {
     // daemon never returns the secret values themselves.
     stashApiKeySet: boolean;
     redditCookieSet: boolean;
+    // RFC3339 time the daemon first found the Reddit cookie rejected,
+    // absent while it works. Cookies expire every few months and the
+    // only other symptom is stories quietly stopping, so this is what
+    // turns "binge is broken" into "paste a new cookie".
+    // Added in binge-server v0.3 — older daemons never send it, which
+    // reads correctly as "not expired".
+    redditCookieExpiredAt?: string;
     // X (Twitter) auth_token + ct0 pair — true once both are stored.
     xCookiesSet?: boolean;
     // Social "save to Stash" library roots (not secret) + whether both set.
@@ -149,9 +157,13 @@ export function isTrustedDaemonUrl(raw: string): boolean {
     } catch {
         return false;
     }
-    if (u.protocol === "https:") return true;
-    if (u.protocol !== "http:") return false;
+    if (u.protocol !== "https:" && u.protocol !== "http:") return false;
     const host = u.hostname.toLowerCase();
+
+    // Local, private and tailnet hosts are trusted on either scheme. This
+    // block used to sit behind an `https -> return true` short circuit, so
+    // it only ever ran for http, and every https host was trusted
+    // outright no matter whose it was.
     if (host === "localhost" || host === "127.0.0.1" || host === "::1")
         return true;
     if (
@@ -160,11 +172,10 @@ export function isTrustedDaemonUrl(raw: string): boolean {
         host.endsWith(".ts.net")
     )
         return true;
-    // IPv6 literal, which the URL parser hands back in brackets. This has
-    // to be settled BEFORE the bare-hostname rule below: an IPv6 address
-    // contains no dots, so "no dot means LAN name" would wave a public
-    // address like [2001:4860:4860::8888] straight through and post the
-    // credentials to it in cleartext.
+    // IPv6 literal, which the URL parser hands back in brackets. Settled
+    // BEFORE the bare-hostname rule: an IPv6 address contains no dots, so
+    // "no dot means LAN name" would wave a public address like
+    // [2001:4860:4860::8888] straight through.
     if (host.startsWith("[") && host.endsWith("]")) {
         return isPrivateIPv6(host.slice(1, -1));
     }
@@ -181,8 +192,83 @@ export function isTrustedDaemonUrl(raw: string): boolean {
         if (a === 100 && b >= 64 && b <= 127) return true; // CGNAT / tailnet
         return false;
     }
-    // Dotted public hostname → untrusted for cleartext credentials.
+
+    // A public hostname. Cleartext to one is never acceptable.
+    if (u.protocol !== "https:") return false;
+    // A daemon under the same registrable domain as the Stash page is the
+    // ordinary reverse-proxy deployment (Stash at stash.example.com, the
+    // daemon at binge.example.com), so it needs no confirmation.
+    if (sharesRegistrableDomain(host, pageHostname())) return true;
+    // Anything else: only if this origin was set deliberately. Typing it
+    // into Settings and seeding it from Stash's plugin config both record
+    // it, so this costs no setup step. It is the check for an address
+    // that appeared without either.
+    return confirmedDaemonOrigins().includes(u.origin);
+}
+
+/// Could the daemon use this address to reach Stash?
+///
+/// The daemon refuses to store a public Stash URL, and rightly: it is
+/// the guard that stops a config write pointing the API key at someone
+/// else's host. So sending the browser's own origin only works when that
+/// origin is itself local. For Stash behind a public domain the honest
+/// answer is that the browser does not know how the daemon reaches
+/// Stash, and the daemon's own configured value (localhost by default,
+/// which is correct when it runs beside Stash) is the better one.
+export function daemonCanReachStashAt(raw: string): boolean {
+    let u: URL;
+    try {
+        u = new URL(raw);
+    } catch {
+        return false;
+    }
+    if (u.protocol !== "https:" && u.protocol !== "http:") return false;
+    const host = u.hostname.toLowerCase();
+    if (host === "localhost" || host === "127.0.0.1" || host === "::1")
+        return true;
+    if (
+        host.endsWith(".local") ||
+        host.endsWith(".internal") ||
+        host.endsWith(".ts.net")
+    )
+        return true;
+    if (host.startsWith("[") && host.endsWith("]"))
+        return isPrivateIPv6(host.slice(1, -1));
+    if (!host.includes(".")) return true;
+    const m = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+    if (!m) return false;
+    const a = Number(m[1]);
+    const b = Number(m[2]);
+    if (a === 10) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 100 && b >= 64 && b <= 127) return true;
     return false;
+}
+
+/// The host serving this page, or "" outside a browser.
+function pageHostname(): string {
+    try {
+        return window.location.hostname.toLowerCase();
+    } catch {
+        return "";
+    }
+}
+
+/// Do two hostnames belong to the same registered domain?
+///
+/// Compares the last two labels, which is not a public-suffix list: it
+/// treats a.co.uk and b.co.uk as related when they are not. That errs
+/// toward trusting a host, which here means "an existing setup keeps
+/// working" rather than "a stranger gets the key" -- the value still has
+/// to be an https host that someone put in the settings. A real PSL is a
+/// large table for a check this small.
+function sharesRegistrableDomain(a: string, b: string): boolean {
+    if (!a || !b) return false;
+    if (a === b) return true;
+    const tail = (h: string) => h.split(".").slice(-2).join(".");
+    const ta = tail(a);
+    return ta !== "" && ta === tail(b);
 }
 
 // xHandleFromUrls mirrors binge-server's HandleFromURLs — pulls the
