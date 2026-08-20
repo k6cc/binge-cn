@@ -894,6 +894,42 @@ body,
         drop-shadow(0 0 14px rgba(244, 114, 182, 0.45));
 }
 
+/* -- Companion plugins -- what binge picks up when it is there ------ */
+.binge-companion-list {
+    list-style: none;
+    margin: 12px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+.binge-companion-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+}
+.binge-companion-name {
+    font-weight: 600;
+}
+/* Absent is the ordinary case and must not read as a fault: no red, no
+   icon, just quieter than the name beside it. Present is stated plainly
+   rather than celebrated. */
+.binge-companion-state {
+    font-size: 12px;
+    opacity: 0.55;
+    white-space: nowrap;
+}
+.binge-companion-state.is-present {
+    opacity: 0.85;
+}
+.binge-companion-adds {
+    margin: 3px 0 0;
+    font-size: 13px;
+    line-height: 1.45;
+    opacity: 0.75;
+}
+
 /* ── Heart burst — particles float up from bottom on every tap ─────── */
 .binge-heart-burst-layer {
     position: absolute;

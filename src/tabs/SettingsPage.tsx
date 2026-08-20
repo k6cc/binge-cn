@@ -56,9 +56,115 @@ import { getForageHealth } from "../api/forageServer";
 import { parseCookiesTxt, describeParse } from "../api/cookiesTxt";
 import { BingeServerInstallCard } from "./BingeServerInstallCard";
 import { hasChosenBingeServer } from "../home/pluginSettings";
+import {
+    PLUGIN_ID_ADVANCED_RATING,
+    PLUGIN_ID_MULTIVIEW,
+    PLUGIN_ID_SCRIBE,
+    useHasAdvancedRating,
+    useHasMultiview,
+    useHasScribe,
+    usePluginLoaded,
+} from "../plugins/PluginContext";
 import { fetchStashApiKey } from "../api/queries";
 import { DEFAULT_LIBRARY_FOLDER_NAMES } from "../home/impliedSource";
 import { DEFAULT_GALLERY_IGNORE_FOLDERS } from "../home/galleryNoise";
+
+// Which of binge's neighbours are installed, and what each one adds.
+//
+// Several features here are not binge's at all: the per-criterion
+// rating modal, the multiview grid and the Scribe pencil all belong to
+// other plugins and simply do not appear without them. That is the
+// right behaviour and the wrong presentation, because a feature you
+// have read about and cannot find reads as broken. Naming them, saying
+// what each adds and whether it is present, turns an invisible
+// dependency into a choice.
+const COMPANIONS: {
+    id: string;
+    name: string;
+    adds: string;
+    url?: string;
+}[] = [
+    {
+        id: PLUGIN_ID_ADVANCED_RATING,
+        name: "Advanced Rating",
+        adds: "Rate scenes and performers on separate criteria, from inside the reel. binge writes the same score tags, so the two stay in step.",
+        url: "https://github.com/ordureconnoisseur/stash-advanced-rating",
+    },
+    {
+        id: PLUGIN_ID_MULTIVIEW,
+        name: "Multiview",
+        adds: "Queue scenes from the action stack and watch several at once. Tap to queue, hold to open.",
+        url: "https://github.com/ordureconnoisseur/stash-multiview",
+    },
+    {
+        id: PLUGIN_ID_SCRIBE,
+        name: "Scribe",
+        adds: "The pencil in the action stack, which writes a review of a scene with a local language model.",
+    },
+];
+
+function CompanionPluginsCard() {
+    // The named helpers cover one plugin each; this card wants them
+    // side by side.
+    const loaded = usePluginLoaded();
+    const present: Record<string, boolean> = {
+        [PLUGIN_ID_ADVANCED_RATING]: useHasAdvancedRating(),
+        [PLUGIN_ID_MULTIVIEW]: useHasMultiview(),
+        [PLUGIN_ID_SCRIBE]: useHasScribe(),
+    };
+    if (!loaded) return null;
+    return (
+        <div className="binge-settings-card">
+            <div className="binge-settings-card-header">
+                <h3 className="binge-settings-card-title">
+                    Plugins binge works with
+                </h3>
+            </div>
+            <p className="binge-settings-card-description">
+                All optional. binge picks these up on its own when they are
+                installed, and hides what belongs to the ones that are not.
+            </p>
+            <ul className="binge-companion-list">
+                {COMPANIONS.map((c) => {
+                    const installed = present[c.id] === true;
+                    return (
+                        <li key={c.id} className="binge-companion">
+                            <div className="binge-companion-head">
+                                <span className="binge-companion-name">
+                                    {c.name}
+                                </span>
+                                <span
+                                    className={
+                                        "binge-companion-state" +
+                                        (installed ? " is-present" : "")
+                                    }
+                                >
+                                    {installed ? "Installed" : "Not installed"}
+                                </span>
+                            </div>
+                            <p className="binge-companion-adds">
+                                {c.adds}
+                                {!installed && c.url && (
+                                    <>
+                                        {" "}
+                                        <a
+                                            href={c.url}
+                                            target="_blank"
+                                            rel="noreferrer noopener"
+                                            className="binge-settings-card-link"
+                                        >
+                                            Get it
+                                        </a>
+                                    </>
+                                )}
+                            </p>
+                        </li>
+                    );
+                })}
+            </ul>
+        </div>
+    );
+}
 
 // In-app settings page — all preferences that used to live in Stash's
 // plugin settings UI now live here. Same localStorage keys + pubsub,
@@ -96,6 +202,7 @@ export function SettingsPage() {
                 <RedditRow />
                 <XRow />
                 <PornhubRow />
+                <CompanionPluginsCard />
                 <BingeServerInstallCard />
                 <BingeServerRow />
                 <BingeServerConfigCard />
