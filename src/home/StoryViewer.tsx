@@ -806,7 +806,12 @@ function RedditCardBody({
     );
 }
 
-function truncate(text: string, limit: number): string {
+// `unknown` rather than `string`, because what arrives here is a field
+// off a daemon response that was cast rather than checked. A number got
+// through the truthiness test at the call site, `undefined <= 600` is
+// false, and `.slice` then threw during render.
+function truncate(text: unknown, limit: number): string {
+    if (typeof text !== "string") return "";
     if (text.length <= limit) return text;
     return text.slice(0, limit).trimEnd() + "…";
 }

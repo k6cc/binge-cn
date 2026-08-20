@@ -29,6 +29,7 @@ import {
 import { AddSceneModal } from "../home/AddSceneModal";
 import { PornhubPlayer } from "./PornhubPlayer";
 import { BingeLoading } from "../components/BingeLoading";
+import { isoFromEpochSeconds } from "../util/epoch";
 
 interface PerformerSceneGridProps {
     performer: PerformerDetail;
@@ -414,8 +415,7 @@ function buildCells(
             : [];
     const phCells: GridCell[] = pornhub.map((v): GridCell => ({
         kind: "pornhub",
-        date:
-            v.createdUtc > 0 ? new Date(v.createdUtc * 1000).toISOString() : "",
+        date: isoFromEpochSeconds(v.createdUtc),
         video: v,
     }));
 

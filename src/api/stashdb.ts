@@ -958,6 +958,23 @@ export function readStashDBCache(sinceIsoDate: string): StashDBScene[] | null {
         // something it iterates, so the stories row dies with a
         // TypeError until the cache happens to be invalidated.
         if (!Array.isArray(entry.scenes)) return null;
+        // The elements too, not just the array. The comment above is
+        // right about the danger and stops one level short: a scene
+        // whose performers field is not iterable throws in the story
+        // builder exactly the same way, and the row then stays broken
+        // for the whole TTL.
+        if (
+            !entry.scenes.every(
+                (sc) =>
+                    !!sc &&
+                    typeof sc === "object" &&
+                    typeof (sc as { id?: unknown }).id === "string" &&
+                    (sc.performers === undefined ||
+                        Array.isArray(sc.performers)),
+            )
+        ) {
+            return null;
+        }
         const age = Date.now() - entry.fetchedAt;
         // Negative age means the entry claims to be from the future,
         // which happens when the clock moves backwards. Treat it as
@@ -1054,6 +1071,29 @@ const SCENE_PERFORMERS_MAX_FETCH = 1500;
 
 type PerformerCache = Record<string, MatchedScenePerformer[]>;
 
+// Entries as well as the container.
+//
+// Checking only the shape of the top level and casting the values let a
+// single bad entry, from a co-resident plugin or a hand edit, throw
+// inside the feed builder. That error is caught and shown as a failed
+// Home feed, and because this cache had no version key, no TTL and no
+// invalidator anywhere, reloading read the same value back: the feed
+// stayed broken until the user cleared site data by hand. A cache is
+// only worth having if a bad entry costs a refetch rather than the
+// feature.
+function isPerformerList(v: unknown): v is MatchedScenePerformer[] {
+    return (
+        Array.isArray(v) &&
+        v.every(
+            (p) =>
+                !!p &&
+                typeof p === "object" &&
+                typeof (p as { id?: unknown }).id === "string" &&
+                typeof (p as { name?: unknown }).name === "string",
+        )
+    );
+}
+
 function readScenePerformerCache(): PerformerCache {
     try {
         const raw = localStorage.getItem(SCENE_PERFORMERS_CACHE_KEY);
@@ -1061,18 +1101,55 @@ function readScenePerformerCache(): PerformerCache {
         const parsed: unknown = JSON.parse(raw);
         if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
             return {};
-        return parsed as PerformerCache;
+        const out: PerformerCache = {};
+        for (const [id, value] of Object.entries(parsed)) {
+            if (isPerformerList(value)) out[id] = value;
+        }
+        return out;
     } catch {
         return {};
     }
 }
 
+// Cast so the cache cannot grow until the origin's storage quota is
+// gone. Up to SCENE_PERFORMERS_MAX_FETCH entries could be added per
+// feed load with nothing ever removed, and once the quota filled, every
+// other setItem on Stash's origin began failing: this plugin's other
+// caches, its interaction ring, and Stash's own keys. All of those
+// swallow the error, so the symptom was several unrelated features
+// quietly ceasing to persist anything.
+const SCENE_PERFORMERS_CACHE_MAX = 4000;
+
 function writeScenePerformerCache(cache: PerformerCache): void {
     try {
-        localStorage.setItem(SCENE_PERFORMERS_CACHE_KEY, JSON.stringify(cache));
+        let toStore = cache;
+        const ids = Object.keys(cache);
+        if (ids.length > SCENE_PERFORMERS_CACHE_MAX) {
+            // Object key order is insertion order for string keys, so
+            // the oldest entries are at the front. Nothing here records
+            // access times, and inventing one to evict more cleverly is
+            // not worth a localStorage cache: keeping the most recent
+            // window is enough.
+            toStore = {};
+            for (const id of ids.slice(
+                ids.length - SCENE_PERFORMERS_CACHE_MAX,
+            )) {
+                toStore[id] = cache[id];
+            }
+        }
+        localStorage.setItem(
+            SCENE_PERFORMERS_CACHE_KEY,
+            JSON.stringify(toStore),
+        );
     } catch {
-        // Quota. The lookups still worked for this session; they will
-        // just be repeated next time.
+        // Quota, despite the cap. Drop the cache rather than leaving a
+        // full one that can never be written to again; the lookups
+        // still worked for this session.
+        try {
+            localStorage.removeItem(SCENE_PERFORMERS_CACHE_KEY);
+        } catch {
+            /* nothing further to try */
+        }
     }
 }
 

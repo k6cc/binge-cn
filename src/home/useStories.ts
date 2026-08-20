@@ -24,6 +24,7 @@ import {
     pornhubPreviewUrl,
     pornhubThumbUrl,
 } from "../api/bingeServer";
+import { isoFromEpochSeconds } from "../util/epoch";
 import {
     useIncludeReddit,
     useIncludeStashDB,
@@ -481,7 +482,10 @@ async function mergeRedditPosts(
                 permalink: post.permalink,
                 domain: post.domain,
                 createdUtc: post.createdUtc,
-                effectiveAt: new Date(post.createdUtc * 1000).toISOString(),
+                effectiveAt: isoFromEpochSeconds(
+                    post.createdUtc,
+                    new Date().toISOString(),
+                ),
             });
         }
     }
@@ -518,10 +522,10 @@ async function mergePornhubVideos(
             byPerformer.set(localId, bucket);
         }
         for (const v of d.videos) {
-            const effectiveAt =
-                v.createdUtc > 0
-                    ? new Date(v.createdUtc * 1000).toISOString()
-                    : new Date().toISOString();
+            const effectiveAt = isoFromEpochSeconds(
+                v.createdUtc,
+                new Date().toISOString(),
+            );
             bucket.reddit.push({
                 id: `ph:${v.id}`,
                 source: "reddit",

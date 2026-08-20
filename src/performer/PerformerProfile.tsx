@@ -1,3 +1,4 @@
+import { isoFromEpochSeconds } from "../util/epoch";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { findPerformer, type PerformerDetail } from "../api/queries";
@@ -55,7 +56,10 @@ function xMediaToStoryScenes(
             permalink: m.tweetUrl || `https://x.com/${handle}`,
             domain: "x.com",
             createdUtc: m.createdUtc,
-            effectiveAt: new Date(m.createdUtc * 1000).toISOString(),
+            effectiveAt: isoFromEpochSeconds(
+                m.createdUtc,
+                new Date().toISOString(),
+            ),
         }));
 }
 
