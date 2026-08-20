@@ -242,87 +242,57 @@ export function useStories(): StoriesResult {
                     });
                 }
 
-                // ── StashDB merge (toggled by plugin setting) ─────
-                if (includeStashDB) {
-                    await mergeStashDBScenes(byPerformer, sinceIsoDate);
-                    if (!alive) return;
-                }
-
-                // ── Reddit merge (toggled by plugin setting) ──────
-                if (includeReddit) {
-                    const sinceUtc = Math.floor(
-                        (Date.now() - lookbackDays * 24 * 3600 * 1000) /
-                            1000
-                    );
-                    await mergeRedditPosts(byPerformer, sinceUtc);
-                    if (!alive) return;
-                }
-
-                // ── PornHub merge (toggled by plugin setting) ─────
-                if (includePornhub) {
-                    const sinceUtc = Math.floor(
-                        (Date.now() - lookbackDays * 24 * 3600 * 1000) /
-                            1000
-                    );
-                    await mergePornhubVideos(byPerformer, sinceUtc);
-                    if (!alive) return;
-                }
-
-                // Build final story list. Library scenes always come
-                // first within a performer (so playable items sit at
-                // the head of the progress strip); StashDB scenes
-                // follow as the "discovery tail".
-                const stories: Story[] = [];
-                const byEffectiveDesc = (
-                    a: { effectiveAt: string },
-                    b: { effectiveAt: string }
-                ) => b.effectiveAt.localeCompare(a.effectiveAt);
-                for (const bucket of byPerformer.values()) {
-                    // We own these arrays — sort in place rather than
-                    // allocating per-source copies. Library scenes
-                    // come first within a performer (playable items
-                    // sit at the head of the progress strip), then
-                    // StashDB releases, then Reddit posts.
-                    bucket.library.sort(byEffectiveDesc);
-                    bucket.stashdb.sort(byEffectiveDesc);
-                    bucket.reddit.sort(byEffectiveDesc);
-                    const sceneList = [
-                        ...bucket.library,
-                        ...bucket.stashdb,
-                        ...bucket.reddit,
-                    ];
-                    if (sceneList.length === 0) continue;
-                    // Row-order key uses the most-recent across ALL
-                    // sources so a performer with a fresh StashDB
-                    // release surfaces even if their library scenes
-                    // are older. Each sub-array is sorted desc, so
-                    // the head of each is the candidate — no need to
-                    // scan the whole list.
-                    let latestEffectiveAt = sceneList[0].effectiveAt;
-                    if (
-                        bucket.stashdb[0] &&
-                        bucket.stashdb[0].effectiveAt > latestEffectiveAt
-                    ) {
-                        latestEffectiveAt = bucket.stashdb[0].effectiveAt;
-                    }
-                    if (
-                        bucket.reddit[0] &&
-                        bucket.reddit[0].effectiveAt > latestEffectiveAt
-                    ) {
-                        latestEffectiveAt = bucket.reddit[0].effectiveAt;
-                    }
-                    stories.push({
-                        ...bucket.story,
-                        scenes: sceneList,
-                        latestEffectiveAt,
-                    });
-                }
-                stories.sort((a, b) =>
-                    b.latestEffectiveAt.localeCompare(a.latestEffectiveAt)
-                );
+                // ── Progressive render ────────────────────────────
+                // Library data comes from the local Stash server and
+                // lands in ~1-2s, while the external merges below can
+                // take 10-30s on a cold cache. Show the row NOW with
+                // library-only stories; external sources merge in the
+                // background and refresh the row when they land.
                 setState({
                     kind: "ready",
-                    stories: stories.slice(0, MAX_STORIES),
+                    stories: buildStories(byPerformer),
+                });
+
+                // ── External merges (toggled by plugin settings) ──
+                // Run in PARALLEL — they used to be sequential awaits,
+                // so a cold cache made the row wait for the SUM of the
+                // three timeouts instead of the max. Each merge mutates
+                // `byPerformer` synchronously between its awaits (bucket
+                // creation has no await inside), so concurrent writes to
+                // different source arrays are race-free.
+                const sinceUtc = Math.floor(
+                    (Date.now() - lookbackDays * 24 * 3600 * 1000) / 1000
+                );
+                const merges: Promise<void>[] = [];
+                if (includeStashDB) {
+                    merges.push(
+                        mergeStashDBScenes(byPerformer, sinceIsoDate)
+                    );
+                }
+                if (includeReddit) {
+                    merges.push(mergeRedditPosts(byPerformer, sinceUtc));
+                }
+                if (includePornhub) {
+                    merges.push(mergePornhubVideos(byPerformer, sinceUtc));
+                }
+                if (merges.length === 0) return; // nothing external — row is final
+
+                const settled = await Promise.allSettled(merges);
+                if (!alive) return;
+                for (const r of settled) {
+                    if (r.status === "rejected") {
+                        // One source being down must not wipe the
+                        // already-rendered library row — warn and keep
+                        // whatever the other merges produced.
+                        console.warn(
+                            "[binge] external story merge failed",
+                            r.reason,
+                        );
+                    }
+                }
+                setState({
+                    kind: "ready",
+                    stories: buildStories(byPerformer),
                 });
             } catch (err) {
                 if (!alive) return;
@@ -352,6 +322,63 @@ export function useStories(): StoriesResult {
         refreshing,
         refreshTick,
     };
+}
+
+// Build the final story list from the per-performer buckets. Called
+// twice per load in the progressive-render flow: once with
+// library-only data so the row appears as soon as the local queries
+// land, and again after the external merges attach their items.
+// Library scenes always come first within a performer (so playable
+// items sit at the head of the progress strip); StashDB scenes follow
+// as the "discovery tail".
+function buildStories(byPerformer: Map<string, PerformerBucket>): Story[] {
+    const stories: Story[] = [];
+    const byEffectiveDesc = (
+        a: { effectiveAt: string },
+        b: { effectiveAt: string }
+    ) => b.effectiveAt.localeCompare(a.effectiveAt);
+    for (const bucket of byPerformer.values()) {
+        // We own these arrays — sort in place rather than
+        // allocating per-source copies. Library scenes come first
+        // within a performer (playable items sit at the head of the
+        // progress strip), then StashDB releases, then Reddit posts.
+        bucket.library.sort(byEffectiveDesc);
+        bucket.stashdb.sort(byEffectiveDesc);
+        bucket.reddit.sort(byEffectiveDesc);
+        const sceneList = [
+            ...bucket.library,
+            ...bucket.stashdb,
+            ...bucket.reddit,
+        ];
+        if (sceneList.length === 0) continue;
+        // Row-order key uses the most-recent across ALL sources so a
+        // performer with a fresh StashDB release surfaces even if
+        // their library scenes are older. Each sub-array is sorted
+        // desc, so the head of each is the candidate — no need to
+        // scan the whole list.
+        let latestEffectiveAt = sceneList[0].effectiveAt;
+        if (
+            bucket.stashdb[0] &&
+            bucket.stashdb[0].effectiveAt > latestEffectiveAt
+        ) {
+            latestEffectiveAt = bucket.stashdb[0].effectiveAt;
+        }
+        if (
+            bucket.reddit[0] &&
+            bucket.reddit[0].effectiveAt > latestEffectiveAt
+        ) {
+            latestEffectiveAt = bucket.reddit[0].effectiveAt;
+        }
+        stories.push({
+            ...bucket.story,
+            scenes: sceneList,
+            latestEffectiveAt,
+        });
+    }
+    stories.sort((a, b) =>
+        b.latestEffectiveAt.localeCompare(a.latestEffectiveAt)
+    );
+    return stories.slice(0, MAX_STORIES);
 }
 
 // Per-performer working bucket during the merge phases. Shared between
@@ -390,8 +417,6 @@ async function mergeStashDBScenes(
         stashIdToLocal.set(p.stashId, p);
     }
 
-    const owned = await getOwnedStashDBSceneIds();
-
     let scenes: StashDBScene[] | null = readStashDBCache(sinceIsoDate);
     if (!scenes) {
         scenes = await getNewStashDBScenesForPerformers(
@@ -401,6 +426,14 @@ async function mergeStashDBScenes(
         );
         writeStashDBCache(sinceIsoDate, scenes);
     }
+    if (scenes.length === 0) return;
+
+    // Deferred until we know there are scenes to filter: this is a
+    // full-library query (~1.2s on a 131k-scene library) that the
+    // cache-hit-with-no-new-scenes path used to pay for nothing.
+    // Memoized in stashdb.ts, so the discovery feed's concurrent call
+    // shares the same flight.
+    const owned = await getOwnedStashDBSceneIds();
 
     for (const scene of scenes) {
         if (owned.has(scene.id)) continue;
