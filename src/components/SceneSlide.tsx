@@ -163,7 +163,9 @@ export function SceneSlide({
             try {
                 const [collections, tagIdMap] = await Promise.all([
                     getCollections(),
-                    getCollectionTagIds(),
+                    // false: displaying membership must not
+                    // write tags into the user's library.
+                    getCollectionTagIds(false),
                 ]);
                 if (!alive) return;
                 setCollectionTagIds(tagIdMap);

@@ -155,7 +155,13 @@ export async function getScribeConfig(): Promise<ScribeConfig> {
         model: String(cfg.model ?? DEFAULT_MODEL),
         voicePrompts,
         defaultTone: tone,
-        autoCreateTags: cfg.autoCreateTags !== false,
+        // Default off. Creating a score tag here makes it with no
+        // parent, which is the loose root-level tag the rating modal
+        // explicitly refuses to make, so defaulting it on meant a user
+        // who had never opened Advanced Rating's settings got a handful
+        // of orphans in their tag tree from one saved review. Whoever
+        // turns it on has chosen that.
+        autoCreateTags: cfg.autoCreateTags === true,
     };
 }
 

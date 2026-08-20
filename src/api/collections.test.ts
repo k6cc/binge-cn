@@ -421,3 +421,44 @@ describe("setSceneInCollection", () => {
         expect(sceneUpdate).not.toHaveBeenCalled();
     });
 });
+
+// Displaying which collections a scene is in must not write anything.
+// It used to create the three default tags on mount, so scrolling one
+// scene put tags in the user's library, one of them in another
+// plugin's namespace, contradicting this module's own stated rule.
+describe("reading does not write", () => {
+    it("resolves ids without creating when asked not to", async () => {
+        stashHas([tag("p", PARENT), tag("fav", FAVOURITES)]);
+        const { getCollectionTagIds } = await load();
+        const map = await getCollectionTagIds(false);
+        expect(tagCreate).not.toHaveBeenCalled();
+        // The tag that does exist is still resolved.
+        expect(map.get(FAVOURITES)).toBe("fav");
+        // The ones that do not are absent rather than invented.
+        expect(map.has(`Watch Later${SUFFIX}`)).toBe(false);
+    });
+
+    it("still creates when a save actually needs the tag", async () => {
+        stashHas([tag("p", PARENT), tag("fav", FAVOURITES)]);
+        const { getCollectionTagIds } = await load();
+        await getCollectionTagIds(true);
+        expect(tagCreate).toHaveBeenCalled();
+    });
+});
+
+// A collection tag ends with the suffix. One that merely contains it
+// belongs to the user, and enrolling it meant binge reparented it
+// without asking and offered it for deletion.
+describe("collection discovery", () => {
+    it("ignores a tag that only mentions the suffix", async () => {
+        stashHas([tag("p", PARENT), tag("fav", FAVOURITES)]);
+        findTagsContaining.mockResolvedValue([
+            { id: "mine", name: `My ${SUFFIX} notes` },
+            { id: "real", name: `Road Trip${SUFFIX}` },
+        ]);
+        const { getCollections } = await load();
+        const names = (await getCollections()).map((c) => c.tagName);
+        expect(names).toContain(`Road Trip${SUFFIX}`);
+        expect(names).not.toContain(`My ${SUFFIX} notes`);
+    });
+});

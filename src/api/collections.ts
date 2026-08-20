@@ -83,7 +83,15 @@ export function subscribeCollections(fn: Subscriber): () => void {
 export function getCollections(): Promise<CollectionDef[]> {
     if (cachedCollectionsPromise) return cachedCollectionsPromise;
     cachedCollectionsPromise = (async () => {
-        const userTags = await findTagsContaining(COLLECTION_TAG_SUFFIX);
+        // Ends with, not contains. Stash can only search by substring,
+        // so the filter happens here: a tag that merely mentions the
+        // suffix somewhere in the middle is the user's own, and
+        // enrolling it made binge reparent it without asking and offer
+        // it for deletion on the Saved page, where deleting drops the
+        // tag from every scene, image and performer in the library.
+        const userTags = (
+            await findTagsContaining(COLLECTION_TAG_SUFFIX)
+        ).filter((t) => t.name.endsWith(COLLECTION_TAG_SUFFIX));
         const defaults: CollectionDef[] = [
             {
                 name: "Favourites",
@@ -142,18 +150,44 @@ function ensureCollectionsParentTagId(): Promise<string> {
 // the parent if missing). Existing tags that pre-date the
 // hierarchy get reparented in place on first run — a one-time
 // migration the user doesn't see.
-export function getCollectionTagIds(): Promise<Map<string, string>> {
+// Resolve the collection tag ids, creating the default tags if they do
+// not exist yet.
+//
+// `create` exists because this used to create unconditionally and was
+// called on mount, so merely scrolling one scene wrote three tags into
+// the user's tag tree: someone who installed binge, looked at it and
+// uninstalled was left with tags they never asked for, one of them in
+// another plugin's namespace. That contradicted this module's own rule
+// a few lines up, that loading the menu must not mutate anything. The
+// membership display now reads without creating, and the tags appear
+// when the user first saves something, which is what the rule intended.
+export function getCollectionTagIds(
+    create = true,
+): Promise<Map<string, string>> {
+    if (!create) return resolveCollectionTagIds(false);
     if (cachedTagIdsPromise) return cachedTagIdsPromise;
-    cachedTagIdsPromise = (async () => {
+    cachedTagIdsPromise = resolveCollectionTagIds(true).catch((err) => {
+        cachedTagIdsPromise = null;
+        throw err;
+    });
+    return cachedTagIdsPromise;
+}
+
+function resolveCollectionTagIds(
+    create: boolean,
+): Promise<Map<string, string>> {
+    return (async () => {
         const collections = await getCollections();
-        const parentId = await ensureCollectionsParentTagId();
+        // Creating the parent is itself a write, so a read-only
+        // resolution must not do it either.
+        const parentId = create ? await ensureCollectionsParentTagId() : "";
         const map = new Map<string, string>();
         for (const c of collections) {
             const existing = await findTagByName(c.tagName);
             // Favourite ★ is owned by Advanced Rating — leave its
             // hierarchy alone so we don't yank it out of ASR's
             // parent tree.
-            const reparent = c.tagName !== FAVOURITES_TAG_NAME;
+            const reparent = create && c.tagName !== FAVOURITES_TAG_NAME;
             if (existing) {
                 if (
                     reparent &&
@@ -179,6 +213,7 @@ export function getCollectionTagIds(): Promise<Map<string, string>> {
                 map.set(c.tagName, existing.id);
                 continue;
             }
+            if (!create) continue;
             const created = await tagCreate(
                 c.tagName,
                 true,
@@ -187,11 +222,7 @@ export function getCollectionTagIds(): Promise<Map<string, string>> {
             map.set(c.tagName, created.id);
         }
         return map;
-    })().catch((err) => {
-        cachedTagIdsPromise = null;
-        throw err;
-    });
-    return cachedTagIdsPromise;
+    })();
 }
 
 // Create a new user collection from a display name. The Stash tag

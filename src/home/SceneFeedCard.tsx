@@ -132,7 +132,9 @@ export function SceneFeedCard({ item, feedSceneIds }: SceneFeedCardProps) {
             try {
                 const [collections, tagIdMap] = await Promise.all([
                     getCollections(),
-                    getCollectionTagIds(),
+                    // false: displaying membership must not
+                    // write tags into the user's library.
+                    getCollectionTagIds(false),
                 ]);
                 if (!alive) return;
                 const result: Record<string, boolean> = {};
