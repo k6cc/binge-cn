@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import {
     pornhubStreamUrl,
     saveToStash,
+    getSaveProgress,
     type PornhubVideo,
 } from "../api/bingeServer";
 
@@ -22,23 +23,59 @@ export function PornhubPlayer({
     const [saveState, setSaveState] = useState<
         "idle" | "saving" | "saved" | "error"
     >("idle");
+    // Live download percent (0-100) while saving, null when the daemon
+    // hasn't reported anything yet (old daemon without /save/progress,
+    // or the download hasn't produced its first progress line).
+    const [savePercent, setSavePercent] = useState<number | null>(null);
+    const pollRef = useRef<number | null>(null);
     const { t } = useTranslation();
+
+    // Stop polling if the player unmounts mid-download.
+    useEffect(() => {
+        return () => {
+            if (pollRef.current !== null) window.clearInterval(pollRef.current);
+        };
+    }, []);
 
     const handleSave = async () => {
         if (saveState === "saving" || saveState === "saved") return;
         setSaveState("saving");
-        const res = await saveToStash({
-            performerStashId: performerId,
-            source: "pornhub",
-            id: video.id,
-            // yt-dlp downloads from the watch page.
-            mediaUrl: video.sourceUrl,
-            kind: "video",
-            sourceUrl: video.sourceUrl,
-            text: video.title ?? undefined,
-            createdUtc: video.createdUtc || undefined,
-        });
-        setSaveState(res.ok ? "saved" : "error");
+        setSavePercent(null);
+        // Poll the daemon's live progress while the yt-dlp download
+        // runs (a large video can take minutes; the POST only resolves
+        // at the end).
+        pollRef.current = window.setInterval(async () => {
+            const p = await getSaveProgress("pornhub", video.id);
+            if (p && p.state === "downloading" && p.percent > 0) {
+                setSavePercent(Math.min(99, p.percent));
+            }
+        }, 800);
+        try {
+            const res = await saveToStash(
+                {
+                    performerStashId: performerId,
+                    source: "pornhub",
+                    id: video.id,
+                    // yt-dlp downloads from the watch page.
+                    mediaUrl: video.sourceUrl,
+                    kind: "video",
+                    sourceUrl: video.sourceUrl,
+                    text: video.title ?? undefined,
+                    createdUtc: video.createdUtc || undefined,
+                },
+                // Match the daemon's 4-minute request budget — the
+                // default 30s would cut off any but the smallest
+                // videos mid-download.
+                240_000,
+            );
+            setSaveState(res.ok ? "saved" : "error");
+        } finally {
+            if (pollRef.current !== null) {
+                window.clearInterval(pollRef.current);
+                pollRef.current = null;
+            }
+            setSavePercent(null);
+        }
     };
 
     return createPortal(
@@ -73,13 +110,23 @@ export function PornhubPlayer({
                                 : t("action.download_to_stash")
                         }
                     >
-                        {saveState === "saved"
-                            ? t("status.saved_with_check")
-                            : saveState === "saving"
-                              ? t("action.saving")
-                              : saveState === "error"
-                                ? t("action.retry")
-                                : t("action.save_to_stash")}
+                        <span className="binge-ph-player-save-label">
+                            {saveState === "saved"
+                                ? t("status.saved_with_check")
+                                : saveState === "saving"
+                                  ? savePercent !== null
+                                      ? `${Math.floor(savePercent)}%`
+                                      : t("action.saving")
+                                  : saveState === "error"
+                                    ? t("action.retry")
+                                    : t("action.save_to_stash")}
+                        </span>
+                        {saveState === "saving" && savePercent !== null && (
+                            <span
+                                className="binge-ph-player-save-bar"
+                                style={{ width: `${savePercent}%` }}
+                            />
+                        )}
                     </button>
                     <button
                         type="button"

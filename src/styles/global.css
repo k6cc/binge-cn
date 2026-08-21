@@ -7181,9 +7181,25 @@ body,
     border-radius: 999px;
     cursor: pointer;
     white-space: nowrap;
+    position: relative;
+    overflow: hidden;
 }
 .binge-ph-player-save:hover:not(:disabled) {
     background: rgba(255, 255, 255, 0.28);
+}
+/* Live download-progress fill while saving (percent from
+ * /save/progress polling). Label sits above the fill. */
+.binge-ph-player-save-label {
+    position: relative;
+}
+.binge-ph-player-save-bar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    background: rgba(120, 210, 255, 0.35);
+    pointer-events: none;
+    transition: width 0.4s ease;
 }
 .binge-ph-player-save.is-saved {
     background: rgba(52, 199, 89, 0.32);

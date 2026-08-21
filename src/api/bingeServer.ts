@@ -94,6 +94,19 @@ export interface SaveToStashResult {
     handle: string;
 }
 
+// Live progress of an in-flight save, from the daemon's
+// /save/progress endpoint. Mirrors internal/social/saver.go
+// SaveProgress.
+export interface SaveProgress {
+    state: "downloading" | "done" | "error";
+    percent: number;
+    downloaded: number;
+    total: number;
+    speed?: string;
+    eta?: string;
+    error?: string;
+}
+
 export interface BingeServerConfigPayload {
     stashUrl?: string;
     stashApiKey?: string;
@@ -451,12 +464,17 @@ export async function getXFeed(
 
 // saveToStash asks the daemon to download a social post and add it to
 // Stash (folder placement + studio/tag/performer/url/date/caption). The
-// daemon returns immediately (pending:true) and applies the metadata in
-// the background once Stash finishes scanning. Returns the error string
-// on failure (daemon down, not configured, upstream block) so the UI can
-// surface it.
+// daemon downloads synchronously (yt-dlp for pornhub can take minutes)
+// and applies the metadata in the background once Stash finishes
+// scanning. Returns the error string on failure (daemon down, not
+// configured, upstream block) so the UI can surface it.
+//
+// timeoutMs defaults to 30s (fine for images / short clips); pornhub
+// callers pass ~4min to match the daemon's request budget, pairing
+// with getSaveProgress for a live progress bar.
 export async function saveToStash(
     req: SaveToStashRequest,
+    timeoutMs = 30_000,
 ): Promise<
     { ok: true; result: SaveToStashResult } | { ok: false; error: string }
 > {
@@ -473,7 +491,7 @@ export async function saveToStash(
                 "Content-Type": "application/json",
             },
             body: JSON.stringify(req),
-            signal: AbortSignal.timeout(30_000),
+            signal: AbortSignal.timeout(timeoutMs),
         });
         const body = (await resp.json().catch(() => ({}))) as
             SaveToStashResult | { error?: string };
@@ -490,6 +508,22 @@ export async function saveToStash(
             error: err instanceof Error ? err.message : String(err),
         };
     }
+}
+
+// getSaveProgress polls the daemon's live progress registry for an
+// in-flight save (pairing with saveToStash for long pornhub downloads).
+// null when nothing is registered — the save hasn't started on the
+// daemon, or the daemon restarted (its .part file survives and the
+// download resumes, so the caller can keep waiting / retry).
+export async function getSaveProgress(
+    source: string,
+    id: string,
+): Promise<SaveProgress | null> {
+    return fetchJSON<SaveProgress>(
+        `/save/progress?source=${encodeURIComponent(source)}&id=${encodeURIComponent(id)}`,
+        undefined,
+        5000,
+    );
 }
 
 // ── PornHub pillar ──────────────────────────────────────────────────
