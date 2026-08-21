@@ -11,9 +11,16 @@ import type { Story, StoryScene } from "./useStories";
 // last scene rather than their first.
 
 const setActiveIndex = vi.fn();
-const close = vi.fn();
+const close = vi.fn(() => {
+    viewerState.isOpen = false;
+});
+// close() flips isOpen, as the real provider does. It used to be a bare
+// spy, so the viewer could call close() and the harness would still
+// report it as open - which is why the two empty-list tests below could
+// not see the viewer sitting open with a live key handler.
 const viewerState = {
     isOpen: true,
+    openToken: 0,
     stories: [] as Story[],
     activeIndex: 0,
     open: vi.fn(),
@@ -241,11 +248,34 @@ describe("when there is nothing to show", () => {
         expect(document.querySelector("video")).toBeNull();
     });
 
-    it("survives an empty story list", () => {
-        expect(() => show([])).not.toThrow();
+    // These two used to assert only that show() does not throw, which a
+    // null render satisfies - so they passed while the viewer sat open
+    // with nothing on screen, holding a document-level key handler that
+    // swallowed Space everywhere in Stash. Neither could fail for any
+    // behaviour short of a crash.
+    it("closes rather than sitting open with nothing to show", () => {
+        const { rerender } = show([]);
+        rerender(<StoryViewer />);
+        expect(document.querySelector(".binge-story-viewer-root")).toBeNull();
+        const e = new KeyboardEvent("keydown", {
+            key: " ",
+            bubbles: true,
+            cancelable: true,
+        });
+        document.dispatchEvent(e);
+        expect(e.defaultPrevented).toBe(false);
     });
 
-    it("survives a performer with no scenes", () => {
-        expect(() => show([story("p1", [])])).not.toThrow();
+    it("closes for a performer whose scenes are empty", () => {
+        const { rerender } = show([story("p1", [])]);
+        rerender(<StoryViewer />);
+        expect(document.querySelector(".binge-story-viewer-root")).toBeNull();
+        const e = new KeyboardEvent("keydown", {
+            key: " ",
+            bubbles: true,
+            cancelable: true,
+        });
+        document.dispatchEvent(e);
+        expect(e.defaultPrevented).toBe(false);
     });
 });

@@ -40,7 +40,7 @@ const TEXT_LINK_CAP_MS = 8_000;
 // performer's `scenes` array; auto-advances on `ended` or on the cap
 // timer, whichever fires first.
 export function StoryViewer() {
-    const { isOpen, stories, activeIndex, setActiveIndex, close } =
+    const { isOpen, openToken, stories, activeIndex, setActiveIndex, close } =
         useStoryViewer();
     const { replace } = useFilter();
     const { setTab, setPinFirstSceneId, setReelMode } = useTab();
@@ -49,7 +49,12 @@ export function StoryViewer() {
     const [sceneIndex, setSceneIndex] = useState(0);
     const [paused, setPaused] = useState(false);
     const [progress, setProgress] = useState(0);
-    const [muted, setMuted] = useMuteState();
+    // The third element is the session-only setter. The second writes
+    // the user's stated preference to localStorage, and using it in the
+    // autoplay fallback below meant an interrupted play() - which is
+    // what advancing a story does, since the video unmounts - silently
+    // rewrote that preference and muted the reel and the feed too.
+    const [muted, setMuted, setMutedSession] = useMuteState();
     // Whether the daemon can save posts to Stash (library roots set).
     const [saveConfigured, setSaveConfigured] = useState(false);
     // Per-scene save status, keyed by scene id.
@@ -115,16 +120,19 @@ export function StoryViewer() {
 
     // Reset sceneIndex whenever the focused performer changes. Don't
     // reset on simple sceneIndex-bumps from within the same performer.
+    // openToken is in the deps so a reopen resets even when it lands on
+    // the index the viewer was already on, which is the common case.
     useEffect(() => {
         setSceneIndex(0);
         setPaused(false);
-    }, [activeIndex]);
+    }, [activeIndex, openToken]);
 
     // Reset progress + accumulator on scene/performer change.
     useEffect(() => {
         accumRef.current = 0;
+        startRef.current = performance.now();
         setProgress(0);
-    }, [activeIndex, sceneIndex]);
+    }, [activeIndex, sceneIndex, openToken]);
 
     const advance = useCallback(() => {
         if (!activeStory) return;
@@ -205,21 +213,48 @@ export function StoryViewer() {
             video.pause();
         } else {
             video.muted = muted;
-            void video.play().catch(() => {
+            void video.play().catch((err: unknown) => {
+                // An AbortError is a play() interrupted by pause() or by
+                // the element being removed - which is exactly what
+                // advancing a story does. It says nothing about autoplay
+                // policy, and treating it as a block rewrote the user's
+                // mute preference on every quick double-tap of Next.
+                // SceneSlide already makes this distinction.
+                if (err instanceof Error && err.name === "AbortError") return;
                 // Autoplay may need muted; retry muted, then accept failure
                 // (the progress timer still advances).
                 video.muted = true;
-                if (!muted) setMuted(true);
+                // Session-only: a policy block on this page is not a
+                // preference the user expressed.
+                if (!muted) setMutedSession(true);
                 void video.play().catch(() => {});
             });
         }
-    }, [paused, sceneIndex, activeIndex, muted, setMuted]);
+        // isOpen is in the deps because opening is exactly when a fresh
+        // <video> mounts. Without it, an open that did not change any
+        // other dep never told that element to play, so the slide the
+        // user actually opened on showed its poster and nothing else -
+        // video stories looked like photo stories until the first
+        // advance.
+    }, [isOpen, paused, sceneIndex, activeIndex, muted, setMutedSession]);
 
     // Keep <video>.muted in sync when the user toggles mute mid-story.
     useEffect(() => {
         const video = videoRef.current;
         if (video) video.muted = muted;
     }, [muted]);
+
+    // Open with nothing to show means closed, not invisible.
+    //
+    // Rendering null while isOpen stayed true left the viewer holding
+    // the document-level keydown handler below, which preventDefaults
+    // Space everywhere in Stash, with nothing on screen and no way to
+    // dismiss it. The two tests covering this asserted only that show()
+    // does not throw, which a null render satisfies, so neither could
+    // fail for this.
+    useEffect(() => {
+        if (isOpen && (!activeStory || !currentScene)) close();
+    }, [isOpen, activeStory, currentScene, close]);
 
     // Keyboard nav, mirroring ImageLightbox.
     useEffect(() => {
@@ -456,11 +491,11 @@ export function StoryViewer() {
                             {currentScene.source === "reddit" && (
                                 <span
                                     className="binge-story-viewer-source-badge"
-                                    title={
+                                    title={withoutSecrets(
                                         currentScene.mediaUrl ??
-                                        currentScene.linkUrl ??
-                                        currentScene.permalink
-                                    }
+                                            currentScene.linkUrl ??
+                                            currentScene.permalink,
+                                    )}
                                 >
                                     {redditBadgeLabel(currentScene)}
                                 </span>
@@ -634,13 +669,25 @@ function buildSaveRequest(
     if (!scene.mediaUrl || (scene.kind !== "image" && scene.kind !== "video")) {
         return null;
     }
-    const d = (scene.domain ?? "").toLowerCase();
+    // ?? only catches null and undefined; a number still reaches
+    // toLowerCase and throws on the render path.
+    const d =
+        typeof scene.domain === "string" ? scene.domain.toLowerCase() : "";
     let source: SaveToStashRequest["source"] = "reddit";
     if (d === "x.com" || d === "twitter.com") source = "x";
     else if (d.includes("redgifs")) source = "redgifs";
     let handle: string | undefined;
     let id: string | undefined;
-    const xm = scene.permalink.match(/x\.com\/([A-Za-z0-9_]+)\/status\/(\d+)/i);
+    // The daemon's response is cast, not validated, so permalink is
+    // typed string but need not be one. This runs in the component body
+    // on every render, and the only error boundary is at the app root -
+    // so a single post with no permalink replaced the whole plugin with
+    // the error screen, and kept doing it on reload because the daemon
+    // serves the same digest. Same reasoning as `truncate` below.
+    const xm =
+        typeof scene.permalink === "string"
+            ? scene.permalink.match(/x\.com\/([A-Za-z0-9_]+)\/status\/(\d+)/i)
+            : null;
     if (xm) {
         handle = xm[1];
         id = xm[2];
@@ -656,6 +703,22 @@ function buildSaveRequest(
         text: scene.title ?? undefined,
         createdUtc: scene.createdUtc,
     };
+}
+
+// A PornHub story's media URL is a daemon proxy URL, and the daemon
+// takes its credential in the query string - so the raw string carries
+// the user's Stash API key. It was printed in full on the playback-error
+// card, in large monospace, on a page people screenshot and screen-share,
+// and again as the source badge's tooltip. Neither needs the query.
+function withoutSecrets(raw: string | undefined | null): string {
+    if (typeof raw !== "string" || raw === "") return "";
+    try {
+        const u = new URL(raw, window.location.origin);
+        return u.origin + u.pathname;
+    } catch {
+        // Not parseable as a URL, so it carries no query to strip.
+        return raw;
+    }
 }
 
 function redditBadgeLabel(scene: RedditStoryScene): string {
@@ -756,7 +819,7 @@ function RedditCardBody({
                         <div>Video playback failed</div>
                         <code>{videoError}</code>
                         <code style={{ wordBreak: "break-all" }}>
-                            {scene.mediaUrl}
+                            {withoutSecrets(scene.mediaUrl)}
                         </code>
                     </div>
                 )}
