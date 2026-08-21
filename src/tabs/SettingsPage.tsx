@@ -285,7 +285,7 @@ function GenderRow() {
     return (
         <SettingRow
             title="Genders to surface"
-            description="Performers of these genders appear on the Home discovery feed and Explore's Discover Performers row. Defaults to female + trans female; toggle others to broaden the surface."
+            description="Performers of these genders appear on the Home discovery feed and Explore's Discover Performers row. Defaults to all of them; toggle others to broaden the surface."
         >
             <div
                 className="binge-settings-gender-row"

@@ -53,10 +53,26 @@ describe("a seeded daemon URL does not vouch for itself", () => {
         expect(mod.confirmedDaemonOrigins()).not.toContain(EVIL);
     });
 
-    it("still grandfathers a URL that was already configured", async () => {
-        // Someone's existing install, from before any of this existed.
+    it("does not grandfather a URL that was already configured", async () => {
+        // This used to pass, and passing was the bug: the key it reads
+        // has been written by the seed since v0.4.0, so "already
+        // configured" does not mean "configured by a person". An install
+        // carrying a seeded attacker URL had it confirmed on the first
+        // daemon fetch, silently. A public daemon someone really did
+        // choose costs one click in Settings to say so.
         localStorage.setItem("binge.bingeServerUrl", "https://mine.example");
         const mod = await import("./pluginSettings");
+        expect(mod.confirmedDaemonOrigins()).not.toContain(
+            "https://mine.example",
+        );
+    });
+
+    it("still lets Settings vouch for one deliberately", async () => {
+        // The replacement path for the case the grandfather was meant to
+        // serve. It has to keep working, or removing the migration just
+        // strands everyone with a public daemon.
+        const mod = await import("./pluginSettings");
+        mod.confirmDaemonOrigin("https://mine.example");
         expect(mod.confirmedDaemonOrigins()).toContain("https://mine.example");
     });
 });

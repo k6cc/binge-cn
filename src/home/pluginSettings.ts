@@ -238,6 +238,20 @@ function readFreeString(key: string, defaultValue: string): string {
     return defaultValue;
 }
 
+// Whether this key has ever been written, empty included. The seed needs
+// the distinction that readFreeString throws away: clearing the daemon
+// field is a decision ("no daemon"), and treating it as "never chose"
+// meant the plugin-config value came straight back on the next load. A
+// user who noticed a host they did not recognise and deleted it watched
+// it reappear, with no way to say no from the UI.
+function hasStoredValue(key: string): boolean {
+    try {
+        return localStorage.getItem(key) !== null;
+    } catch {
+        return false;
+    }
+}
+
 function useStoredFreeString(key: string, defaultValue: string): string {
     const [value, setValue] = useState<string>(() =>
         readFreeString(key, defaultValue),
@@ -661,16 +675,7 @@ function ensureSeededFromPluginConfig(
     let pending = seedPromises.get(storageKey);
     if (!pending) {
         pending = (async () => {
-            if (readFreeString(storageKey, "")) return; // user set it
-            // Settle the grandfather migration before writing anything.
-            //
-            // That migration vouches for whatever daemon URL it finds
-            // the first time it runs, which is how the previous attempt
-            // at this achieved nothing: the seed wrote the URL, the
-            // migration then ran, found the value the seed had just
-            // written, and confirmed it. Running it first means it can
-            // only ever grandfather a URL that was already there.
-            confirmedDaemonOrigins();
+            if (hasStoredValue(storageKey)) return; // user set it
             try {
                 const data = await gql<{
                     configuration?: {
@@ -681,6 +686,13 @@ function ensureSeededFromPluginConfig(
                     };
                 }>(`query { configuration { plugins } }`);
                 const value = data.configuration?.plugins?.["binge"]?.[field];
+                // Checked again on this side of the await. The guard
+                // above ran before a network round trip, so someone who
+                // typed their own daemon while the query was in flight
+                // had it overwritten when the answer came back - and the
+                // replacement is unconfirmed, so the daemon then stopped
+                // working with nothing saying why.
+                if (hasStoredValue(storageKey)) return;
                 if (typeof value === "string" && value.trim()) {
                     write(value.trim());
                 }
@@ -740,9 +752,20 @@ export function useForageUrl(): string {
 export function readForageUrl(): string {
     return readFreeString(FORAGE_URL_KEY, DEFAULT_FORAGE_URL);
 }
-export function setForageUrl(value: string): void {
+export function setForageUrl(
+    value: string,
+    { confirm = true }: { confirm?: boolean } = {},
+): void {
     // Strip trailing slash so path concatenation stays predictable.
-    writeString(FORAGE_URL_KEY, value.trim().replace(/\/+$/, ""));
+    const trimmed = value.trim().replace(/\/+$/, "");
+    writeString(FORAGE_URL_KEY, trimmed);
+    // Same rule as the binge-server URL beside it: typing one in is the
+    // deliberate act, and the seed is not. Without this the forage URL
+    // was gated by a trust check nothing in the app could ever satisfy,
+    // so a daemon under a shared suffix - stash at stash.duckdns.org,
+    // forage at forage.duckdns.org - reported itself unreachable
+    // forever, and the health dot blamed the daemon.
+    if (confirm) confirmDaemonOrigin(trimmed);
 }
 
 // One-time seed of the forage URL from Stash's plugin config
@@ -858,7 +881,6 @@ export function setBingeServerUrl(
 // this one too. Its job is that a daemon address which appeared without
 // you setting it does not silently receive your credentials.
 const DAEMON_OK_KEY = "binge.daemonOriginsOk";
-const DAEMON_OK_MIGRATED_KEY = "binge.daemonOriginsMigrated";
 
 function originOf(raw: string): string {
     try {
@@ -869,20 +891,20 @@ function originOf(raw: string): string {
 }
 
 export function confirmedDaemonOrigins(): string[] {
+    // No grandfathering. There used to be a one-time migration here that
+    // took whatever was in the daemon URL key and vouched for it, on the
+    // reasoning that a URL already configured had been set deliberately
+    // by someone. That is not true on this key: the seed from Stash's
+    // plugin config has been writing to it since v0.4.0, and the
+    // confirmation store only arrived in 0.11.0, so on every install
+    // between those releases the value waiting to be grandfathered is
+    // precisely the one nobody chose. The migration laundered it into a
+    // confirmed origin on the first daemon fetch, and the banner that
+    // exists to ask about exactly this never appeared.
+    //
+    // A public daemon that really was chosen costs one click in Settings
+    // to say so, once. That is the smaller price.
     try {
-        // One-time grandfather: a URL already configured before this
-        // existed was set deliberately by someone, so carry it over
-        // rather than interrupting a working install to re-confirm it.
-        if (localStorage.getItem(DAEMON_OK_MIGRATED_KEY) === null) {
-            localStorage.setItem(DAEMON_OK_MIGRATED_KEY, "1");
-            const existing = originOf(
-                localStorage.getItem(BINGE_SERVER_URL_KEY) ?? "",
-            );
-            if (existing) {
-                localStorage.setItem(DAEMON_OK_KEY, JSON.stringify([existing]));
-                return [existing];
-            }
-        }
         const raw = localStorage.getItem(DAEMON_OK_KEY);
         if (!raw) return [];
         const parsed: unknown = JSON.parse(raw);

@@ -97,7 +97,16 @@ export async function waitForServer(
  *  seeds from it instead of each user re-typing the same URL. A failure to
  *  write the shared copy is not fatal — the local one already works. */
 export async function recordServerUrl(url: string): Promise<void> {
-    setBingeServerUrl(url);
+    // Stored, not vouched for.
+    //
+    // The install card calls this with the URL it already has, which on
+    // a fresh install is the one seeded from Stash's plugin config. With
+    // confirm defaulting to true, opening the card was enough to vouch
+    // for a host nobody had chosen - and reaching the card is the
+    // ordinary response to a daemon that answers "not ok", which a
+    // hostile one can simply do. Confirming belongs to Settings, where
+    // it is a button with the consequence written next to it.
+    setBingeServerUrl(url, { confirm: false });
     try {
         await gql(
             `mutation($input: Map!) {
