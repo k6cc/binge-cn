@@ -242,8 +242,29 @@ export function daemonCanReachStashAt(raw: string): boolean {
     }
     if (u.protocol !== "https:" && u.protocol !== "http:") return false;
     const host = u.hostname.toLowerCase();
-    if (host === "localhost" || host === "127.0.0.1" || host === "::1")
-        return true;
+    // Loopback is the daemon's own machine, so it only names this Stash
+    // when the daemon runs beside it. The function never checked that
+    // and returned true for loopback before anything else, which is the
+    // one address a REMOTE daemon certainly cannot use: browsing Stash
+    // at localhost while the daemon is on another box made Settings
+    // offer localhost:9999, the daemon fail to find a Stash on its own
+    // port 9999, and the whole config write be refused - so first-time
+    // setup of a remote daemon could not complete, and the key never
+    // landed.
+    if (host === "localhost" || host === "127.0.0.1" || host === "[::1]") {
+        const daemon = (() => {
+            try {
+                return new URL(readBingeServerUrl()).hostname.toLowerCase();
+            } catch {
+                return "";
+            }
+        })();
+        return (
+            daemon === "localhost" ||
+            daemon === "127.0.0.1" ||
+            daemon === "[::1]"
+        );
+    }
     if (
         host.endsWith(".local") ||
         host.endsWith(".internal") ||

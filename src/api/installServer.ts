@@ -106,6 +106,24 @@ export async function waitForServer(
     return false;
 }
 
+/** What Stash's plugin config already says the daemon's address is.
+ *  Empty when nothing is set, or when the query fails - in which case
+ *  the caller leaves the shared copy alone rather than guessing. */
+async function readConfiguredServerUrl(): Promise<string> {
+    try {
+        const data = await gql<{
+            configuration?: {
+                plugins?: Record<string, Record<string, unknown> | null>;
+            };
+        }>(`query { configuration { plugins } }`);
+        const v = data.configuration?.plugins?.["binge"]?.["serverUrl"];
+        return typeof v === "string" ? v.trim() : "";
+    } catch {
+        // Unknown, so treat it as configured and do not overwrite.
+        return "unknown";
+    }
+}
+
 /** Record the daemon's address once it's up: locally for this browser, and
  *  in Stash's plugin config so every other binge client (including iOS)
  *  seeds from it instead of each user re-typing the same URL. A failure to
@@ -122,6 +140,14 @@ export async function recordServerUrl(url: string): Promise<void> {
     // it is a button with the consequence written next to it.
     setBingeServerUrl(url, { confirm: false });
     try {
+        // Only when nothing is configured server-side.
+        //
+        // This wrote unconditionally, so one click in one browser
+        // replaced the deployment-wide serverUrl for every client that
+        // had not yet seeded - and what it wrote was a guess built from
+        // window.location, which is not the address an admin had chosen.
+        const existing = await readConfiguredServerUrl();
+        if (existing) return;
         await gql(
             `mutation($input: Map!) {
                 configurePlugin(plugin_id: "${PLUGIN_ID}", input: $input)

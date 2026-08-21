@@ -190,7 +190,7 @@ export async function addForageWatch(
             if (resp.status === 401) {
                 return {
                     ok: false,
-                    error: "forage rejected the request (401) — check the API token in Settings.",
+                    error: "forage rejected the request (401). It authenticates with your Stash API key, so check that binge has one.",
                 };
             }
             return {
