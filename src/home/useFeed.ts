@@ -244,7 +244,7 @@ function assemblePacks(
     // For each performer, look at how many of their scenes were
     // created within a tight window of their most recent one.
     // If that count exceeds PACK_MIN_SIZE → batch import.
-    const packedKeys = new Set<string>();
+    const packedSceneIds = new Set<string>();
     const out: FeedItem[] = [];
     for (const [groupKey, list] of byPrimary) {
         const sortedByCreated = [...list].sort((a, b) =>
@@ -292,22 +292,21 @@ function assemblePacks(
             effectiveAt: sortedByCreated[0].createdAt,
             isRepost,
         });
-        packedKeys.add(groupKey);
+        for (const packed of inWindow) packedSceneIds.add(packed.sceneId);
     }
 
-    // A group that formed a pack is represented by that pack card, so
-    // skip its loose individual scenes — otherwise a bulk import would
-    // flood the feed with a pack AND dozens of cards. Everything else
-    // shows all its scenes in the window (no cap), including scenes
-    // with neither a performer nor a derivable source, which can only
-    // ever appear on their own.
+    // Skip the scenes a pack actually contains, not every scene sharing
+    // its group.
+    //
+    // A pack only gathers what falls inside its own seven-day window,
+    // but the skip was keyed on the group, so a performer with a fresh
+    // bulk import ALSO lost every older scene of hers still inside the
+    // lookback: those appeared neither in the pack nor as cards, and
+    // the library looked emptier than it was. Keyed on the packed
+    // scenes themselves, an older scene outside the pack's window is
+    // still shown on its own, which is what the comment always claimed.
     for (const s of scenes) {
-        const key = packGroupKey(s);
-        if (!key) {
-            out.push(s);
-            continue;
-        }
-        if (packedKeys.has(key)) continue;
+        if (packedSceneIds.has(s.sceneId)) continue;
         out.push(s);
     }
     return out;

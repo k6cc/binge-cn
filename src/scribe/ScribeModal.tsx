@@ -113,6 +113,13 @@ export function ScribeModal({
                         setScores(saved.generated.scores);
                         setPhase("result");
                     } else {
+                        // Seeded here too. This is the one resume path
+                        // that was missed: an interview left in progress
+                        // came back with no scores loaded, so every
+                        // rated criterion rendered as unrated, and the
+                        // clear button on such a row would have written
+                        // that emptiness back as a deliberate clear.
+                        setScores(subject.initialScores);
                         setPhase("interview");
                     }
                 } else if (subject.existingReview) {

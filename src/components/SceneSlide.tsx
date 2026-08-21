@@ -208,7 +208,7 @@ export function SceneSlide({
     const ratingBusyRef = useRef(false);
     // Per-collection busy ref so concurrent taps on the same row are
     // ignored. Keyed by tagName.
-    const collectionBusyRef = useRef<Record<string, boolean>>({});
+    const collectionBusyRef = useRef<{ busy: boolean }>({ busy: false });
 
     // Attempt playback at the user's persisted mute preference, with
     // the autoplay-policy fallback. Centralised so the IO observer,
@@ -398,8 +398,15 @@ export function SceneSlide({
 
     // ── Save / collection toggle ─────────────────────────────────
     const handleToggleCollection = (tagName: string) => {
-        if (collectionBusyRef.current[tagName]) return;
-        collectionBusyRef.current[tagName] = true;
+                // Keyed on the scene, not the collection. Two different
+        // collections of one scene each passed their own key, so both
+        // read the same tag list and the second write replaced the
+        // first: the membership that lost the race was dropped
+        // silently while both rows showed a tick. sceneUpdate replaces
+        // the whole array, so writes to one scene have to be one at a
+        // time.
+        if (collectionBusyRef.current.busy) return;
+        collectionBusyRef.current.busy = true;
         const currently = inCollections[tagName] ?? false;
         const next = !currently;
         setInCollections((prev) => ({ ...prev, [tagName]: next }));
@@ -433,7 +440,7 @@ export function SceneSlide({
                 onCollectionChange?.(scene.id, tagName, currently);
             })
             .finally(() => {
-                collectionBusyRef.current[tagName] = false;
+                collectionBusyRef.current.busy = false;
             });
     };
 

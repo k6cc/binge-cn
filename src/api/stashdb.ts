@@ -1219,12 +1219,24 @@ ${chunk
                 const scene = data[`s${n}`];
                 // A null scene means StashDB no longer has it. Cached as an
                 // empty list so it is not asked for again every load.
-                const performers = (scene?.performers ?? []).map((pa) => ({
-                    stashId: pa.performer.id,
-                    name: pa.performer.name,
-                    gender: pa.performer.gender,
-                    image: pa.performer.images?.[0]?.url ?? null,
-                }));
+                // Filtered the way shapeScene does a few hundred lines
+                // up, and for the reason its comment gives: StashDB
+                // returns scenes whose performer appearances have been
+                // orphaned by an edit, so the join row exists with no
+                // performer on it. Unguarded, one such record threw
+                // inside this Promise.all, which is on the Home feed's
+                // critical path with no catch of its own - the whole
+                // feed showed an error, and because the throw happened
+                // before the cache write, every reload fetched the same
+                // record and threw again.
+                const performers = (scene?.performers ?? [])
+                    .filter((pa) => pa && pa.performer)
+                    .map((pa) => ({
+                        stashId: pa.performer.id,
+                        name: pa.performer.name,
+                        gender: pa.performer.gender,
+                        image: pa.performer.images?.[0]?.url ?? null,
+                    }));
                 cache[id] = performers;
                 out.set(id, performers);
                 changed = true;

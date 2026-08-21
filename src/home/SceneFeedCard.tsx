@@ -165,13 +165,20 @@ export function SceneFeedCard({ item, feedSceneIds }: SceneFeedCardProps) {
     const handleOpenScribe = () => {
         scribeModal.openScene(item.sceneId);
     };
-    const collectionBusyRef = useRef<Record<string, boolean>>({});
+    const collectionBusyRef = useRef<{ busy: boolean }>({ busy: false });
     const handleToggleCollection = async (tagName: string) => {
         // The reel has always serialised these; this one did not, so
         // two quick taps could put two whole-array tag writes in flight
         // against the same scene at once.
-        if (collectionBusyRef.current[tagName]) return;
-        collectionBusyRef.current[tagName] = true;
+                // Keyed on the scene, not the collection. Two different
+        // collections of one scene each passed their own key, so both
+        // read the same tag list and the second write replaced the
+        // first: the membership that lost the race was dropped
+        // silently while both rows showed a tick. sceneUpdate replaces
+        // the whole array, so writes to one scene have to be one at a
+        // time.
+        if (collectionBusyRef.current.busy) return;
+        collectionBusyRef.current.busy = true;
         const next = !inCollections[tagName];
         setInCollections((m) => ({ ...m, [tagName]: next }));
         // Same intent signal as the reel: saving = strong taste data.
@@ -187,7 +194,7 @@ export function SceneFeedCard({ item, feedSceneIds }: SceneFeedCardProps) {
             // Revert on error.
             setInCollections((m) => ({ ...m, [tagName]: !next }));
         } finally {
-            collectionBusyRef.current[tagName] = false;
+            collectionBusyRef.current.busy = false;
         }
     };
 
