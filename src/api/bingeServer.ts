@@ -631,19 +631,80 @@ export interface PornhubStoryDigest {
     videos: PornhubVideo[];
 }
 
+// The daemon's answers are cast, not parsed, and this one reaches a
+// synchronous render path in the performer grid - so a body that is not
+// the shape the type claims throws during render, and with the only
+// error boundary at the app root that replaces the whole of binge with
+// the error screen. It does not recover on reload either: the profile
+// hash survives, so the reload lands on the same performer and fetches
+// the same body again.
+//
+// Shapes actually reachable: Go marshalling a nil element gives [null];
+// an error object gives {"error": "..."} where .map is not a function;
+// and any field can arrive as the wrong type. isoFromEpochSeconds
+// hardened the timestamp VALUE for exactly this reason - this hardens
+// the container and the elements around it.
+function sanitisePornhubVideos(raw: unknown): PornhubVideo[] {
+    if (!Array.isArray(raw)) return [];
+    const str = (v: unknown): string | null =>
+        typeof v === "string" ? v : null;
+    return raw.flatMap((v): PornhubVideo[] => {
+        if (typeof v !== "object" || v === null) return [];
+        const o = v as Record<string, unknown>;
+        const id = str(o.id);
+        const sourceUrl = str(o.sourceUrl);
+        // Both are required to do anything with the video - it cannot be
+        // opened, played or saved without them - so an entry missing
+        // either is dropped rather than given a made-up value.
+        if (!id || !sourceUrl) return [];
+        const num = (v: unknown): number =>
+            typeof v === "number" && Number.isFinite(v) ? v : 0;
+        return [
+            {
+                id,
+                sourceUrl,
+                title: str(o.title),
+                thumbUrl: str(o.thumbUrl),
+                uploadDate: str(o.uploadDate),
+                duration: num(o.duration),
+                viewCount: num(o.viewCount),
+                createdUtc: num(o.createdUtc),
+            },
+        ];
+    });
+}
+
 export async function getPornhubFeed(
     stashId: number,
     limit = 60,
 ): Promise<PornhubVideo[] | null> {
-    return fetchJSON<PornhubVideo[]>(`/pornhub/feed/${stashId}?limit=${limit}`);
+    const raw = await fetchJSON<unknown>(
+        `/pornhub/feed/${stashId}?limit=${limit}`,
+    );
+    if (raw == null) return null;
+    return sanitisePornhubVideos(raw);
 }
 
 export async function getPornhubStories(
     sinceUtc: number,
 ): Promise<PornhubStoryDigest[] | null> {
-    return fetchJSON<PornhubStoryDigest[]>(
+    // Same treatment as the feed above: the digest's videos reach the
+    // story viewer's render path.
+    const raw = await fetchJSON<unknown>(
         `/pornhub/stories?sinceUtc=${sinceUtc}`,
     );
+    if (raw == null) return null;
+    if (!Array.isArray(raw)) return [];
+    return raw.flatMap((d): PornhubStoryDigest[] => {
+        if (typeof d !== "object" || d === null) return [];
+        const o = d as Record<string, unknown>;
+        return [
+            {
+                ...(o as unknown as PornhubStoryDigest),
+                videos: sanitisePornhubVideos(o.videos),
+            },
+        ];
+    });
 }
 
 // Proxy-URL builders. PornHub stream/preview/thumbnail URLs are time/IP-

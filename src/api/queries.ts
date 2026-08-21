@@ -884,11 +884,51 @@ export async function fetchSceneFileDetails(
 // Stash's findScenes filter doesn't accept an `ids` array cleanly,
 // so we parallelize single-fetches. For a typical performer grid
 // (~24-60 ids) that's well within reasonable network budgets.
+// A few at a time, and one failure does not lose the rest.
+//
+// This was Promise.all over the whole list, which is fine for the
+// performer grid it was sized for but not for the two callers that hand
+// over a whole feed: a Home window of 849 scenes issued 849 concurrent
+// POSTs, and because Promise.all rejects on the first failure, a single
+// 502 from a reverse proxy or a restarting Stash threw away every one of
+// them - the reel showed an error and the user's tap was simply lost.
+//
+// Still one request per id, which is the shape of the underlying query;
+// bounding the concurrency is what stops it being a thundering herd.
+const SCENE_FETCH_CONCURRENCY = 6;
+
 export async function findScenesByIds(ids: string[]): Promise<BingeScene[]> {
     if (ids.length === 0) return [];
-    const results = await Promise.all(ids.map((id) => findSceneById(id)));
-    const out: BingeScene[] = [];
-    for (const s of results) if (s != null) out.push(s);
+    const out: BingeScene[] = new Array<BingeScene>();
+    const resolved: (BingeScene | null)[] = new Array(ids.length).fill(null);
+    let next = 0;
+    async function worker(): Promise<void> {
+        for (;;) {
+            const i = next++;
+            if (i >= ids.length) return;
+            try {
+                resolved[i] = await findSceneById(ids[i]);
+            } catch {
+                // One scene that could not be read is one missing slide,
+                // not a failed navigation.
+                resolved[i] = null;
+            }
+        }
+    }
+    await Promise.all(
+        Array.from(
+            { length: Math.min(SCENE_FETCH_CONCURRENCY, ids.length) },
+            worker,
+        ),
+    );
+    // Order is preserved, but a scene that could not be read is dropped,
+    // which shifts every later index down by one. That was true of the
+    // previous implementation too, and callers that hand over a
+    // startIndex computed against the ORIGINAL id list can therefore
+    // land one or more scenes off. Not introduced here and not fixed
+    // here; written down because it is a live lead on the wrong-scene
+    // bug Reel.tsx already documents.
+    for (const sc of resolved) if (sc != null) out.push(sc);
     return out;
 }
 
