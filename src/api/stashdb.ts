@@ -220,6 +220,13 @@ async function postStashDB<T>(
                 ApiKey: apiKey,
             },
             body: JSON.stringify({ query, variables }),
+            // fetch strips Authorization and Cookie across an origin
+            // change but re-sends a custom header, and the key rides on
+            // one. A 30x from stashdb.org - a CDN move, an operator
+            // slip, a hijacked record - would deliver the user's StashDB
+            // key to wherever it pointed. There is no legitimate
+            // redirect on this endpoint.
+            redirect: "error",
             // A request with no deadline can leave a caller waiting
             // forever, and one of them renders a loading skeleton while
             // it does. StashDB is a third party on the open internet;
@@ -246,7 +253,17 @@ async function postStashDB<T>(
                 "[binge] stashdb graphql errors",
                 body.errors.map((e) => e.message).join("; "),
             );
-            return null;
+            // But keep the data when there is any.
+            //
+            // GraphQL partial success is ordinary, and the batched cast
+            // document asks for twenty scenes in one request under
+            // aliases. Discarding the whole response because one alias
+            // errored threw away the nineteen good answers beside it -
+            // and since nothing was then cached, the same request was
+            // reissued and rediscarded on every feed load, forever. One
+            // bad stash_id in the library was enough. Per-alias nulls
+            // are already handled downstream.
+            if (body.data == null) return null;
         }
         return body.data ?? null;
     } catch (err) {
@@ -665,13 +682,22 @@ export async function getStashDBScene(
             site: u.site?.name ?? "",
         })),
         studio: s.studio ? { stashId: s.studio.id, name: s.studio.name } : null,
-        performers: (s.performers ?? []).map((pa) => ({
-            stashId: pa.performer.id,
-            name: pa.performer.name,
-            gender: pa.performer.gender,
-            image: pa.performer.images?.[0]?.url ?? null,
-            as: pa.as,
-        })),
+        // Filtered, like shapeScene and getMatchedScenePerformers. This
+        // was the third copy of the same shape and the only one still
+        // unguarded: StashDB returns appearances orphaned by an edit,
+        // where the join row exists with no performer on it. The throw
+        // is caught by the Add Scene modal, which then proceeds with a
+        // null detail and silently creates a bare stub in Stash - no
+        // performers, no studio, no date, no urls.
+        performers: (s.performers ?? [])
+            .filter((pa) => pa && pa.performer)
+            .map((pa) => ({
+                stashId: pa.performer.id,
+                name: pa.performer.name,
+                gender: pa.performer.gender,
+                image: pa.performer.images?.[0]?.url ?? null,
+                as: pa.as,
+            })),
         tags: (s.tags ?? []).map((t) => ({
             stashId: t.id,
             name: t.name,
