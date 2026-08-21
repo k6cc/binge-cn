@@ -323,3 +323,57 @@ describe("a queue that cannot be read is not an empty queue", () => {
         expect(state.queue).toEqual(["theirs-1", "theirs-2"]);
     });
 });
+
+describe("an unreadable queue", () => {
+    // A queue that cannot be understood is not an empty queue. Every
+    // caller writes back what this read returns, and configurePlugin is
+    // last-write-wins, so answering [] for a value we failed to parse
+    // deletes whatever was really there.
+    function stashServing(queue: unknown) {
+        vi.stubGlobal(
+            "fetch",
+            vi.fn(async () => ({
+                ok: true,
+                json: async () => ({
+                    data: {
+                        configuration: {
+                            plugins: { multiView: { queue } },
+                        },
+                    },
+                }),
+            })) as unknown as typeof fetch,
+        );
+    }
+
+    it("refuses a queue that is not valid json", async () => {
+        stashServing('[{"id": ');
+        const { syncMultiviewFromConfig, MULTIVIEW_STORAGE_KEY } = await load();
+        localStorage.setItem(MULTIVIEW_STORAGE_KEY, JSON.stringify(["a", "b"]));
+        // The sync wrapper keeps the cache on any failure, so what
+        // matters is that the read reported one rather than reporting
+        // an empty queue it would then have cached over the top.
+        await syncMultiviewFromConfig();
+        expect(
+            JSON.parse(localStorage.getItem(MULTIVIEW_STORAGE_KEY) ?? "[]"),
+        ).toEqual(["a", "b"]);
+    });
+
+    it("refuses a queue that parses to the wrong shape", async () => {
+        stashServing(JSON.stringify({ scenes: ["a", "b"] }));
+        const { syncMultiviewFromConfig, MULTIVIEW_STORAGE_KEY } = await load();
+        localStorage.setItem(MULTIVIEW_STORAGE_KEY, JSON.stringify(["a", "b"]));
+        await syncMultiviewFromConfig();
+        expect(
+            JSON.parse(localStorage.getItem(MULTIVIEW_STORAGE_KEY) ?? "[]"),
+        ).toEqual(["a", "b"]);
+    });
+
+    it("still treats a genuinely absent queue as empty", async () => {
+        stashServing(null);
+        const { syncMultiviewFromConfig, MULTIVIEW_STORAGE_KEY } = await load();
+        await syncMultiviewFromConfig();
+        expect(
+            JSON.parse(localStorage.getItem(MULTIVIEW_STORAGE_KEY) ?? "null"),
+        ).toEqual([]);
+    });
+});

@@ -82,12 +82,20 @@ async function fetchConfigQueue(): Promise<MultiviewQueueItem[]> {
     // A genuinely absent key is a genuinely empty queue; that is the
     // one case where [] is the right answer.
     if (raw == null || raw === "") return [];
+    let a: unknown;
     try {
-        const a: unknown = JSON.parse(raw);
-        return Array.isArray(a) ? (a as MultiviewQueueItem[]) : [];
+        a = JSON.parse(raw);
     } catch {
         throw new Error("multiview queue is not readable json");
     }
+    // Parsing is not the same as understanding. A value of some other
+    // shape is just as unreadable as one that would not parse, and the
+    // caller writes whatever comes back out of here straight over the
+    // stored queue, so reporting it as empty would delete it.
+    if (!Array.isArray(a)) {
+        throw new Error("multiview queue is not a list");
+    }
+    return a as MultiviewQueueItem[];
 }
 
 async function writeConfigQueue(queue: MultiviewQueueItem[]): Promise<void> {
