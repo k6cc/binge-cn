@@ -136,8 +136,24 @@ export function CriterionRatingModal({
                     return;
                 }
             }
+            // Read the tags now rather than trusting the copy loaded
+            // when the modal opened.
+            //
+            // The write below replaces the whole tag_ids array, and this
+            // modal can sit open for as long as someone leaves it open.
+            // Anything that touched the same scene meanwhile - the phone,
+            // Stash's own UI, a collection toggled in another tab - was
+            // silently reverted by the next star tapped here, because the
+            // array being written still described the scene as it looked
+            // on open. Both loaders below fail closed on a missing
+            // entity, so a read that cannot be trusted stops the write
+            // rather than feeding it an empty list.
+            const live =
+                target.kind === "scene"
+                    ? await fetchSceneTagsAndRating(target.id)
+                    : await fetchPerformerTagsAndRating(target.id);
             const newIds = buildUpdatedTagIds(
-                state.tags,
+                live.tags,
                 criterion,
                 newScore,
                 newTagId,
@@ -164,7 +180,13 @@ export function CriterionRatingModal({
             onRatingChange?.(fresh.rating100);
         } catch (err) {
             console.warn("[CriterionRatingModal] update failed:", err);
-            // Soft fail — keep prior state, don't break the modal.
+            // Keep prior state rather than breaking the modal, but say
+            // so. This used to fail silently: the star simply did not
+            // move, which reads as an unresponsive control rather than
+            // as a rating that was not saved.
+            setMissingTagWarning(
+                "That rating could not be saved, so nothing was changed. Check that Stash is still reachable and try again.",
+            );
         } finally {
             setPendingCriterionId(null);
         }
