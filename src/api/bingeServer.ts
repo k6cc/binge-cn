@@ -166,12 +166,30 @@ export function isTrustedDaemonUrl(raw: string): boolean {
     // outright no matter whose it was.
     if (host === "localhost" || host === "127.0.0.1" || host === "::1")
         return true;
-    if (
-        host.endsWith(".local") ||
-        host.endsWith(".internal") ||
-        host.endsWith(".ts.net")
-    )
-        return true;
+    if (host.endsWith(".local") || host.endsWith(".internal")) return true;
+    // A tailnet name is trusted only when it is the SAME tailnet as the
+    // page, not because it ends in .ts.net.
+    //
+    // This used to sit in the blanket above, which returned before the
+    // https requirement, before the same-domain rule and before the
+    // confirmation list - so any stranger's tailnet was trusted with the
+    // Stash key, on either scheme, from any page. SHARED_SUFFIXES has
+    // carried "ts.net" all along with a comment explaining exactly why
+    // (Funnel makes these publicly resolvable, so two of them share a
+    // landlord rather than an owner), but isSharedSuffix is only reached
+    // from sharesRegistrableDomain, which this early return skipped. The
+    // entry could never fire for a daemon host.
+    //
+    // Same-tailnet is the last three labels: <machine>.<tailnet>.ts.net.
+    if (host.endsWith(".ts.net")) {
+        const tailnetOf = (h: string) => h.split(".").slice(-3).join(".");
+        const page = pageHostname();
+        if (page.endsWith(".ts.net") && tailnetOf(host) === tailnetOf(page)) {
+            return true;
+        }
+        // Otherwise fall through: https + confirmed, like any other
+        // public host.
+    }
     // IPv6 literal, which the URL parser hands back in brackets. Settled
     // BEFORE the bare-hostname rule: an IPv6 address contains no dots, so
     // "no dot means LAN name" would wave a public address like
@@ -442,13 +460,25 @@ async function fetchJSON<T>(
     // anything with same-origin access, so trust is checked per request
     // rather than assumed from wherever the value came from.
     const trusted = isTrustedDaemonUrl(base);
-    if (key && !trusted) warnUntrusted(base);
+    if (!trusted) {
+        // Not contacted at all, rather than contacted without the key.
+        //
+        // Withholding the header still left a request going out on every
+        // Home load: a liveness and port probe from inside the user's
+        // network, to an address they may never have chosen. The forage
+        // client closed exactly this and called it a beacon that costs
+        // nothing to close; this one was left open. It is also what let
+        // the install card's poll reach a hostile host and come back
+        // with the answer that confirmed it.
+        warnUntrusted(base);
+        return null;
+    }
     try {
         const resp = await fetch(base + path, {
             ...init,
             headers: {
                 ...(init?.headers ?? {}),
-                ...(key && trusted ? { ApiKey: key } : {}),
+                ...(key ? { ApiKey: key } : {}),
             },
             // Tailscale Funnel + Mullvad NL adds latency vs a local
             // daemon. 8s is enough for the fast (DB-backed) endpoints;

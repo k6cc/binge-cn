@@ -133,6 +133,11 @@ describe("a daemon nobody configured is not trusted", () => {
 describe("a shared public suffix is not a shared owner", () => {
     const cases: Array<[string, string]> = [
         ["stash.duckdns.org", "https://evil.duckdns.org"],
+        // Every other shared suffix had a case here and ts.net did not,
+        // which is how a stranger's tailnet stayed trusted: Funnel hands
+        // these out free and resolves them publicly, so two tailnets
+        // share a landlord in exactly the sense this list is about.
+        ["stash.mytailnet.ts.net", "https://binge.attacker99.ts.net"],
         ["stash.no-ip.org", "https://evil.no-ip.org"],
         ["nas.synology.me", "https://evil.synology.me"],
         ["me.github.io", "https://someone-else.github.io"],

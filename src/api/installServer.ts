@@ -20,7 +20,13 @@ const TASK_NAME = "Install binge-server";
 export function installedUrl(): string {
     try {
         const host = window.location.hostname;
-        if (host) return `http://${host}:7878`;
+        // The scheme follows the page. Hardcoding http meant that on an
+        // https Stash - a reverse proxy or a Funnel, both supported -
+        // every poll of this URL was blocked as mixed content, so a
+        // daemon that installed correctly was reported after five
+        // minutes as never having answered.
+        const scheme = window.location.protocol === "https:" ? "https" : "http";
+        if (host) return `${scheme}://${host}:7878`;
     } catch {
         /* no window */
     }
@@ -33,7 +39,15 @@ export function installedUrl(): string {
 function bindMode(): "loopback" | "lan" {
     try {
         const h = window.location.hostname;
-        return h === "localhost" || h === "127.0.0.1" || h === "::1"
+        // location.hostname keeps the brackets on an IPv6 literal, so the
+        // bare "::1" compare never matched and browsing Stash at
+        // http://[::1]:9999 chose the LAN bind - publishing a daemon that
+        // holds the Stash API key on 0.0.0.0 when the user was on
+        // loopback and had asked for nothing of the sort.
+        return h === "localhost" ||
+            h === "127.0.0.1" ||
+            h === "::1" ||
+            h === "[::1]"
             ? "loopback"
             : "lan";
     } catch {
