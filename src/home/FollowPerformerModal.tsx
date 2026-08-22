@@ -1,5 +1,6 @@
 import { useEffect, useState, type ChangeEvent } from "react";
 import { createPortal } from "react-dom";
+import { linkExistingScenesToPerformer } from "../api/linkExistingScenes";
 import {
     buildPerformerCreateForm,
     getStashDBPerformerForFollow,
@@ -16,7 +17,11 @@ interface FollowPerformerModalProps {
     fallbackImage: string | null;
     // External link for "View on StashDB →" inside the modal.
     stashboxUrl?: string;
-    onCreated: (result: { id: string; name: string }) => void;
+    onCreated: (result: {
+        id: string;
+        name: string;
+        linkedScenes?: number;
+    }) => void;
     onClose: () => void;
 }
 
@@ -29,6 +34,15 @@ type ModalState =
       }
     | {
           kind: "submitting";
+          form: PerformerCreateForm;
+          detail: StashDBPerformerDetail | null;
+      }
+    // The performer exists; her existing scenes are being attached.
+    // Separate from "submitting" so the button can say which of the two
+    // is happening - the second step reads a whole-library query and is
+    // the slower half on a big library.
+    | {
+          kind: "linking";
           form: PerformerCreateForm;
           detail: StashDBPerformerDetail | null;
       }
@@ -131,7 +145,26 @@ export function FollowPerformerModal({
         setState({ kind: "submitting", form: submittedForm, detail });
         try {
             const result = await submitPerformerCreate(submittedForm);
-            onCreated(result);
+            // Attach her to the scenes the library already holds.
+            //
+            // Following only creates the performer, so without this her
+            // brand new profile reports zero scenes even when several
+            // are sitting in the library - which reads as the follow
+            // having failed. Best-effort and additive: a failure here
+            // leaves a performer who exists but is not yet linked,
+            // which is exactly the state before this ran.
+            setState({ kind: "linking", form: submittedForm, detail });
+            let linked = 0;
+            try {
+                const r = await linkExistingScenesToPerformer({
+                    localPerformerId: result.id,
+                    stashDBPerformerId,
+                });
+                linked = r.linked;
+            } catch (err) {
+                console.warn("[binge] linking existing scenes failed", err);
+            }
+            onCreated({ ...result, linkedScenes: linked });
         } catch (err) {
             setState({
                 kind: "error",
@@ -151,7 +184,9 @@ export function FollowPerformerModal({
                 ? state.form
                 : state.form;
     const detail = state.kind === "scraping" ? null : state.detail;
-    const isSubmitting = state.kind === "submitting";
+    const isSubmitting =
+        state.kind === "submitting" || state.kind === "linking";
+    const isLinking = state.kind === "linking";
     // Image carousel — use the StashDB image array if we have it,
     // otherwise fall back to whatever URL the user typed/inherited.
     const images = detail?.images ?? [];
@@ -482,11 +517,13 @@ export function FollowPerformerModal({
                         onClick={handleSubmit}
                         disabled={state.kind !== "ready" || !form?.name.trim()}
                     >
-                        {isSubmitting
-                            ? "Adding…"
-                            : state.kind === "error"
-                              ? "Retry"
-                              : "Add to library"}
+                        {isLinking
+                            ? "Finding her scenes…"
+                            : isSubmitting
+                              ? "Adding…"
+                              : state.kind === "error"
+                                ? "Retry"
+                                : "Add to library"}
                     </button>
                 </footer>
             </div>
