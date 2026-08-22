@@ -175,11 +175,19 @@ export function invalidateOwnedStashDBSceneIds(): void {
 
 export function getOwnedStashDBSceneIds(): Promise<Set<string>> {
     if (!ownedIdsPromise) {
-        ownedIdsPromise = fetchOwnedStashDBSceneIds().catch((err) => {
-            // Never cache a failure: the next caller should retry.
-            ownedIdsPromise = null;
-            throw err;
-        });
+        const p: Promise<Set<string>> = fetchOwnedStashDBSceneIds().catch(
+            (err) => {
+                // Never cache a failure: the next caller should retry.
+                // Only clear the slot if it still holds THIS promise -
+                // clearing unconditionally let a slow failure discard a
+                // newer in-flight fetch that had already replaced it,
+                // so one answer cost three runs of the most expensive
+                // query binge makes.
+                if (ownedIdsPromise === p) ownedIdsPromise = null;
+                throw err;
+            },
+        );
+        ownedIdsPromise = p;
     }
     return ownedIdsPromise;
 }
@@ -1092,6 +1100,20 @@ export function invalidateStashDBCache(): void {
     // left it in place would keep hiding scenes the user has since
     // added, or keep offering ones they have.
     invalidateOwnedStashDBSceneIds();
+    // And the matched-cast cache.
+    //
+    // It has no TTL, and an empty result is recorded so the scene is not
+    // asked for again - which is right for a scene StashDB has really
+    // dropped, and permanent for one that merely failed to resolve
+    // during a reindex or a merge. Nothing anywhere cleared this key, so
+    // a card fell back to its studio name forever and no user action
+    // short of clearing site data could recover it. Refresh is exactly
+    // the action that should.
+    try {
+        localStorage.removeItem(SCENE_PERFORMERS_CACHE_KEY);
+    } catch {
+        /* ignore */
+    }
 }
 
 // ── Performers for already-matched scenes ───────────────────────────
@@ -1239,12 +1261,18 @@ export async function getMatchedScenePerformers(
         chunks.push(toFetch.slice(i, i + SCENE_PERFORMERS_BATCH));
     }
     let changed = false;
-    // Together rather than one after another. The browser caps how many
-    // reach StashDB at once anyway, and sequentially this was the
-    // difference between a fraction of a second and several.
-    await Promise.all(
-        chunks.map(async (chunk) => {
-            const query = `query BatchScenePerformers {
+    // A few at a time rather than all of them.
+    //
+    // This was Promise.all over every chunk, and the comment claimed the
+    // browser caps how many reach StashDB at once - over HTTP/2 to one
+    // origin the cap is around a hundred streams, so it did not bind
+    // here. A cold cache on a large library meant 1500 ids in 75 chunks
+    // hitting a shared community service in one burst, from a browser.
+    // Throttled answers come back as nulls, nothing is cached, and the
+    // identical burst repeats on the next load.
+    const CHUNK_CONCURRENCY = 5;
+    const runChunk = async (chunk: string[]) => {
+        const query = `query BatchScenePerformers {
 ${chunk
     .map(
         (id, n) => `  s${n}: findScene(id: "${id}") {
@@ -1253,51 +1281,63 @@ ${chunk
     )
     .join("\n")}
 }`;
-            const data = await postStashDB<
-                Record<
-                    string,
-                    {
-                        performers: {
-                            performer: {
-                                id: string;
-                                name: string;
-                                gender: string | null;
-                                images: { url: string }[];
-                            };
-                        }[];
-                    } | null
-                >
-            >(apiKey, query, {});
-            // An outage leaves whatever is cached in place and this
-            // chunk unanswered; the next load retries it.
-            if (!data) return;
-            chunk.forEach((id, n) => {
-                const scene = data[`s${n}`];
-                // A null scene means StashDB no longer has it. Cached as an
-                // empty list so it is not asked for again every load.
-                // Filtered the way shapeScene does a few hundred lines
-                // up, and for the reason its comment gives: StashDB
-                // returns scenes whose performer appearances have been
-                // orphaned by an edit, so the join row exists with no
-                // performer on it. Unguarded, one such record threw
-                // inside this Promise.all, which is on the Home feed's
-                // critical path with no catch of its own - the whole
-                // feed showed an error, and because the throw happened
-                // before the cache write, every reload fetched the same
-                // record and threw again.
-                const performers = (scene?.performers ?? [])
-                    .filter((pa) => pa && pa.performer)
-                    .map((pa) => ({
-                        stashId: pa.performer.id,
-                        name: pa.performer.name,
-                        gender: pa.performer.gender,
-                        image: pa.performer.images?.[0]?.url ?? null,
-                    }));
-                cache[id] = performers;
-                out.set(id, performers);
-                changed = true;
-            });
-        }),
+        const data = await postStashDB<
+            Record<
+                string,
+                {
+                    performers: {
+                        performer: {
+                            id: string;
+                            name: string;
+                            gender: string | null;
+                            images: { url: string }[];
+                        };
+                    }[];
+                } | null
+            >
+        >(apiKey, query, {});
+        // An outage leaves whatever is cached in place and this
+        // chunk unanswered; the next load retries it.
+        if (!data) return;
+        chunk.forEach((id, n) => {
+            const scene = data[`s${n}`];
+            // A null scene means StashDB no longer has it. Cached as an
+            // empty list so it is not asked for again every load.
+            // Filtered the way shapeScene does a few hundred lines
+            // up, and for the reason its comment gives: StashDB
+            // returns scenes whose performer appearances have been
+            // orphaned by an edit, so the join row exists with no
+            // performer on it. Unguarded, one such record threw
+            // inside this Promise.all, which is on the Home feed's
+            // critical path with no catch of its own - the whole
+            // feed showed an error, and because the throw happened
+            // before the cache write, every reload fetched the same
+            // record and threw again.
+            const performers = (scene?.performers ?? [])
+                .filter((pa) => pa && pa.performer)
+                .map((pa) => ({
+                    stashId: pa.performer.id,
+                    name: pa.performer.name,
+                    gender: pa.performer.gender,
+                    image: pa.performer.images?.[0]?.url ?? null,
+                }));
+            cache[id] = performers;
+            out.set(id, performers);
+            changed = true;
+        });
+    };
+    let nextChunk = 0;
+    await Promise.all(
+        Array.from(
+            { length: Math.min(CHUNK_CONCURRENCY, chunks.length) },
+            async () => {
+                for (;;) {
+                    const i = nextChunk++;
+                    if (i >= chunks.length) return;
+                    await runChunk(chunks[i]);
+                }
+            },
+        ),
     );
     if (changed) writeScenePerformerCache(cache);
     return out;
