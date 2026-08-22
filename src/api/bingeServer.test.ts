@@ -217,12 +217,18 @@ describe("where the Stash API key is actually sent", () => {
         expect(fetchMock).not.toHaveBeenCalled();
     });
 
-    it("withholds the key from the save endpoint too", async () => {
+    it("does not post to the save endpoint of an untrusted daemon", async () => {
+        // This asserted only that the header was absent, which is also
+        // true when no request is made - so it could not tell the two
+        // apart. The save body carries library metadata, and for a
+        // PornHub item its mediaUrl is a daemon URL with the Stash key
+        // in the query string, so the request itself is the problem.
         const { mod, fetchMock } = await load("http://evil.example.com:7878");
-        await mod.saveToStash({
+        const r = await mod.saveToStash({
             url: "https://x.com/i/status/1",
         } as unknown as Parameters<typeof mod.saveToStash>[0]);
-        expect(headerOf(fetchMock)).toBeUndefined();
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(r.ok).toBe(false);
     });
 
     it("keeps the key out of media URLs handed to img and video", async () => {

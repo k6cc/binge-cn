@@ -951,6 +951,11 @@ export interface RecentSceneRow {
     // the frame. Null when Stash hasn't probed the file yet.
     sceneWidth: number | null;
     sceneHeight: number | null;
+    // Stash's o-counter for the scene. Carried so a card can show the
+    // real number on first paint: without it the heart started at zero
+    // on a scene that already had twelve, and the first tap read 1
+    // before snapping to 13.
+    sceneOCounter: number;
     // Scene-level tag list. Carried on every row (same scene → same
     // tags), so callers can dedupe down to one item per scene and read
     // tags off any row.
@@ -1026,6 +1031,7 @@ function buildFindRecentScenesQuery(): string {
                         height
                         path
                     }
+                    o_counter
                     paths {
                         screenshot
                         preview
@@ -1147,6 +1153,7 @@ type RawSceneNode = {
     details: string | null;
     created_at: string;
     date: string | null;
+    o_counter: number | null;
     files: { width: number; height: number; path: string | null }[];
     paths: {
         screenshot: string | null;
@@ -1184,6 +1191,7 @@ function flattenSceneNodes(scenes: RawSceneNode[]): RecentSceneRow[] {
             sceneDate: s.date,
             sceneWidth: firstFile?.width ?? null,
             sceneHeight: firstFile?.height ?? null,
+            sceneOCounter: s.o_counter ?? 0,
             sceneTags,
             studioName: s.studio?.name ?? null,
             filePath: firstFile?.path ?? null,

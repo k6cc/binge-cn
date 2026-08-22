@@ -68,6 +68,11 @@ export interface SceneFeedItem {
     effectiveAt: string;
     width: number | null;
     height: number | null;
+    /// Stash's o-counter at the time the feed was fetched. Seeds the
+    /// card's heart, which otherwise started at zero on every mount -
+    /// so a scene with twelve showed an empty heart, and the first tap
+    /// read 1 before snapping to 13.
+    oCounter: number;
     performers: FeedPerformer[];
     tags: FeedTag[];
     /// True when this is back-catalog you just re-added rather than
@@ -464,6 +469,7 @@ export function useFeed(): FeedHookResult {
                                 : (r.sceneDate ?? r.sceneCreatedAt),
                             width: r.sceneWidth,
                             height: r.sceneHeight,
+                            oCounter: r.sceneOCounter,
                             performers: [],
                             tags: r.sceneTags,
                             isRepost,

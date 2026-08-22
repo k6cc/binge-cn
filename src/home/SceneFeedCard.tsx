@@ -12,6 +12,7 @@ import { useTab } from "../tabs/TabContext";
 import { usePerformerProfile } from "../performer/PerformerProfileContext";
 import { useMuteState } from "../hooks/useMuteState";
 import { sceneIncrementO } from "../api/mutations";
+import { currentOCount, rememberOCount } from "./oCounterStore";
 import { recordTagInteractions } from "../api/interactedTags";
 import {
     useHasAdvancedRating,
@@ -90,7 +91,13 @@ export function SceneFeedCard({ item, feedSceneIds }: SceneFeedCardProps) {
     // over the first render's `muted` forever.
     const mutedRef = useRef(muted);
     mutedRef.current = muted;
-    const [oCount, setOCount] = useState(0);
+    // Seeded from the scene, not from zero. The virtualizer unmounts a
+    // card that scrolls a few rows away, so a local-only count was lost
+    // on every pass - the heart came back empty and a second tap
+    // incremented the scene again.
+    const [oCount, setOCount] = useState(() =>
+        currentOCount(item.sceneId, item.oCounter),
+    );
     const [liked, setLiked] = useState(false);
     const oBusyRef = useRef(false);
 
@@ -302,7 +309,12 @@ export function SceneFeedCard({ item, feedSceneIds }: SceneFeedCardProps) {
         setOCount(prev + 1);
         setLiked(true);
         sceneIncrementO(item.sceneId)
-            .then((next) => setOCount(next))
+            .then((next) => {
+                setOCount(next);
+                // Server-confirmed, so it survives this card being
+                // unmounted by the virtualizer and remounted later.
+                rememberOCount(item.sceneId, next);
+            })
             .catch(() => {
                 setOCount(prev);
                 setLiked(prev > 0);

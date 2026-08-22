@@ -575,16 +575,33 @@ export async function saveToStash(
 ): Promise<
     { ok: true; result: SaveToStashResult } | { ok: false; error: string }
 > {
+    // Seeded first, like fetchJSON. Without this a save on a cold page
+    // posts to the derived default rather than the configured daemon.
+    await ensureBingeServerUrlSeeded();
     const base = readBingeServerUrl();
+    // Refused outright, not merely sent without the key.
+    //
+    // fetchJSON was closed for this and saveToStash was not, so an
+    // address nobody chose still received a POST carrying library
+    // metadata - the performer id, the media URL, the source URL and the
+    // caption. Worse, a PornHub item's mediaUrl is itself a daemon proxy
+    // URL with the Stash key in its query string, so if the daemon
+    // setting changed between the story being built and Save being
+    // pressed, the key went to the new host in the body.
+    if (!isTrustedDaemonUrl(base)) {
+        warnUntrusted(base);
+        return {
+            ok: false,
+            error: "That daemon address is not one binge has been told to use. Confirm it in Settings first.",
+        };
+    }
     try {
         const key = await ensureStashKey();
-        const trusted = isTrustedDaemonUrl(base);
-        if (key && !trusted) warnUntrusted(base);
         const resp = await fetch(base + "/save", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                ...(key && trusted ? { ApiKey: key } : {}),
+                ...(key ? { ApiKey: key } : {}),
             },
             body: JSON.stringify(req),
             signal: AbortSignal.timeout(30_000),
