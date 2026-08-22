@@ -19,6 +19,11 @@ import { useIncludeX } from "../home/pluginSettings";
 import { getXFeed, xHandleFromUrls } from "../api/bingeServer";
 import type { Story, StoryScene } from "../home/useStories";
 import { BingeLoading } from "../components/BingeLoading";
+import {
+    PLAYBACK_LAYER,
+    closePlaybackLayer,
+    openPlaybackLayer,
+} from "../util/playbackStack";
 
 // Bug 11：增加 "x" tab — 仅在演员有 X 链接且设置开启时显示。
 type ProfileTab = "scenes" | "galleries" | "x";
@@ -73,6 +78,15 @@ type LoadState =
 // StashDB scenes with "Add to library" tap targets.
 export function PerformerProfile() {
     const { currentProfile } = usePerformerProfile();
+    // 播放层栈：演员详情覆盖层打开期间（z:90，压在首页 feed/reel 与
+    // 底层之上）登记 profile 层——下层视频暂停并停止自动播放；关闭
+    // 时注销。从本页打开的 story 弹窗（z:120）与 PH 播放器层数更高，
+    // 会反过来 gate 本页内的悬停预览。
+    useEffect(() => {
+        if (!currentProfile) return;
+        openPlaybackLayer(PLAYBACK_LAYER.profile);
+        return () => closePlaybackLayer(PLAYBACK_LAYER.profile);
+    }, [currentProfile]);
     if (!currentProfile) return null;
     if (currentProfile.kind === "stashdb") {
         return (

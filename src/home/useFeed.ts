@@ -314,10 +314,9 @@ function assemblePacks(
     }
     return out;
 }
-// Max images per gallery in the carousel — the rest live behind the
-// "View gallery →" panel and open in the existing ImageLightbox.
-// Bug 7 修复：原值 10 导致 13 张图库只显示 10 张。提升到 500（与
-// PerformerImageGrid 的上限一致），实际显示数量受图库真实图片数限制。
+// 首页图库卡片的轮播上限：feed 查询每个图库只拉前 20 张，控制首页
+// 负载。超出部分不看做"丢失"——卡片尾板"查看图库 →"跳转演员档案
+// 图库 tab（一次拉全，上限见 PerformerImageGrid 的 500）。
 export const MAX_GALLERY_IMAGES = 20;
 
 export interface FeedHookResult {

@@ -7,6 +7,11 @@ import {
     getSaveProgress,
     type PornhubVideo,
 } from "../api/bingeServer";
+import {
+    PLAYBACK_LAYER,
+    closePlaybackLayer,
+    openPlaybackLayer,
+} from "../util/playbackStack";
 
 // Fullscreen inline player for a PornHub video — plays the stream proxy
 // (extracted + relayed mp4, no download) and offers a one-tap "Save to
@@ -35,6 +40,13 @@ export function PornhubPlayer({
         return () => {
             if (pollRef.current !== null) window.clearInterval(pollRef.current);
         };
+    }, []);
+
+    // 播放层栈：PH 播放器（z:120）打开期间登记最高层——演员详情页内
+    // 的悬停预览等下层视频全部暂停，杜绝两层同时出声。
+    useEffect(() => {
+        openPlaybackLayer(PLAYBACK_LAYER.phPlayer);
+        return () => closePlaybackLayer(PLAYBACK_LAYER.phPlayer);
     }, []);
 
     const handleSave = async () => {

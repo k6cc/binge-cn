@@ -1,23 +1,18 @@
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
-// Two-layer mute state.
+// 每个播放表面独立的双层静音状态。
 //
-// `persisted` is the user's stated preference. Default unmuted (Instagram
-// convention), survives reload via localStorage. Only changes when the
-// user explicitly taps the Mute toggle.
+// `persisted` 是用户陈述的偏好（localStorage，跨会话）。`effective`（组件
+// state）是当前表面实际应用的状态——浏览器拦截未静音自动播放时降级为
+// 静音：图标立即反映现实，但不写偏好，后续新挂载的表面仍按偏好尝试。
+// 这修掉"图标显示开启、视频仍静音"的错位（自动播放降级只改 effective，
+// 用户一次点击同时写偏好 + 本表面，无二次点击）。
 //
-// `effective` is what's actually applied to the video right now. It drives
-// the toggle's UI state so the icon never lies. Differs from `persisted`
-// when the browser blocks unmuted autoplay — at that point we flip
-// effective→muted so the icon matches reality, but leave persisted alone
-// so the next slide gets a fresh chance to play unmuted (and once it
-// succeeds, effective syncs back to persisted).
-//
-// Why this fixes the "icon says unmuted, video stays muted" bug: previously
-// the autoplay fallback muted the element without touching React. With
-// two layers, fallback updates effective→true (UI shows muted), and a
-// single toggle tap from the user sets persisted+effective→false in one
-// step (no more double-tap dance).
+// 撤销联动：原实现是模块级单例 + 全局 listeners，所有表面共享
+// effective——切一个静音按钮会实时同步到所有正在播放的窗口，导致
+// story 弹窗与底层 feed 同时出声。现在各表面独立持有状态：切换只
+// 影响自己；新挂载的表面从持久化偏好初始化（不重复开声音），配合
+// 播放层栈（playbackStack.ts）在覆盖层打开时暂停下层，杜绝两个声音。
 const MUTE_KEY = "binge.muted";
 const DEFAULT_MUTED = false;
 
@@ -32,25 +27,7 @@ function readPersisted(): boolean {
     return DEFAULT_MUTED;
 }
 
-const listeners = new Set<(muted: boolean) => void>();
 let persisted = readPersisted();
-let effective = persisted;
-
-function setPersistent(next: boolean) {
-    persisted = next;
-    effective = next;
-    try {
-        localStorage.setItem(MUTE_KEY, String(next));
-    } catch {
-        /* ignore */
-    }
-    listeners.forEach((l) => l(next));
-}
-
-function setSession(next: boolean) {
-    effective = next;
-    listeners.forEach((l) => l(next));
-}
 
 export function getPersistedMuted(): boolean {
     return persisted;
@@ -61,12 +38,20 @@ export function useMuteState(): [
     (next: boolean) => void,
     (next: boolean) => void,
 ] {
-    const [muted, setMuted] = useState<boolean>(effective);
-    useEffect(() => {
-        listeners.add(setMuted);
-        return () => {
-            listeners.delete(setMuted);
-        };
+    const [muted, setMutedState] = useState<boolean>(persisted);
+    // 用户点击：写偏好 + 本表面。
+    const setMuted = useCallback((next: boolean) => {
+        persisted = next;
+        setMutedState(next);
+        try {
+            localStorage.setItem(MUTE_KEY, String(next));
+        } catch {
+            /* ignore */
+        }
     }, []);
-    return [muted, setPersistent, setSession];
+    // 自动播放降级：仅改本表面的图标/状态，不动持久化偏好。
+    const setMutedSession = useCallback((next: boolean) => {
+        setMutedState(next);
+    }, []);
+    return [muted, setMuted, setMutedSession];
 }

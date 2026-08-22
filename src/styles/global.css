@@ -328,10 +328,20 @@ body,
     width: 100%;
     height: 100%;
     object-fit: contain;
+    /* 非全屏时的"新居中点"：object-position 把 contain 剩余空间按
+       30%/70% 上下分配——数学上等同原先 JS translateY(-40% 黑边)，
+       但对横版内容按比例生效（竖版内容撑满高度时 Y 百分比无效果，
+       天然居中），poster 与视频内容遵循同一规则（封面无首帧错
+       位），且值为常量（场景切换不触发过渡动画）。全屏在下方
+       规则恢复 50% 居中。 */
+    object-position: 50% 30%;
     background: #000;
-    /* 非全屏大黑边时的内容上移（JS 设 translateY）与全屏进出归位
-       的平滑过渡。 */
-    transition: transform 0.3s ease;
+    /* 全屏进出 30%↔50% 归位的平滑过渡。 */
+    transition: object-position 0.3s ease;
+}
+
+.binge-slide.is-fullscreen .binge-video {
+    object-position: 50% 50%;
 }
 
 /* ── Caption (subtitle) styling ────────────────────────────────
@@ -6074,9 +6084,12 @@ body,
     padding: 0.25rem 0.5rem;
     background: rgba(0, 0, 0, 0.55);
     color: #fff;
+    border: none;
     border-radius: 999px;
+    font-family: inherit;
     font-size: 0.75rem;
     font-weight: 600;
+    line-height: 1;
     pointer-events: auto;
     cursor: pointer;
     backdrop-filter: blur(4px);
@@ -8276,12 +8289,16 @@ body,
     position: absolute;
     top: 0.35rem;
     right: 0.35rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
     padding: 0.15rem 0.4rem;
     background: rgba(0, 0, 0, 0.6);
     color: #fff;
     border-radius: 999px;
     font-size: 0.68rem;
     font-weight: 600;
+    line-height: 1;
     pointer-events: none;
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
@@ -8631,7 +8648,13 @@ body,
     display: flex;
     align-items: center;
     justify-content: center;
+    background: rgba(0, 0, 0, 0.92);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     animation: binge-lightbox-fade 0.18s ease-out;
+    /* 横向滚动轨道：允许横向平移（翻页手势），纵向手势穿透到
+       body（锁定的滚动容器无纵向滚动，无碍）。 */
+    touch-action: pan-x;
 }
 @keyframes binge-lightbox-fade {
     from {
@@ -8641,22 +8664,55 @@ body,
         opacity: 1;
     }
 }
-.binge-lightbox-backdrop {
-    position: absolute;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.92);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-}
-.binge-lightbox-stage {
+/* ── 翻页轨道：原生横向滚动 + scroll-snap ──────────────────────
+   与首页图库卡片轮播同一机制：跟手拖动、惯性、吸附全由浏览器处理，
+   切换时两张图物理衔接滑动。一屏一 slide（scroll-snap-align）。 */
+.binge-lightbox-track {
     position: relative;
     z-index: 1;
+    display: flex;
     width: 100%;
     height: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    /* 隐藏滚动条（计数器承担位置反馈）。 */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    /* 禁用横向过冲回弹：末张之后不再有可划动的黑边（配合 slide
+       border-box 后滚动范围恰为 n-1 屏）。 */
+    overscroll-behavior-x: none;
+    /* 拖拽图片不选中文本。 */
+    user-select: none;
+    -webkit-user-select: none;
+}
+.binge-lightbox-track::-webkit-scrollbar {
+    display: none;
+}
+/* 鼠标拖拽期间禁用 snap：否则 mandatory 对每次 scrollLeft 赋值立即
+   回吸，拖不动。松手由 JS 移除类并平滑吸附到最近一页。 */
+.binge-lightbox-track.is-mouse-dragging {
+    scroll-snap-type: none;
+}
+.binge-lightbox-slide {
+    /* border-box 必须显式声明：项目无全局 * { box-sizing } reset，
+       content-box 下 flex-basis 100% + padding 会让 slide 实际宽高
+       = 视口 + 8rem——图片下沉、slide 间黑边、末尾可多划 8rem、
+       scrollTo 目标与 snap 点错位（高索引处箭头失灵）全源于此。 */
+    box-sizing: border-box;
+    flex: 0 0 100%;
+    width: 100%;
+    height: 100%;
+    /* 无 padding：与图库卡片轮播一致，切换时两图边缘物理衔接；
+       图片自身 contain 居中，留白由图片宽高比自然产生。 */
+    padding: 0;
+    /* start 与图库卡片轮播一致：snap 点 = i × 视口宽，scrollTo 的
+       绝对目标精确落点。 */
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 4rem 4rem;
     pointer-events: none;
 }
 .binge-lightbox-image {
@@ -8733,9 +8789,6 @@ body,
     right: 0.75rem;
 }
 @media (max-width: 720px) {
-    .binge-lightbox-stage {
-        padding: 3rem 0.5rem;
-    }
     .binge-lightbox-nav {
         width: 36px;
         height: 36px;

@@ -1,7 +1,5 @@
-import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { MAX_GALLERY_IMAGES, type GalleryFeedItem } from "./useFeed";
-import { findImagesByGallery } from "../api/queries";
-import type { PerformerImageCard } from "../api/queries";
 import { ImageLightbox } from "../performer/ImageLightbox";
 import { PerformerHoverCard } from "./PerformerHoverCard";
 import { VerifiedIcon } from "../performer/PerformerProfile";
@@ -15,64 +13,18 @@ interface GalleryFeedCardProps {
     item: GalleryFeedItem;
 }
 
-// Images fetched per lightbox page. The feed only loads the handful the
-// carousel shows, so the first page here supersedes that small set
-// rather than appending to it, which keeps every page the same size and
-// the offsets exact.
-const LIGHTBOX_PAGE_SIZE = 60;
-
 // Gallery-as-post IG-style card. Horizontal scroll-snap carousel of up
 // to MAX_GALLERY_IMAGES (from useFeed); a "View gallery →" panel
 // follows as the final slide so the user can jump into the full
 // ImageLightbox even when they've scrolled to the end inline.
 //
 // Tap any image → lightbox at that index. Tap the end panel → lightbox
-// at index 0. The lightbox then pages through the whole gallery, which
-// routinely means hundreds of images the carousel never carried.
+// at index 0. Lightbox 展示同一份前 20 张（不做滚动分页拉全量——控
+// 制首页负载，完整图库走"查看图库 →"跳演员档案图库 tab）。
 export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
     const carouselRef = useRef<HTMLDivElement>(null);
     const [activeIndex, setActiveIndex] = useState(0);
     const [lightboxOpenAt, setLightboxOpenAt] = useState<number | null>(null);
-
-    // Images beyond the carousel's first page, loaded on demand once
-    // the lightbox is open. Null until the first page lands, so the
-    // lightbox opens instantly on what the card already has.
-    const [pagedImages, setPagedImages] = useState<PerformerImageCard[] | null>(
-        null,
-    );
-    const pageRef = useRef(0);
-    const inFlightRef = useRef(false);
-    const exhaustedRef = useRef(false);
-
-    const loadMoreImages = useCallback(() => {
-        if (inFlightRef.current || exhaustedRef.current) return;
-        inFlightRef.current = true;
-        const next = pageRef.current + 1;
-        findImagesByGallery(item.galleryId, LIGHTBOX_PAGE_SIZE, next)
-            .then((page) => {
-                pageRef.current = next;
-                // A short page means the gallery ran out, whatever
-                // image_count claimed: Stash's count can lag a rescan.
-                if (page.length < LIGHTBOX_PAGE_SIZE)
-                    exhaustedRef.current = true;
-                // Seeded from nothing, not from item.images: page 1
-                // starts at the same image the carousel did, so seeding
-                // would repeat the opening images and then skip a page.
-                setPagedImages((prev) => [...(prev ?? []), ...page]);
-            })
-            .catch(() => {
-                // Stop asking rather than retry on every index change.
-                // The user keeps whatever loaded; closing and reopening
-                // the lightbox is not a retry, but a broken gallery
-                // query will not spin the network either.
-                exhaustedRef.current = true;
-            })
-            .finally(() => {
-                inFlightRef.current = false;
-            });
-    }, [item.galleryId]);
-
-    const lightboxImages = pagedImages ?? item.images;
 
     const { openProfile } = usePerformerProfile();
     const { open: openStoryViewer } = useStoryViewer();
@@ -109,10 +61,11 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
         : item.coverPath;
 
     const handleEndClick = () => {
+        stopAutoPlay();
         if (primaryPerformer) {
             openProfile(primaryPerformer.id, "galleries");
         } else {
-            setLightboxOpenAt(0);
+            openLightbox(0);
         }
     };
 
@@ -141,9 +94,24 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
     }, []);
 
     const scrollToSlide = (i: number) => {
+        stopAutoPlay();
         const el = carouselRef.current;
         if (!el) return;
         el.scrollTo({ left: i * el.clientWidth, behavior: "smooth" });
+    };
+
+    // 用户交互后永久停止自动轮播（本组件实例生命周期内）：手动滑动
+    // （pointerdown 覆盖触屏/鼠标）、点击圆点、点开图片查看器。自动
+    // 播放是"预览"性质，用户表达过意图后继续抢滚动位置只会干扰阅读。
+    const userStoppedRef = useRef(false);
+    function stopAutoPlay() {
+        userStoppedRef.current = true;
+    }
+
+    // 打开灯箱 = 用户交互，同时停自动轮播。
+    const openLightbox = (idx: number) => {
+        stopAutoPlay();
+        setLightboxOpenAt(idx);
     };
 
     // 修改10：首页图库卡片自动播放。IntersectionObserver 监听卡片是否
@@ -161,6 +129,13 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                     if (entry.isIntersecting) {
                         if (intervalId !== null) continue;
                         intervalId = window.setInterval(() => {
+                            if (userStoppedRef.current) {
+                                if (intervalId !== null) {
+                                    window.clearInterval(intervalId);
+                                    intervalId = null;
+                                }
+                                return;
+                            }
                             const cur = el.scrollLeft / el.clientWidth;
                             const n = Math.round(cur);
                             const c = slideCount;
@@ -283,6 +258,7 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                     role="region"
                     aria-roledescription="carousel"
                     aria-label={item.title ?? t("gallery.gallery_image")}
+                    onPointerDown={stopAutoPlay}
                 >
                     {images.length === 0 ? (
                         // Empty image list — typically means the gallery
@@ -298,7 +274,7 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                                       }
                                     : undefined
                             }
-                            onClick={() => setLightboxOpenAt(0)}
+                            onClick={() => openLightbox(0)}
                             aria-label={t("gallery.open_gallery_title", { title: item.title ?? t("gallery.gallery") })}
                         />
                     ) : (
@@ -315,7 +291,7 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                                             ? { backgroundImage: `url("${src}")` }
                                             : undefined
                                     }
-                                    onClick={() => setLightboxOpenAt(idx)}
+                                    onClick={() => openLightbox(idx)}
                                     aria-label={t("gallery.slide_position", { current: idx + 1, total: item.imageCount })}
                                 />
                             );
@@ -350,17 +326,21 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                     </button>
                 </div>
 
-                {/* Image count badge (top-right of media). */}
-                <div
+                {/* Image count badge (top-right of media). 真 button（非
+                    div+role）：此前 role="button" + tabIndex=0 +
+                    aria-hidden="true" 自相矛盾——可聚焦元素对 AT 隐藏，
+                    点击跳转后焦点残留触发 Chrome aria-hidden 警告。 */}
+                <button
+                    type="button"
                     className="binge-gallery-count-badge"
-                    role="button"
-                    tabIndex={0}
                     onClick={handleEndClick}
-                    aria-hidden="true"
+                    aria-label={t("gallery.open_full_gallery_title", {
+                        count: item.imageCount,
+                    })}
                 >
                     <StackIcon />
                     <span>{item.imageCount}</span>
-                </div>
+                </button>
             </div>
 
             {/* Dots indicator (one per slide including the end panel). */}
@@ -394,10 +374,9 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
 
             {lightboxOpenAt !== null && item.images.length > 0 && (
                 <ImageLightbox
-                    images={lightboxImages}
+                    images={item.images}
                     startIndex={lightboxOpenAt}
                     totalCount={item.imageCount}
-                    onNeedMore={loadMoreImages}
                     onClose={() => setLightboxOpenAt(null)}
                 />
             )}

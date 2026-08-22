@@ -10,7 +10,12 @@ import {
 } from "../util/pickStream";
 import { MuteToggle } from "./MuteToggle";
 import { SceneProgress } from "./SceneProgress";
-import { getPersistedMuted, useMuteState } from "../hooks/useMuteState";
+import { useMuteState } from "../hooks/useMuteState";
+import {
+    PLAYBACK_LAYER,
+    isPlaybackGated,
+    subscribePlaybackGate,
+} from "../util/playbackStack";
 import {
     sceneDecrementO,
     sceneIncrementO,
@@ -122,15 +127,19 @@ function computeRandomWindow(
 // ── 竖屏播放横屏视频的位置优化 ──────────────────────────────
 // 非全屏时若上下黑边（letterbox）过大，视频内容上移黑边的 40%，
 // 缓解"上半屏纯空、内容整体偏下"的观感；全屏保持居中（标准播放
-// 器行为）。阈值与比例集中定义，字幕定位复用同一份测量结果。
-const LETTERBOX_SHIFT_THRESHOLD_PX = 60; // 单侧黑边 ≥60px 才上移
+// 器行为）。
+//
+// 内容定位由 CSS object-position: 50% 30% 完成（见 .binge-video 注
+// 释）：把剩余空间按 30%/70% 上下分配，数学上等同 translateY(-40%
+// 黑边)。竖版内容撑满容器高度时 Y 百分比无效果（天然居中）；poster
+// 与视频内容遵循同一规则，无首帧错位，场景切换值恒定不触发过渡。
+// 本文件只测量 px 上移量（shift），供字幕定位与按钮组跟随消费。
 const LETTERBOX_SHIFT_RATIO = 0.4; // 上移单侧黑边的 40%
 
 // 测量 object-fit: contain 下视频内容的渲染尺寸与上移量。
 // allowShift=false（全屏）时 shift 恒为 0。
 // fallbackVw/Vh：视频元数据未到（poster 阶段）时用 Stash 元数据里的
-// 分辨率预算——封面即渲染在上移后的最终位置，真实元数据到达后
-// shift 值一致，避免每次上划出现 0.3s 的 transform 滑动动画。
+// 分辨率回退，让按钮组/字幕从首帧就落在内容实际位置。
 function measureVideoContent(
     video: HTMLVideoElement,
     allowShift: boolean,
@@ -158,10 +167,9 @@ function measureVideoContent(
     }
     let shift = 0;
     if (allowShift && ratio > cr) {
-        const bar = (ch - rh) / 2;
-        if (bar >= LETTERBOX_SHIFT_THRESHOLD_PX) {
-            shift = Math.round(bar * LETTERBOX_SHIFT_RATIO);
-        }
+        // 横版内容才有上下黑边；竖版（ratio ≤ cr）shift=0，
+        // 与 object-position 对竖版无效果的行为一致。
+        shift = Math.round(((ch - rh) / 2) * LETTERBOX_SHIFT_RATIO);
     }
     return { rw, rh, shift };
 }
@@ -255,6 +263,10 @@ export function SceneSlide({
     // 声音泄漏；用 ref 避免 seekToTime 因依赖 isActive 频繁重建。
     const isActiveRef = useRef(false);
     isActiveRef.current = isActive;
+    // scene.files 的 ref 镜像：handleToggleFullscreen（依赖数组为空，
+    // 引用固定）读取实时分辨率做转码预热期的横竖判断回退。
+    const sceneFilesRef = useRef(scene.files);
+    sceneFilesRef.current = scene.files;
     const [isPlaying, setIsPlaying] = useState(false);
     const [muted, setMuted, setMutedSession] = useMuteState();
     const [detailsOpen, setDetailsOpen] = useState(false);
@@ -264,30 +276,17 @@ export function SceneSlide({
     const [fullscreenUIVisible, setFullscreenUIVisible] = useState(true);
     const fullscreenUITimerRef = useRef<number | null>(null);
 
-    // 非全屏 + 上下黑边过大时上移视频内容（见 measureVideoContent 注
-    // 释）。命令式操作 transform：ResizeObserver 回调里即时生效，且不
-    // 触发额外重渲染。全屏状态下清除偏移保持居中。UI 元素（overlay/
-    // 进度条/操作栈）全部是 video 的兄弟节点，不受 transform 影响。
-    // 偏移量同时写入容器 CSS 变量 --binge-video-shift，供需要跟随视
-    // 频内容移动的元素（暂停时居中的播放/静音按钮组）用 calc 消费。
-    // useLayoutEffect（非 useEffect）：挂载/场景切换时在首帧 paint
-    // 前设置 transform，新元素的首次渲染值即最终值——CSS 的
-    // transform 0.3s 过渡不会被触发，封面直接落在上移后的位置。
-    // isFullscreen 变化时元素已渲染过（computed transform 有旧值），
-    // 过渡照常生效（全屏进出平滑归位）。
-    // 槽位复用（virtualizer key=index）下 scene 切换的 DOM 元素是旧的
-    // （computed transform 保留旧场景的值）：本次 effect 首次设置新
-    // shift 时临时禁用 transition，避免"旧位置 → 新位置"的滑动动画；
-    // 强制 reflow 后恢复，后续（全屏进出、ResizeObserver）过渡正常。
-    const lastShiftSceneIdRef = useRef<string | null>(null);
+    // 视频内容的上移定位由 CSS object-position 完成（.binge-video），
+    // 本 effect 只把测得的 px 上移量写入容器 CSS 变量
+    // --binge-video-shift，供需要跟随视频内容移动的元素（暂停时
+    // 居中的播放/静音按钮组）用 calc 消费。useLayoutEffect：首帧
+    // paint 前写入，按钮组从挂载起就在最终位置。
+    // poster 阶段（元数据未到）用 Stash 元数据分辨率回退测量。
     useLayoutEffect(() => {
         const video = videoRef.current;
         const container = containerRef.current;
         if (!video) return;
-        // Stash 元数据分辨率：poster 阶段（元数据未到）的回退值。
         const mf = scene.files?.[0];
-        let firstApply = lastShiftSceneIdRef.current !== scene.id;
-        lastShiftSceneIdRef.current = scene.id;
         const update = () => {
             const { shift } = measureVideoContent(
                 video,
@@ -295,21 +294,10 @@ export function SceneSlide({
                 mf?.width ?? 0,
                 mf?.height ?? 0
             );
-            const noAnim = firstApply;
-            firstApply = false;
-            if (noAnim) video.style.transition = "none";
-            video.style.transform =
-                shift > 0 ? `translateY(-${shift}px)` : "";
             container?.style.setProperty(
                 "--binge-video-shift",
                 `${shift}px`
             );
-            if (noAnim) {
-                // 强制同步 layout 使"无过渡"在本次设置生效，
-                // 随后恢复 CSS 类里的 transition 定义。
-                void video.offsetHeight;
-                video.style.transition = "";
-            }
         };
         update();
         video.addEventListener("loadedmetadata", update);
@@ -318,7 +306,6 @@ export function SceneSlide({
         return () => {
             video.removeEventListener("loadedmetadata", update);
             ro.disconnect();
-            video.style.transform = "";
             container?.style.removeProperty("--binge-video-shift");
         };
     }, [scene.id, scene.files, isFullscreen]);
@@ -453,24 +440,26 @@ export function SceneSlide({
     // ignored. Keyed by tagName.
     const collectionBusyRef = useRef<Record<string, boolean>>({});
 
-    // Attempt playback at the user's persisted mute preference, with
-    // the autoplay-policy fallback. Centralised so the IO observer,
+    // Attempt playback at the user's mute preference, with the
+    // autoplay-policy fallback. Centralised so the IO observer,
     // the tap handler, and the src-settle effect all behave the same.
     // muted 的 ref 镜像（同 seekOffsetRef 模式）：让 playPreferred 可以
-    // 用 useCallback 固定引用（依赖 setMutedSession——模块级函数，引用
-    // 稳定），避免 seekToTime 因依赖不稳定的 playPreferred 每次渲染
-    // 重建、连带 loadedmetadata 监听器反复解绑/重绑。
+    // 用 useCallback 固定引用（依赖 setMutedSession——useCallback 稳定
+    // 引用），避免 seekToTime 因依赖不稳定的 playPreferred 每次渲染
+    // 重建、连带 loadedmetadata 监听器反复解绑/重绑。撤销静音联动后
+    // 各表面独立持有状态，播放偏好读本实例的 muted（而非全局持久值，
+    // 否则图标与本实例状态脱节——图标显示开启、视频实际静音）。
     const mutedRef = useRef(muted);
     mutedRef.current = muted;
     const playPreferred = useCallback(
         (video: HTMLVideoElement) => {
-            const pref = getPersistedMuted();
+            // 播放层栈：story 弹窗/演员详情/PH 播放器打开期间拒绝
+            // 自动播放（正在播放的由下方 gate 订阅 effect 暂停）。
+            if (isPlaybackGated(PLAYBACK_LAYER.base)) return;
+            const pref = mutedRef.current;
             video.muted = pref;
             void video
                 .play()
-                .then(() => {
-                    if (mutedRef.current !== pref) setMutedSession(pref);
-                })
                 .catch((err: unknown) => {
                     // A play() interrupted by pause()/load() (scroll-away,
                     // src swap) rejects with AbortError — NOT an autoplay
@@ -485,6 +474,22 @@ export function SceneSlide({
         },
         [setMutedSession]
     );
+
+    // 覆盖层（story 弹窗/演员详情/PH 播放器）打开时暂停本卡片视
+    // 频——任一时刻只有一层出声。关闭覆盖层不自动恢复，用户点击
+    // 播放再出声（playPreferred 的 gate 检查覆盖所有自动播放路径）。
+    useEffect(() => {
+        return subscribePlaybackGate(() => {
+            const video = videoRef.current;
+            if (
+                video &&
+                isPlaybackGated(PLAYBACK_LAYER.base) &&
+                !video.paused
+            ) {
+                video.pause();
+            }
+        });
+    }, []);
 
     // Imperative <video src> management. We do this in a useEffect
     // instead of binding `src` as a React prop because:
@@ -1162,9 +1167,19 @@ export function SceneSlide({
                 reel.style.height = `${reel.clientHeight}px`;
             }
             void el.requestFullscreen?.().then(() => {
-                // 横屏视频 → 锁定横屏方向（Android only，iOS 静默失败）
+                // 横屏视频 → 锁定横屏方向（Android only，iOS 静默失败）。
+                // 转码预热期元数据未到（videoWidth=0）时回退 Stash 元数据
+                // 里的分辨率，避免横版视频首次全屏被当竖版处理（播放后
+                // 元数据到达、再次全屏才正确翻转）。
                 const video = videoRef.current;
-                if (video && video.videoWidth > video.videoHeight) {
+                const mf = sceneFilesRef.current?.[0];
+                const vw = video
+                    ? video.videoWidth || mf?.width || 0
+                    : 0;
+                const vh = video
+                    ? video.videoHeight || mf?.height || 0
+                    : 0;
+                if (video && vw > vh) {
                     const orient = screen.orientation;
                     if (orient && typeof orient.lock === "function") {
                         orient.lock("landscape").catch(() => {});

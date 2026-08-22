@@ -3,6 +3,13 @@ import { createPortal } from "react-dom";
 import { useStoryViewer } from "./StoryViewerContext";
 import { StoryProgressStrip } from "./StoryProgressStrip";
 import { useMuteState } from "../hooks/useMuteState";
+import {
+    PLAYBACK_LAYER,
+    closePlaybackLayer,
+    isPlaybackGated,
+    openPlaybackLayer,
+    subscribePlaybackGate,
+} from "../util/playbackStack";
 import { MutedIcon, UnmutedIcon } from "../components/MuteToggle";
 import { useFilter } from "../filter/FilterContext";
 import { useTab } from "../tabs/TabContext";
@@ -67,6 +74,26 @@ export function StoryViewer() {
         return () => {
             alive = false;
         };
+    }, [isOpen]);
+
+    // 播放层栈：story 弹窗打开期间登记为 story 层（z:120），底层的
+    // feed 卡片 / reel 视频暂停并停止自动播放；关闭时注销。
+    useEffect(() => {
+        if (!isOpen) return;
+        openPlaybackLayer(PLAYBACK_LAYER.story);
+        return () => closePlaybackLayer(PLAYBACK_LAYER.story);
+    }, [isOpen]);
+
+    // 更高的覆盖层（PH 播放器等）压在本弹窗之上时冻结：复用用户暂停
+    // 机制（视频 + 进度条一起停），关闭后不自动恢复——用户点击继续，
+    // 避免两层同时出声。
+    useEffect(() => {
+        if (!isOpen) return;
+        const sync = () => {
+            if (isPlaybackGated(PLAYBACK_LAYER.story)) setPaused(true);
+        };
+        sync();
+        return subscribePlaybackGate(sync);
     }, [isOpen]);
 
     const videoRef = useRef<HTMLVideoElement>(null);

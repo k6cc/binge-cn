@@ -11,6 +11,10 @@ import { PerformerSceneSortMenu } from "./PerformerSceneSortMenu";
 import { useFilter } from "../filter/FilterContext";
 import { useTab } from "../tabs/TabContext";
 import {
+    PLAYBACK_LAYER,
+    isPlaybackGated,
+} from "../util/playbackStack";
+import {
     getOwnedStashDBSceneIds,
     getStashDBBox,
     getStashDBScenesForPerformer,
@@ -536,6 +540,8 @@ function SceneTile({
     const handleEnter = () => {
         const v = videoRef.current;
         if (!v || !previewUrl) return;
+        // 播放层栈：更高的覆盖层（PH 播放器等）打开期间不播预览。
+        if (isPlaybackGated(PLAYBACK_LAYER.profile)) return;
         // First hover: assign src so the browser starts fetching now,
         // not at mount. Subsequent hovers reuse the cached resource.
         if (!srcArmedRef.current) {
@@ -652,6 +658,8 @@ function PornhubTile({
     const handleEnter = () => {
         const v = videoRef.current;
         if (!v || previewFailed) return;
+        // 播放层栈：更高的覆盖层（PH 播放器等）打开期间不播预览。
+        if (isPlaybackGated(PLAYBACK_LAYER.profile)) return;
         if (!srcArmedRef.current) {
             v.src = previewUrl;
             srcArmedRef.current = true;

@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type RefObject,
+} from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useFeed, type FeedItem, type FeedState } from "./useFeed";
 import { SceneFeedCard } from "./SceneFeedCard";
@@ -104,6 +111,10 @@ export function Feed({ scrollContainerRef }: FeedProps) {
         if (!scrollEl || !feedEl) return;
 
         const updateMargin = () => {
+            // display:none（切到其他标签页）时 rect/scrollTop 全为
+            // 0，会把 margin 清成错误的中间态；恢复显示后 RO 会重
+            // 新测出正确值。隐藏期间跳过更新。
+            if (!scrollEl.clientWidth && !scrollEl.clientHeight) return;
             const scrollRect = scrollEl.getBoundingClientRect();
             const feedRect = feedEl.getBoundingClientRect();
             // feedRect.top is viewport-relative; convert to
@@ -121,6 +132,46 @@ export function Feed({ scrollContainerRef }: FeedProps) {
         return () => ro.disconnect();
     }, [scrollContainerRef]);
 
+    // ── 隐藏期间的测量冻结 ──────────────────────────────────────
+    // 标签页用 display:none 隐藏（见 App.tsx TabContent 注释）。TanStack
+    // Virtual 的 ResizeObserver 对 display:none 元素仍会派发 0×0 尺寸
+    // 回调（元素 isConnected 为 true，库的守卫拦不住），把可见区附近
+    // ~7 张卡片的缓存尺寸清零。恢复显示后：
+    //   1. 清零条目按 0 高度参与布局 → 后续卡片 start 前移 → 切回时
+    //      停留位置显示的是别的卡片；
+    //   2. 滚动经过这些条目时 0→真实高度 的 resizeItem 触发滚动校正
+    //      （item.start < scrollOffset 即校正）→ 内容连续跳动（下划
+    //      不停闪动的来源）。
+    // 这里在测量结果为 0 时改返回上次已知尺寸：resizeItem 的 delta 为
+    // 0，不写缓存、不触发滚动校正——隐藏期间布局状态完全冻结，恢复
+    // 显示后按原尺寸原位置挂载。key 对齐 getItemKey（items[i].key）。
+    const lastSizesRef = useRef(new Map<string, number>());
+    const measureGuarded = useCallback(
+        (
+            element: Element,
+            entry: ResizeObserverEntry | undefined,
+        ): number => {
+            let size = 0;
+            const box = entry?.borderBoxSize?.[0];
+            if (box) {
+                size = Math.round(box.blockSize);
+            }
+            if (size <= 0) {
+                size = (element as HTMLElement).offsetHeight || 0;
+            }
+            const idx = Number(element.getAttribute("data-index"));
+            const key = items[idx]?.key;
+            if (size > 0) {
+                if (key) lastSizesRef.current.set(key, size);
+                return size;
+            }
+            // display:none：返回上次已知尺寸（从未测过的条目不会被
+            // observe，走不到这里；万一走到，用 estimateSize 兜底）。
+            return lastSizesRef.current.get(key) ?? 720;
+        },
+        [items],
+    );
+
     const virtualizer = useVirtualizer({
         count: items.length,
         getScrollElement: () => scrollContainerRef.current,
@@ -133,6 +184,7 @@ export function Feed({ scrollContainerRef }: FeedProps) {
         overscan: 2,
         scrollMargin,
         getItemKey: (i) => items[i]?.key ?? i,
+        measureElement: measureGuarded,
     });
 
     if (state.kind === "loading") {

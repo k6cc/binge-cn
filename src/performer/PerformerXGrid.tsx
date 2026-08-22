@@ -5,6 +5,10 @@ import { getXFeed, xHandleFromUrls, type XMedia } from "../api/bingeServer";
 import { useFetchBlobUrl } from "../hooks/useFetchBlobUrl";
 import { XDetailModal } from "./XDetailModal";
 import type { PerformerDetail } from "../api/queries";
+import {
+    PLAYBACK_LAYER,
+    isPlaybackGated,
+} from "../util/playbackStack";
 
 interface PerformerXGridProps {
     performer: PerformerDetail;
@@ -308,6 +312,8 @@ function XVideoThumb({ media }: { media: XMedia }) {
     const handleEnter = () => {
         const v = videoRef.current;
         if (!v) return;
+        // 播放层栈：更高的覆盖层打开期间不播预览。
+        if (isPlaybackGated(PLAYBACK_LAYER.profile)) return;
         void v.play().catch(() => {
             /* 浏览器自动播放策略拒绝时忽略 */
         });

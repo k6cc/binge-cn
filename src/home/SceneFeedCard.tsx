@@ -11,6 +11,11 @@ import { useFilter } from "../filter/FilterContext";
 import { useTab } from "../tabs/TabContext";
 import { usePerformerProfile } from "../performer/PerformerProfileContext";
 import { useMuteState } from "../hooks/useMuteState";
+import {
+    PLAYBACK_LAYER,
+    isPlaybackGated,
+    subscribePlaybackGate,
+} from "../util/playbackStack";
 import { sceneIncrementO } from "../api/mutations";
 import { recordTagInteractions } from "../api/interactedTags";
 import {
@@ -206,13 +211,17 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
                 for (const entry of entries) {
                     const active = entry.intersectionRatio >= 0.75;
                     if (active) {
+                        // 播放层栈：story 弹窗/演员详情/PH 播放器打开期
+                        // 间拒绝自动播放（正在播放的由 gate 订阅 effect
+                        // 暂停），关闭后不自动恢复。
+                        if (isPlaybackGated(PLAYBACK_LAYER.base)) continue;
                         void video.play().catch((err: unknown) => {
                             // AbortError: play() 被 pause()/load() 打断
                             // （滚走、src 切换），不是 autoplay 拦截，
                             // 不做静音降级。
                             if ((err as DOMException | null)?.name === "AbortError") return;
                             // 浏览器拦截未静音自动播放 → 降级静音重试，
-                            // 并同步共享会话状态，让静音图标显示真实
+                            // 并同步本卡片状态，让静音图标显示真实
                             // 状态（原来只改 video.muted，图标仍显示
                             // “开启”，见 useMuteState 双层状态注释）。
                             video.muted = true;
@@ -228,8 +237,23 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
         );
         observer.observe(container);
         return () => observer.disconnect();
-        // setMutedSession 是模块级稳定引用，可安全用于空依赖闭包。
+        // setMutedSession 是 useCallback 稳定引用，可安全用于空依赖闭包。
     }, [setMutedSession]);
+
+    // 覆盖层（story 弹窗/演员详情/PH 播放器）打开时暂停本卡片视
+    // 频——任一时刻只有一层出声；关闭后不自动恢复（用户点击或滚动
+    // 重新进入视口触发 IO）。
+    useEffect(() => {
+        return subscribePlaybackGate(() => {
+            if (
+                videoRef.current &&
+                isPlaybackGated(PLAYBACK_LAYER.base) &&
+                !videoRef.current.paused
+            ) {
+                videoRef.current.pause();
+            }
+        });
+    }, []);
 
     // 同步 video.muted 与 React muted 状态。IO 不再触碰 muted，
     // 因此无论用户何时切换静音，当前及后续进入视口的卡片都会
