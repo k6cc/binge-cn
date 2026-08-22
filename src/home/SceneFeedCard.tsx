@@ -90,7 +90,9 @@ export function SceneFeedCard({ item, feedSceneIds }: SceneFeedCardProps) {
     // The observer's callback is created once and would otherwise close
     // over the first render's `muted` forever.
     const mutedRef = useRef(muted);
-    mutedRef.current = muted;
+    useEffect(() => {
+        mutedRef.current = muted;
+    }, [muted]);
     // Seeded from the scene, not from zero. The virtualizer unmounts a
     // card that scrolls a few rows away, so a local-only count was lost
     // on every pass - the heart came back empty and a second tap
