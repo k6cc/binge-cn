@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
+import { safeExternalUrl } from "../util/externalUrl";
 import {
     pornhubStreamUrl,
     saveToStash,
@@ -9,6 +10,18 @@ import {
 // Fullscreen inline player for a PornHub video — plays the stream proxy
 // (extracted + relayed mp4, no download) and offers a one-tap "Save to
 // Stash" (which downloads the full video server-side via yt-dlp).
+// The daemon only knows how to fetch PornHub watch pages from this
+// route, so anything else is a scrape that went wrong rather than
+// something to hand a downloader.
+function isPornhubHost(raw: string): boolean {
+    try {
+        const h = new URL(raw).hostname.toLowerCase();
+        return h === "pornhub.com" || h.endsWith(".pornhub.com");
+    } catch {
+        return false;
+    }
+}
+
 export function PornhubPlayer({
     video,
     performerId,
@@ -24,19 +37,37 @@ export function PornhubPlayer({
 
     const handleSave = async () => {
         if (saveState === "saving" || saveState === "saved") return;
+        // The daemon runs yt-dlp on whatever URL this sends, and the URL
+        // came from a scrape - so it is checked here rather than trusted
+        // for being in a typed field. Same guard the story viewer's
+        // external links use.
+        const watchPage = safeExternalUrl(video.sourceUrl);
+        if (!watchPage || !isPornhubHost(watchPage)) {
+            setSaveState("error");
+            return;
+        }
         setSaveState("saving");
-        const res = await saveToStash({
-            performerStashId: performerId,
-            source: "pornhub",
-            id: video.id,
-            // yt-dlp downloads from the watch page.
-            mediaUrl: video.sourceUrl,
-            kind: "video",
-            sourceUrl: video.sourceUrl,
-            text: video.title ?? undefined,
-            createdUtc: video.createdUtc || undefined,
-        });
-        setSaveState(res.ok ? "saved" : "error");
+        // try/finally, because saveToStash reads the daemon URL from
+        // localStorage OUTSIDE its own try - so a storage failure
+        // rejects rather than returning, and with no handler here the
+        // button stayed on "Saving…" and disabled for good, with
+        // nothing said.
+        try {
+            const res = await saveToStash({
+                performerStashId: performerId,
+                source: "pornhub",
+                id: video.id,
+                // yt-dlp downloads from the watch page.
+                mediaUrl: watchPage,
+                kind: "video",
+                sourceUrl: watchPage,
+                text: video.title ?? undefined,
+                createdUtc: video.createdUtc || undefined,
+            });
+            setSaveState(res.ok ? "saved" : "error");
+        } catch {
+            setSaveState("error");
+        }
     };
 
     return createPortal(
