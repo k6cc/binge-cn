@@ -50,8 +50,19 @@ function precisionFromUiConfig(ui: unknown): number {
     const opts = (ui as { ratingSystemOptions?: unknown }).ratingSystemOptions;
     if (!opts || typeof opts !== "object") return 20;
     const o = opts as { type?: string; starPrecision?: string };
-    if (o.type === "DECIMAL") return 1;
-    switch (o.starPrecision) {
+    // Upper-cased before comparing, as the plugin's Python does and as
+    // its own settings UI does. Stash stores these LOWERCASE - a real
+    // box reads {"starPrecision": "tenth", "type": "stars"} - so the
+    // type check was false, every case below missed, and the default of
+    // 20 was the only reachable answer while the hook computed at 1.
+    // Across the five-criterion config on a live library that is 80% of
+    // all score combinations previewing a different number than the one
+    // that gets stored, off by as much as 19 points. The doc comment
+    // above writes the values uppercase, which is where this came from.
+    const type = String(o.type ?? "").toUpperCase();
+    const starPrecision = String(o.starPrecision ?? "").toUpperCase();
+    if (type === "DECIMAL") return 1;
+    switch (starPrecision) {
         case "FULL":
             return 20;
         case "HALF":

@@ -924,6 +924,16 @@ export function confirmDaemonOrigin(raw: string): void {
         if (list.includes(origin)) return;
         list.push(origin);
         localStorage.setItem(DAEMON_OK_KEY, JSON.stringify(list));
+        // Tell the subscribers.
+        //
+        // Without this the Settings banner's "Use this daemon" button
+        // was inert: it wrote the origin and then called
+        // setBingeServerUrl with the string ALREADY in storage, so
+        // React's eager-state bailout meant no re-render and the banner
+        // stayed on screen. That button is the only affordance for the
+        // no-grandfathering rule, so the documented one-click escape
+        // did nothing until an unrelated page reload.
+        notify(DAEMON_OK_KEY);
     } catch {
         /* storage unavailable; the gate just stays closed */
     }

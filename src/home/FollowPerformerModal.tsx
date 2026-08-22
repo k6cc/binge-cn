@@ -76,6 +76,9 @@ export function FollowPerformerModal({
     // whenever the detail load completes; user advances with the
     // prev/next arrows.
     const [imageIndex, setImageIndex] = useState(0);
+    /// Non-fatal note from the linking step, shown before the modal
+    /// closes. The performer was created either way.
+    const [linkNote, setLinkNote] = useState<string | null>(null);
 
     // Esc closes (matches MoreSheet and other binge sheets).
     useEffect(() => {
@@ -161,8 +164,26 @@ export function FollowPerformerModal({
                     stashDBPerformerId,
                 });
                 linked = r.linked;
+                // A failure here is worth saying out loud. The
+                // performer exists either way, so this is not an error
+                // state - but reporting nothing meant a pass that
+                // linked hundreds of scenes and one that linked none
+                // looked identical, and "she has no scenes here" and
+                // "StashDB was unreachable" did too.
+                if (r.failed) {
+                    setLinkNote(
+                        `Added, but her ${r.matched} existing scenes could not be linked. Stash refused the update.`,
+                    );
+                } else if (r.lookupFailed) {
+                    setLinkNote(
+                        "Added, but StashDB could not be reached, so her existing scenes were not linked.",
+                    );
+                }
             } catch (err) {
                 console.warn("[binge] linking existing scenes failed", err);
+                setLinkNote(
+                    "Added, but her existing scenes could not be linked.",
+                );
             }
             onCreated({ ...result, linkedScenes: linked });
         } catch (err) {
@@ -497,6 +518,11 @@ export function FollowPerformerModal({
                         {state.kind === "error" && (
                             <div className="binge-follow-modal-error">
                                 {state.message}
+                            </div>
+                        )}
+                        {linkNote && (
+                            <div className="binge-follow-modal-note">
+                                {linkNote}
                             </div>
                         )}
                     </div>

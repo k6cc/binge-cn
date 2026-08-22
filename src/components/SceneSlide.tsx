@@ -398,7 +398,7 @@ export function SceneSlide({
 
     // ── Save / collection toggle ─────────────────────────────────
     const handleToggleCollection = (tagName: string) => {
-                // Keyed on the scene, not the collection. Two different
+        // Keyed on the scene, not the collection. Two different
         // collections of one scene each passed their own key, so both
         // read the same tag list and the second write replaced the
         // first: the membership that lost the race was dropped

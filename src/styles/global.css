@@ -4928,6 +4928,16 @@ body,
     line-height: 1.4;
     min-height: 2.5rem;
 }
+.binge-follow-modal-note {
+    margin-top: 10px;
+    padding: 9px 11px;
+    border-radius: 8px;
+    background: rgba(255, 200, 80, 0.12);
+    border: 1px solid rgba(255, 200, 80, 0.3);
+    color: #f0d79a;
+    font-size: 0.78rem;
+    line-height: 1.4;
+}
 .binge-follow-modal-error {
     color: #ff8585;
     font-size: 0.82rem;

@@ -37,6 +37,12 @@ interface ConfigQueryResponse {
     errors?: { message: string }[];
 }
 
+// A rejecting fetch used to be cached in both the promise and the
+// parsed map and never cleared - Stash restarting for one second meant
+// "couldn't load rating config" on every scene and every performer
+// until a full page reload, because invalidateRatingConfig is called by
+// nothing but the tests. precision.ts already has the try/catch this
+// needed.
 async function fetchPluginConfig(): Promise<RawPluginConfig | null> {
     const resp = await fetch(STASH_GRAPHQL, {
         method: "POST",
@@ -175,7 +181,7 @@ const PERFORMER_DEFAULT_CRITERIA: Criterion[] = [
     },
     {
         id: "body",
-        name: "Body",
+        name: "Body Overall",
         groupId: "physical",
         weight: 1,
         enabled: true,
@@ -199,7 +205,7 @@ const PERFORMER_DEFAULT_CRITERIA: Criterion[] = [
     },
     {
         id: "energy",
-        name: "Energy",
+        name: "Energy & Presence",
         groupId: "performance",
         weight: 1,
         enabled: true,

@@ -49,20 +49,28 @@ const FIND_LOCAL_STASHDB_SCENES = /* GraphQL */ `
     }
 `;
 
-const FIND_SCENE_PERFORMERS = /* GraphQL */ `
-    query FindScenePerformers($id: ID!) {
-        findScene(id: $id) {
-            id
-            performers {
-                id
+// ADD, not SET, and one request for the whole set.
+//
+// This used to read each scene's performers and write the list back with
+// her appended. That is correct within one pass and wrong across two:
+// following one performer and then a co-star a moment later put two
+// loops in flight, the second read a scene before the first's write
+// landed, and its whole-array write removed the first performer again -
+// from every scene the two share, silently, with both passes reporting
+// success.
+//
+// bulkSceneUpdate with mode ADD is resolved by Stash against the row it
+// is updating, so there is no read to be stale, no array to overwrite,
+// and nothing to serialise. Verified against the live schema:
+// BulkUpdateIds { ids, mode } with modes SET, ADD, REMOVE.
+const SCENES_ADD_PERFORMER = /* GraphQL */ `
+    mutation ScenesAddPerformer($ids: [ID!], $performerId: ID!) {
+        bulkSceneUpdate(
+            input: {
+                ids: $ids
+                performer_ids: { ids: [$performerId], mode: ADD }
             }
-        }
-    }
-`;
-
-const SCENE_SET_PERFORMERS = /* GraphQL */ `
-    mutation SceneSetPerformers($id: ID!, $performer_ids: [ID!]) {
-        sceneUpdate(input: { id: $id, performer_ids: $performer_ids }) {
+        ) {
             id
         }
     }
@@ -71,44 +79,16 @@ const SCENE_SET_PERFORMERS = /* GraphQL */ `
 export interface LinkExistingScenesResult {
     /// How many of the library's StashDB-matched scenes are hers.
     matched: number;
-    /// How many this run attached her to.
+    /// How many the update covered. Equal to `matched` on success,
+    /// since ADD is idempotent - a scene that already lists her is
+    /// unchanged rather than counted separately.
     linked: number;
-    /// How many already had her, so needed nothing.
-    alreadyLinked: number;
-    /// Scenes that could not be read or written; left untouched.
-    failed: number;
-}
-
-// One at a time. These are whole-array writes against scenes that may
-// also be open in another tab or on the phone, and the whole point of
-// this pass is that it is unattended - a burst is not worth the risk of
-// racing something else the user is doing.
-async function attach(
-    sceneId: string,
-    performerId: string,
-): Promise<"linked" | "already" | "failed"> {
-    try {
-        // Read now, not from the scan. sceneUpdate replaces the whole
-        // performer_ids array, so anything added since the scan would
-        // be erased by writing a list built from it.
-        const live = await gql<{
-            findScene: { id: string; performers: { id: string }[] } | null;
-        }>(FIND_SCENE_PERFORMERS, { id: sceneId });
-        const scene = live.findScene;
-        // Fail closed: a scene we cannot read is one we must not write.
-        // Treating a missing scene as one with no performers would
-        // replace its cast with just her.
-        if (!scene) return "failed";
-        const existing = scene.performers.map((p) => p.id);
-        if (existing.includes(performerId)) return "already";
-        await gql(SCENE_SET_PERFORMERS, {
-            id: sceneId,
-            performer_ids: [...existing, performerId],
-        });
-        return "linked";
-    } catch {
-        return "failed";
-    }
+    /// True when the update itself failed, so nothing was written.
+    /// Distinct from `matched: 0`, which means she has no scenes here.
+    failed: boolean;
+    /// True when StashDB could not be reached, so the candidate set is
+    /// unknown rather than empty.
+    lookupFailed: boolean;
 }
 
 /// Attach a just-followed performer to the scenes the library already
@@ -120,51 +100,76 @@ export async function linkExistingScenesToPerformer(args: {
     const empty: LinkExistingScenesResult = {
         matched: 0,
         linked: 0,
-        alreadyLinked: 0,
-        failed: 0,
+        failed: false,
+        lookupFailed: false,
     };
 
     const box = await getStashDBBox();
-    if (!box?.api_key) return empty;
+    if (!box) return { ...empty, lookupFailed: true };
 
     // Her scenes, as StashDB knows them.
-    const hers = await getStashDBScenesForPerformer(
-        args.stashDBPerformerId,
-        box.api_key,
-    );
-    if (hers.length === 0) return empty;
+    let hers;
+    try {
+        hers = await getStashDBScenesForPerformer(
+            args.stashDBPerformerId,
+            box.api_key,
+        );
+    } catch {
+        return { ...empty, lookupFailed: true };
+    }
+    // An empty answer here is ambiguous: getStashDBScenesForPerformer
+    // breaks out of its pager on a failed request and returns what it
+    // has, so nothing distinguishes "she has none" from "StashDB was
+    // unreachable". Reported as a lookup failure so the caller does not
+    // tell the user she has no scenes when nobody knows.
+    if (hers.length === 0) return { ...empty, lookupFailed: true };
     const hersById = new Set(hers.map((s) => s.id));
 
     // The library's StashDB-matched scenes.
-    const local = await gql<{
-        findScenes: {
-            scenes: {
-                id: string;
-                stash_ids: { endpoint: string; stash_id: string }[];
-            }[];
-        };
-    }>(FIND_LOCAL_STASHDB_SCENES);
+    let local;
+    try {
+        local = await gql<{
+            findScenes: {
+                scenes: {
+                    id: string;
+                    stash_ids: { endpoint: string; stash_id: string }[];
+                }[];
+            };
+        }>(FIND_LOCAL_STASHDB_SCENES);
+    } catch {
+        return { ...empty, lookupFailed: true };
+    }
 
     const candidates: string[] = [];
-    for (const s of local.findScenes.scenes) {
-        const isHers = s.stash_ids.some(
+    for (const sc of local.findScenes.scenes) {
+        const isHers = sc.stash_ids.some(
             (sid) =>
                 sid.endpoint === STASHDB_ENDPOINT && hersById.has(sid.stash_id),
         );
-        if (isHers) candidates.push(s.id);
+        if (isHers) candidates.push(sc.id);
     }
+    if (candidates.length === 0) return empty;
 
-    const out: LinkExistingScenesResult = {
-        matched: candidates.length,
-        linked: 0,
-        alreadyLinked: 0,
-        failed: 0,
-    };
-    for (const sceneId of candidates) {
-        const r = await attach(sceneId, args.localPerformerId);
-        if (r === "linked") out.linked++;
-        else if (r === "already") out.alreadyLinked++;
-        else out.failed++;
+    try {
+        await gql(SCENES_ADD_PERFORMER, {
+            ids: candidates,
+            performerId: args.localPerformerId,
+        });
+    } catch (err) {
+        // Logged, because a silent count of zero is exactly what made
+        // this invisible before.
+        console.warn("[binge] linking existing scenes failed", err);
+        return {
+            matched: candidates.length,
+            linked: 0,
+            failed: true,
+            lookupFailed: false,
+        };
     }
-    return out;
+    return {
+        matched: candidates.length,
+        linked: candidates.length,
+        failed: false,
+        lookupFailed: false,
+    };
 }
