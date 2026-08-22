@@ -226,7 +226,17 @@ export function useStories(): StoriesResult {
 
                 // ── StashDB merge (toggled by plugin setting) ─────
                 if (includeStashDB) {
-                    await mergeStashDBScenes(byPerformer, sinceIsoDate);
+                    // StashDB is a garnish on this row, not its
+                    // substance. A throw here used to propagate to the
+                    // catch below and replace the WHOLE stories row -
+                    // every library story that had already loaded fine
+                    // included - with an error state. useFeed isolates
+                    // the same integration; this one did not.
+                    try {
+                        await mergeStashDBScenes(byPerformer, sinceIsoDate);
+                    } catch (err) {
+                        console.warn("[binge] stashdb story merge failed", err);
+                    }
                     if (!alive) return;
                 }
 
@@ -373,12 +383,17 @@ async function mergeStashDBScenes(
 
     let scenes: StashDBScene[] | null = readStashDBCache(sinceIsoDate);
     if (!scenes) {
-        scenes = await getNewStashDBScenesForPerformers(
+        const fresh = await getNewStashDBScenesForPerformers(
             linkedPerformers.map((p) => p.stashId),
             sinceIsoDate,
             box.api_key,
         );
-        writeStashDBCache(sinceIsoDate, scenes);
+        // Only cached when StashDB actually answered. A failure used to
+        // arrive here as [] and be written as a valid 12-hour answer, so
+        // one 502 meant no new releases for half a day - and reloading
+        // did not help, because [] reads back as a hit.
+        if (fresh != null) writeStashDBCache(sinceIsoDate, fresh);
+        scenes = fresh ?? [];
     }
 
     for (const scene of scenes) {

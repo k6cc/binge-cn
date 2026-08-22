@@ -375,11 +375,17 @@ function shapeScene(s: RawStashDBScene): StashDBScene {
 
 // Fetch new StashDB scenes for the given performer batch, dated after
 // `sinceIsoDate` (YYYY-MM-DD). Paginated. Returns flat list.
+// null means the fetch failed, [] means StashDB genuinely has nothing
+// new. The caller writes this into a 12-hour cache, so confusing the two
+// pins an outage in place: one 502, or one answer slower than the 25s
+// abort, and the stories row reports no new releases for half a day.
+// The cache reads [] back as a valid hit, so reloading does not help
+// either - only the explicit refresh button clears it.
 async function fetchStashDBScenesBatch(
     apiKey: string,
     performerStashIds: string[],
     sinceIsoDate: string,
-): Promise<StashDBScene[]> {
+): Promise<StashDBScene[] | null> {
     const out: StashDBScene[] = [];
     let page = 1;
     while (page <= MAX_PAGES) {
@@ -398,7 +404,13 @@ async function fetchStashDBScenesBatch(
                 per_page: PAGE_SIZE,
             },
         });
-        if (!data?.queryScenes?.scenes) break;
+        // Distinguishes "no more pages" from "we never got an answer".
+        // postStashDB returns null for a non-2xx, a GraphQL error, a
+        // parse failure or the abort, and this used to break out of the
+        // loop and hand back whatever it had - which for a failure on
+        // page one is an empty list.
+        if (data == null) return null;
+        if (!data.queryScenes?.scenes) break;
         for (const s of data.queryScenes.scenes) out.push(shapeScene(s));
         if (data.queryScenes.scenes.length < PAGE_SIZE) break;
         page++;
@@ -932,11 +944,13 @@ export async function getTrendingStashDBScenes(
     return data.queryScenes.scenes.map(shapeScene);
 }
 
+// null when any batch failed, so the caller can decline to cache a
+// partial or empty answer as if it were the whole truth.
 export async function getNewStashDBScenesForPerformers(
     performerStashIds: string[],
     sinceIsoDate: string,
     apiKey: string,
-): Promise<StashDBScene[]> {
+): Promise<StashDBScene[] | null> {
     if (performerStashIds.length === 0) return [];
     const merged: StashDBScene[] = [];
     for (let i = 0; i < performerStashIds.length; i += PERFORMER_BATCH_SIZE) {
@@ -946,6 +960,9 @@ export async function getNewStashDBScenesForPerformers(
             batch,
             sinceIsoDate,
         );
+        // One failed batch makes the whole answer partial. Caching a
+        // partial as complete is what pins an outage in place.
+        if (scenes == null) return null;
         merged.push(...scenes);
     }
     // Dedupe by id (a scene with two of our performers shows up in two
@@ -996,7 +1013,20 @@ export function readStashDBCache(sinceIsoDate: string): StashDBScene[] | null {
                     typeof sc === "object" &&
                     typeof (sc as { id?: unknown }).id === "string" &&
                     (sc.performers === undefined ||
-                        Array.isArray(sc.performers)),
+                        (Array.isArray(sc.performers) &&
+                            // And the elements of THAT array. Checking
+                            // only the array left performers: [null]
+                            // valid, which throws in the story builder
+                            // the moment it reads sp.id - the same
+                            // failure one level deeper, and it stayed
+                            // broken for the whole TTL.
+                            sc.performers.every(
+                                (sp) =>
+                                    !!sp &&
+                                    typeof sp === "object" &&
+                                    typeof (sp as { stashId?: unknown })
+                                        .stashId === "string",
+                            ))),
             )
         ) {
             return null;

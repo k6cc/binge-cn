@@ -293,6 +293,34 @@ describe("merging the two seeds", () => {
         const items = await fetchDiscoveryFeedItems(SINCE);
         expect(items).toHaveLength(12);
     });
+
+    // The test above cannot see the ordering, because all thirty of its
+    // scenes pass every filter - so it asserts 12 whether the cap runs
+    // before or after them. Trending is sorted by heat and returns
+    // scenes of any age, so a run of old ones at the top of the chart is
+    // ordinary, and capping first emptied the section entirely.
+    it("counts the cap against scenes that survive the filters", async () => {
+        getTrendingStashDBScenes.mockResolvedValue([
+            // The twelve hottest are all older than the window.
+            ...Array.from({ length: 12 }, (_, i) =>
+                scene({
+                    id: "old" + i,
+                    releaseDate: "2019-01-01",
+                    performers: [perf({ id: "op" + i, name: "Old" + i })],
+                }),
+            ),
+            // Eighteen behind them are inside it.
+            ...Array.from({ length: 18 }, (_, i) =>
+                scene({
+                    id: "new" + i,
+                    performers: [perf({ id: "np" + i, name: "New" + i })],
+                }),
+            ),
+        ]);
+        const items = await fetchDiscoveryFeedItems(SINCE);
+        expect(items).toHaveLength(12);
+        expect(items.every((i) => i.sceneStashId.startsWith("new"))).toBe(true);
+    });
 });
 
 describe("partial outages", () => {
