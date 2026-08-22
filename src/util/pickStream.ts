@@ -22,6 +22,31 @@ const WEB_COMPATIBLE_EXTS = new Set([
     ".ogv",
 ]);
 
+// 浏览器 <video> 无法解码的视频编码（ffprobe 命名）。容器后缀是
+// web 兼容（.mp4/.mov）但编码命中此表时仍需走转码流——典型场景：
+// 老影片 .mp4 内封装 MPEG-4 Part 2（Xvid/DivX 系），直连播放
+// 只有声音没有画面。h264/hevc/vp8/vp9/av1 不在表内（现代浏览器
+// 均可硬解或软解）。
+const WEB_INCOMPATIBLE_CODECS = new Set([
+    "mpeg4", // MPEG-4 Part 2（含 Xvid/DivX 打包）
+    "xvid",
+    "divx",
+    "div3",
+    "div4",
+    "msmpeg4",
+    "msmpeg4v1",
+    "msmpeg4v2",
+    "msmpeg4v3",
+    "wmv1",
+    "wmv2",
+    "wmv3",
+    "flv1",
+    "vp6",
+    "vp6f",
+    "rv30",
+    "rv40",
+]);
+
 function getPrimaryExtension(scene: BingeScene): string {
     const path = scene.files[0]?.path ?? "";
     const lastDot = path.lastIndexOf(".");
@@ -34,7 +59,14 @@ function getPrimaryExtension(scene: BingeScene): string {
 // HTTP Range 请求，而 Stash 的 live transcode 不稳定支持 Range → 快进会
 // 从头播放。播放器需要用 ?start=N 参数重建 src 来实现"硬 seek"。
 export function isWebCompatible(scene: BingeScene): boolean {
-    return WEB_COMPATIBLE_EXTS.has(getPrimaryExtension(scene));
+    if (!WEB_COMPATIBLE_EXTS.has(getPrimaryExtension(scene))) return false;
+    // web 容器 + 浏览器不可解编码（.mp4 里的 mpeg4/xvid 等）→ 需转码。
+    // video_codec 缺失（老缓存数据）时只按后缀判断，保持旧行为。
+    const codec = scene.files[0]?.video_codec;
+    if (codec && WEB_INCOMPATIBLE_CODECS.has(codec.toLowerCase())) {
+        return false;
+    }
+    return true;
 }
 
 // 需求2 修复：为转码流构造 seek URL。

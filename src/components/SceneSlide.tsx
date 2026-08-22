@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { BingeScene } from "../api/queries";
 import { ActionStack } from "./ActionStack";
@@ -128,12 +128,21 @@ const LETTERBOX_SHIFT_RATIO = 0.4; // 上移单侧黑边的 40%
 
 // 测量 object-fit: contain 下视频内容的渲染尺寸与上移量。
 // allowShift=false（全屏）时 shift 恒为 0。
+// fallbackVw/Vh：视频元数据未到（poster 阶段）时用 Stash 元数据里的
+// 分辨率预算——封面即渲染在上移后的最终位置，真实元数据到达后
+// shift 值一致，避免每次上划出现 0.3s 的 transform 滑动动画。
 function measureVideoContent(
     video: HTMLVideoElement,
-    allowShift: boolean
+    allowShift: boolean,
+    fallbackVw = 0,
+    fallbackVh = 0
 ): { rw: number; rh: number; shift: number } {
-    const vw = video.videoWidth;
-    const vh = video.videoHeight;
+    let vw = video.videoWidth;
+    let vh = video.videoHeight;
+    if ((!vw || !vh) && fallbackVw > 0 && fallbackVh > 0) {
+        vw = fallbackVw;
+        vh = fallbackVh;
+    }
     const cw = video.clientWidth;
     const ch = video.clientHeight;
     if (!vw || !vh || !cw || !ch) return { rw: 0, rh: 0, shift: 0 };
@@ -241,6 +250,11 @@ export function SceneSlide({
     const videoRef = useRef<HTMLVideoElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [isActive, setIsActive] = useState(false);
+    // isActive 的 ref 镜像：seekToTime / error 重连的恢复播放回调里
+    // 读取，避免卡片已划走（IO 已 pause）后重连完成又自动播放造成
+    // 声音泄漏；用 ref 避免 seekToTime 因依赖 isActive 频繁重建。
+    const isActiveRef = useRef(false);
+    isActiveRef.current = isActive;
     const [isPlaying, setIsPlaying] = useState(false);
     const [muted, setMuted, setMutedSession] = useMuteState();
     const [detailsOpen, setDetailsOpen] = useState(false);
@@ -256,18 +270,46 @@ export function SceneSlide({
     // 进度条/操作栈）全部是 video 的兄弟节点，不受 transform 影响。
     // 偏移量同时写入容器 CSS 变量 --binge-video-shift，供需要跟随视
     // 频内容移动的元素（暂停时居中的播放/静音按钮组）用 calc 消费。
-    useEffect(() => {
+    // useLayoutEffect（非 useEffect）：挂载/场景切换时在首帧 paint
+    // 前设置 transform，新元素的首次渲染值即最终值——CSS 的
+    // transform 0.3s 过渡不会被触发，封面直接落在上移后的位置。
+    // isFullscreen 变化时元素已渲染过（computed transform 有旧值），
+    // 过渡照常生效（全屏进出平滑归位）。
+    // 槽位复用（virtualizer key=index）下 scene 切换的 DOM 元素是旧的
+    // （computed transform 保留旧场景的值）：本次 effect 首次设置新
+    // shift 时临时禁用 transition，避免"旧位置 → 新位置"的滑动动画；
+    // 强制 reflow 后恢复，后续（全屏进出、ResizeObserver）过渡正常。
+    const lastShiftSceneIdRef = useRef<string | null>(null);
+    useLayoutEffect(() => {
         const video = videoRef.current;
         const container = containerRef.current;
         if (!video) return;
+        // Stash 元数据分辨率：poster 阶段（元数据未到）的回退值。
+        const mf = scene.files?.[0];
+        let firstApply = lastShiftSceneIdRef.current !== scene.id;
+        lastShiftSceneIdRef.current = scene.id;
         const update = () => {
-            const { shift } = measureVideoContent(video, !isFullscreen);
+            const { shift } = measureVideoContent(
+                video,
+                !isFullscreen,
+                mf?.width ?? 0,
+                mf?.height ?? 0
+            );
+            const noAnim = firstApply;
+            firstApply = false;
+            if (noAnim) video.style.transition = "none";
             video.style.transform =
                 shift > 0 ? `translateY(-${shift}px)` : "";
             container?.style.setProperty(
                 "--binge-video-shift",
                 `${shift}px`
             );
+            if (noAnim) {
+                // 强制同步 layout 使"无过渡"在本次设置生效，
+                // 随后恢复 CSS 类里的 transition 定义。
+                void video.offsetHeight;
+                video.style.transition = "";
+            }
         };
         update();
         video.addEventListener("loadedmetadata", update);
@@ -279,7 +321,7 @@ export function SceneSlide({
             video.style.transform = "";
             container?.style.removeProperty("--binge-video-shift");
         };
-    }, [scene.id, isFullscreen]);
+    }, [scene.id, scene.files, isFullscreen]);
 
     // 字幕定位 + 字号：recompute whenever the video element resizes
     // (orientation change, fullscreen toggle, virtualizer re-measure)。
@@ -291,10 +333,15 @@ export function SceneSlide({
         const video = videoRef.current;
         const el = captionRef.current;
         if (!video || !el) return;
+        // 与内容上移 effect 相同的元数据回退：字幕位置在 poster 阶段
+        // 即可按最终内容区定位。
+        const mf = scene.files?.[0];
         const update = () => {
             const { rw, rh, shift } = measureVideoContent(
                 video,
-                !isFullscreen
+                !isFullscreen,
+                mf?.width ?? 0,
+                mf?.height ?? 0
             );
             if (!rw) return;
             // Bottom offset = distance from element bottom to content
@@ -311,7 +358,7 @@ export function SceneSlide({
             video.removeEventListener("loadedmetadata", update);
             ro.disconnect();
         };
-    }, [captionTrack, scene.id, isFullscreen]);
+    }, [captionTrack, scene.id, scene.files, isFullscreen]);
 
     // ── Touch gesture state: horizontal swipe seek + long-press 2× ──
     const touchStartRef = useRef<{ x: number; y: number; time: number; videoTime: number } | null>(null);
@@ -455,6 +502,15 @@ export function SceneSlide({
     // 需求2：记录 base stream URL（不含 ?start=）到 ref，供 seekToTime
     // 重建带 ?start=N 的转码 seek URL。同时添加调试日志便于排查快进问题。
     const baseStreamUrlRef = useRef<string>("");
+    // 已加载签名（"sceneId|transcodeType|随机设置"）与已赋值 src 的镜像：
+    // 退出全屏的位置修正会引发 scroll/IO 抖动 → isActive 与
+    // currentlyScrolling 反复变化 → 本 effect 重跑。重跑时绝不能重建
+    // src——转码流会从 ?start=（A 点）重载、直连流从 0 重载，播放位置
+    // 丢失。用签名区分"设置/场景真的变了"与"仅仅是抖动重跑"。
+    // 注意不能用 video.src 做比较：DOM 属性读回的是解析后的绝对
+    // URL，与相对 URL 永不相等。loadedUrlRef 记录我们自己赋的值。
+    const loadedSigRef = useRef("");
+    const loadedUrlRef = useRef("");
     const needsTranscodeSeek = !isWebCompatible(scene);
     // 转码硬 seek 偏移量：硬 seek 用 ?start=N 重建 src 后，新流的
     // currentTime 从 0 重新计起，进度条需知道偏移量才能显示真实位置。
@@ -489,9 +545,17 @@ export function SceneSlide({
         if (currentlyScrolling) return;
         // 仅视口内（active）卡片加载视频源。
         if (!isActive) return;
+        // 抖动重跑（isActive/currentlyScrolling 变化，场景与设置未变）：
+        // 视频源已加载，直接返回。IO / 退出全屏的恢复逻辑自己负责
+        // pause→play 对称恢复，这里重建 src 只会丢播放位置。
+        const sig = randomStart ? `1:${randomSeconds}` : "0";
+        const loadedSig = `${scene.id}|${transcodeType}|${sig}`;
+        if (loadedSigRef.current === loadedSig) {
+            return;
+        }
+        loadedSigRef.current = loadedSig;
         // 随机时段：签名变化（开关/秒数提交）才算新的加载周期；
         // isActive 抖动等重跑沿用已计算的窗口，不重新随机。
-        const sig = randomStart ? `1:${randomSeconds}` : "0";
         const reroll = randomSigRef.current !== sig;
         randomSigRef.current = sig;
         let win = randomWindowRef.current;
@@ -519,7 +583,8 @@ export function SceneSlide({
             initialOffset = win.start;
         }
         baseStreamUrlRef.current = url;
-        if (video.src !== url) {
+        if (loadedUrlRef.current !== url) {
+            loadedUrlRef.current = url;
             video.src = url;
             video.load();
             randomAdvancedRef.current = false;
@@ -560,7 +625,7 @@ export function SceneSlide({
     // web 兼容容器（mp4/webm/...）走直连流，原生 seek 正常，无需此路径。
     // 同时添加调试日志便于排查。
     const seekToTime = useCallback(
-        (time: number) => {
+        (time: number, opts?: { keepPaused?: boolean }) => {
             const video = videoRef.current;
             if (!video) return;
             if (!needsTranscodeSeek) {
@@ -576,25 +641,32 @@ export function SceneSlide({
             const seekUrl = buildTranscodeSeekUrl(baseUrl, time);
             // 记录偏移量：新流 currentTime 从 0 计起，进度条需加偏移量。
             setSeekOffset(time);
+            // 同步已赋值 src 镜像（video.src 读回的是绝对 URL，不能
+            // 用于比较），供 src effect 的重载判断使用。
+            loadedUrlRef.current = seekUrl;
             // 先清理上一轮 seek 注册的监听器，避免快速连续 seek 时堆积。
             seekCleanupRef.current?.();
             // 先暂停当前播放，避免 seek 期间继续解码旧流
             video.pause();
             video.src = seekUrl;
             video.load();
-            // 自动播放：wmv/avi 转码流可能在数据尚未真正就绪时就触发
-            // canplay，单次 play() 会以 AbortError 失败。canplay/
-            // loadeddata 每次加载只触发一次，若那次 play() 失败就再无
-            // 重试机会 → 视频停在暂停态（wmv 尤其明显）。修复：除了监听
-            // canplay/loadeddata，还启动 300ms 周期重试，直到 playing
-            // 事件确认播放成功或超时。cleanup 设置 done=true 后重试自动停止。
+            // error 断点重连（keepPaused）：保持用户暂停时的状态，
+            // 只重建连接不恢复播放。
+            if (opts?.keepPaused) return;
+            // 自动恢复播放（数据就绪后）。两个关键门槛：
+            // 1. readyState ≥ 3（HAVE_FUTURE_DATA）才 play——低功耗设备
+            //    上 wmv/mpeg4 视频解码远慢于音频，数据不足时强行 play
+            //    会让音频先出声（音画不同步）。宁可等转码出数据（与
+            //    Stash 播放器一致的"等转码"体验）。
+            // 2. 300ms 周期重试兜底 canplay 触发过早时 play() 以
+            //    AbortError 失败、再无事件可等的情况（wmv 尤其明显）。
+            // playing 事件确认播放成功后（cleanup）重试自动停止。
             let done = false;
             let retryTimer: number | null = null;
             const cleanup = () => {
                 if (done) return;
                 done = true;
                 video.removeEventListener("canplay", onReady);
-                video.removeEventListener("loadeddata", onReady);
                 video.removeEventListener("playing", onPlaying);
                 if (retryTimer !== null) {
                     window.clearTimeout(retryTimer);
@@ -606,36 +678,136 @@ export function SceneSlide({
                 cleanup();
             };
             const onReady = () => {
-                if (done || !video.paused) return;
+                if (done || !video.paused || !isActiveRef.current) return;
+                if (video.readyState < 3) return;
                 playPreferred(video);
             };
             // 周期重试：canplay 触发过早时 play() 以 AbortError 失败，
             // playPreferred 内部不会重试 AbortError。这里每 300ms 检查
-            // 一次，若仍在暂停就再调 playPreferred，给转码流"追上"的时间。
+            // 一次（同样受 readyState ≥ 3 门槛约束），给转码流"追上"的时间。
             const retryPlay = () => {
-                if (done || !video.paused) return;
-                playPreferred(video);
+                if (done || !video.paused || !isActiveRef.current) return;
+                if (video.readyState >= 3) playPreferred(video);
                 retryTimer = window.setTimeout(retryPlay, 300);
             };
             seekCleanupRef.current = cleanup;
             video.addEventListener("canplay", onReady);
-            video.addEventListener("loadeddata", onReady);
             video.addEventListener("playing", onPlaying);
             // 首次延迟 300ms 启动周期重试（让 canplay 先有机会触发）
             retryTimer = window.setTimeout(retryPlay, 300);
-            // 安全兜底：8 秒后若仍未播放，移除监听器避免泄漏
-            window.setTimeout(cleanup, 8000);
+            // 安全兜底：30 秒后若仍未播放，移除监听器避免泄漏（低功耗
+            // 设备转码冷启动可达 ~15s，8s 会过早放弃；卸载时
+            // seekCleanupRef 亦会清理）。
+            window.setTimeout(cleanup, 30000);
         },
         [needsTranscodeSeek, playPreferred]
     );
+
+    // 加载失败处理：
+    // - 转码流（live transcode）：播放/暂停期间连接可能被服务端断开
+    //   （反代读超时、转码跟不上播放、ffmpeg 崩溃）→ video 触发
+    //   error。此时记录断点绝对位置，1s 后用 ?start=断点 重建连接
+    //   无缝续播（暂停中则保持暂停）。若不处理，视频会黑屏卡死，
+    //   且下一次 src effect 重跑（全屏退出的位置校正抖动等）会从
+    //   随机 A 点重载、B 点循环复活——正是"播放一段时间后全屏退出
+    //   从 A 点重播"的根因。
+    // - 直连流：清空签名，让下一次 effect 重跑重新加载。
+    // 连续快速失败 3 次后放弃（源文件损坏等确定性错误），稳定播放
+    // 5s 后计数归零。
+    const transcodeRetryRef = useRef(0);
+    useEffect(() => {
+        const video = videoRef.current;
+        if (!video) return;
+        let retryTimer: number | null = null;
+        let stableTimer: number | null = null;
+        let hiddenAt = 0;
+        const clearTimers = () => {
+            if (retryTimer !== null) {
+                window.clearTimeout(retryTimer);
+                retryTimer = null;
+            }
+            if (stableTimer !== null) {
+                window.clearTimeout(stableTimer);
+                stableTimer = null;
+            }
+        };
+        const onError = () => {
+            // 空源（卸载清理 / 尚未加载）触发的 error 不处理。
+            if (!video.currentSrc) return;
+            if (!needsTranscodeSeek) {
+                loadedSigRef.current = "";
+                loadedUrlRef.current = "";
+                return;
+            }
+            if (transcodeRetryRef.current >= 3) return;
+            const t = video.currentTime;
+            if (!Number.isFinite(t)) return;
+            const wasPaused = video.paused;
+            const absPos = t + seekOffsetRef.current;
+            transcodeRetryRef.current++;
+            clearTimers();
+            // 退避 1s：给服务端清理旧 ffmpeg 进程的时间。
+            retryTimer = window.setTimeout(() => {
+                retryTimer = null;
+                const v = videoRef.current;
+                if (!v || !v.isConnected) return;
+                seekToTime(Math.max(0, absPos), {
+                    keepPaused: wasPaused,
+                });
+            }, 1000);
+        };
+        const onPlaying = () => {
+            // 稳定播放 5s 才归零重连计数：快速失败循环会累加到上限
+            // 停止重连，偶发瞬断则不影响后续重连能力。
+            if (stableTimer !== null) window.clearTimeout(stableTimer);
+            stableTimer = window.setTimeout(() => {
+                stableTimer = null;
+                transcodeRetryRef.current = 0;
+            }, 5000);
+        };
+        // 锁屏/切后台（>20s）后转码连接大概率已被服务端杀掉。回到
+        // 前台时不赌旧连接：立即从断点重建转码流（丢弃已失效缓冲），
+        // 让 ffmpeg 尽早启动——总等待时间不会比"播完缓冲再冷启动"更
+        // 长，且不会出现播到一半卡死再重启的割裂体验。
+        // - 暂停中（锁屏场景）：keepPaused 重建预热转码；用户点播放
+        //   时数据就绪则立即出画面，未就绪则由浏览器等数据到达后再
+        //   开始（与 Stash 播放器一致的"等转码"体验）。
+        // - 播放中（切应用场景，切回时处于冻结的播放态）：重建后由
+        //   seekToTime 的重试循环在数据就绪（readyState ≥ 3）时自动
+        //   恢复播放——就绪门槛保证了不会音画不同步。
+        const onVisibility = () => {
+            if (document.visibilityState === "hidden") {
+                hiddenAt = Date.now();
+                return;
+            }
+            const wasLongHidden =
+                !!hiddenAt && Date.now() - hiddenAt >= 20000;
+            hiddenAt = 0;
+            if (!wasLongHidden || !needsTranscodeSeek) return;
+            if (!video.currentSrc || video.ended) return;
+            const absPos = video.currentTime + seekOffsetRef.current;
+            if (!Number.isFinite(absPos)) return;
+            clearTimers();
+            seekToTime(Math.max(0, absPos), { keepPaused: video.paused });
+        };
+        video.addEventListener("error", onError);
+        video.addEventListener("playing", onPlaying);
+        document.addEventListener("visibilitychange", onVisibility);
+        return () => {
+            video.removeEventListener("error", onError);
+            video.removeEventListener("playing", onPlaying);
+            document.removeEventListener("visibilitychange", onVisibility);
+            clearTimers();
+        };
+    }, [needsTranscodeSeek, seekToTime]);
 
     // 随机时段：元数据就绪后应用随机起点。
     //   - 直连流：原生 currentTime = A。
     //   - 转码流：src 已用 ?start= 预置起点（seekOffset 已同步为 A）
     //     时无需再 seek；仅在回退路径（设置 src 时 Stash 时长未知、
     //     窗口此刻才算出）补一次 seekToTime 硬 seek。
-    // 每次 src 重载都会重触发 loadedmetadata；窗口已存（含重进视口
-    // 沿用的窗口）时跳过重算，转码流靠 seekOffset 与 A 一致判定已预置。
+    // 窗口已存在时的重载（B 点循环 / error 断点重连），seekOffset 反映
+    // 当前意图位置（B 循环 = A，error 重连 = 断点），不得拉回 A 点。
     useEffect(() => {
         const video = videoRef.current;
         if (!video || !randomStart) return;
@@ -654,6 +826,25 @@ export function SceneSlide({
                     win = { ...win, end: null };
                 }
                 randomWindowRef.current = win;
+            } else {
+                // 窗口已存在：
+                // - 转码流：初始加载 ?start= 已预置（seekOffset 与 A 一
+                //   致），B 循环 / error 重连时 seekOffset 是当前意图
+                //   位置——都不需要再 seek。
+                // - 直连流：初始 src 无 ?start= 预置，必须在此原生
+                //   seek 到 A（stashDuration 先于元数据到达时窗口已
+                //   存在，不走上面的计算分支）。B 循环/手势 seek 用
+                //   currentTime 不重触发本事件；src 重载（error 后
+                //   effect 重建）后回到 A 是既有行为。
+                if (needsTranscodeSeek) return;
+                if (win.start > 0.5) {
+                    try {
+                        video.currentTime = win.start;
+                    } catch {
+                        /* 尚不可 seek，忽略 */
+                    }
+                }
+                return;
             }
             if (win.start <= 0.5) return;
             if (needsTranscodeSeek) {
@@ -1069,7 +1260,12 @@ export function SceneSlide({
             x: touch.clientX,
             y: touch.clientY,
             time: Date.now(),
-            videoTime: video?.currentTime ?? 0,
+            // 手势 seek 的基准必须是影片绝对时间（与进度条点击一致）。
+            // 转码流的 currentTime 是相对时间（从 ?start= 计起），
+            // 需加 seekOffset 还原，否则快进从 0s 附近重新计起。
+            videoTime:
+                (video?.currentTime ?? 0) +
+                (needsTranscodeSeek ? seekOffsetRef.current : 0),
         };
         isSwipeRef.current = false;
         isLongPressRef.current = false;
@@ -1118,7 +1314,15 @@ export function SceneSlide({
         const video = videoRef.current;
         if (!video) return;
         const deltaSec = dx * SEEK_PX_TO_SEC;
-        const duration = video.duration || 0;
+        // clamp 用绝对时长：优先 Stash 元数据；转码流的 video.duration
+        // 是相对值（若有效需加偏移还原）。
+        const duration =
+            stashDuration && stashDuration > 0
+                ? stashDuration
+                : video.duration > 0
+                  ? video.duration +
+                    (needsTranscodeSeek ? seekOffsetRef.current : 0)
+                  : 0;
         let target = touchStartRef.current.videoTime + deltaSec;
         if (target < 0) target = 0;
         if (duration > 0 && target > duration) target = duration;
@@ -1149,7 +1353,14 @@ export function SceneSlide({
             if (video) {
                 const dx = (e.changedTouches[0]?.clientX ?? touchStartRef.current.x) - touchStartRef.current.x;
                 const deltaSec = dx * SEEK_PX_TO_SEC;
-                const duration = video.duration || 0;
+                // 与 handleTouchMove 相同的绝对时长 clamp。
+                const duration =
+                    stashDuration && stashDuration > 0
+                        ? stashDuration
+                        : video.duration > 0
+                          ? video.duration +
+                            (needsTranscodeSeek ? seekOffsetRef.current : 0)
+                          : 0;
                 let target = touchStartRef.current.videoTime + deltaSec;
                 if (target < 0) target = 0;
                 if (duration > 0 && target > duration) target = duration;
@@ -1259,6 +1470,36 @@ export function SceneSlide({
                     // A→B 循环或自动切换，与 timeupdate 的显式 B 点
                     // 逻辑保持一致。
                     if (randomStart && randomWindowRef.current) {
+                        // 假 ended 防御：转码流被服务端断开时（反代
+                        // 读超时等），浏览器会把已缓冲的末尾当结尾触
+                        // 发 ended。绝对播放位置明显未到影片总时长 →
+                        // 不是真结尾，从断点重连续播而不是回 A 点。
+                        const v = videoRef.current;
+                        const abs = v
+                            ? v.currentTime +
+                              (needsTranscodeSeek
+                                  ? seekOffsetRef.current
+                                  : 0)
+                            : 0;
+                        const total =
+                            stashDuration && stashDuration > 0
+                                ? stashDuration
+                                : v && Number.isFinite(v.duration) && v.duration > 0
+                                  ? v.duration +
+                                    (needsTranscodeSeek
+                                        ? seekOffsetRef.current
+                                        : 0)
+                                  : 0;
+                        if (
+                            needsTranscodeSeek &&
+                            total > 0 &&
+                            abs < total - 5 &&
+                            transcodeRetryRef.current < 3
+                        ) {
+                            transcodeRetryRef.current++;
+                            seekToTime(Math.max(0, abs));
+                            return;
+                        }
                         if (autoScroll) {
                             if (isActive && !randomAdvancedRef.current) {
                                 randomAdvancedRef.current = true;
@@ -1308,7 +1549,10 @@ export function SceneSlide({
                         {seekIndicator.delta >= 0 ? "▶▶" : "◀◀"}
                     </span>
                     <span className="binge-seek-indicator-time">
-                        {Math.round(seekIndicator.current)}s
+                        {Math.floor(seekIndicator.current / 60)}:
+                        {Math.floor(seekIndicator.current % 60)
+                            .toString()
+                            .padStart(2, "0")}
                     </span>
                 </div>
             )}

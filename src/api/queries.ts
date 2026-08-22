@@ -23,7 +23,17 @@ export interface BingeScene {
         mime_type: string | null;
         label: string | null;
     }[];
-    files: { duration: number; path: string }[];
+    // width/height 供 SceneSlide 在视频元数据到达前（poster 阶段）
+    // 预计算内容上移量，封面直接渲染在最终位置。video_codec 供
+    // isWebCompatible 识别"web 容器 + 浏览器不可解编码"（如 .mp4
+    // 内的 MPEG-4 Part 2/Xvid——直连只有声音没有画面）。
+    files: {
+        duration: number;
+        path: string;
+        width?: number;
+        height?: number;
+        video_codec?: string | null;
+    }[];
     // Sidecar/extracted captions discovered by Stash's scan. Empty when
     // the scene has no .srt/.vtt next to it. language_code may be ""
     // when the file had no lang tag (e.g. "video.srt").
@@ -105,6 +115,9 @@ const FIND_SCENES = /* GraphQL */ `
                 files {
                     duration
                     path
+                    width
+                    height
+                    video_codec
                 }
                 captions {
                     language_code

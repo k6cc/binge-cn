@@ -89,6 +89,8 @@ export function Reel() {
         reelMode,
         setReelMode,
         setTab,
+        setTabBarVisible,
+        tabBarVisible,
     } = useTab();
     const scrollRef = useRef<HTMLDivElement>(null);
     // Chained-mode algo instance. Created on entry to chained mode in
@@ -155,7 +157,18 @@ export function Reel() {
 
     // Hide the tab/header chrome when scrolling down, reveal it on any
     // scroll-up. See useAutoHideTabBar — shared with the other tabs.
-    useAutoHideTabBar(scrollRef);
+    // suppressAutoHideRef 在全屏退出的位置校正期间置 true，避免
+    // scrollToIndex 产生的程序性滚动触发导航自动隐藏（闪烁）。
+    // heightBeforeFsRef 记录进入全屏前的视口高度（px），供退出时
+    // 判断"布局是否变化"（电脑端快速路径）及退出校正的目标高度。
+    const suppressAutoHideRef = useRef(false);
+    const heightBeforeFsRef = useRef(0);
+    // tabBarVisible 的 ref 镜像 + 进全屏前的导航显隐记录：退出全屏
+    // 恢复到进全屏前的状态（原本隐藏就保持隐藏，不强制弹出）。
+    const tabBarVisibleRef = useRef(tabBarVisible);
+    tabBarVisibleRef.current = tabBarVisible;
+    const navVisibleBeforeFsRef = useRef(true);
+    useAutoHideTabBar(scrollRef, suppressAutoHideRef);
 
     // Scroll-end tracker — drives the SceneSlide deferred-load behaviour.
     // 5px deadzone is critical: scroll-snap fires a stream of tiny
@@ -200,21 +213,67 @@ export function Reel() {
     // 移除 → 自动退出全屏（"闪屏"）。
     // 根本修复：进入全屏前在 SceneSlide.handleToggleFullscreen 中固定
     // .binge-reel 的 height，防止 virtualizer 重新 measure。
-    // 退出全屏：恢复 height，三重 rAF 等 virtualizer re-measure + React
-    // 重新渲染完成后 scrollToIndex。
+    //
+    // 退出全屏分两个阶段恢复，修复 Android Chrome 上的累积漂移：
+    // 退出瞬间方向解锁、地址栏返回，100dvh 在几百毫秒内反复变化；
+    // 若立即恢复动态高度并在中途只校正一次，之后的 dvh 变化会让
+    // virtualizer 再次 re-measure → 卡片位置整体偏移 activeIndex×Δh，
+    // 越往后偏得越多（十几部后超过一屏）→ IO 不再激活当前卡片 →
+    // 视频停播、上下卡片内容串位。
+    //   阶段1：orientationchange 完成 + 250ms 后，把高度换成显式 px
+    //     （window.innerHeight，过渡期稳定不随地址栏动画抖动），
+    //     measure + scrollToIndex 校正，并恢复播放。
+    //   阶段2：再等 350ms（地址栏动画完成、dvh 稳定）恢复动态高度
+    //     ("")，再次 measure + scrollToIndex 清掉残余漂移，并重新
+    //     显示底部导航（阶段校正的向下滚动会触发自动隐藏）。
+    //
+    // 电脑端快速路径：进入全屏时记录固定 px 高度（= 进入前视口高度），
+    // 退出时若视口高度未变（桌面端无地址栏/方向变化），布局完全没变
+    // ——只恢复动态高度即可，跳过 pause + 位置校正，视频保持连续播放
+    // （消除桌面端退出全屏时的"短暂暂停后继续"）。
     useEffect(() => {
         let cancelled = false;
+        // 稳定引用：清理函数里避免直接读 scrollRef.current（lint 警告）。
+        // .binge-reel 容器跨渲染持久存在，effect 创建时捕获即可。
+        const scrollEl = scrollRef.current;
         const onChange = () => {
-            const el = scrollRef.current;
+            const el = scrollEl;
             const fs = !!document.fullscreenElement;
             if (fs) {
                 // 进入全屏：height 已在 SceneSlide.handleToggleFullscreen
-                // 中固定（在 requestFullscreen 之前），无需处理
+                // 中固定为进入前视口高度的 px 值（requestFullscreen 之前
+                // 设置）。此刻 clientHeight 即进入前视口高度，记录之供
+                // 退出时比较/作为退出校正的目标高度。同时记录导航显隐，
+                // 退出后恢复原状态（不强制弹出）。
+                heightBeforeFsRef.current = el?.clientHeight ?? 0;
+                navVisibleBeforeFsRef.current = tabBarVisibleRef.current;
             } else {
-                // 退出全屏：恢复 .binge-reel 的 height
-                if (el) {
-                    el.style.height = "";
+                // 快速路径：视口高度与进入前一致（电脑端典型）→ 布局
+                // 没变，恢复动态高度直接返回，视频保持播放（导航状态
+                // 未被改动，无需恢复）。
+                if (
+                    heightBeforeFsRef.current > 0 &&
+                    Math.abs(window.innerHeight - heightBeforeFsRef.current) < 1
+                ) {
+                    heightBeforeFsRef.current = 0;
+                    if (el) el.style.height = "";
+                    return;
                 }
+                // 退出后的目标高度 = 进入全屏前的高度（退出最终会回到
+                // 该布局：方向回正、地址栏状态一致）。过渡期的
+                // window.innerHeight 不可信（快速退出时仍是全屏高度，
+                // 偏大 → 容器比视口高 → 卡片底部 UI 沉到导航栏下面，
+                // phase2 恢复后又归位 = 状态c 的"UI 被遮挡然后恢复"）。
+                const targetH =
+                    heightBeforeFsRef.current > 0
+                        ? heightBeforeFsRef.current
+                        : window.innerHeight;
+                heightBeforeFsRef.current = 0;
+                // 手机端：整个校正窗口内抑制导航自动隐藏，避免
+                // scrollToIndex 的程序性滚动触发"先隐藏再弹出"。
+                suppressAutoHideRef.current = true;
+                // 退出全屏：先保持固定 px 高度，避免在方向/地址栏
+                // 过渡期引入 dvh 抖动。
                 // A. 立即暂停当前 active video，避免 scrollToIndex 期间
                 //    orientationchange 触发的 IO 误激活上一部（双声/跳上一部）
                 const pauseActive = () => {
@@ -225,10 +284,9 @@ export function Reel() {
                 };
                 pauseActive();
 
-                // B. scrollToIndex 必须等 orientationchange 完成（如果横屏 → 竖屏）
-                //    再执行，否则在方向变化中途 measure 会得到错误尺寸
-                const doScroll = () => {
-                    if (cancelled) return;
+                // 位置校正：等布局稳定后 measure + scrollToIndex。
+                // then 在 scrollToIndex 落位后回调。
+                const correctPosition = (then?: () => void) => {
                     requestAnimationFrame(() => {
                         requestAnimationFrame(() => {
                             if (cancelled) return;
@@ -244,22 +302,61 @@ export function Reel() {
                                 });
                                 requestAnimationFrame(() => {
                                     el2.style.scrollBehavior = original;
-                                    // scrollToIndex 完成后让 IO 重新激活。
-                                    // IO 在转换期间可能因 pause 守卫没触发 play，
-                                    // 这里主动恢复当前 active video 播放。
-                                    const v = el2.querySelector<HTMLVideoElement>(
-                                        '.binge-slide[data-active="true"] video'
-                                    );
-                                    if (v && v.paused) {
-                                        v.play().catch(() => {});
-                                    }
+                                    then?.();
                                 });
                             });
                         });
                     });
                 };
 
+                // 阶段1：显式 px 高度（= 退出后的目标布局高度）+
+                // 首次校正 + 恢复播放
+                const phase1 = () => {
+                    if (cancelled) return;
+                    const el2 = scrollRef.current;
+                    if (el2) {
+                        el2.style.height = `${targetH}px`;
+                    }
+                    correctPosition(() => {
+                        if (cancelled) return;
+                        // scrollToIndex 完成后让 IO 重新激活。
+                        // IO 在转换期间可能因 pause 守卫没触发 play，
+                        // 这里主动恢复当前 active video 播放。
+                        const el3 = scrollRef.current;
+                        const v = el3?.querySelector<HTMLVideoElement>(
+                            '.binge-slide[data-active="true"] video'
+                        );
+                        if (v && v.paused) {
+                            v.play().catch(() => {});
+                        }
+                        // 阶段2：等地址栏动画完成、dvh 稳定后再恢复
+                        // 动态高度并复校位置。
+                        window.setTimeout(phase2, 350);
+                    });
+                };
+                // 阶段2：恢复动态高度 + 二次校正 + 恢复导航原状态
+                const phase2 = () => {
+                    if (cancelled) return;
+                    const el2 = scrollRef.current;
+                    if (el2) {
+                        el2.style.height = "";
+                    }
+                    correctPosition(() => {
+                        // 延迟到滚动稳定后再恢复（避免校正产生的
+                        // scroll 事件又被自动隐藏逻辑覆盖），恢复到进
+                        // 全屏前的显隐状态（原本隐藏就保持隐藏），
+                        // 随后解除自动隐藏抑制。
+                        window.setTimeout(() => {
+                            if (cancelled) return;
+                            setTabBarVisible(navVisibleBeforeFsRef.current);
+                            suppressAutoHideRef.current = false;
+                        }, 300);
+                    });
+                };
+
                 // screen.orientation 解锁会触发 orientationchange（约 300-500ms 后）
+                // B. scrollToIndex 必须等 orientationchange 完成（如果横屏 → 竖屏）
+                //    再执行，否则在方向变化中途 measure 会得到错误尺寸
                 const orient = screen.orientation;
                 if (orient && typeof orient.addEventListener === "function") {
                     let orientationChanged = false;
@@ -267,7 +364,7 @@ export function Reel() {
                         orientationChanged = true;
                         orient.removeEventListener("change", onOrientChange);
                         // orientationchange 后 layout 还要 200-300ms 稳定
-                        setTimeout(doScroll, 250);
+                        setTimeout(phase1, 250);
                     };
                     orient.addEventListener("change", onOrientChange);
                     // 兜底：如果 400ms 内没 orientationchange（非横屏视频或 iOS）
@@ -275,11 +372,11 @@ export function Reel() {
                     setTimeout(() => {
                         if (!orientationChanged) {
                             orient.removeEventListener("change", onOrientChange);
-                            doScroll();
+                            phase1();
                         }
                     }, 400);
                 } else {
-                    doScroll();
+                    phase1();
                 }
             }
         };
@@ -287,8 +384,15 @@ export function Reel() {
         return () => {
             cancelled = true;
             document.removeEventListener("fullscreenchange", onChange);
+            // 阶段中途被取消（依赖变化/卸载）时，避免把容器留在显式
+            // px 高度：非全屏状态下恢复动态高度。同时解除自动隐藏
+            // 抑制，防止卡在"导航永不自动隐藏"的状态。
+            if (scrollEl && !document.fullscreenElement && scrollEl.style.height.endsWith("px")) {
+                scrollEl.style.height = "";
+            }
+            suppressAutoHideRef.current = false;
         };
-    }, [virtualizer, activeIndex]);
+    }, [virtualizer, activeIndex, setTabBarVisible]);
     // Latest in-flight fetch token. Stale responses (from a previous
     // filter set, or duplicate next-page calls) compare and bail.
     const fetchTokenRef = useRef(0);
