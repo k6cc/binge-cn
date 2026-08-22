@@ -32,13 +32,25 @@ function matches(
     switch (pref) {
         case "direct":
             return l.includes("direct");
+        // The direct exclusion has to cover the mime clause too.
+        //
+        // Stash lists the direct entry first, and for an .mp4 source its
+        // mime_type IS video/mp4 - so `|| m === "video/mp4"` matched the
+        // direct stream and Array.find returned it before ever reaching
+        // the transcode entry. The setting exists for exactly the person
+        // whose direct stream will not decode (HEVC in MP4), and it
+        // handed them the same undecodable stream while the settings
+        // panel said it would force a transcode. Same hole for webm.
         case "mp4":
             return (
-                (l.includes("mp4") && !l.includes("direct")) ||
-                m === "video/mp4"
+                !l.includes("direct") &&
+                (l.includes("mp4") || m === "video/mp4")
             );
         case "webm":
-            return l.includes("webm") || m === "video/webm";
+            return (
+                !l.includes("direct") &&
+                (l.includes("webm") || m === "video/webm")
+            );
         case "hls":
             return (
                 l.includes("hls") ||
