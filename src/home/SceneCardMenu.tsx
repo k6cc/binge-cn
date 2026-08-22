@@ -47,9 +47,21 @@ export function SceneCardMenu({ items }: SceneCardMenuProps) {
             });
         };
         update();
+        // Measured again once the menu is actually in the DOM.
+        //
+        // The portal below only renders when pos is set, so on the first
+        // pass menuRef.current is null and the 220px fallback is always
+        // what gets used - the real width is never read unless a scroll
+        // or resize happens to fire while the menu is open. The pack
+        // card's menu row is well over 220px and the class has no
+        // max-width, so it opened around ninety pixels right of where
+        // the right-align intended, and on a narrow window the clamp
+        // used the wrong width too and it lost its margin.
+        const raf = requestAnimationFrame(update);
         window.addEventListener("scroll", update, true);
         window.addEventListener("resize", update);
         return () => {
+            cancelAnimationFrame(raf);
             window.removeEventListener("scroll", update, true);
             window.removeEventListener("resize", update);
         };

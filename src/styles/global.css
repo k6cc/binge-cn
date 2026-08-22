@@ -8436,6 +8436,23 @@ body,
     overflow-y: auto;
     padding-bottom: env(safe-area-inset-bottom);
 }
+.binge-pack-sheet-more {
+    appearance: none;
+    display: block;
+    width: calc(100% - 24px);
+    margin: 10px 12px calc(12px + env(safe-area-inset-bottom));
+    padding: 11px 14px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--fg-1, #eee);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+.binge-pack-sheet-more:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
 .binge-pack-sheet-tile {
     appearance: none;
     background: var(--bg-1, #111);
