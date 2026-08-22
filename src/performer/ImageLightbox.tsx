@@ -132,10 +132,20 @@ export function ImageLightbox({
             const el = trackRef.current;
             if (!d || !el) return;
             el.classList.remove("is-mouse-dragging");
-            // 吸附到最近一页（scrollTo 自带越界钳制，无需手动 clamp）。
-            const target = Math.round(el.scrollLeft / el.clientWidth);
+            const slide = el.clientWidth;
+            if (slide <= 0) return;
+            // 翻页判定：不以"拖过半屏"为界（Math.round 会要求半屏——
+            // 全屏宽 slide 要拖近千像素太重），拖动位移超过阈值即翻一
+            // 页，不足回弹当前页。阈值取屏幕 20% 且 200px 封顶。
+            const startPage = Math.round(d.startScroll / slide);
+            const delta = el.scrollLeft - d.startScroll;
+            const threshold = Math.min(slide * 0.2, 200);
+            let target = startPage;
+            if (delta > threshold) target = startPage + 1;
+            else if (delta < -threshold) target = startPage - 1;
+            target = Math.min(Math.max(target, 0), images.length - 1);
             el.scrollTo({
-                left: target * el.clientWidth,
+                left: target * slide,
                 behavior: "smooth",
             });
         };
@@ -145,7 +155,7 @@ export function ImageLightbox({
             document.removeEventListener("pointermove", onMove);
             document.removeEventListener("pointerup", onUp);
         };
-    }, []);
+    }, [images.length]);
     const handleTrackClick = (e: React.MouseEvent) => {
         const down = downPosRef.current;
         downPosRef.current = null;
