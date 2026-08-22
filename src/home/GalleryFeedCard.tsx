@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import { MAX_GALLERY_IMAGES, type GalleryFeedItem } from "./useFeed";
+import { useDragPaging } from "../hooks/useDragPaging";
 import { ImageLightbox } from "../performer/ImageLightbox";
 import { PerformerHoverCard } from "./PerformerHoverCard";
 import { VerifiedIcon } from "../performer/PerformerProfile";
@@ -55,6 +56,16 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
     // gets its own snap slot, so the dots indicator needs to track it
     // too (last dot = the end panel).
     const slideCount = images.length + 1;
+
+    // 桌面鼠标拖拽翻页（与图片查看器共用 useDragPaging）。触屏走原生
+    // 滚动。拖拽松手由 hook 平滑滚到目标页并延迟恢复 snap。
+    const { onPointerDown: dragPagingDown } = useDragPaging(carouselRef, {
+        pageCount: slideCount,
+    });
+    const handleCarouselPointerDown = (e: React.PointerEvent) => {
+        stopAutoPlay();
+        dragPagingDown(e);
+    };
 
     const endBgUrl = images.length > 0
         ? images[0].paths.thumbnail || images[0].paths.image
@@ -258,7 +269,7 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                     role="region"
                     aria-roledescription="carousel"
                     aria-label={item.title ?? t("gallery.gallery_image")}
-                    onPointerDown={stopAutoPlay}
+                    onPointerDown={handleCarouselPointerDown}
                 >
                     {images.length === 0 ? (
                         // Empty image list — typically means the gallery

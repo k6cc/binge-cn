@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useDragPaging } from "../hooks/useDragPaging";
 import type { PerformerImageCard } from "../api/queries";
 
 interface ImageLightboxProps {
@@ -95,67 +96,18 @@ export function ImageLightbox({
         };
     }, [images.length]);
 
-    // 点空白关闭 + 桌面鼠标拖拽。轨道占满全屏（无 backdrop 可点），
-    // 点击落在空白处（非图片）且未拖动时关闭；翻页手势（按下→移动→
-    // 抬起）不产生 click，不受影响。触屏滚动由浏览器原生处理；鼠标
-    // 拖不动原生滚动容器，这里手动跟手（pointermove 改 scrollLeft，
-    // 松手后由 scroll-snap 吸附归位）。
+    // 点空白关闭 + 桌面鼠标拖拽翻页。拖拽逻辑抽到 useDragPaging（与
+    // 首页图库卡片轮播共用）；松手后 snap 的恢复延迟到平滑滚动落定
+    // （scrollend + timeout 兜底）——立即恢复会瞬间吸附到最近 snap
+    // 点，表现为"图片先跳回中心再滑走"。触屏滚动由浏览器原生处理。
+    const { onPointerDown: dragPagingDown } = useDragPaging(trackRef, {
+        pageCount: images.length,
+    });
     const downPosRef = useRef<{ x: number; y: number } | null>(null);
-    const dragStateRef = useRef<{
-        startX: number;
-        startScroll: number;
-    } | null>(null);
     const handleTrackPointerDown = (e: React.PointerEvent) => {
         downPosRef.current = { x: e.clientX, y: e.clientY };
-        if (e.pointerType !== "mouse") return;
-        const el = trackRef.current;
-        if (!el) return;
-        dragStateRef.current = {
-            startX: e.clientX,
-            startScroll: el.scrollLeft,
-        };
-        // 拖动期间禁用 snap：mandatory snap 会对每次 scrollLeft 赋值
-        // 立即回吸（表现为拖不动、只抖动几十像素）。松手恢复 snap
-        // 并平滑吸附到最近一页。
-        el.classList.add("is-mouse-dragging");
+        dragPagingDown(e);
     };
-    useEffect(() => {
-        const onMove = (e: PointerEvent) => {
-            const d = dragStateRef.current;
-            const el = trackRef.current;
-            if (!d || !el || e.pointerType !== "mouse") return;
-            el.scrollLeft = d.startScroll - (e.clientX - d.startX);
-        };
-        const onUp = () => {
-            const d = dragStateRef.current;
-            dragStateRef.current = null;
-            const el = trackRef.current;
-            if (!d || !el) return;
-            el.classList.remove("is-mouse-dragging");
-            const slide = el.clientWidth;
-            if (slide <= 0) return;
-            // 翻页判定：不以"拖过半屏"为界（Math.round 会要求半屏——
-            // 全屏宽 slide 要拖近千像素太重），拖动位移超过阈值即翻一
-            // 页，不足回弹当前页。阈值取屏幕 20% 且 200px 封顶。
-            const startPage = Math.round(d.startScroll / slide);
-            const delta = el.scrollLeft - d.startScroll;
-            const threshold = Math.min(slide * 0.2, 200);
-            let target = startPage;
-            if (delta > threshold) target = startPage + 1;
-            else if (delta < -threshold) target = startPage - 1;
-            target = Math.min(Math.max(target, 0), images.length - 1);
-            el.scrollTo({
-                left: target * slide,
-                behavior: "smooth",
-            });
-        };
-        document.addEventListener("pointermove", onMove);
-        document.addEventListener("pointerup", onUp);
-        return () => {
-            document.removeEventListener("pointermove", onMove);
-            document.removeEventListener("pointerup", onUp);
-        };
-    }, [images.length]);
     const handleTrackClick = (e: React.MouseEvent) => {
         const down = downPosRef.current;
         downPosRef.current = null;

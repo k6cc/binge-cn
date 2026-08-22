@@ -8689,10 +8689,14 @@ body,
 .binge-lightbox-track::-webkit-scrollbar {
     display: none;
 }
-/* 鼠标拖拽期间禁用 snap：否则 mandatory 对每次 scrollLeft 赋值立即
-   回吸，拖不动。松手由 JS 移除类并平滑吸附到最近一页。 */
-.binge-lightbox-track.is-mouse-dragging {
+/* 鼠标拖拽期间禁用 snap 和 CSS 平滑滚动：否则 mandatory 对每次
+   scrollLeft 赋值立即回吸拖不动；图库轮播的 scroll-behavior:smooth
+   会让拖拽赋值带动画不跟手。松手后由 JS 平滑滚到目标页，snap 恢复
+   延迟到滚动落定（useDragPaging）。 */
+.binge-lightbox-track.is-mouse-dragging,
+.binge-gallery-carousel.is-mouse-dragging {
     scroll-snap-type: none;
+    scroll-behavior: auto;
 }
 .binge-lightbox-slide {
     /* border-box 必须显式声明：项目无全局 * { box-sizing } reset，
