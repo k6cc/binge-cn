@@ -47,6 +47,8 @@ export function StoryViewer() {
     const { openProfile } = usePerformerProfile();
 
     const [sceneIndex, setSceneIndex] = useState(0);
+    // Handle for goPrev's follow-up, so closing can cancel it.
+    const prevSceneTimerRef = useRef<number | null>(null);
     const [paused, setPaused] = useState(false);
     const [progress, setProgress] = useState(0);
     // The third element is the session-only setter. The second writes
@@ -163,8 +165,16 @@ export function StoryViewer() {
             const prevStory = stories[activeIndex - 1];
             setActiveIndex(activeIndex - 1);
             // The activeIndex effect will reset sceneIndex to 0; we want
-            // the LAST scene of the previous performer. Schedule a follow-up.
-            setTimeout(() => {
+            // the LAST scene of the previous performer. Schedule a
+            // follow-up, and keep the handle so it can be cancelled -
+            // pressing Escape in the same frame otherwise let it land a
+            // non-zero scene index on a closed viewer, which the next
+            // open then inherited.
+            if (prevSceneTimerRef.current !== null) {
+                window.clearTimeout(prevSceneTimerRef.current);
+            }
+            prevSceneTimerRef.current = window.setTimeout(() => {
+                prevSceneTimerRef.current = null;
                 setSceneIndex(Math.max(0, prevStory.scenes.length - 1));
             }, 0);
         }
@@ -182,6 +192,16 @@ export function StoryViewer() {
                 rafRef.current = null;
             }
             accumRef.current += performance.now() - startRef.current;
+            // Rebased, so a second pass through this branch adds zero.
+            //
+            // startRef was left where it was, and this effect re-runs on
+            // a scene change - so changing scene WHILE paused zeroed the
+            // accumulator and then immediately re-added the wall-clock
+            // time since the timer last started, pause included. Pause
+            // to read a text card, leave it a minute, tap next, resume:
+            // the first tick computed a fraction over 1 and skipped the
+            // slide you had just navigated to.
+            startRef.current = performance.now();
             return;
         }
         startRef.current = performance.now();
@@ -255,6 +275,15 @@ export function StoryViewer() {
     useEffect(() => {
         if (isOpen && (!activeStory || !currentScene)) close();
     }, [isOpen, activeStory, currentScene, close]);
+
+    // Nothing pending survives a close.
+    useEffect(() => {
+        if (isOpen) return;
+        if (prevSceneTimerRef.current !== null) {
+            window.clearTimeout(prevSceneTimerRef.current);
+            prevSceneTimerRef.current = null;
+        }
+    }, [isOpen]);
 
     // Keyboard nav, mirroring ImageLightbox.
     useEffect(() => {
@@ -772,7 +801,19 @@ function RedditCardBody({
         if (!el) return;
         el.setAttribute("referrerpolicy", "no-referrer");
         if (scene.kind === "video" && scene.mediaUrl) {
-            const src = rewriteRedgifsMediaUrl(scene.mediaUrl);
+            // Both rewrites, not just the redgifs one.
+            //
+            // rewriteRedditMediaUrl names v.redd.it as one of the hosts
+            // it exists to route through the daemon's proxy, and this is
+            // where a native Reddit video's mp4 is chosen - but only the
+            // redgifs rewrite ran, which passes a non-redgifs host
+            // through unchanged. So the POSTER went through the daemon's
+            // Mullvad exit while the video itself was hotlinked from
+            // v.redd.it on the user's own connection: the exact referrer
+            // and UK-block case the proxy was built for.
+            const src = rewriteRedgifsMediaUrl(
+                rewriteRedditMediaUrl(scene.mediaUrl) ?? scene.mediaUrl,
+            );
             if (src && el.src !== src) el.src = src;
         }
     };
@@ -910,7 +951,15 @@ function Peek({
                 if (latest.source === "library") bg = latest.screenshot;
                 else if (latest.source === "stashdb") bg = latest.cover;
                 else if (latest.source === "reddit")
-                    bg = latest.thumbUrl ?? latest.mediaUrl;
+                    // Through the proxy, like the card body. Reddit's
+                    // CDN 403s a hotlinked preview, so these peeks
+                    // rendered as empty tiles - and the CSS background
+                    // request carried the Stash page URL as Referer to
+                    // redd.it while doing it.
+                    bg =
+                        rewriteRedditMediaUrl(
+                            latest.thumbUrl ?? latest.mediaUrl,
+                        ) ?? null;
                 return bg ? { backgroundImage: `url(${bg})` } : undefined;
             })()}
         >
