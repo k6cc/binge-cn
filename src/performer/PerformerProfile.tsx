@@ -162,6 +162,16 @@ function LocalPerformerProfile({ localId }: { localId: string }) {
     useEffect(() => {
         setXScenes([]);
         if (state.kind !== "ready" || !includeX) return;
+        // The loaded performer must be the one the tab is asking for.
+        //
+        // This effect reads state.performer but is keyed on currentId,
+        // and both run in the same commit as the fetch effect below - so
+        // when the id changes, state.kind is still "ready" and
+        // state.performer is still the PREVIOUS performer. Every profile
+        // switch therefore fired a scrape for the performer just left,
+        // then threw the answer away when the cleanup ran. Each one
+        // costs the daemon a gallery-dl run over the Mullvad exit.
+        if (state.performer.id !== currentId) return;
         const handle = xHandleFromUrls(state.performer.urls);
         if (!handle) return;
         const stashId = Number(state.performer.id);

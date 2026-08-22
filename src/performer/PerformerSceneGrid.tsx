@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
     findScenesByPerformer,
     type PerformerDetail,
@@ -266,6 +266,22 @@ export function PerformerSceneGrid({
     // needed — fall through with the raw list.
     const effectiveStashDBScenes = stashDBScenes;
 
+    // Memoised. This ran inside the JSX, so every parent re-render -
+    // each page, loading, count and sort transition, plus any filter or
+    // tab context change - rebuilt and re-sorted the whole list. On a
+    // performer with thousands of scenes that is a full sort per paint.
+    const cells: GridCell[] = useMemo(
+        () =>
+            buildCells(
+                scenes,
+                effectiveStashDBScenes,
+                pornhubVideos,
+                stashBoxIndex,
+                sort,
+            ),
+        [scenes, effectiveStashDBScenes, pornhubVideos, stashBoxIndex, sort],
+    );
+
     return (
         <section className="binge-profile-scenes">
             <h2 className="binge-profile-scenes-heading">
@@ -305,13 +321,7 @@ export function PerformerSceneGrid({
                 effectiveStashDBScenes.length > 0 ||
                 pornhubVideos.length > 0) && (
                 <ul className="binge-profile-scene-grid">
-                    {buildCells(
-                        scenes,
-                        effectiveStashDBScenes,
-                        pornhubVideos,
-                        stashBoxIndex,
-                        sort,
-                    ).map((cell) => {
+                    {cells.map((cell) => {
                         if (cell.kind === "library") {
                             return (
                                 <SceneTile
@@ -420,8 +430,12 @@ function buildCells(
     }));
 
     if (sort === "recent") {
+        // Plain comparison, not localeCompare. These are ISO and
+        // YYYY-MM-DD strings, so lexicographic order IS date order, and
+        // localeCompare is roughly two orders of magnitude slower per
+        // pair for an answer that is identical here.
         return [...libCells, ...sdbCells, ...phCells].sort((a, b) =>
-            b.date.localeCompare(a.date),
+            a.date < b.date ? 1 : a.date > b.date ? -1 : 0,
         );
     }
     // Non-date sorts only apply to library scenes — append the discovery

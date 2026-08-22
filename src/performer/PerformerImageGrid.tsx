@@ -73,7 +73,18 @@ export function PerformerImageGrid({ performer }: PerformerImageGridProps) {
                     }
                 }
             },
-            { rootMargin: `0px 0px ${NEAR_BOTTOM_PX}px 0px` },
+            {
+                // Against the actual scrolling ancestor, not the
+                // viewport. The comment above says this mirrors
+                // PerformerSceneGrid, and the sibling does exactly this
+                // - but here root was left unset, so the sentinel is
+                // clipped by .binge-profile-body and the rootMargin
+                // preload never applied. Page two only arrived once the
+                // reader was already hard against the bottom, which is
+                // the spinner the margin exists to avoid.
+                root: sentinel.closest(".binge-profile-body"),
+                rootMargin: `0px 0px ${NEAR_BOTTOM_PX}px 0px`,
+            },
         );
         observer.observe(sentinel);
         return () => observer.disconnect();
