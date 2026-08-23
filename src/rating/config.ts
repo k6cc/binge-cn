@@ -65,7 +65,13 @@ async function fetchPluginConfigInner(): Promise<RawPluginConfig | null> {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-            query: `query { configuration { plugins } }`,
+            // One plugin's config, not every plugin's. Stash
+            // serialises the whole set otherwise - 13 KB on a real box
+            // to read one field. PLUGIN_ID is a module constant, so
+            // nothing user-supplied is interpolated here.
+            query:
+                `query { configuration { plugins(include: ` +
+                `["${PLUGIN_ID}"]) } }`,
         }),
     });
     if (!resp.ok) return null;

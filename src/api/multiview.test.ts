@@ -234,6 +234,36 @@ describe("syncMultiviewFromConfig", () => {
         ).toEqual(["keep"]);
     });
 
+    it("asks Stash for one plugin's config, not every plugin's", async () => {
+        // This read runs on a five-second interval for as long as the
+        // tab is visible. Unnarrowed it pulled the whole plugin config
+        // - 13,308 bytes on a real box - to get one string, which is
+        // 9.3 MB an hour and more than a cold Home load every
+        // forty-two minutes. The narrowed form is 67 bytes.
+        const seen: string[] = [];
+        vi.stubGlobal(
+            "fetch",
+            vi.fn(async (_url: string, init?: RequestInit) => {
+                seen.push(String(init?.body ?? ""));
+                return {
+                    ok: true,
+                    json: async () => ({
+                        data: {
+                            configuration: {
+                                plugins: { multiView: { queue: "[]" } },
+                            },
+                        },
+                    }),
+                };
+            }),
+        );
+        const { syncMultiviewFromConfig } = await load();
+        await syncMultiviewFromConfig();
+        expect(seen).toHaveLength(1);
+        expect(seen[0]).toContain("multiView");
+        expect(seen[0]).toContain("include");
+    });
+
     it("treats a Stash with no multiview config as an empty queue", async () => {
         vi.stubGlobal(
             "fetch",

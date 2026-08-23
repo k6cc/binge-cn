@@ -115,7 +115,12 @@ async function readConfiguredServerUrl(): Promise<string> {
             configuration?: {
                 plugins?: Record<string, Record<string, unknown> | null>;
             };
-        }>(`query { configuration { plugins } }`);
+        }>(
+            // One plugin's config, not every plugin's. Stash
+            // serialises the whole set otherwise - 13 KB on a real box
+            // to read one field.
+            `query { configuration { plugins(include: ["binge"]) } }`,
+        );
         const v = data.configuration?.plugins?.["binge"]?.["serverUrl"];
         return typeof v === "string" ? v.trim() : "";
     } catch {

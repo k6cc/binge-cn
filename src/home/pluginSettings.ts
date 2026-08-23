@@ -684,7 +684,7 @@ function ensureSeededFromPluginConfig(
                             Record<string, unknown> | null
                         >;
                     };
-                }>(`query { configuration { plugins } }`);
+                }>(`query { configuration { plugins(include: ["binge"]) } }`);
                 const value = data.configuration?.plugins?.["binge"]?.[field];
                 // Checked again on this side of the await. The guard
                 // above ran before a network round trip, so someone who

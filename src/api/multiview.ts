@@ -68,7 +68,25 @@ async function fetchConfigQueue(): Promise<MultiviewQueueItem[]> {
     const r = await fetch("/graphql", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: "{ configuration { plugins } }" }),
+        // Narrowed to the one plugin whose config is read on the
+        // next line. This runs on a five-second interval for as long
+        // as the tab is visible, and binge tabs stay open for hours -
+        // so asking for the WHOLE plugin config here cost 13,308 bytes
+        // every five seconds, 9.3 MB an hour, to read one string. It
+        // exceeded the entire cold Home load in forty-two minutes, and
+        // made Stash re-serialise every plugin's settings 720 times an
+        // hour to answer it.
+        //
+        // Semantics are identical, error paths included. Verified
+        // against a live box: the narrowed read returns a byte-identical
+        // multiView value, and an id Stash does not know returns {} -
+        // still truthy, so the deliberate throw below still fires only
+        // when the read genuinely failed, and an absent key still falls
+        // through to the "genuinely empty queue" branch rather than
+        // being mistaken for one.
+        body: JSON.stringify({
+            query: '{ configuration { plugins(include: ["multiView"]) } }',
+        }),
     });
     if (!r.ok) throw new Error(`multiview queue read failed: ${r.status}`);
     const j = await r.json();

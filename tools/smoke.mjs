@@ -192,11 +192,26 @@ async function checkRoutesMount() {
 async function checkHomePopulates() {
     await check("Home shows stories and feed cards", async () => {
         await goto("#/home");
-        // Measured on the maintainer's library with StashDB reachable:
-        // first story at 15.1s, first feed card at 16.1s. This check is
-        // "did anything render", not a latency budget, so the wait is
-        // generous — but that latency is a real problem in its own right
-        // and worth attacking rather than waiting out.
+        // Re-measured 2026-08-23 on the maintainer's library, cold
+        // profile, StashDB reachable, at the DEFAULT 30-day lookback:
+        // first feed card 1.3s, first story ~5s. The older note here
+        // said 15.1s / 16.1s and had the order the other way round;
+        // the card now beats the story by several seconds.
+        //
+        // The slow numbers are still reachable and are not a mistake:
+        // at the maximum 90-day lookback the story mark is 15.4s and
+        // RecentScenes alone goes from 2.4 MB to 18.9 MB. A machine
+        // left on 90 days would have measured exactly what that note
+        // recorded.
+        //
+        // The story mark trails the card because useStories does a
+        // single terminal setState after the StashDB, Reddit AND
+        // PornHub merges have all completed in sequence, so the row is
+        // gated on the slowest off-site integration. useFeed already
+        // learned this and shows the library's own feed first.
+        //
+        // This check is "did anything render", not a latency budget,
+        // so the wait stays generous enough for the 90-day case.
         await sleep(25000);
         const info = await evaluate(`JSON.stringify({
             stories: document.querySelectorAll('.binge-story').length,
@@ -220,24 +235,60 @@ async function checkReelPlays() {
         await sleep(12000);
         const before = await evaluate(`(() => {
             const v = document.querySelector('.binge-slide video');
-            return v ? JSON.stringify({ t: v.currentTime, rs: v.readyState, paused: v.paused }) : null;
+            return v ? JSON.stringify({ t: v.currentTime, rs: v.readyState, paused: v.paused, d: v.duration }) : null;
         })()`);
         assert(before, "no video element in the reel");
         const b = JSON.parse(before);
         assert(b.rs >= 3, `video never buffered (readyState ${b.rs})`);
         assert(!b.paused, "active slide is paused");
 
-        await sleep(2500);
-        const after = JSON.parse(
-            await evaluate(
-                `JSON.stringify({ t: document.querySelector('.binge-slide video').currentTime })`,
-            ),
-        );
+        // Sampled repeatedly, and a wrap counts as progress.
+        //
+        // This used to read currentTime once, wait 2.5s, read again and
+        // require the second to be larger. Slides LOOP - `loop` is set
+        // whenever auto-scroll is off, which is the default - so a
+        // preview shorter than the wait window wraps and the second
+        // read is legitimately smaller. That failed the run on a
+        // perfectly healthy player, roughly one run in six, and a
+        // playback check that cries wolf is worse than none: it is the
+        // only automated detector this project has for the reel, and
+        // its whole value is that a failure means something.
+        //
+        // A stalled video produces zero increases across every sample;
+        // a looping one produces increases with an occasional wrap.
+        const SAMPLES = 12;
+        const times = [];
+        for (let i = 0; i < SAMPLES; i++) {
+            times.push(
+                Number(
+                    await evaluate(
+                        `(document.querySelector('.binge-slide video') || {}).currentTime ?? -1`,
+                    ),
+                ),
+            );
+            await sleep(250);
+        }
+        assert(!times.includes(-1), "the video element disappeared mid-check");
+        let advances = 0;
+        let wraps = 0;
+        for (let i = 1; i < times.length; i++) {
+            if (times[i] > times[i - 1]) advances++;
+            else if (times[i] < times[i - 1]) wraps++;
+        }
         assert(
-            after.t > b.t,
-            `currentTime did not advance (${b.t} -> ${after.t})`,
+            advances >= 3,
+            `currentTime never advanced across ${SAMPLES} samples ` +
+                `(${times.map((t) => t.toFixed(1)).join(" ")})`,
         );
-        return `t ${b.t.toFixed(1)} -> ${after.t.toFixed(1)}`;
+        const end = JSON.parse(
+            await evaluate(`(() => {
+                const v = document.querySelector('.binge-slide video');
+                return JSON.stringify({ paused: v.paused, err: v.error && v.error.code });
+            })()`),
+        );
+        assert(!end.paused, "video paused itself during playback");
+        assert(!end.err, `video reported error code ${end.err}`);
+        return `${advances} advances, ${wraps} loop wraps, t ${times[0].toFixed(1)} -> ${times[times.length - 1].toFixed(1)}`;
     });
 
     await check("reel advances to the next scene", async () => {

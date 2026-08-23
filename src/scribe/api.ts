@@ -132,7 +132,10 @@ interface PluginConfigResp {
 
 export async function getScribeConfig(): Promise<ScribeConfig> {
     const data = await gql<PluginConfigResp>(
-        `query { configuration { plugins } }`,
+        // One plugin's config, not every plugin's. SCRIBE_PLUGIN_ID
+        // is a module constant, so nothing user-supplied reaches the
+        // document.
+        `query { configuration { plugins(include: ["${SCRIBE_PLUGIN_ID}"]) } }`,
     );
     const cfg = data.configuration?.plugins?.[SCRIBE_PLUGIN_ID] ?? {};
     let tone = String(cfg.defaultTone ?? "filthy").toLowerCase() as VoiceMode;
