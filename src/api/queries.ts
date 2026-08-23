@@ -828,6 +828,9 @@ const FIND_SCENE = /* GraphQL */ `
             files {
                 duration
                 path
+                width
+                height
+                video_codec
             }
             captions {
                 language_code

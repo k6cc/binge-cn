@@ -136,6 +136,14 @@ function computeRandomWindow(
 // 本文件只测量 px 上移量（shift），供字幕定位与按钮组跟随消费。
 const LETTERBOX_SHIFT_RATIO = 0.4; // 上移单侧黑边的 40%
 
+// poster 自然尺寸记忆（sceneId → {w, h}）。无文件场景的内容尺寸唯一
+// 来源是 poster 图（异步资源）；首次测量后在此缓存，同会话内滑回该
+// 场景时 useLayoutEffect 的首次同步 update() 即拿到尺寸——按钮组/
+// 转圈首帧直接在最终位置（与有元数据场景一致的"新居中位置直达"），
+// 零隐藏期。条目为几百字节的纯数据（上限随 MAX_LOADED 500 场景），
+// 无需清理。
+const posterSizeCache = new Map<string, { w: number; h: number }>();
+
 // 测量 object-fit: contain 下视频内容的渲染尺寸与上移量。
 // allowShift=false（全屏）时 shift 恒为 0。
 // fallbackVw/Vh：视频元数据未到（poster 阶段）时用 Stash 元数据里的
@@ -275,40 +283,103 @@ export function SceneSlide({
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [fullscreenUIVisible, setFullscreenUIVisible] = useState(true);
     const fullscreenUITimerRef = useRef<number | null>(null);
+    // 视频内容测量是否完成（--binge-video-shift 已写入）。无文件场景
+    // 的宽高要等 poster 异步测量，期间居中元素（暂停按钮组/转码转
+    // 圈）保持隐藏（.binge-slide:not(.has-video-shift)），就绪后直接
+    // 在最终位置淡入——否则会先出现在屏幕中心、再动画上移到画面
+    // 中心。有元数据的场景在 useLayoutEffect（paint 前）即完成测量，
+    // 首帧就带 class，无感知。
+    const [shiftReady, setShiftReady] = useState(false);
 
     // 视频内容的上移定位由 CSS object-position 完成（.binge-video），
     // 本 effect 只把测得的 px 上移量写入容器 CSS 变量
     // --binge-video-shift，供需要跟随视频内容移动的元素（暂停时
-    // 居中的播放/静音按钮组）用 calc 消费。useLayoutEffect：首帧
-    // paint 前写入，按钮组从挂载起就在最终位置。
-    // poster 阶段（元数据未到）用 Stash 元数据分辨率回退测量。
+    // 居中的播放/静音按钮组、转码加载指示）用 calc 消费。
+    // useLayoutEffect：首帧 paint 前写入，按钮组从挂载起就在最终位置。
+    // 宽高回退链（poster 阶段元数据未到时）：
+    //   ① Stash 元数据 files[0].width/height
+    //   ② poster 图自然尺寸——无文件场景（仅 Stash 添加记录）①永远
+    //     缺失，poster 是唯一宽高来源；poster 本来就在加载（<video
+    //     poster>），Image 兜底命中浏览器缓存，无额外网络请求。
     useLayoutEffect(() => {
         const video = videoRef.current;
         const container = containerRef.current;
         if (!video) return;
         const mf = scene.files?.[0];
+        // poster 自然尺寸：优先取模块级记忆缓存（同会话滑回该场景时
+        // 首帧直接就位）；否则等异步测量。局部变量随 effect 重跑重置，
+        // 不跨场景串值。
+        const cached = posterSizeCache.get(scene.id);
+        let posterW = cached?.w ?? 0;
+        let posterH = cached?.h ?? 0;
+        let disposed = false;
         const update = () => {
-            const { shift } = measureVideoContent(
+            const { shift, rw } = measureVideoContent(
                 video,
                 !isFullscreen,
-                mf?.width ?? 0,
-                mf?.height ?? 0
+                mf?.width || posterW,
+                mf?.height || posterH
             );
-            container?.style.setProperty(
-                "--binge-video-shift",
-                `${shift}px`
-            );
+            // rw>0 = 测量有效（容器有布局 + 拿到宽高）。无效时不写
+            // 变量、不置就绪（居中元素保持隐藏），等 ResizeObserver /
+            // loadedmetadata / poster onload 重试。
+            if (rw > 0) {
+                container?.style.setProperty(
+                    "--binge-video-shift",
+                    `${shift}px`
+                );
+                setShiftReady(true);
+            }
         };
         update();
         video.addEventListener("loadedmetadata", update);
         const ro = new ResizeObserver(update);
         ro.observe(video);
+        if (!mf?.width || !mf?.height) {
+            const img = new Image();
+            img.onload = () => {
+                // 尺寸记忆无条件写入：组件已滑走（disposed）的迟到
+                // onload 也预热缓存，用户滑回该场景时受益。
+                if (img.naturalWidth > 0) {
+                    posterSizeCache.set(scene.id, {
+                        w: img.naturalWidth,
+                        h: img.naturalHeight,
+                    });
+                }
+                if (disposed) return;
+                posterW = img.naturalWidth;
+                posterH = img.naturalHeight;
+                update();
+            };
+            // poster 加载失败（网络异常等）：无尺寸可用，按屏幕中心
+            // 处理（shift=0），至少让居中元素显示出来。
+            img.onerror = () => {
+                if (disposed) return;
+                container?.style.setProperty("--binge-video-shift", "0px");
+                setShiftReady(true);
+            };
+            img.src = scene.paths.screenshot;
+            // 同步快路径：poster 已在内存缓存（如 <video poster> 已先
+            // 行加载完）时，src 赋值后 complete 立即为 true——无需等
+            // 异步 onload，直接测量并置就绪，首帧 paint 前完成（与
+            // object-position 常量直达同等效果）。
+            if (img.complete && img.naturalWidth > 0) {
+                posterW = img.naturalWidth;
+                posterH = img.naturalHeight;
+                posterSizeCache.set(scene.id, {
+                    w: posterW,
+                    h: posterH,
+                });
+                update();
+            }
+        }
         return () => {
+            disposed = true;
             video.removeEventListener("loadedmetadata", update);
             ro.disconnect();
             container?.style.removeProperty("--binge-video-shift");
         };
-    }, [scene.id, scene.files, isFullscreen]);
+    }, [scene.id, scene.files, isFullscreen, scene.paths.screenshot]);
 
     // 字幕定位 + 字号：recompute whenever the video element resizes
     // (orientation change, fullscreen toggle, virtualizer re-measure)。
@@ -499,13 +570,13 @@ export function SceneSlide({
     //       state where you'd expect "load now" silently stays blank.
     //   (2) we need an explicit `video.load()` call right after setting
     //       src to force the browser to actually start fetching.
-    // 视频 poster 懒加载（修改9）：useEffect 增加 !isActive 守卫，视频源
-    // 只在卡片进入视口时才请求并加载。不在视口的卡片仅显示 poster 封面，
-    // 离开视口时由 IntersectionObserver 触发 pause()。大幅减少不可见卡片
-    // 的带宽与内存占用。
+    // 视频 poster 懒加载：useEffect 增加 !isActive 守卫，视频源只在
+    // 卡片进入视口时才请求并加载。不在视口的卡片仅显示 poster 封面，
+    // 离开视口时由 IntersectionObserver 触发 pause()。大幅减少不可见
+    // 卡片的带宽与内存占用。
     //
-    // 需求2：记录 base stream URL（不含 ?start=）到 ref，供 seekToTime
-    // 重建带 ?start=N 的转码 seek URL。同时添加调试日志便于排查快进问题。
+    // 记录 base stream URL（不含 ?start=）到 ref，供 seekToTime 重建
+    // 带 ?start=N 的转码 seek URL。
     const baseStreamUrlRef = useRef<string>("");
     // 已加载签名（"sceneId|transcodeType|随机设置"）与已赋值 src 的镜像：
     // 退出全屏的位置修正会引发 scroll/IO 抖动 → isActive 与
@@ -525,6 +596,10 @@ export function SceneSlide({
     // setSeekOffset 触发重渲染前旧闭包拿过期偏移量误判 B 点。
     const seekOffsetRef = useRef(0);
     seekOffsetRef.current = seekOffset;
+    // 转码流加载指示：转码冷启动 / 硬 seek 重建 / 断点重连 / 播放中
+    // 数据不足期间，画面中央显示半透明弧形转圈告知"正在转码"。
+    // 直连流本地缓冲快，不显示。
+    const [transcodeLoading, setTranscodeLoading] = useState(false);
     // 本次加载的随机播放窗口（A→B）。null = 未计算（随机时段关闭，
     // 或 Stash 元数据缺失、等 loadedmetadata 用 video.duration 计算）。
     const randomWindowRef = useRef<{ start: number; end: number | null } | null>(
@@ -623,12 +698,11 @@ export function SceneSlide({
         }
     }, [currentlyScrolling, scene.id, isActive, transcodeType, needsTranscodeSeek, randomStart, randomSeconds, stashDuration]);
 
-    // 需求2 修复：转码流（avi/wmv/mkv/...）的 seek 处理。
+    // 转码流（avi/wmv/mkv/...）的 seek 处理。
     // 原生 <video>.currentTime = N 依赖 HTTP Range 请求，而 Stash 的 live
     // MP4 transcode 不稳定支持 Range → 快进会从头播放。改为"硬 seek"：
     // 用 ?start={秒} 参数重建 src，触发 ffmpeg 从该时间点重新转码。
     // web 兼容容器（mp4/webm/...）走直连流，原生 seek 正常，无需此路径。
-    // 同时添加调试日志便于排查。
     const seekToTime = useCallback(
         (time: number, opts?: { keepPaused?: boolean }) => {
             const video = videoRef.current;
@@ -1325,7 +1399,11 @@ export function SceneSlide({
             }
         }
         // Horizontal swipe: seek
-        e.preventDefault();
+        // 注意：不能在这里 preventDefault——React 将 touchmove 注册为
+        // passive 监听，调用无效且每次横滑都报
+        // "Unable to preventDefault inside passive event listener"。
+        // 横滑在 Reel 里没有需要阻止的浏览器默认行为（无横向滚动
+        // 容器），手势本身由 pointer 坐标差驱动，无需阻止默认。
         const video = videoRef.current;
         if (!video) return;
         const deltaSec = dx * SEEK_PX_TO_SEC;
@@ -1437,7 +1515,8 @@ export function SceneSlide({
             className={
                 "binge-slide" +
                 (isFullscreen ? " is-fullscreen" : "") +
-                (isFullscreen && !fullscreenUIVisible ? " fs-ui-hidden" : "")
+                (isFullscreen && !fullscreenUIVisible ? " fs-ui-hidden" : "") +
+                (shiftReady ? " has-video-shift" : "")
             }
             data-scene-id={scene.id}
             data-active={isActive ? "true" : "false"}
@@ -1457,6 +1536,22 @@ export function SceneSlide({
                    束"时回 A 点（A→B 循环）或自动切换的触发点。 */
                 loop={!autoScroll && !randomStart}
                 muted={muted}
+                /* 转码流加载指示的事件驱动：
+                   - loadstart：src（重）载入（初始加载 / 硬 seek 重建 /
+                     断点重连）→ 按流类型置位，直连流恒 false（顺带
+                     复位残留状态）；
+                   - waiting：播放中数据不足（转码跟不上播放）→ 点亮；
+                   - canplay / playing：数据就绪、真正出画面 → 熄灭；
+                   - error：连接断开 → 先熄灭；重连逻辑 1s 后重建 src
+                     会再次触发 loadstart 点亮（重连耗尽则不再常驻
+                     误导用户）。 */
+                onLoadStart={() => setTranscodeLoading(needsTranscodeSeek)}
+                onWaiting={() => {
+                    if (needsTranscodeSeek) setTranscodeLoading(true);
+                }}
+                onCanPlay={() => setTranscodeLoading(false)}
+                onPlaying={() => setTranscodeLoading(false)}
+                onError={() => setTranscodeLoading(false)}
                 onTimeUpdate={() => {
                     // 随机时段：到达明确 B 点（输入了秒数）时按模式
                     // 处理——自动滚动切换下一场景，否则回 A 点循环。
@@ -1564,7 +1659,10 @@ export function SceneSlide({
                         {seekIndicator.delta >= 0 ? "▶▶" : "◀◀"}
                     </span>
                     <span className="binge-seek-indicator-time">
-                        {Math.floor(seekIndicator.current / 60)}:
+                        {String(
+                            Math.floor(seekIndicator.current / 60)
+                        ).padStart(2, "0")}
+                        :
                         {Math.floor(seekIndicator.current % 60)
                             .toString()
                             .padStart(2, "0")}
@@ -1582,13 +1680,29 @@ export function SceneSlide({
                     ))}
                 </div>
             )}
+            {/* 转码流加载指示：半透明黑底圆 + 弧形转圈居中（跟随视频
+                内容区偏移）。加载期间下方 paused overlay 让位隐藏，避免
+                两个中央元素叠放——"加载中"比"已暂停"更能描述当前状态。 */}
+            {transcodeLoading && (
+                <div
+                    className="binge-transcode-loading"
+                    role="status"
+                    aria-label={t("status.video_loading")}
+                >
+                    <span
+                        className="binge-transcode-loading-icon"
+                        aria-hidden="true"
+                    />
+                </div>
+            )}
             {/* Centered cluster shown only while the video is paused.
                 Mute toggle (small) sits above a large play-glyph circle —
-                Instagram-style. Both fade in/out together on play state. */}
+                Instagram-style. Both fade in/out together on play state;
+                hidden too while the transcode spinner is up. */}
             <div
                 className={
                     "binge-paused-overlay" +
-                    (isPlaying ? " is-hidden" : "")
+                    (isPlaying || transcodeLoading ? " is-hidden" : "")
                 }
             >
                 <MuteToggle muted={muted} onToggle={() => setMuted(!muted)} />

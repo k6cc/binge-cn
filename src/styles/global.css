@@ -407,7 +407,9 @@ body,
 /* Seek indicator (horizontal swipe) */
 .binge-seek-indicator {
     position: absolute;
-    top: 50%;
+    /* 跟随视频内容区居中（同暂停 overlay/转码转圈的 --binge-video-shift
+       约定），竖屏下不落在下方黑边。 */
+    top: calc(50% - var(--binge-video-shift, 0px));
     left: 50%;
     transform: translate(-50%, -50%);
     z-index: 5;
@@ -494,6 +496,51 @@ body,
        needed here. */
 }
 
+/* 转码流加载指示（画面中央）：半透明黑底圆 + 弧形转圈，告知
+   "正在转码"（冷启动 / 硬 seek 重建 / 断点重连 / 播放中数据不足）。
+   弧形为纯 CSS border 实现（YouTube/Instagram buffering 同款），
+   不依赖字体字形——⟳ 之类 Unicode 符号在各平台渲染差异大。
+   跟随 --binge-video-shift 与视频内容区保持居中（与
+   .binge-paused-overlay 同一约定，二者互斥显示）。 */
+.binge-transcode-loading {
+    position: absolute;
+    left: 50%;
+    top: calc(50% - var(--binge-video-shift, 0px));
+    transform: translate(-50%, -50%);
+    z-index: 4; /* 与 paused overlay 同层：tap-target 之上、overlay 之下 */
+    pointer-events: none;
+    display: grid;
+    place-items: center;
+    width: 4.5rem;
+    height: 4.5rem;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.45);
+    box-shadow: 0 8px 26px rgba(0, 0, 0, 0.45);
+    /* 显隐淡入淡出（含测量就绪门控解除后的首次淡入）。 */
+    transition: opacity 0.18s ease;
+}
+.binge-transcode-loading-icon {
+    display: block;
+    width: 2.3rem;
+    height: 2.3rem;
+    border-radius: 50%;
+    /* 描边用 px：与全库发丝级 border 惯例一致 */
+    border: 3px solid rgba(255, 255, 255, 0.22);
+    border-top-color: rgba(255, 255, 255, 0.92);
+    animation: binge-retry-spin 0.8s linear infinite;
+}
+
+/* 内容居中元素的"测量就绪"门控：--binge-video-shift 写入前（无文件
+   场景需等 poster 异步测量宽高）隐藏暂停按钮组与转码转圈，就绪
+   （.has-video-shift，由 SceneSlide 在测量成功后添加）后直接在最终
+   位置淡入——避免首帧出现在屏幕中心、随后动画上移到画面中心的错位
+   动画。有元数据的场景在 useLayoutEffect（paint 前）即完成测量并带
+   class，无感知。 */
+.binge-slide:not(.has-video-shift) .binge-paused-overlay,
+.binge-slide:not(.has-video-shift) .binge-transcode-loading {
+    opacity: 0;
+}
+
 /* Mute toggle — small glass pill. Positioned by parent overlay (no fixed
    coordinates of its own). Pointer-events on so taps register. */
 .binge-mute-toggle {
@@ -527,13 +574,14 @@ body,
 }
 
 /* ── Progress bar (bottom edge, drawn against Stash duration) ──────── */
-/* 时间码行高度（约 1.15rem）：进度条抬升到时间码上方，overlay 的
-   padding-bottom 也按此值增加，其他底部元素同步上移。 */
+/* 时间码行高度（约 1.05rem）：进度条抬升到时间码上方，overlay 的
+   padding-bottom 也按此值增加，其他底部元素同步上移。原 1.15rem，
+   收紧时间码与进度条的间隙（下移 0.1rem ≈ 原间隙的 1/3）。 */
 .binge-progress {
     position: absolute;
     left: 0;
     right: 0;
-    bottom: 1.15rem; /* 时间码行高度 */
+    bottom: 1.05rem; /* 时间码行高度 */
     height: 14px; /* enlarged hit-target; only the inner 2px is visible */
     z-index: 7;
     cursor: pointer;
@@ -541,6 +589,9 @@ body,
     align-items: flex-end;
     padding: 0 0.6rem;
     pointer-events: auto;
+    /* 拖动擦洗手势隔离：竖滑交给浏览器滚动信息流（pointercancel
+       中止擦洗），横滑派发 pointermove 走擦洗路径。 */
+    touch-action: pan-y;
 }
 .binge-progress::before {
     /* Track */
@@ -556,7 +607,10 @@ body,
         height 0.18s ease,
         bottom 0.18s ease;
 }
-.binge-progress.is-hovering::before {
+/* 悬停放大与拖动放大同一样式（拖动期间进度条保持放大，复用
+   is-hovering 视觉）；分离 class 保留后期对拖动态独立微调的余地。 */
+.binge-progress.is-hovering::before,
+.binge-progress.is-dragging::before {
     height: 4px;
     bottom: 0.35rem;
 }
@@ -575,9 +629,48 @@ body,
         height 0.18s ease,
         bottom 0.18s ease;
 }
-.binge-progress.is-hovering .binge-progress-fill {
+.binge-progress.is-hovering .binge-progress-fill,
+.binge-progress.is-dragging .binge-progress-fill {
     height: 4px;
     bottom: 0.35rem;
+}
+
+/* ── 拖动擦洗浮层（进度条上方） ───────────────────────────────── */
+/* 拖动期间跟随拖动位置显示目标位置的时间码。--binge-drag-x 为拖动
+   位置百分比（0~100 数值，JS 经 inline style 写入）；clamp 防止
+   气泡在两端超出屏幕（随字号加大，钳位边距同步加大）。扩展点：后期
+   加拖动小窗预览（sprite 帧）时，预览元素作为
+   .binge-progress-popover 的首个子元素插入，时间码气泡保持在底部。 */
+.binge-progress-popover {
+    position: absolute;
+    /* 进度条命中区（14px 高）上方，留 1.4rem 间隙（悬浮层明显脱离
+       进度条，不与其放大动画粘连）。 */
+    bottom: calc(100% + 1.4rem);
+    left: clamp(
+        2.5rem,
+        calc(var(--binge-drag-x, 50) * 1%),
+        calc(100% - 2.5rem)
+    );
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+/* 时间码气泡：大号加粗纯白字体，深色圆角背景 + 极细灰边框（浅色
+   画面可读、独立于背景自成一体的浮层观感）；tabular-nums 等宽数字
+   防跳动。层级：气泡随 .binge-progress（z-index:7，slide 内最高层）
+   绘制，天然位于标题（overlay z:5）等所有元素之上。 */
+.binge-progress-bubble {
+    font-size: clamp(14px, 1.2vw, 18px);
+    line-height: 1.2;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    font-variant-numeric: tabular-nums;
+    color: #fff;
+    white-space: nowrap;
+    background: rgba(0, 0, 0, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    border-radius: 0.4rem;
+    padding: 0.18rem 0.55rem;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
 }
 
 /* 时间码行：进度条下方，左已播放 / 右总时长。字号随视口宽度
@@ -589,7 +682,11 @@ body,
        会遮挡贴边内容。 */
     left: 2.4em;
     right: 2.4em;
-    bottom: 0.08rem;
+    /* 底部空距：基础 0.08rem + 0.25rem（4px）隔开屏幕底部，
+       竖屏/横屏/全屏通用；底部导航条显示时等价于隔在导航条
+       上方（导航条自身高度已适配全面屏）。rem 与全库间距惯例
+       一致。 */
+    bottom: calc(0.08rem + 0.25rem);
     display: flex;
     justify-content: space-between;
     z-index: 7;
@@ -611,8 +708,9 @@ body,
     bottom: 0;
     /* Full-width so the gradient reaches the right edge; padding-right
        reserves space for the action stack so text never sits under it.
-       padding-bottom 含进度条 + 时间码行（1.15rem）的空间。 */
-    padding: 1.5rem 5.5rem 3.4rem 1.25rem;
+       padding-bottom 含进度条 + 时间码行（1.05rem）的空间。原 3.4rem，
+       收紧标题与进度条的间隙（约缩短一半）。 */
+    padding: 1.5rem 5.5rem 2.5rem 1.25rem;
     background: linear-gradient(
         to top,
         rgba(0, 0, 0, 0.75) 0%,
@@ -639,10 +737,10 @@ body,
     bottom: calc(8.5rem + env(safe-area-inset-bottom, 0));
 }
 .binge-app:has(.binge-bottom-nav:not(.is-hidden)) .binge-slide:not(.is-fullscreen) .binge-progress {
-    bottom: calc(3.5rem + env(safe-area-inset-bottom, 0) + 1.15rem);
+    bottom: calc(3.5rem + env(safe-area-inset-bottom, 0) + 1.05rem);
 }
 .binge-app:has(.binge-bottom-nav:not(.is-hidden)) .binge-slide:not(.is-fullscreen) .binge-progress-time {
-    bottom: calc(3.5rem + env(safe-area-inset-bottom, 0) + 0.08rem);
+    bottom: calc(3.5rem + env(safe-area-inset-bottom, 0) + 0.08rem + 0.25rem);
 }
 
 .binge-studio {
