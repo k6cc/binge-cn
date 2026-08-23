@@ -19,7 +19,7 @@ const MOSAIC_TILES = 8;
 
 // Bulk-import card. Renders as a single feed entry when binge
 // detects many scenes from the same performer added in one batch
-// (e.g. a 221-scene OnlyFans pack). The cover is a 3×3 mosaic of
+// (e.g. a 221-scene OnlyFans pack). The cover is a 4×2 mosaic of
 // the newest screenshots with a "+N" overlay; tap any tile to
 // open the pack sheet listing every scene.
 //
