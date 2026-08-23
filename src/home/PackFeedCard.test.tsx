@@ -4,6 +4,16 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { PackFeedItem } from "./useFeed";
 import { PackFeedCard } from "./PackFeedCard";
 
+// The card reaches the reel through TabContext. Stubbed rather than
+// wrapped in a real provider so the assertions below stay about what
+// the card renders and hands off, not about routing.
+const setTab = vi.fn();
+const setPinFirstSceneId = vi.fn();
+const setPinnedQueue = vi.fn();
+vi.mock("../tabs/TabContext", () => ({
+    useTab: () => ({ setTab, setPinFirstSceneId, setPinnedQueue }),
+}));
+
 // Only the unattributed half is covered here, and deliberately: it is the
 // half that must NOT claim an identity it does not have. The label comes
 // from a folder name, so the card has to read as "here is a batch we
@@ -44,6 +54,12 @@ const item = (over: Partial<PackFeedItem> = {}): PackFeedItem =>
 afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
+    // restoreAllMocks restores spies; it does not clear the call
+    // history of a vi.fn() declared at module scope, so without this
+    // each test sees the previous one's calls.
+    setTab.mockClear();
+    setPinFirstSceneId.mockClear();
+    setPinnedQueue.mockClear();
 });
 
 describe("an unattributed batch", () => {
@@ -127,5 +143,54 @@ describe("an unattributed batch", () => {
     it("labels a back-catalog batch as reposted", () => {
         render(<PackFeedCard item={item({ isRepost: true })} />);
         expect(screen.getByText("reposted 944 scenes")).toBeTruthy();
+    });
+});
+
+describe("the mosaic tiles", () => {
+    it("opens the scene that was tapped, not the sheet", () => {
+        // One onClick used to sit on the whole grid, so tapping the
+        // second cover opened the sheet rather than the second scene -
+        // while the iOS twin passed the tile actually tapped. Two
+        // clients showing the same covers should not disagree about
+        // what tapping one does.
+        render(<PackFeedCard item={item({ sceneCount: 2 })} />);
+        const tiles = screen.getAllByRole("button", { name: /^Play / });
+        expect(tiles).toHaveLength(2);
+        fireEvent.click(tiles[1]);
+        expect(setPinnedQueue).toHaveBeenCalledWith({
+            ids: ["1", "2"],
+            startIndex: 1,
+        });
+        expect(setTab).toHaveBeenCalledWith("foryou");
+        // A leftover single-scene pin would resurface in chained mode.
+        expect(setPinFirstSceneId).toHaveBeenCalledWith(null);
+    });
+
+    it("still opens the sheet from the overflow tile", () => {
+        // The last tile stands for everything that did not fit, so it
+        // keeps its old job. Ten scenes means nine tiles and one over.
+        const many = Array.from({ length: 10 }, (_, i) => ({
+            kind: "scene",
+            key: `scene:${i}`,
+            sceneId: String(i),
+            screenshot: `/shot-${i}.jpg`,
+            performers: [],
+            matchedPerformers: [],
+        }));
+        render(
+            <PackFeedCard
+                item={item({
+                    scenes: many as never,
+                    sceneCount: many.length,
+                })}
+            />,
+        );
+        const overflow = screen.getByRole("button", { name: /Open pack/ });
+        fireEvent.click(overflow);
+        expect(setPinnedQueue).not.toHaveBeenCalled();
+        // And the other eight are still scene targets.
+        expect(screen.getAllByRole("button", { name: /^Play / })).toHaveLength(
+            8,
+        );
     });
 });

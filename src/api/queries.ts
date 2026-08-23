@@ -1115,6 +1115,14 @@ function buildFindScenesByDateQuery(): string {
                     details
                     created_at
                     date
+                    # The ONLY field this query was missing next to
+                    # RecentScenes, and the shared flattener coerces a
+                    # missing one to 0 - so every scene that reached
+                    # the feed through the release-date query rendered
+                    # zero likes regardless of its real count, and the
+                    # two queries disagreed about the same scene
+                    # depending on which of them surfaced it.
+                    o_counter
                     files {
                         width
                         height

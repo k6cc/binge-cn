@@ -7,6 +7,8 @@ import { useSharedStories } from "./StoriesContext";
 import { useStoryViewer } from "./StoryViewerContext";
 import { timeAgo } from "./timeAgo";
 import { PackDetailSheet } from "./PackDetailSheet";
+import { openPackAtScene } from "./packHandoff";
+import { useTab } from "../tabs/TabContext";
 import { RepostIcon } from "../components/ActionStack";
 import { SceneCardMenu } from "./SceneCardMenu";
 
@@ -62,6 +64,7 @@ function AttributedPackCard({
     sheetOpen,
     setSheetOpen,
 }: PackCardProps & { primary: FeedPerformer }) {
+    const tab = useTab();
     const { openProfile } = usePerformerProfile();
     const { open: openStoryViewer } = useStoryViewer();
     const storiesState = useSharedStories();
@@ -185,7 +188,13 @@ function AttributedPackCard({
                         {timeAgo(item.effectiveAt)}
                     </span>
                 </header>
-                <PackMosaic item={item} onOpen={() => setSheetOpen(true)} />
+                <PackMosaic
+                    item={item}
+                    onOpen={() => setSheetOpen(true)}
+                    onPickScene={(sceneId) => {
+                        openPackAtScene(tab, item, sceneId);
+                    }}
+                />
             </article>
             {sheetOpen && (
                 <PackDetailSheet
@@ -208,6 +217,7 @@ function UnattributedPackCard({
     sheetOpen,
     setSheetOpen,
 }: PackCardProps) {
+    const tab = useTab();
     // A StashDB match means there IS a face for this batch, it just is
     // not in the library. Prefer it over a scene still, and say "not in
     // your library" rather than "no performer linked", which would be
@@ -297,7 +307,13 @@ function UnattributedPackCard({
                         ]}
                     />
                 </header>
-                <PackMosaic item={item} onOpen={() => setSheetOpen(true)} />
+                <PackMosaic
+                    item={item}
+                    onOpen={() => setSheetOpen(true)}
+                    onPickScene={(sceneId) => {
+                        openPackAtScene(tab, item, sceneId);
+                    }}
+                />
             </article>
             {sheetOpen && (
                 <PackDetailSheet
@@ -312,43 +328,61 @@ function UnattributedPackCard({
 function PackMosaic({
     item,
     onOpen,
+    onPickScene,
 }: {
     item: PackFeedItem;
     onOpen: () => void;
+    onPickScene: (sceneId: string) => void;
 }) {
     const tiles = item.scenes.slice(0, MOSAIC_TILES);
     const overflow = item.sceneCount - tiles.length;
     return (
-        <div
-            className="binge-pack-card-mosaic"
-            role="button"
-            tabIndex={0}
-            aria-label={`Open pack — ${item.sceneCount} scenes`}
-            onClick={onOpen}
-            onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    onOpen();
-                }
-            }}
-        >
-            {tiles.map((s, i) => (
-                <div
-                    key={s.sceneId}
-                    className="binge-pack-card-mosaic-tile"
-                    style={
-                        s.screenshot
-                            ? { backgroundImage: `url(${s.screenshot})` }
-                            : undefined
-                    }
-                >
-                    {i === MOSAIC_TILES - 1 && overflow > 0 && (
-                        <span className="binge-pack-card-mosaic-overflow">
-                            +{overflow}
-                        </span>
-                    )}
-                </div>
-            ))}
+        // The tiles are the buttons, not the grid.
+        //
+        // One onClick sat on this container, so every tile opened the
+        // sheet - tapping the fifth cover did not take you to the fifth
+        // scene, and the mosaic's per-tile art was decoration rather
+        // than a target. The iOS twin passes the tile actually tapped
+        // and carries a comment saying it fixed exactly this, so the
+        // two clients disagreed about what the same nine covers do.
+        <div className="binge-pack-card-mosaic">
+            {tiles.map((s, i) => {
+                // Keyed on the LAST TILE, not on slot nine. The two
+                // are the same while sceneCount equals scenes.length,
+                // which useFeed currently guarantees - but this file
+                // should not depend on an invariant enforced in
+                // another one, and the iOS twin already keys it this
+                // way.
+                const isOverflow = i === tiles.length - 1 && overflow > 0;
+                return (
+                    <button
+                        type="button"
+                        key={s.sceneId}
+                        className="binge-pack-card-mosaic-tile"
+                        // The last tile stands for everything that did
+                        // not fit, so it still opens the sheet.
+                        aria-label={
+                            isOverflow
+                                ? `Open pack — ${item.sceneCount} scenes`
+                                : `Play ${s.title ?? "scene"}`
+                        }
+                        onClick={() =>
+                            isOverflow ? onOpen() : onPickScene(s.sceneId)
+                        }
+                        style={
+                            s.screenshot
+                                ? { backgroundImage: `url(${s.screenshot})` }
+                                : undefined
+                        }
+                    >
+                        {isOverflow && (
+                            <span className="binge-pack-card-mosaic-overflow">
+                                +{overflow}
+                            </span>
+                        )}
+                    </button>
+                );
+            })}
         </div>
     );
 }

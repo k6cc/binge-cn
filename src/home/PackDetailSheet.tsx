@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import type { PackFeedItem, SceneFeedItem } from "./useFeed";
 import { useTab } from "../tabs/TabContext";
+import { openPackAtScene } from "./packHandoff";
 
 // Fullscreen sheet shown when the user taps a Pack feed card.
 // Lists every scene in the pack as a 3-column grid; tapping a
@@ -41,19 +42,11 @@ export function PackDetailSheet({
     const shown = pack.scenes.slice(0, shownCount);
 
     const handlePick = (scene: SceneFeedItem) => {
-        // Same handoff pattern Home's "Watch full scene" uses —
-        // pin the tapped scene as slot N of the queued list, so
-        // the reel starts at the tap target and walks the rest
-        // of the pack in order.
-        const ids = pack.scenes.map((s) => s.sceneId);
-        const startIndex = Math.max(0, ids.indexOf(scene.sceneId));
-        // Clear any stale single-scene pin — the reel consumes the
-        // queue here (startIndex starts it at the tapped scene), and
-        // a leftover pin would otherwise resurface in chained mode.
-        // Mirrors SceneFeedCard's "Watch full scene" handoff.
-        setPinFirstSceneId(null);
-        setPinnedQueue({ ids, startIndex });
-        setTab("foryou");
+        openPackAtScene(
+            { setTab, setPinFirstSceneId, setPinnedQueue },
+            pack,
+            scene.sceneId,
+        );
         onClose();
     };
 

@@ -302,3 +302,52 @@ describe("findTagByName", () => {
         expect((await findTagByName("Watch Later \u{1F4C1}"))?.id).toBe("t0");
     });
 });
+
+// The two feed queries have to agree about the same scene. Home merges
+// their results through one flattener, so a field one selects and the
+// other omits becomes a value that depends on which query happened to
+// surface the row.
+describe("the two feed queries select the same fields", () => {
+    // A server that answers with only the fields it was ASKED for.
+    // A mock that returns everything regardless cannot see a missing
+    // selection, which is why this bug survived every existing test.
+    const serverThatHonoursSelection = (node: Record<string, unknown>) =>
+        gql.mockImplementation((query: string) => {
+            const answered: Record<string, unknown> = {};
+            for (const [k, v] of Object.entries(node)) {
+                // Word-boundary match written without backslashes: the
+                // escaping is easy to get wrong, and a literal  is a
+                // backspace character, which silently matches nothing.
+                const edge = "[^A-Za-z0-9_]";
+                const bounded = new RegExp(
+                    "(^|" + edge + ")" + k + "(" + edge + "|$)",
+                );
+                if (bounded.test(query)) {
+                    answered[k] = v;
+                }
+            }
+            return Promise.resolve({
+                findScenes: { scenes: [answered] },
+            });
+        });
+
+    it("both report a scene's o_counter", async () => {
+        // ScenesByDate omitted o_counter, and the flattener coerces a
+        // missing one to 0 - so a scene that reached the feed by
+        // release date rendered zero likes whatever its real count
+        // was, and the two queries disagreed about the same scene.
+        const { findScenesByDate } = await import("./queries");
+        serverThatHonoursSelection(sceneNode({ o_counter: 7 }));
+        const byDate = await findScenesByDate("2026-06-01", 10);
+        expect(byDate[0].sceneOCounter).toBe(7);
+    });
+
+    it("both report it the same way", async () => {
+        const { findRecentScenes, findScenesByDate } =
+            await import("./queries");
+        serverThatHonoursSelection(sceneNode({ o_counter: 7 }));
+        const byCreated = await findRecentScenes("2026-06-01", 10);
+        const byDate = await findScenesByDate("2026-06-01", 10);
+        expect(byDate[0].sceneOCounter).toBe(byCreated[0].sceneOCounter);
+    });
+});

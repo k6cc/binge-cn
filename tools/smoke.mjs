@@ -410,6 +410,43 @@ async function connect() {
     throw new Error("Chrome never exposed a debugging target");
 }
 
+// A pack's mosaic is nine cover tiles in a 3x3 grid, and each one is a
+// BUTTON that opens the scene it shows. That makes its geometry a real
+// regression risk that no unit test can see: a button carries UA
+// border, padding, font and centring that a div does not, any of which
+// silently breaks a flush grid of artwork.
+//
+// Runs straight after checkHomePopulates, on the page it already
+// waited for, so it costs nothing extra. It is skipped rather than
+// failed when the library has no pack on screen.
+async function checkMosaicGeometry() {
+    await check("pack mosaic tiles form a flush grid", async () => {
+        const info = await evaluate(`(() => {
+            const grid = document.querySelector('.binge-pack-card-mosaic');
+            if (!grid) return JSON.stringify({ found: false });
+            const g = grid.getBoundingClientRect();
+            const tiles = [...grid.querySelectorAll('.binge-pack-card-mosaic-tile')];
+            const r = tiles.map(t => t.getBoundingClientRect());
+            const cs = tiles[0] ? getComputedStyle(tiles[0]) : {};
+            return JSON.stringify({
+                found: true,
+                tag: tiles[0] && tiles[0].tagName,
+                tiles: tiles.length,
+                gridW: Math.round(g.width), gridH: Math.round(g.height),
+                tileW: Math.round(r[0] ? r[0].width : 0),
+                tileH: Math.round(r[0] ? r[0].height : 0),
+                border: cs.borderTopWidth, padding: cs.paddingTop,
+                // widest horizontal gap between adjacent tiles in row 1
+                gap: r.length > 1 ? Math.round(r[1].left - r[0].right) : null,
+                overflowLabels: [...grid.querySelectorAll('button')]
+                    .map(b => b.getAttribute('aria-label'))
+                    .filter(l => /Open pack/.test(l)).length,
+            });
+        })()`);
+        return info;
+    });
+}
+
 async function main() {
     await preflight();
     const chrome = await findChrome();
@@ -488,6 +525,7 @@ async function main() {
         console.log(`\nbinge smoke test against ${BASE}\n`);
         await checkRoutesMount();
         await checkHomePopulates();
+        await checkMosaicGeometry();
         await checkReelPlays();
         await checkSavedCollectionOpens();
 
