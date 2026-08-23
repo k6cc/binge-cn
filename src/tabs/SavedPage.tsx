@@ -16,7 +16,6 @@ import { useFilter } from "../filter/FilterContext";
 import { useTab } from "./TabContext";
 import { useAutoHideTabBar } from "../hooks/useAutoHideTabBar";
 import { SceneCardGrid } from "../components/SceneCardGrid";
-import { BingeLoading } from "../components/BingeLoading";
 
 // IG-style "Saved" page. Grid of collection tiles with cover
 // thumbnails (latest scene tagged with the collection). Per-tile
@@ -30,6 +29,10 @@ import { BingeLoading } from "../components/BingeLoading";
 //
 // 700ms hold → delete confirmation (matches the multiview-button
 // long-press threshold).
+// How far a press may travel and still count as a hold. Roughly the
+// browser's own scroll slop, so an intentional hold survives a shaky
+// thumb and a scroll does not reach the delete dialog.
+const HOLD_SLOP_PX = 10;
 const LONG_PRESS_MS = 700;
 
 interface CollectionWithCover {
@@ -173,7 +176,14 @@ export function SavedPage() {
     // the same Saved pane (not a new tab) so back-stack behaves
     // naturally.
     if (openCollection) {
-        const tagId = tagIdFromCachedCovers(openCollection.tagName);
+        // The id the collection was listed with, falling back to
+        // whatever the covers pass resolved. A DEFAULT collection that
+        // has never been used has no tag yet, so this is legitimately
+        // empty - and rendering a spinner for it meant tapping
+        // "Watch Later" on a fresh install span forever with no
+        // timeout, no retry and no exit but the back chevron.
+        const tagId =
+            openCollection.id || tagIdFromCachedCovers(openCollection.tagName);
         return (
             <div className="binge-tab-scroll" ref={scrollRef}>
                 <header className="binge-saved-header">
@@ -189,7 +199,11 @@ export function SavedPage() {
                     <h1 className="binge-saved-title">{openCollection.name}</h1>
                     <span className="binge-saved-spacer" />
                 </header>
-                {tagId ? (
+                {!tagId ? (
+                    <p className="binge-saved-empty">
+                        No scenes saved to this collection yet.
+                    </p>
+                ) : (
                     <SceneCardGrid
                         resetKey={openCollection.tagName}
                         fetcher={(page, perPage) =>
@@ -203,8 +217,6 @@ export function SavedPage() {
                         }
                         emptyMessage="No scenes saved to this collection yet."
                     />
-                ) : (
-                    <BingeLoading minHeight="60vh" />
                 )}
             </div>
         );
@@ -318,27 +330,54 @@ function CollectionTile({
 }) {
     const holdRef = useRef<number | null>(null);
     const heldRef = useRef(false);
+    // Where the press started, and whether this tile saw the
+    // pointerdown at all.
+    const originRef = useRef<{ x: number; y: number } | null>(null);
 
-    const onPointerDown = () => {
+    const cancelHold = () => {
+        if (holdRef.current !== null) {
+            window.clearTimeout(holdRef.current);
+            holdRef.current = null;
+        }
+    };
+
+    // Clear a pending hold on unmount. Without this the timer outlives
+    // the tile and fires onLongPress against a gone component.
+    useEffect(() => cancelHold, []);
+
+    const onPointerDown = (e: React.PointerEvent) => {
         heldRef.current = false;
+        originRef.current = { x: e.clientX, y: e.clientY };
         holdRef.current = window.setTimeout(() => {
             heldRef.current = true;
             holdRef.current = null;
             onLongPress();
         }, LONG_PRESS_MS);
     };
-    const onPointerUp = () => {
-        if (holdRef.current !== null) {
-            window.clearTimeout(holdRef.current);
-            holdRef.current = null;
+    // A slow scroll that starts on a tile stays within the browser's
+    // own scroll slop for a while, so it never sends pointercancel -
+    // and after 700ms of that, this opened the delete confirmation. Its
+    // buttons are right-aligned with Delete outermost, which puts the
+    // destructive one under the thumb that was scrolling. Movement past
+    // a small threshold is not a hold.
+    const onPointerMove = (e: React.PointerEvent) => {
+        const o = originRef.current;
+        if (!o || holdRef.current === null) return;
+        if (Math.hypot(e.clientX - o.x, e.clientY - o.y) > HOLD_SLOP_PX) {
+            cancelHold();
         }
-        if (!heldRef.current) onOpen();
+    };
+    const onPointerUp = () => {
+        const started = originRef.current !== null;
+        cancelHold();
+        originRef.current = null;
+        // Only open if the press STARTED here. A drag released over a
+        // different tile used to open whichever tile it landed on.
+        if (started && !heldRef.current) onOpen();
     };
     const onPointerLeave = () => {
-        if (holdRef.current !== null) {
-            window.clearTimeout(holdRef.current);
-            holdRef.current = null;
-        }
+        cancelHold();
+        originRef.current = null;
     };
 
     const scenes = cover?.scenes ?? [];
@@ -347,6 +386,10 @@ function CollectionTile({
             type="button"
             className="binge-saved-tile"
             onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            // A 700ms hold on mobile also raises the OS selection
+            // callout, which lands on top of the delete dialog.
+            onContextMenu={(e) => e.preventDefault()}
             onPointerUp={onPointerUp}
             onPointerLeave={onPointerLeave}
             onPointerCancel={onPointerLeave}

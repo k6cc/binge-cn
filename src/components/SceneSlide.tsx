@@ -603,6 +603,19 @@ export function SceneSlide({
                 muted={muted}
                 onEnded={() => {
                     if (!autoScroll || !isActive) return;
+                    // Not while a sheet is open over this slide. All
+                    // three portal to document.body, so they stay on
+                    // screen while the reel scrolls behind them - and
+                    // their sceneId prop is frozen at the scene that
+                    // left. "Open in Stash" then opened a scene the
+                    // user was no longer looking at, and the rating
+                    // modal's stars wrote to it. One more advance
+                    // unmounts the slide and the sheet vanishes
+                    // mid-write. Turning auto-scroll ON from MoreSheet
+                    // is the standing case: the toggle deliberately
+                    // leaves the sheet open, so the user is still
+                    // inside it when the video ends.
+                    if (detailsOpen || advancedRatingOpen || moreOpen) return;
                     onAutoAdvance?.();
                 }}
             />

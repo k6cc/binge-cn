@@ -64,6 +64,15 @@ export function PerformerImageGrid({ performer }: PerformerImageGridProps) {
         if (count == null) return;
         if (images.length >= count) return;
         if (loading) return;
+        // A failed page STOPS paging. The guard above is
+        // `loaded >= count`, and on the error path `loaded` never grows
+        // and `count` never changes - so the guard could not become
+        // true, the effect re-ran when `loading` cleared, and a fresh
+        // observer fired immediately on a sentinel that had not moved.
+        // That is an unbounded GraphQL loop against Stash for as long
+        // as the tab stays open. Page one succeeding and page two
+        // failing is enough.
+        if (error) return;
 
         const observer = new IntersectionObserver(
             (entries) => {
@@ -88,7 +97,7 @@ export function PerformerImageGrid({ performer }: PerformerImageGridProps) {
         );
         observer.observe(sentinel);
         return () => observer.disconnect();
-    }, [count, images.length, loading]);
+    }, [count, images.length, loading, error]);
 
     return (
         <section className="binge-profile-photos">

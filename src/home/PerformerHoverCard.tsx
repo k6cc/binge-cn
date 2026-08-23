@@ -199,10 +199,8 @@ export function PerformerHoverCard({
         );
     };
 
-    const age =
-        birthDate && /^\d{4}-\d{2}-\d{2}/.test(birthDate)
-            ? computeAge(birthDate)
-            : null;
+    // computeAge returns null for anything it cannot stand behind.
+    const age = birthDate ? computeAge(birthDate) : null;
 
     const followBusy = followState.kind === "following";
     const followedAlready = followState.kind === "followed";
@@ -365,19 +363,29 @@ export function PerformerHoverCard({
     );
 }
 
-function computeAge(birthDate: string): number {
-    const [y, m, d] = birthDate
-        .slice(0, 10)
-        .split("-")
-        .map((n) => parseInt(n, 10));
-    if (!y || !m || !d) return 0;
+// Null rather than a number whenever the date cannot produce a real
+// age. birth_date comes from StashDB, which is community-edited, so
+// it carries typos - and the old shape had no way to say so: the
+// caller's regex checked the SHAPE only, never the ranges, and this
+// returned 0 on a bad parse, which is indistinguishable from a real
+// answer. A performer with a typo'd year rendered "Female · -5", a
+// zero month rendered "Female · 0", and month 13 was accepted and
+// rendered silently off by one.
+function computeAge(birthDate: string): number | null {
+    const m0 = /^(\d{4})-(\d{2})-(\d{2})/.exec(birthDate);
+    if (!m0) return null;
+    const y = Number(m0[1]);
+    const m = Number(m0[2]);
+    const d = Number(m0[3]);
+    if (m < 1 || m > 12 || d < 1 || d > 31) return null;
     const now = new Date();
+    if (y < 1900 || y > now.getFullYear()) return null;
     let age = now.getFullYear() - y;
     const beforeBirthday =
         now.getMonth() + 1 < m ||
         (now.getMonth() + 1 === m && now.getDate() < d);
     if (beforeBirthday) age -= 1;
-    return age;
+    return age > 0 && age < 120 ? age : null;
 }
 
 function formatGender(g: string | null): string | null {

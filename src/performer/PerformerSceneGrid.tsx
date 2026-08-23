@@ -223,6 +223,15 @@ export function PerformerSceneGrid({
         if (count == null) return;
         if (scenes.length >= count) return;
         if (loading) return;
+        // A failed page STOPS paging. The guard above is
+        // `loaded >= count`, and on the error path `loaded` never grows
+        // and `count` never changes - so the guard could not become
+        // true, the effect re-ran when `loading` cleared, and a fresh
+        // observer fired immediately on a sentinel that had not moved.
+        // That is an unbounded GraphQL loop against Stash for as long
+        // as the tab stays open. Page one succeeding and page two
+        // failing is enough.
+        if (error) return;
 
         const scrollRoot = sentinel.closest(".binge-profile-body");
         const observer = new IntersectionObserver(
@@ -240,7 +249,7 @@ export function PerformerSceneGrid({
         );
         observer.observe(sentinel);
         return () => observer.disconnect();
-    }, [count, scenes.length, loading]);
+    }, [count, scenes.length, loading, error]);
 
     const handlePick = (sceneId: string) => {
         replace({

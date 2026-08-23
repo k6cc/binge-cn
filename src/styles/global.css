@@ -7252,6 +7252,14 @@ body,
    ────────────────────────────────────────────────────────────────────── */
 .binge-details-sheet {
     padding-bottom: 1.5rem;
+    /* .binge-sheet is a 75vh flex column with no overflow, and a flex
+       column item has min-height: auto - so a scene with a long scraped
+       description plus a full tag list overran the sheet's bottom edge
+       and rendered off the viewport, unclipped and unreachable. The
+       TECHNICAL block below is documented as "scroll within the sheet
+       to reach it"; this is what makes that true. The rating modal and
+       the performer sheet each solve it their own way already. */
+    overflow-y: auto;
 }
 
 /* Technical details block at the bottom of the scene sheet —
