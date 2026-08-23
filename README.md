@@ -1,6 +1,6 @@
 # Binge（汉化版）
 
-> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.6.8**。
+> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.6.9**。
 
 为 [Stash](https://github.com/stashapp/stash) 提供的 Instagram 风格社交与发现层：竖屏 Reel、Stories、演员档案、StashDB 驱动的发现功能——全部基于 Stash 既有的 GraphQL API。Web 插件形态。
 
@@ -39,6 +39,11 @@ v0.4.17 将原硬编码中文迁移为基于 `react-i18next` 的动态多语言�
 - 详见 [汉化及修复.md](./汉化及修复.md)
 
 ### 功能修复
+
+#### v0.6.9
+
+- **X 弹窗（详情页 X 标签媒体查看器）**：触屏划动翻页（阈值与图片查看器一致，视频底部控制栏区域内不触发，划动后松手 click 不误触图片/视频）；关闭/左右翻页按钮改为符号深色 text-shadow + 轻底色（0.2 透明度），亮色媒体上清晰可见；信息栏新增帖子发布时间（相对时间，与首页 feed 一致）
+- **详情页图库**：封面计数徽章宽屏放大 35%（0.68 → 0.92rem，720px 断点以下保持原值）
 
 #### v0.6.8
 

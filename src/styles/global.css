@@ -8348,11 +8348,11 @@ body,
     right: 0.35rem;
     display: inline-flex;
     align-items: center;
-    padding: 0.15rem 0.4rem;
+    padding: 0.2rem 0.5rem;
     background: rgba(0, 0, 0, 0.6);
     color: #fff;
     border-radius: 999px;
-    font-size: 0.68rem;
+    font-size: 0.92rem;
     font-weight: 600;
     line-height: 1;
     pointer-events: none;
@@ -8391,10 +8391,15 @@ body,
     margin-bottom: 0.75rem;
     padding: 0 0.25rem;
 }
-/* 窄屏：封面/图库标题字号收紧。 */
+/* 窄屏：封面/图库标题字号收紧，封面计数徽章回到小号（宽屏放大
+   35%：0.68 → 0.92rem）。 */
 @media (max-width: 720px) {
     .binge-gallery-cell-title {
         font-size: 0.57rem;
+    }
+    .binge-gallery-cell-count {
+        font-size: 0.68rem;
+        padding: 0.15rem 0.4rem;
     }
     .binge-gallery-title {
         font-size: 0.72rem;
@@ -8540,7 +8545,7 @@ body,
     width: 36px;
     height: 36px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(10, 16, 26, 0.2);
     border: none;
     color: #fff;
     font-size: 1.5rem;
@@ -8548,11 +8553,12 @@ body,
     cursor: pointer;
     display: grid;
     place-items: center;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.85);
     transition: background 0.15s ease, transform 0.15s ease;
 }
 .binge-x-modal-close:hover,
 .binge-x-modal-close:focus-visible {
-    background: rgba(255, 255, 255, 0.18);
+    background: rgba(10, 16, 26, 0.45);
     transform: scale(1.05);
     outline: none;
 }
@@ -8564,7 +8570,7 @@ body,
     width: 44px;
     height: 44px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(10, 16, 26, 0.2);
     border: none;
     color: #fff;
     font-size: 2rem;
@@ -8572,10 +8578,11 @@ body,
     cursor: pointer;
     display: grid;
     place-items: center;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.85);
     transition: background 0.15s ease;
 }
 .binge-x-modal-nav:hover {
-    background: rgba(255, 255, 255, 0.18);
+    background: rgba(10, 16, 26, 0.45);
 }
 .binge-x-modal-nav-prev {
     left: 1rem;
@@ -8601,7 +8608,8 @@ body,
 .binge-x-modal-media {
     /* flex:1 + min-height:0 让 media 区域吃掉 info 之外的剩余高度。
        position:relative 让内部 video/image 用 absolute 定位填满区域，
-       object-fit:contain 保证不裁切。 */
+       object-fit:contain 保证不裁切。touch-action: pan-y 把横向手势
+       留给 JS 划动翻页（纵向仍归浏览器）。 */
     position: relative;
     flex: 1;
     min-height: 0;
@@ -8611,6 +8619,7 @@ body,
     background: #000;
     border-radius: 8px;
     overflow: hidden;
+    touch-action: pan-y;
 }
 .binge-x-modal-video {
     position: absolute;

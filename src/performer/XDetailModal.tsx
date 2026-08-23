@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { saveToStash, type SaveToStashRequest, type XMedia } from "../api/bingeServer";
 import { useFetchBlobUrl } from "../hooks/useFetchBlobUrl";
+import { timeAgo } from "../home/timeAgo";
 
 interface XDetailModalProps {
     media: XMedia[];
@@ -47,6 +48,57 @@ export function XDetailModal({
         document.addEventListener("keydown", handler);
         return () => document.removeEventListener("keydown", handler);
     }, [index, media.length, onClose, onIndexChange]);
+
+    // 触屏划动翻页：媒体区按下 → 划过阈值（min(20% 宽, 200px)）松手
+    // 翻页，仅 touch 指针（鼠标不参与——桌面用左右按钮/键盘）。视频
+    // 控制栏（底部 ~56px）内的按下不参与——拖进度条会被误判成划动。
+    const mediaRef = useRef<HTMLDivElement>(null);
+    const dragRef = useRef<{ x: number; dragged: boolean } | null>(null);
+
+    const onMediaPointerDown = (e: React.PointerEvent) => {
+        if (!e.isPrimary || e.pointerType !== "touch") return;
+        if (e.target instanceof HTMLElement && e.target.tagName === "VIDEO") {
+            const r = e.target.getBoundingClientRect();
+            if (e.clientY > r.bottom - 56) return;
+        }
+        dragRef.current = { x: e.clientX, dragged: false };
+    };
+
+    useEffect(() => {
+        const swallowClick = (ev: Event) => {
+            ev.stopPropagation();
+            ev.preventDefault();
+        };
+        const onMove = (e: PointerEvent) => {
+            const d = dragRef.current;
+            if (d && Math.abs(e.clientX - d.x) > 8) d.dragged = true;
+        };
+        const onUp = (e: PointerEvent) => {
+            const d = dragRef.current;
+            dragRef.current = null;
+            if (!d || !d.dragged) return;
+            // 划动后的松手 click 不落到图片上（防触发浏览器拖拽预览）
+            const el = mediaRef.current;
+            if (!el) return;
+            el.addEventListener("click", swallowClick, { capture: true, once: true });
+            window.setTimeout(
+                () => el.removeEventListener("click", swallowClick, true),
+                300,
+            );
+            const dx = d.x - e.clientX;
+            const threshold = Math.min(el.clientWidth * 0.2, 200);
+            if (dx > threshold && index < media.length - 1) onIndexChange(index + 1);
+            else if (dx < -threshold && index > 0) onIndexChange(index - 1);
+        };
+        window.addEventListener("pointermove", onMove, { passive: true });
+        window.addEventListener("pointerup", onUp);
+        window.addEventListener("pointercancel", onUp);
+        return () => {
+            window.removeEventListener("pointermove", onMove);
+            window.removeEventListener("pointerup", onUp);
+            window.removeEventListener("pointercancel", onUp);
+        };
+    }, [index, media.length, onIndexChange]);
 
     if (!current) return null;
 
@@ -120,7 +172,11 @@ export function XDetailModal({
                 </button>
             )}
             <div className="binge-x-modal-content">
-                <div className="binge-x-modal-media">
+                <div
+                    className="binge-x-modal-media"
+                    ref={mediaRef}
+                    onPointerDown={onMediaPointerDown}
+                >
                     {current.kind === "video" ? (
                         failed ? (
                             <div className="binge-x-modal-error">
@@ -153,6 +209,9 @@ export function XDetailModal({
                         <p className="binge-x-modal-text">{current.text}</p>
                     )}
                     <div className="binge-x-modal-meta">
+                        <span className="binge-x-modal-date">
+                            {timeAgo(new Date(current.createdUtc * 1000).toISOString())}
+                        </span>
                         {typeof current.favoriteCount === "number" &&
                             current.favoriteCount > 0 && (
                                 <span className="binge-x-modal-likes">
