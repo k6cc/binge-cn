@@ -1,4 +1,10 @@
-import { type ChangeEvent, useEffect, useRef, useState } from "react";
+import {
+    type ChangeEvent,
+    useCallback,
+    useEffect,
+    useRef,
+    useState,
+} from "react";
 import { createPortal } from "react-dom";
 import { linkExistingScenesToPerformer } from "../api/linkExistingScenes";
 import {
@@ -70,7 +76,7 @@ export function FollowPerformerModal({
     onCreated,
     onClose,
 }: FollowPerformerModalProps) {
-    const { isExiting, beginClose } = useSheetClose(onClose);
+    const { isExiting, beginClose: rawClose } = useSheetClose(onClose);
     const [state, setState] = useState<ModalState>({ kind: "scraping" });
     // Currently-displayed image in the hero carousel. Resets to 0
     // whenever the detail load completes; user advances with the
@@ -86,11 +92,30 @@ export function FollowPerformerModal({
         noteRef.current = msg;
         setLinkNote(msg);
     };
+    // Every dismissal has to deliver a pending result.
+    //
+    // Holding the result so the note could be read created a second way
+    // out of this modal that skipped onCreated: Escape and the backdrop
+    // went straight to onClose, so a performer who now EXISTS in Stash
+    // left the caller still showing an idle "+ Follow" pill. Tapping it
+    // again scrapes and creates a second row against the same stash_id,
+    // which Stash does not refuse. Dismissing is not declining.
     const [pendingResult, setPendingResult] = useState<{
         id: string;
         name: string;
         linkedScenes?: number;
     } | null>(null);
+
+    // The only close this component uses. Delivers a held result rather
+    // than dropping it; onCreated unmounts the modal in every caller,
+    // so there is nothing to animate out afterwards.
+    const beginClose = useCallback(() => {
+        if (pendingResult) {
+            onCreated(pendingResult);
+            return;
+        }
+        rawClose();
+    }, [pendingResult, onCreated, rawClose]);
 
     // Esc closes (matches MoreSheet and other binge sheets).
     useEffect(() => {
