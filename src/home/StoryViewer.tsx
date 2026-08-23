@@ -272,9 +272,22 @@ export function StoryViewer() {
     // dismiss it. The two tests covering this asserted only that show()
     // does not throw, which a null render satisfies, so neither could
     // fail for this.
+    // Keyed on the STORY, never on currentScene.
+    //
+    // currentScene is undefined for one render on any advance to a
+    // performer with fewer scenes: activeIndex moves first and
+    // sceneIndex is still the previous performer's, and the reset to 0
+    // is scheduled in an effect that runs in the same commit as this
+    // one. Closing on that transient shut the viewer on roughly half of
+    // all seam crossings - a regression, and worse than the stuck-open
+    // state it was written for. The existing "starts the new performer
+    // at their first scene" test uses two performers with two scenes
+    // each, so scenes[1] exists on both sides and the case is invisible
+    // to it.
     useEffect(() => {
-        if (isOpen && (!activeStory || !currentScene)) close();
-    }, [isOpen, activeStory, currentScene, close]);
+        if (!isOpen) return;
+        if (!activeStory || activeStory.scenes.length === 0) close();
+    }, [isOpen, activeStory, close]);
 
     // Nothing pending survives a close.
     useEffect(() => {

@@ -775,10 +775,8 @@ export function setForageUrl(
 // most once per page. forageServer.ts awaits it before the health probe
 // so a cold load can't race the seed.
 export function ensureForageUrlSeeded(): Promise<void> {
-    return ensureSeededFromPluginConfig(
-        FORAGE_URL_KEY,
-        "forageUrl",
-        setForageUrl,
+    return ensureSeededFromPluginConfig(FORAGE_URL_KEY, "forageUrl", (v) =>
+        setForageUrl(v, { confirm: false }),
     );
 }
 
@@ -914,6 +912,36 @@ export function confirmedDaemonOrigins(): string[] {
     } catch {
         return [];
     }
+}
+
+/// Bumps whenever the confirmed-origin list changes.
+///
+/// A notify with no subscriber is not a re-render. confirmDaemonOrigin
+/// used to write the origin and then set the daemon URL to the string
+/// already in storage, which React's eager-state bailout turns into
+/// nothing at all - so the Settings banner's "Use this daemon" button
+/// persisted the choice and then sat there looking broken, inviting the
+/// user to click it again. Nothing in this file subscribed to the
+/// origins key, so adding a notify for it changed nothing either. This
+/// is the missing half.
+export function useDaemonOriginsRevision(): number {
+    const [rev, setRev] = useState(0);
+    useEffect(() => {
+        const bump = () => setRev((n) => n + 1);
+        const localHandler = (changedKey: string) => {
+            if (changedKey === DAEMON_OK_KEY) bump();
+        };
+        const storageHandler = (e: StorageEvent) => {
+            if (e.key === DAEMON_OK_KEY) bump();
+        };
+        listeners.add(localHandler);
+        window.addEventListener("storage", storageHandler);
+        return () => {
+            listeners.delete(localHandler);
+            window.removeEventListener("storage", storageHandler);
+        };
+    }, []);
+    return rev;
 }
 
 export function confirmDaemonOrigin(raw: string): void {

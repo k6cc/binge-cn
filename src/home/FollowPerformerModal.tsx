@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent } from "react";
+import { type ChangeEvent, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { linkExistingScenesToPerformer } from "../api/linkExistingScenes";
 import {
@@ -79,6 +79,18 @@ export function FollowPerformerModal({
     /// Non-fatal note from the linking step, shown before the modal
     /// closes. The performer was created either way.
     const [linkNote, setLinkNote] = useState<string | null>(null);
+    // Mirrors linkNote for the same-tick check above: setState is not
+    // visible to the code that follows it.
+    const noteRef = useRef<string | null>(null);
+    const note = (msg: string) => {
+        noteRef.current = msg;
+        setLinkNote(msg);
+    };
+    const [pendingResult, setPendingResult] = useState<{
+        id: string;
+        name: string;
+        linkedScenes?: number;
+    } | null>(null);
 
     // Esc closes (matches MoreSheet and other binge sheets).
     useEffect(() => {
@@ -171,19 +183,29 @@ export function FollowPerformerModal({
                 // looked identical, and "she has no scenes here" and
                 // "StashDB was unreachable" did too.
                 if (r.failed) {
-                    setLinkNote(
+                    note(
                         `Added, but her ${r.matched} existing scenes could not be linked. Stash refused the update.`,
                     );
                 } else if (r.lookupFailed) {
-                    setLinkNote(
+                    note(
                         "Added, but StashDB could not be reached, so her existing scenes were not linked.",
                     );
                 }
             } catch (err) {
                 console.warn("[binge] linking existing scenes failed", err);
-                setLinkNote(
-                    "Added, but her existing scenes could not be linked.",
-                );
+                noteRef.current = null;
+                note("Added, but her existing scenes could not be linked.");
+            }
+            // Held, not raced. Every caller unmounts this modal inside
+            // onCreated, so setting a note and calling onCreated on the
+            // next line rendered the note into a component that was
+            // already going away - the whole reporting half was
+            // unreachable, which is the second time feedback was built
+            // here that nobody could see. When there is something to
+            // say, the modal stays up until the user dismisses it.
+            if (noteRef.current) {
+                setPendingResult({ ...result, linkedScenes: linked });
+                return;
             }
             onCreated({ ...result, linkedScenes: linked });
         } catch (err) {
@@ -523,6 +545,15 @@ export function FollowPerformerModal({
                         {linkNote && (
                             <div className="binge-follow-modal-note">
                                 {linkNote}
+                                {pendingResult && (
+                                    <button
+                                        type="button"
+                                        className="binge-follow-modal-note-ok"
+                                        onClick={() => onCreated(pendingResult)}
+                                    >
+                                        Done
+                                    </button>
+                                )}
                             </div>
                         )}
                     </div>

@@ -4928,6 +4928,19 @@ body,
     line-height: 1.4;
     min-height: 2.5rem;
 }
+.binge-follow-modal-note-ok {
+    appearance: none;
+    display: block;
+    margin-top: 9px;
+    padding: 6px 14px;
+    border: 1px solid rgba(255, 200, 80, 0.35);
+    border-radius: 7px;
+    background: rgba(255, 200, 80, 0.14);
+    color: #f0d79a;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+}
 .binge-follow-modal-note {
     margin-top: 10px;
     padding: 9px 11px;
