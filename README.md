@@ -1,6 +1,6 @@
 # Binge（汉化版）
 
-> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.6.7**。
+> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.6.8**。
 
 为 [Stash](https://github.com/stashapp/stash) 提供的 Instagram 风格社交与发现层：竖屏 Reel、Stories、演员档案、StashDB 驱动的发现功能——全部基于 Stash 既有的 GraphQL API。Web 插件形态。
 
@@ -39,6 +39,12 @@ v0.4.17 将原硬编码中文迁移为基于 `react-i18next` 的动态多语言�
 - 详见 [汉化及修复.md](./汉化及修复.md)
 
 ### 功能修复
+
+#### v0.6.8
+
+- **静音偏好全局同步**：修复"明明关了声音，浏览时突然出声吓一跳"——首页卡片/播放页场景等各表面独立持有静音 state，切换只写当前实例 + localStorage，虚拟滚动里已挂载的邻近卡片收不到通知，要滑出卸载重挂才读新值；现在用户显式切换派发事件全局同步（自动播放降级仍保持局部，不回归"一个表面被降级、全部图标变"的联动问题）
+- **关注中页筛选框**：原生 `<select>` 在 Android Chrome 弹系统级居中白底大选择框（与应用深色风格脱节）——抽通用 `SortMenu` 组件（从详情页场景排序泛化），文字栏 + 玻璃拟态浮层菜单，桌面 + 手机行为一致；文字栏固定宽度 8.6rem 切换不跳宽，点击有与搜索框一致的包围圈
+- **详情页图库**：图库内"←返回"改醒目按钮（深色底 + 蓝色 #6aa9ff 边框/文字）；封面计数徽章去图标只留数字；封面标题 720px 以下 0.57rem、图库标题 0.72rem
 
 #### v0.6.7
 

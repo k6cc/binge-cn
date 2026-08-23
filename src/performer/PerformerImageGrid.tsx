@@ -391,32 +391,9 @@ function GalleryCoverCell({
                     {gallery.title || t("gallery.gallery_id", { id: gallery.id })}
                 </span>
                 <span className="binge-gallery-cell-count">
-                    <StackIcon />
-                    <span>{gallery.image_count}</span>
+                    {gallery.image_count}
                 </span>
             </button>
         </li>
-    );
-}
-
-// 与首页图库卡片计数徽章同款图标（本地副本，与 GalleryFeedCard 的
-// StackIcon 一致——项目内 Chevron 系列同样按文件就近定义）。
-function StackIcon() {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-            width="14"
-            height="14"
-        >
-            <rect x="7" y="3" width="14" height="14" rx="2" />
-            <path d="M3 7v12a2 2 0 0 0 2 2h12" />
-        </svg>
     );
 }

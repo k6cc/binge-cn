@@ -3869,24 +3869,6 @@ body,
 .binge-following-search::placeholder {
     color: rgba(255, 255, 255, 0.4);
 }
-.binge-following-sort {
-    appearance: none;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    border-radius: 10px;
-    padding: 0.55rem 0.7rem;
-    color: #fff;
-    font-size: 0.88rem;
-    cursor: pointer;
-}
-.binge-following-sort:focus {
-    outline: 2px solid rgba(255, 255, 255, 0.25);
-    outline-offset: 1px;
-}
-.binge-following-sort option {
-    background: #1a1a1a;
-    color: #fff;
-}
 .binge-following-section + .binge-following-section {
     margin-top: 1.5rem;
 }
@@ -7533,11 +7515,11 @@ body,
 /* Sort dropdown — doubles as the SCENES section header, so its button
    adopts the heading's weight (uppercase, tracked) while staying a quiet
    text-only control. The popover reuses the feed-filter menu's glass. */
-.binge-scene-sort {
+.binge-sort {
     position: relative;
     display: inline-flex;
 }
-.binge-scene-sort-btn {
+.binge-sort-btn {
     appearance: none;
     background: transparent;
     border: none;
@@ -7554,23 +7536,54 @@ body,
     cursor: pointer;
     transition: color 0.15s ease;
 }
-.binge-scene-sort-btn:hover,
-.binge-scene-sort-btn.is-open {
+.binge-sort-btn:hover,
+.binge-sort-btn.is-open {
     color: #fff;
 }
-.binge-scene-sort-btn svg {
+.binge-sort-btn svg {
     opacity: 0.7;
     transition: transform 0.15s ease;
 }
-.binge-scene-sort-btn.is-open svg {
+.binge-sort-btn.is-open svg {
     transform: rotate(180deg);
 }
-.binge-scene-sort-btn:focus-visible {
+.binge-sort-btn:focus-visible {
     outline: 2px solid rgba(255, 255, 255, 0.3);
     outline-offset: 2px;
     border-radius: 4px;
 }
-.binge-scene-sort-menu {
+.binge-sort-btn-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+/* 文字栏变体（关注中页）：恢复原 select 的底色边框栏样式，不带下拉
+   箭头（纯文字栏）。固定宽度 8.6rem，切换排序时按钮宽度不跳；label
+   超长时 ellipsis 兜底。:focus（而非 :focus-visible）——与左侧搜索
+   框一致，点击也有包围圈。 */
+.binge-sort-btn.is-box {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 10px;
+    padding: 0.55rem 0.7rem;
+    color: #fff;
+    font-size: 0.88rem;
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: normal;
+    width: 8.6rem;
+    justify-content: center;
+}
+.binge-sort-btn.is-box:hover,
+.binge-sort-btn.is-box.is-open {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.22);
+}
+.binge-sort-btn.is-box:focus {
+    outline: 2px solid rgba(255, 255, 255, 0.25);
+    outline-offset: 1px;
+}
+.binge-sort-menu {
     position: absolute;
     top: calc(100% + 6px);
     left: 0;
@@ -7583,7 +7596,12 @@ body,
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
     backdrop-filter: blur(20px) saturate(140%);
 }
-.binge-scene-sort-item {
+/* 按钮贴容器右缘时菜单右对齐展开，避免溢出视口。 */
+.binge-sort-menu.is-align-right {
+    left: auto;
+    right: 0;
+}
+.binge-sort-item {
     appearance: none;
     background: transparent;
     border: none;
@@ -7605,13 +7623,13 @@ body,
         background 0.12s ease,
         color 0.12s ease;
 }
-.binge-scene-sort-item:hover {
+.binge-sort-item:hover {
     background: rgba(255, 255, 255, 0.06);
 }
-.binge-scene-sort-item.is-active {
+.binge-sort-item.is-active {
     color: #fff;
 }
-.binge-scene-sort-check {
+.binge-sort-check {
     flex: 0 0 14px;
     width: 14px;
     height: 14px;
@@ -8291,7 +8309,6 @@ body,
     right: 0.35rem;
     display: inline-flex;
     align-items: center;
-    gap: 0.3rem;
     padding: 0.15rem 0.4rem;
     background: rgba(0, 0, 0, 0.6);
     color: #fff;
@@ -8305,14 +8322,28 @@ body,
 }
 .binge-gallery-back {
     appearance: none;
-    border: none;
-    background: transparent;
-    color: inherit;
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid #6aa9ff;
+    background: rgba(10, 16, 26, 0.78);
+    border-radius: 8px;
+    color: #6aa9ff;
     cursor: pointer;
-    padding: 0.4rem 0;
-    margin-bottom: 0.5rem;
-    font-size: 0.9rem;
+    padding: 0.28rem 0.7rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.8rem;
     font-weight: 600;
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease;
+}
+.binge-gallery-back:hover {
+    background: rgba(106, 169, 255, 0.18);
+    border-color: #8abaff;
+}
+.binge-gallery-back:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.3);
+    outline-offset: 2px;
 }
 .binge-gallery-title {
     color: #fff;
@@ -8320,6 +8351,15 @@ body,
     font-weight: 700;
     margin-bottom: 0.75rem;
     padding: 0 0.25rem;
+}
+/* 窄屏：封面/图库标题字号收紧。 */
+@media (max-width: 720px) {
+    .binge-gallery-cell-title {
+        font-size: 0.57rem;
+    }
+    .binge-gallery-title {
+        font-size: 0.72rem;
+    }
 }
 
 /* X (Twitter) media cell — the card is an <a> (opens the tweet), so it

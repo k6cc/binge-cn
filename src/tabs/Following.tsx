@@ -12,6 +12,7 @@ import { SearchHistoryDropdown } from "../components/SearchHistoryDropdown";
 import { BingeLoading } from "../components/BingeLoading";
 import { useScrollToTop } from "../hooks/useScrollToTop";
 import { ScrollTopButton } from "../components/ScrollTopButton";
+import { SortMenu } from "../components/SortMenu";
 
 type LoadState =
     | { kind: "loading" }
@@ -211,18 +212,14 @@ export function Following() {
                             />
                         )}
                     </div>
-                    <select
-                        className="binge-following-sort"
+                    <SortMenu
+                        options={SORT_OPTIONS}
                         value={sort}
-                        onChange={(e) => setSort(e.target.value as SortMode)}
-                        aria-label={t("nav.sort_performers")}
-                    >
-                        {SORT_OPTIONS.map((opt) => (
-                            <option key={opt.value} value={opt.value}>
-                                {opt.label}
-                            </option>
-                        ))}
-                    </select>
+                        onChange={setSort}
+                        ariaLabel={t("nav.sort_performers")}
+                        menuAlign="right"
+                        variant="box"
+                    />
                 </div>
 
                 {state.kind === "loading" && <BingeLoading minHeight="60vh" />}
