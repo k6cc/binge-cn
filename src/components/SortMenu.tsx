@@ -80,7 +80,8 @@ export function SortMenu<T extends string>({
                 <div
                     className={
                         "binge-sort-menu" +
-                        (menuAlign === "right" ? " is-align-right" : "")
+                        (menuAlign === "right" ? " is-align-right" : "") +
+                        (variant === "box" ? " is-box" : "")
                     }
                     role="menu"
                 >
@@ -101,9 +102,11 @@ export function SortMenu<T extends string>({
                                     setOpen(false);
                                 }}
                             >
-                                <span className="binge-sort-check">
-                                    {active && <CheckIcon />}
-                                </span>
+                                {variant !== "box" && (
+                                    <span className="binge-sort-check">
+                                        {active && <CheckIcon />}
+                                    </span>
+                                )}
                                 {opt.label}
                             </button>
                         );

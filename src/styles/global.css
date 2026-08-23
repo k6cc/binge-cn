@@ -7558,9 +7558,11 @@ body,
     white-space: nowrap;
 }
 /* 文字栏变体（关注中页）：恢复原 select 的底色边框栏样式，不带下拉
-   箭头（纯文字栏）。固定宽度 8.6rem，切换排序时按钮宽度不跳；label
-   超长时 ellipsis 兜底。:focus（而非 :focus-visible）——与左侧搜索
-   框一致，点击也有包围圈。 */
+   箭头（纯文字栏）。宽度与浮层菜单实际宽度对齐（菜单内容 168px +
+   菜单内边距 16px ≈ 10rem 级别，实测微调）；切换排序时按钮宽度不
+   跳。:focus（而非 :focus-visible）——与左侧搜索框一致，点击也有包
+   围圈。字体：按钮与菜单项同继承 #root 字体栈（Segoe UI 系，与上
+   游 select 一致）。 */
 .binge-sort-btn.is-box {
     background: rgba(255, 255, 255, 0.06);
     border: 1px solid rgba(255, 255, 255, 0.14);
@@ -7571,8 +7573,8 @@ body,
     font-weight: 500;
     text-transform: none;
     letter-spacing: normal;
-    width: 8.6rem;
-    justify-content: center;
+    width: 10rem;
+    justify-content: flex-start;
 }
 .binge-sort-btn.is-box:hover,
 .binge-sort-btn.is-box.is-open {
@@ -7611,6 +7613,10 @@ body,
     gap: 8px;
     padding: 7px 8px;
     border-radius: 8px;
+    /* button 默认不继承页面字体（UA 表单控件字体，Windows Chrome
+       英文 Arial、中文可能宋体）；触发按钮有 font: inherit 是
+       Segoe UI——不显式继承时两处字形明显不同。 */
+    font-family: inherit;
     font-size: 0.85rem;
     font-weight: 500;
     text-transform: none;
@@ -7636,6 +7642,28 @@ body,
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    color: #c084fc;
+}
+/* box 变体（关注中页下拉）：菜单宽度锁定为与按钮同宽——border-box
+   + 同一 width 值，两缘由构造对齐（菜单默认 content-box，min-width
+   168px 是内容宽，总宽 182px 会比按钮宽 22px）。内部 padding 相应
+   收窄，保证最长英文选项不溢出（文字区 138px ≥ "Recent post
+   (newest)" 134px）。 */
+.binge-sort-menu.is-box {
+    box-sizing: border-box;
+    width: 10rem;
+    min-width: 0;
+    padding: 5px;
+}
+/* 菜单项与筛选栏字号/观感统一：同 0.88rem；非选中色提亮到 0.85 白
+   （原 0.6 白的半透明抗锯齿让笔画显细，观感像不同字体——实际两处
+   都继承 #root 的同一字体栈）；选中态紫色文字标识。 */
+.binge-sort-menu.is-box .binge-sort-item {
+    font-size: 0.88rem;
+    padding: 7px 5px;
+    color: rgba(255, 255, 255, 0.85);
+}
+.binge-sort-menu.is-box .binge-sort-item.is-active {
     color: #c084fc;
 }
 /* StashDB mix-in toggle pill — sits at the right of the SCENES
