@@ -10,7 +10,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const gql = vi.fn();
 vi.mock("./graphql", () => ({ gql: (...a: unknown[]) => gql(...a) }));
 
-const { findRecentScenes, findRecentGalleries } = await import("./queries");
+const { findRecentScenes, findRecentGalleries, findTagByName } =
+    await import("./queries");
 
 const sceneNode = (over: Record<string, unknown> = {}) => ({
     id: "s1",
@@ -253,5 +254,51 @@ describe("mapping galleries", () => {
         galleriesReturn([galleryNode({ performers: null })]);
         const [row] = await findRecentGalleries("2026-06-01");
         expect(row.performers).toEqual([]);
+    });
+});
+
+// Stash compiles `name: { modifier: EQUALS }` to a SQL LIKE, so the rows
+// that come back are not necessarily the row that was asked for. These
+// pin the client-side check that turns the result back into an equality.
+//
+// It matters because the answer is used to pick which tag to DESTROY.
+describe("findTagByName", () => {
+    const rows = (...names: string[]) =>
+        gql.mockResolvedValue({
+            findTags: {
+                tags: names.map((name, i) => ({
+                    id: "t" + i,
+                    name,
+                    parents: [],
+                })),
+            },
+        });
+
+    it("returns the exactly-named row, not the first one Stash paged", async () => {
+        // "_" is a single-character wildcard, so asking for
+        // "Golden_Hours 📁" also matches "Golden Hours 📁", which sorts
+        // first. Taking tags[0] handed back the wrong tag's id.
+        rows("Golden Hours \u{1F4C1}", "Golden_Hours \u{1F4C1}");
+        const hit = await findTagByName("Golden_Hours \u{1F4C1}");
+        expect(hit?.name).toBe("Golden_Hours \u{1F4C1}");
+        expect(hit?.id).toBe("t1");
+    });
+
+    it("returns null when only near-misses came back", async () => {
+        // "%" matches any run, so "100% \u{1F4C1}" matched a tag that
+        // merely starts with "100". There is no such tag; say so.
+        rows("100 Percent Real \u{1F4C1}", "1000 Ways \u{1F4C1}");
+        expect(await findTagByName("100% \u{1F4C1}")).toBeNull();
+    });
+
+    it("does not accept a case-insensitive match", async () => {
+        // The LIKE is case-insensitive; tag names are not the same tag.
+        rows("Advanced Scene Rating");
+        expect(await findTagByName("advanced scene rating")).toBeNull();
+    });
+
+    it("still finds an ordinary name", async () => {
+        rows("Watch Later \u{1F4C1}");
+        expect((await findTagByName("Watch Later \u{1F4C1}"))?.id).toBe("t0");
     });
 });

@@ -214,13 +214,25 @@ const FIND_TAGS = /* GraphQL */ `
     }
 `;
 
-// Exact-match tag lookup by name. Used by favourites.ts to find ASR's
-// "Favourite ★" tag (or create it on first use).
+// Tag lookup by exact name.
+//
+// Stash compiles `modifier: EQUALS` to a SQL LIKE, so `%` and `_` in the
+// name are WILDCARDS and the compare is case-insensitive. This asked for
+// one row and returned `tags[0]` without checking it was the row it
+// asked for, which made the answer a near-miss whenever the name held
+// either character: "Golden_Hours 📁" resolved to the id of "Golden
+// Hours 📁". Every caller then acted on the wrong tag - and one of them
+// is tagDestroy, so deleting a collection destroyed a DIFFERENT
+// collection, stripping that tag from every scene, image, gallery and
+// performer carrying it, with no undo.
+//
+// So: ask for several rows and return only an exact match. The LIKE
+// still does the searching; this decides what counts as a hit.
 const FIND_TAG_BY_NAME = /* GraphQL */ `
     query FindTagByName($name: String!) {
         findTags(
             tag_filter: { name: { value: $name, modifier: EQUALS } }
-            filter: { per_page: 1 }
+            filter: { per_page: 25 }
         ) {
             tags {
                 id
@@ -247,7 +259,7 @@ export async function findTagByName(name: string): Promise<{
             }[];
         };
     }>(FIND_TAG_BY_NAME, { name });
-    return data.findTags.tags[0] ?? null;
+    return data.findTags.tags.find((t) => t.name === name) ?? null;
 }
 
 // Tags pulled from the user's most-recently-liked scenes. Powers the

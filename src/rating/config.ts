@@ -41,9 +41,26 @@ interface ConfigQueryResponse {
 // parsed map and never cleared - Stash restarting for one second meant
 // "couldn't load rating config" on every scene and every performer
 // until a full page reload, because invalidateRatingConfig is called by
-// nothing but the tests. precision.ts already has the try/catch this
-// needed.
+// nothing but the tests.
+//
+// Which is why this now catches. An HTTP 500 was already handled by the
+// !resp.ok branch, but a network-level rejection - Stash restarting for
+// one second, a dropped connection - propagated out of here and was
+// stored, rejected, in configFetchPromise and again in parsedCache.
+// From that moment every open of the rating modal, scene AND performer,
+// rendered "couldn't load rating config" until the page was reloaded.
+// A one-second outage while the tab sat idle cost the rest of the
+// session.
 async function fetchPluginConfig(): Promise<RawPluginConfig | null> {
+    try {
+        return await fetchPluginConfigInner();
+    } catch (err) {
+        console.warn("[binge] rating config fetch failed:", err);
+        return null;
+    }
+}
+
+async function fetchPluginConfigInner(): Promise<RawPluginConfig | null> {
     const resp = await fetch(STASH_GRAPHQL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

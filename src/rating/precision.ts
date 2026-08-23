@@ -35,10 +35,19 @@ export function loadRatingPrecision(): Promise<number> {
                     query: `query { configuration { ui } }`,
                 }),
             });
-            if (!resp.ok) return 20;
+            if (!resp.ok) throw new Error("rating config HTTP " + resp.status);
             const body = (await resp.json()) as ConfigResp;
             return precisionFromUiConfig(body.data?.configuration?.ui);
-        } catch {
+        } catch (err) {
+            // Do NOT keep this. Returning 20 from inside the memo pinned
+            // the fallback for the life of the page, so one failed read
+            // left a TENTH-precision box previewing multiples of 20
+            // while the hook stored multiples of 1 - the exact
+            // divergence this file exists to prevent, reached by a
+            // different route than the casing bug below. Dropping the
+            // memo lets the next modal open ask again.
+            cached = null;
+            console.warn("[binge] rating precision fetch failed:", err);
             return 20;
         }
     })();

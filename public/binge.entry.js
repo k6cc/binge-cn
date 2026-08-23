@@ -56,19 +56,43 @@
         );
     }
 
+    // Both callbacks below run inside Stash's own render, and Stash's
+    // PatchFunction does not wrap them. MainNavBar.MenuItems renders on
+    // every page and sits under App.tsx's TOP-LEVEL error boundary, so
+    // anything thrown here replaces the whole Stash UI - navbar, routes
+    // and Settings - with the error screen, on every page and every
+    // reload. There is then no in-app way back: the setting that
+    // disables plugin customisations lives in the Settings that just
+    // disappeared, so recovery means editing Stash's config by hand or
+    // deleting the plugin directory.
+    //
+    // A binge nav button failing to appear is a small problem. Stash
+    // becoming unusable because of it is not, so every failure here
+    // degrades to the untouched arguments.
     PluginApi.patch.before('CheckboxGroup', function (props) {
-        if (!props || props.groupId !== 'menu-items') { return [props]; }
-        return [Object.assign({}, props, {
-            items: props.items.concat([{ id: MENU_ITEM_ID, headingID: 'Binge' }])
-        })];
+        try {
+            if (!props || props.groupId !== 'menu-items') { return [props]; }
+            if (!Array.isArray(props.items)) { return [props]; }
+            return [Object.assign({}, props, {
+                items: props.items.concat([{ id: MENU_ITEM_ID, headingID: 'Binge' }])
+            })];
+        } catch (err) {
+            console.warn('[binge] menu-items patch failed:', err);
+            return [props];
+        }
     });
 
     PluginApi.patch.instead('MainNavBar.MenuItems', function (props) {
         var next = arguments[arguments.length - 1];
-        var data = PluginApi.GQL.useConfigurationQuery().data;
-        var enabled = !!(data && data.configuration && data.configuration.interface &&
-            data.configuration.interface.menuItems &&
-            data.configuration.interface.menuItems.indexOf(MENU_ITEM_ID) !== -1);
-        return e(next, props, props.children, enabled ? e(BingeNavButton) : null);
+        try {
+            var data = PluginApi.GQL.useConfigurationQuery().data;
+            var enabled = !!(data && data.configuration && data.configuration.interface &&
+                data.configuration.interface.menuItems &&
+                data.configuration.interface.menuItems.indexOf(MENU_ITEM_ID) !== -1);
+            return e(next, props, props.children, enabled ? e(BingeNavButton) : null);
+        } catch (err) {
+            console.warn('[binge] nav patch failed:', err);
+            return e(next, props, props.children);
+        }
     });
 })();

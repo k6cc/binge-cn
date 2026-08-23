@@ -51,11 +51,35 @@ const load = () => import("./collections");
 
 // A tag table findTagByName resolves against, so tests describe Stash's
 // state rather than scripting call-by-call return values.
+//
+// This used to be a plain Map.get, i.e. an exact match - which is not
+// what the real function does, and is exactly the assumption that made
+// the wrong-tag deletion invisible to all 32 tests here. Stash compiles
+// `modifier: EQUALS` to a SQL LIKE, so the mock does too: `_` matches
+// any character, `%` any run, and the compare is case-insensitive.
+// findTagByName's own exact-name check is what turns that back into a
+// real equality, and it can only be tested if the mock underneath it
+// behaves like the database.
+function likeMatches(pattern: string, name: string): boolean {
+    let rx = "";
+    for (const ch of pattern) {
+        if (ch === "%") rx += "[\\s\\S]*";
+        else if (ch === "_") rx += "[\\s\\S]";
+        else rx += ch.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    }
+    return new RegExp("^" + rx + "$", "i").test(name);
+}
+
 function stashHas(tags: Tag[]) {
     const byName = new Map(tags.map((t) => [t.name, t]));
-    findTagByName.mockImplementation((name: string) =>
-        Promise.resolve(byName.get(name) ?? null),
-    );
+    findTagByName.mockImplementation((name: string) => {
+        // Every LIKE hit, name-ASC, as Stash would page them...
+        const hits = tags
+            .filter((t) => likeMatches(name, t.name))
+            .sort((a, b) => a.name.localeCompare(b.name));
+        // ...and then the exact-name check the real one applies.
+        return Promise.resolve(hits.find((t) => t.name === name) ?? null);
+    });
     return byName;
 }
 
@@ -290,31 +314,78 @@ describe("createCollection", () => {
 describe("deleteCollection", () => {
     it("refuses to delete Favourites, which is shared with the rating plugin", async () => {
         const { deleteCollection } = await load();
-        await expect(deleteCollection(FAVOURITES)).rejects.toThrow(/ASR/);
+        await expect(
+            deleteCollection({
+                name: "Favourites",
+                tagName: FAVOURITES,
+                id: "fav",
+                icon: "favourite",
+                isDefault: true,
+            }),
+        ).rejects.toThrow(/ASR/);
         expect(tagDestroy).not.toHaveBeenCalled();
     });
 
     it("destroys the tag behind a user collection", async () => {
-        stashHas([
-            tag("p", PARENT),
-            tag("fav", FAVOURITES),
-            tag("wl", `Watch Later${SUFFIX}`, ["p"]),
-            tag("rt", `Road Trip${SUFFIX}`, ["p"]),
-        ]);
+        // Deliberately WITHOUT the default tags or the parent. Seeding
+        // them made the old create-on-delete path a no-op, which is why
+        // the suite never saw it: the tags it would have minted already
+        // existed. This is the state a user is in after making exactly
+        // one collection and deciding against it.
+        stashHas([tag("rt", `Road Trip${SUFFIX}`, ["p"])]);
         findTagsContaining.mockResolvedValue([
             { id: "rt", name: `Road Trip${SUFFIX}` },
         ]);
-        const { deleteCollection } = await load();
-        await expect(deleteCollection(`Road Trip${SUFFIX}`)).resolves.toBe(
-            true,
-        );
+        const { deleteCollection, getCollections } = await load();
+        const def = (await getCollections()).find(
+            (c) => c.tagName === `Road Trip${SUFFIX}`,
+        )!;
+        await expect(deleteCollection(def)).resolves.toBe(true);
         expect(tagDestroy).toHaveBeenCalledWith("rt");
+        // Deleting must not CREATE anything. This path used to resolve
+        // ids with create: true, so pressing Delete minted the two
+        // default collection tags and the parent - one of them in the
+        // rating plugin's namespace - on the way to destroying one.
+        expect(tagCreate).not.toHaveBeenCalled();
+    });
+
+    it("destroys the tag it was handed, not a LIKE near-miss", async () => {
+        // An underscore is an ordinary thing to put in a folder name,
+        // and it is a single-character wildcard in SQL LIKE. Resolving
+        // the victim by name meant "Golden_Hours" found the id of
+        // "Golden Hours" - which sorts first - and destroyed it, while
+        // the collection the user pointed at stayed.
+        stashHas([
+            tag("p", PARENT),
+            tag("fav", FAVOURITES),
+            tag("gh", `Golden Hours${SUFFIX}`, ["p"]),
+            tag("gu", `Golden_Hours${SUFFIX}`, ["p"]),
+        ]);
+        findTagsContaining.mockResolvedValue([
+            { id: "gh", name: `Golden Hours${SUFFIX}` },
+            { id: "gu", name: `Golden_Hours${SUFFIX}` },
+        ]);
+        const { deleteCollection, getCollections } = await load();
+        const def = (await getCollections()).find(
+            (c) => c.tagName === `Golden_Hours${SUFFIX}`,
+        )!;
+        await expect(deleteCollection(def)).resolves.toBe(true);
+        expect(tagDestroy).toHaveBeenCalledWith("gu");
+        expect(tagDestroy).not.toHaveBeenCalledWith("gh");
     });
 
     it("reports false for a collection that is not there", async () => {
         stashHas([tag("p", PARENT), tag("fav", FAVOURITES)]);
         const { deleteCollection } = await load();
-        await expect(deleteCollection(`Ghost${SUFFIX}`)).resolves.toBe(false);
+        await expect(
+            deleteCollection({
+                name: "Ghost",
+                tagName: `Ghost${SUFFIX}`,
+                id: "",
+                icon: "generic",
+                isDefault: false,
+            }),
+        ).resolves.toBe(false);
         expect(tagDestroy).not.toHaveBeenCalled();
     });
 });

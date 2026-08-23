@@ -20,7 +20,7 @@ import { sceneUpdate, tagCreate, tagDestroy, tagSetParents } from "./mutations";
 //      tag is harmless to leave orphaned.)
 
 export const COLLECTION_TAG_SUFFIX = " 📁";
-const FAVOURITES_TAG_NAME = "Favourite ★";
+export const FAVOURITES_TAG_NAME = "Favourite ★";
 const DEFAULT_WATCH_LATER_TAG_NAME = `Watch Later${COLLECTION_TAG_SUFFIX}`;
 // Parent under which every binge-managed collection tag is
 // nested in Stash's tag tree. Keeps the user's tag list tidy:
@@ -39,6 +39,14 @@ export type CollectionIconName = "favourite" | "watchLater" | "generic";
 export interface CollectionDef {
     name: string; // display label (no suffix, no star)
     tagName: string; // exact Stash tag name (with suffix or ★)
+    // The Stash tag id, when this collection's tag exists. Empty for a
+    // default that has not been created yet.
+    //
+    // Carried because the destructive path used to re-resolve the tag
+    // from its NAME at delete time, through a lookup that is a SQL LIKE
+    // underneath. The id is already in hand here - it came back with
+    // the name - and an id cannot near-miss.
+    id: string;
     icon: CollectionIconName;
     // Default collections render with their dedicated icon + can't be
     // removed by the user via binge. User-created collections render
@@ -96,16 +104,19 @@ export function getCollections(): Promise<CollectionDef[]> {
         const userTags = (
             await findTagsContaining(COLLECTION_TAG_SUFFIX)
         ).filter((t) => t.name.endsWith(COLLECTION_TAG_SUFFIX));
+        const byName = new Map(userTags.map((t) => [t.name, t.id]));
         const defaults: CollectionDef[] = [
             {
                 name: "Favourites",
                 tagName: FAVOURITES_TAG_NAME,
+                id: byName.get(FAVOURITES_TAG_NAME) ?? "",
                 icon: "favourite",
                 isDefault: true,
             },
             {
                 name: "Watch Later",
                 tagName: DEFAULT_WATCH_LATER_TAG_NAME,
+                id: byName.get(DEFAULT_WATCH_LATER_TAG_NAME) ?? "",
                 icon: "watchLater",
                 isDefault: true,
             },
@@ -117,7 +128,8 @@ export function getCollections(): Promise<CollectionDef[]> {
             .map((t) => ({
                 name: stripSuffix(t.name),
                 tagName: t.name,
-                icon: "generic",
+                id: t.id,
+                icon: "generic" as const,
                 isDefault: false,
             }));
         return [...defaults, ...userCollections];
@@ -271,8 +283,9 @@ export async function createCollection(
     const parentId = await ensureCollectionsParentTagId();
     // Avoid duplicate creation if the user races: find first.
     const existing = await findTagByName(tagName);
+    let id = existing?.id ?? "";
     if (!existing) {
-        await tagCreate(tagName, true, [parentId]);
+        id = (await tagCreate(tagName, true, [parentId])).id;
     } else if (!existing.parents.some((p) => p.id === parentId)) {
         // Tag existed without the parent (e.g. pre-migration);
         // reparent in place.
@@ -288,6 +301,7 @@ export async function createCollection(
     return {
         name: trimmed,
         tagName,
+        id,
         icon: "generic",
         isDefault: false,
     };
@@ -298,14 +312,23 @@ export async function createCollection(
 // We refuse to delete the Favourites collection because it's ASR's
 // tag and the user probably doesn't want to nuke their ASR favourites
 // state. Returns true on success.
-export async function deleteCollection(tagName: string): Promise<boolean> {
-    if (tagName === FAVOURITES_TAG_NAME) {
+export async function deleteCollection(def: CollectionDef): Promise<boolean> {
+    if (def.tagName === FAVOURITES_TAG_NAME) {
         throw new Error(
             "The Favourites collection is shared with ASR and can't be deleted from binge.",
         );
     }
-    const tagIds = await getCollectionTagIds();
-    const id = tagIds.get(tagName);
+    // The id this collection was listed with, not a fresh lookup.
+    //
+    // Two separate faults lived in the old line. It re-resolved the tag
+    // by NAME through a lookup that is a SQL LIKE, so a name holding an
+    // underscore or a percent destroyed a different collection. And it
+    // resolved through getCollectionTagIds(), whose default is
+    // create: true - so pressing Delete first CREATED the two default
+    // collection tags and the parent, one of them in another plugin's
+    // namespace. Someone who made one collection, disliked it and
+    // deleted it finished with more tags than they started with.
+    const id = def.id;
     if (!id) return false;
     await tagDestroy(id);
     cachedCollectionsPromise = null;

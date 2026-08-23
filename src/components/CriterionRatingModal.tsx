@@ -165,19 +165,51 @@ export function CriterionRatingModal({
                 target.kind === "scene"
                     ? await applySceneTagIds(target.id, newIds)
                     : await applyPerformerTagIds(target.id, newIds);
-            // Re-fetch to pick up the plugin hook's recomputed rating100.
-            const fresh =
-                target.kind === "scene"
-                    ? await fetchSceneTagsAndRating(target.id)
-                    : await fetchPerformerTagsAndRating(target.id);
-            setState({
-                kind: "ready",
-                config: state.config,
-                precision: state.precision,
-                tags: fresh.tags.length ? fresh.tags : updatedTags,
-                rating100: fresh.rating100,
-            });
-            onRatingChange?.(fresh.rating100);
+            // Past this point the write has LANDED. Everything below
+            // is about reading back what it did, and a failure there is
+            // not a failure to save - so it gets its own catch. Sharing
+            // the outer one meant a refetch that lost the connection
+            // printed "nothing was changed" over a rating that had just
+            // been stored, left the stars on the old value, and never
+            // told the caller. The window is the gap between the
+            // mutation resolving and the refetch resolving, and it is
+            // reached deterministically if the scene is deleted inside
+            // it, because fetchSceneTagsAndRating now throws on a
+            // missing entity.
+            try {
+                // Re-fetch to pick up the hook's recomputed rating100.
+                const fresh =
+                    target.kind === "scene"
+                        ? await fetchSceneTagsAndRating(target.id)
+                        : await fetchPerformerTagsAndRating(target.id);
+                setState({
+                    kind: "ready",
+                    config: state.config,
+                    precision: state.precision,
+                    // fresh, unconditionally. The old
+                    // `fresh.tags.length ? fresh.tags : updatedTags`
+                    // could only differ when another client stripped
+                    // every tag inside the round trip, and there it
+                    // preferred the stale write-echo over the truth.
+                    tags: fresh.tags,
+                    rating100: fresh.rating100,
+                });
+                onRatingChange?.(fresh.rating100);
+            } catch (err) {
+                console.warn("[CriterionRatingModal] refetch failed:", err);
+                // Show the write we know landed, and say the score
+                // shown may not be the final one.
+                setState({
+                    kind: "ready",
+                    config: state.config,
+                    precision: state.precision,
+                    tags: updatedTags,
+                    rating100: null,
+                });
+                setMissingTagWarning(
+                    "Saved, but the new score could not be read back. It will be right the next time this opens.",
+                );
+            }
         } catch (err) {
             console.warn("[CriterionRatingModal] update failed:", err);
             // Keep prior state rather than breaking the modal, but say

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import {
     createCollection,
     deleteCollection,
+    FAVOURITES_TAG_NAME,
     getCollections,
     subscribeCollections,
     type CollectionDef,
@@ -160,7 +161,7 @@ export function SavedPage() {
     const handleConfirmDelete = async () => {
         if (!confirmDelete) return;
         try {
-            await deleteCollection(confirmDelete.tagName);
+            await deleteCollection(confirmDelete);
             setConfirmDelete(null);
         } catch (err) {
             setError(err instanceof Error ? err.message : String(err));
@@ -290,7 +291,12 @@ export function SavedPage() {
             {confirmDelete && (
                 <DeleteConfirm
                     name={confirmDelete.name}
-                    isProtected={confirmDelete.tagName.includes("★")}
+                    // Identity, not a character. Testing for "★"
+                    // anywhere in the name blocked deleting a user's own
+                    // "5 ★ Picks" - telling them it was shared with ASR,
+                    // which it was not, and leaving them no way to
+                    // remove it - while letting Watch Later through.
+                    isProtected={confirmDelete.tagName === FAVOURITES_TAG_NAME}
                     onConfirm={handleConfirmDelete}
                     onCancel={() => setConfirmDelete(null)}
                 />

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
     useHasAdvancedRating,
-    usePluginLoaded,
+    usePluginAnswered,
     useHasMultiview,
     useHasScribe,
 } from "../plugins/PluginContext";
@@ -80,14 +80,23 @@ export function ActionStack({
     const hasMultiview = useHasMultiview();
     const hasScribe = useHasScribe();
     const hasAdvancedRating = useHasAdvancedRating();
-    // Gated on the plugin enumeration having landed, not just on its
-    // answer. Before it lands hasAdvancedRating is false, so a tap in
-    // that window took the branch that writes rating100 directly, which
-    // is the write Advanced Rating owns and recomputes.
-    const pluginsKnown = usePluginLoaded();
+    const pluginsAnswered = usePluginAnswered();
     const [rateStripOpen, setRateStripOpen] = useState(false);
-    const useAdvancedRating =
-        pluginsKnown && hasAdvancedRating && !!onOpenAdvancedRating;
+    const useAdvancedRating = hasAdvancedRating && !!onOpenAdvancedRating;
+    // The previous guard here was `pluginsKnown && hasAdvancedRating`,
+    // which changed nothing: hasAdvancedRating is built from the
+    // enumeration, so it is already false whenever the enumeration has
+    // not landed. And-ing the two could never differ from the second
+    // one alone, so the tap it was written to stop still wrote
+    // rating100 directly.
+    //
+    // What actually stops it is refusing to rate at all while the
+    // answer is unknown - during the handshake, and after a failed
+    // enumeration. Neither branch is safe to pick blind: the inline
+    // strip writes the field Advanced Rating owns and recomputes, so
+    // guessing wrong reverts or nulls the user's rating. A star that is
+    // briefly unavailable is the smaller harm, and it says so.
+    const rateUnavailable = !pluginsAnswered && !useAdvancedRating;
 
     return (
         <aside className="binge-actions" aria-label="scene actions">
@@ -102,7 +111,9 @@ export function ActionStack({
                 ratingStars={ratingStars}
                 expanded={useAdvancedRating ? false : rateStripOpen}
                 advanced={useAdvancedRating}
+                unavailable={rateUnavailable}
                 onToggleStrip={() => {
+                    if (rateUnavailable) return;
                     if (useAdvancedRating) {
                         onOpenAdvancedRating?.();
                     } else {
@@ -243,6 +254,7 @@ function RateButton({
     ratingStars,
     expanded,
     advanced,
+    unavailable,
     onToggleStrip,
     onSetRating,
     onDismiss,
@@ -250,6 +262,7 @@ function RateButton({
     ratingStars: number | null;
     expanded: boolean;
     advanced: boolean;
+    unavailable: boolean;
     onToggleStrip: () => void;
     onSetRating: (stars: number | null) => void;
     onDismiss: () => void;
@@ -257,7 +270,7 @@ function RateButton({
     const rated = (ratingStars ?? 0) > 0;
     return (
         <div className="binge-action-rate-wrap">
-            {expanded && !advanced && (
+            {expanded && !advanced && !unavailable && (
                 <RateStrip
                     current={ratingStars ?? 0}
                     onPick={onSetRating}
@@ -269,20 +282,30 @@ function RateButton({
                 className={
                     "binge-action-button binge-rate-button" +
                     (rated ? " is-active" : "") +
-                    (advanced ? " is-advanced" : "")
+                    (advanced ? " is-advanced" : "") +
+                    (unavailable ? " is-unavailable" : "")
                 }
+                disabled={unavailable}
                 onClick={(e) => {
                     e.stopPropagation();
                     onToggleStrip();
                 }}
                 aria-label={
-                    ratingStars
-                        ? `Rated ${ratingStars} stars. Tap to change.`
-                        : advanced
-                          ? "Rate this scene (advanced)"
-                          : "Rate this scene"
+                    unavailable
+                        ? "Rating unavailable until Stash answers"
+                        : ratingStars
+                          ? `Rated ${ratingStars} stars. Tap to change.`
+                          : advanced
+                            ? "Rate this scene (advanced)"
+                            : "Rate this scene"
                 }
-                title={advanced ? "Rate (advanced)" : "Rate"}
+                title={
+                    unavailable
+                        ? "Rating unavailable - could not reach Stash"
+                        : advanced
+                          ? "Rate (advanced)"
+                          : "Rate"
+                }
             >
                 <StarIcon filled={rated} />
                 {rated && (

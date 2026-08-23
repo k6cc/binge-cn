@@ -196,11 +196,26 @@ export async function setPerformerFavorite(
 // fallback (just name + image + stash_id) so the user isn't blocked
 // — they can manually scrape from Stash later to fill metadata.
 
+// The stash_id goes in `query`, not `performer_id`.
+//
+// This asked for $stash_id: String! in the performer_id position, which
+// Stash types as ID - so the document failed VALIDATION and the scrape
+// never ran at all. Every followed performer was created from the
+// minimal fallback below: name, image and the stash_ids link, with no
+// gender, birthdate, country, measurements or aliases. The catch that
+// was meant to cover a scraper outage was swallowing a permanent 422
+// instead, which is why nobody noticed.
+//
+// Declaring it ID! is not the fix either: performer_id is a LOCAL Stash
+// performer id, so a StashDB UUID reaches the resolver and dies in
+// strconv.Atoi. `query` is the field that accepts a stash_id, and Stash
+// resolves a bare UUID there as a direct lookup rather than a search -
+// verified against a live box, which returns the full record.
 const SCRAPE_STASHBOX_PERFORMER = /* GraphQL */ `
     query ScrapeStashBoxPerformer($stash_box_index: Int!, $stash_id: String!) {
         scrapeSinglePerformer(
             source: { stash_box_index: $stash_box_index }
-            input: { performer_id: $stash_id }
+            input: { query: $stash_id }
         ) {
             name
             disambiguation
