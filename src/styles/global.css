@@ -7655,16 +7655,27 @@ body,
     min-width: 0;
     padding: 5px;
 }
-/* 菜单项与筛选栏字号/观感统一：同 0.88rem；非选中色提亮到 0.85 白
-   （原 0.6 白的半透明抗锯齿让笔画显细，观感像不同字体——实际两处
-   都继承 #root 的同一字体栈）；选中态紫色文字标识。 */
+/* 菜单项与筛选栏字号/观感统一：同 0.88rem；非选中 60% 白；选中
+   100% 白 + 文字前竖杠指示条（窄矩形，垂直居中）。 */
 .binge-sort-menu.is-box .binge-sort-item {
     font-size: 0.88rem;
-    padding: 7px 5px;
-    color: rgba(255, 255, 255, 0.85);
+    padding: 7px 5px 7px 10px;
+    color: rgba(255, 255, 255, 0.6);
+    position: relative;
 }
 .binge-sort-menu.is-box .binge-sort-item.is-active {
-    color: #c084fc;
+    color: #fff;
+}
+.binge-sort-menu.is-box .binge-sort-item.is-active::before {
+    content: "";
+    position: absolute;
+    left: 3px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 2px;
+    height: 0.8em;
+    background: #c084fc;
+    border-radius: 1px;
 }
 /* StashDB mix-in toggle pill — sits at the right of the SCENES
    heading. Off = muted glass, on = pink-tinted with a filled dot,
