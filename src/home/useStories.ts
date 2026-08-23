@@ -245,7 +245,20 @@ export function useStories(): StoriesResult {
                     const sinceUtc = Math.floor(
                         (Date.now() - lookbackDays * 24 * 3600 * 1000) / 1000,
                     );
-                    await mergeRedditPosts(byPerformer, sinceUtc);
+                    // Isolated, like the StashDB merge above and
+                    // for the same reason: a throw here landed in the
+                    // outer catch and replaced every library and
+                    // StashDB story already built with "couldn't load
+                    // stories". getRedditStories casts rather than
+                    // validates, so a digest with posts: null throws
+                    // the moment the loop reads it. The PornHub reader
+                    // was hardened against exactly this; the Reddit
+                    // one was not.
+                    try {
+                        await mergeRedditPosts(byPerformer, sinceUtc);
+                    } catch (err) {
+                        console.warn("[binge] reddit story merge failed", err);
+                    }
                     if (!alive) return;
                 }
 
@@ -254,7 +267,11 @@ export function useStories(): StoriesResult {
                     const sinceUtc = Math.floor(
                         (Date.now() - lookbackDays * 24 * 3600 * 1000) / 1000,
                     );
-                    await mergePornhubVideos(byPerformer, sinceUtc);
+                    try {
+                        await mergePornhubVideos(byPerformer, sinceUtc);
+                    } catch (err) {
+                        console.warn("[binge] pornhub story merge failed", err);
+                    }
                     if (!alive) return;
                 }
 

@@ -34,3 +34,15 @@ export function safeExternalUrl(value: unknown): string | null {
     }
     return parsed.href;
 }
+
+// The daemon only knows how to fetch PornHub watch pages, so anything
+// else reaching the downloader is a scrape that went wrong rather than
+// something to act on.
+export function isPornhubHost(raw: string): boolean {
+    try {
+        const h = new URL(raw).hostname.toLowerCase();
+        return h === "pornhub.com" || h.endsWith(".pornhub.com");
+    } catch {
+        return false;
+    }
+}

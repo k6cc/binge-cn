@@ -542,6 +542,17 @@ export function SceneSlide({
     const togglePlayPause = () => {
         const video = videoRef.current;
         if (!video) return;
+        // Not if this slide is no longer the one on screen.
+        //
+        // handleTap arms a 280ms timer to tell a single tap from a
+        // double. Tap, then flick to the next slide inside that window:
+        // the observer pauses this video, the timer fires, sees
+        // paused === true and plays it again - unmuted, since
+        // playPreferred restores the persisted preference. The scene
+        // the user just scrolled past resumed with audio over the top
+        // of the one they were watching, and nothing stopped it until
+        // the slide left the overscan window entirely.
+        if (!isActive) return;
         if (video.paused) {
             // Tap IS a gesture, so we can confidently try the user's
             // preference here even if a prior autoplay failed.

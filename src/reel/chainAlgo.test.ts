@@ -264,3 +264,43 @@ describe("nextBatch", () => {
         expect(value).toContain("p5");
     });
 });
+
+describe("what a batch has already handed out", () => {
+    it("does not offer the same scene in the next batch", async () => {
+        // A delivered scene counts as taken. localPicked lives for one
+        // batch and visited was only written by onPlay, so everything
+        // handed to the reel but not yet WATCHED came back next batch.
+        // The reel dedupes it away, gets an empty array, sets
+        // hasMore = false - and nothing in chained mode sets that back.
+        // Scrolling faster than you watch stopped the reel dead.
+        const algo = createChainAlgo({ rng: scriptedRng([0.5]) });
+        algo.onPlay(scene("seed", ["p1"], ["t1"]));
+        const pool = [
+            scene("a", ["p1"], ["t1"]),
+            scene("b", ["p1"], ["t1"]),
+            scene("c", ["p1"], ["t1"]),
+            scene("d", ["p1"], ["t1"]),
+        ];
+        findScenes.mockResolvedValue(page(pool));
+
+        const first = await algo.nextBatch(4);
+        expect(first.length).toBeGreaterThan(0);
+        const second = await algo.nextBatch(4);
+        const firstIds = new Set(first.map((s) => s.id));
+        expect(second.filter((s) => firstIds.has(s.id))).toEqual([]);
+    });
+
+    it("does not page past an empty random result", async () => {
+        // The random fallback is what refills a dry chain. Advancing
+        // the page on an empty answer walked it off the end of the
+        // library permanently, so the escape hatch went dry itself.
+        const algo = createChainAlgo({ rng: scriptedRng([0.5]) });
+        findScenes.mockResolvedValue(page([]));
+        await algo.nextBatch(2);
+        await algo.nextBatch(2);
+        const pages = findScenes.mock.calls
+            .map((c) => (c[0] as { filter?: { page?: number } })?.filter?.page)
+            .filter((p): p is number => typeof p === "number");
+        expect(new Set(pages).size).toBe(1);
+    });
+});

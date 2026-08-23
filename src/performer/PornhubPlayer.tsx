@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { safeExternalUrl } from "../util/externalUrl";
+import { isPornhubHost, safeExternalUrl } from "../util/externalUrl";
 import {
     pornhubStreamUrl,
     saveToStash,
@@ -13,15 +13,6 @@ import {
 // The daemon only knows how to fetch PornHub watch pages from this
 // route, so anything else is a scrape that went wrong rather than
 // something to hand a downloader.
-function isPornhubHost(raw: string): boolean {
-    try {
-        const h = new URL(raw).hostname.toLowerCase();
-        return h === "pornhub.com" || h.endsWith(".pornhub.com");
-    } catch {
-        return false;
-    }
-}
-
 export function PornhubPlayer({
     video,
     performerId,

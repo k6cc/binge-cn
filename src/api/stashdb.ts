@@ -1028,12 +1028,24 @@ export function readStashDBCache(sinceIsoDate: string): StashDBScene[] | null {
                             // the moment it reads sp.id - the same
                             // failure one level deeper, and it stayed
                             // broken for the whole TTL.
+                            // `id`, which is the field the story
+                            // builder reads and shapeScene writes.
+                            // Asking for `stashId` - a field this type
+                            // does not have - meant EVERY cached entry
+                            // holding a scene with a performer failed
+                            // validation and was thrown away, so the
+                            // 12-hour cache never hit once: a full
+                            // batched StashDB fetch on every mount,
+                            // settings toggle and lookback change. The
+                            // tests could not see it because every
+                            // fixture is `[{ id: "a" }]` with no
+                            // performers, which short-circuits above.
                             sc.performers.every(
                                 (sp) =>
                                     !!sp &&
                                     typeof sp === "object" &&
-                                    typeof (sp as { stashId?: unknown })
-                                        .stashId === "string",
+                                    typeof (sp as { id?: unknown }).id ===
+                                        "string",
                             ))),
             )
         ) {

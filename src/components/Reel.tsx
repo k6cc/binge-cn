@@ -275,19 +275,12 @@ export function Reel() {
                     // Retrying across frames because one is not always
                     // enough while the slides are still committing.
                     //
-                    // KNOWN BUG, not fixed by this: "Watch full scene"
-                    // still opens the reel on the wrong scene. The
-                    // handoff itself is correct — instrumented, the CTA
-                    // sends scene=194036 at index 11 of 849, and the
-                    // reel resolves target=194036 found=11 — but the
-                    // view ends up elsewhere. Retrying the scroll and
-                    // going through virtualizer.scrollToIndex were both
-                    // tried and neither helped, so the cause is further
-                    // down: either activeIndex is overwritten after this
-                    // runs, or the scroll container's height disagrees
-                    // with the virtualizer's estimate. Next step is to
-                    // log scrollTop and activeIndex over the frames
-                    // after this settles.
+                    // The "opens on the wrong scene" bug this block used
+                    // to describe as open was diagnosed and fixed in
+                    // this same function - see the comment on settle()
+                    // below. Leaving it as a KNOWN BUG with a "next
+                    // step is to log scrollTop" sent the next reader
+                    // chasing something already solved.
                     const settle = (tries: number) => {
                         if (token !== fetchTokenRef.current) return;
                         const el = scrollRef.current;

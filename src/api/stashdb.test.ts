@@ -157,6 +157,36 @@ describe("the twelve-hour cache", () => {
         expect(readStashDBCache("2026-06-01")).toEqual(scenes);
     });
 
+    it("serves an entry whose scenes carry performers", async () => {
+        // The shape a REAL entry has. Every other test here writes
+        // `[{ id: "a" }]`, which has no performers - and the element
+        // validator short-circuits on that, so the whole suite passed
+        // while the validator required a field the performer type does
+        // not have. The cache therefore never hit once in production:
+        // a full batched StashDB fetch on every mount.
+        const { readStashDBCache, writeStashDBCache } = await load();
+        const scenes = [
+            {
+                id: "sc1",
+                title: "A scene",
+                performers: [{ id: "p1", name: "Someone" }],
+            },
+        ] as never;
+        writeStashDBCache("2026-06-01", scenes);
+        expect(readStashDBCache("2026-06-01")).toEqual(scenes);
+    });
+
+    it("still rejects a performer with no id", async () => {
+        // The guard the validator was written for stays. A null or
+        // id-less performer throws in the story builder the moment it
+        // reads sp.id, and it stayed broken for the whole TTL.
+        const { readStashDBCache, writeStashDBCache } = await load();
+        writeStashDBCache("2026-06-01", [
+            { id: "sc1", performers: [{ name: "no id" }] },
+        ] as never);
+        expect(readStashDBCache("2026-06-01")).toBeNull();
+    });
+
     it("misses when the lookback window changed", async () => {
         // A different window is a different question; answering it from
         // this entry would silently show the wrong range.

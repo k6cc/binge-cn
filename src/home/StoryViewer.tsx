@@ -1,4 +1,4 @@
-import { safeExternalUrl } from "../util/externalUrl";
+import { isPornhubHost, safeExternalUrl } from "../util/externalUrl";
 import {
     useCallback,
     useEffect,
@@ -80,8 +80,28 @@ export function StoryViewer() {
     const startRef = useRef<number>(0);
     const accumRef = useRef<number>(0);
 
+    // The cursor is reset during RENDER, not in an effect.
+    //
+    // This is the surviving sibling of the close-effect bug. advance()
+    // moves activeIndex first and the effect reset landed one commit
+    // later - so if the incoming performer had at least as many scenes
+    // as the outgoing cursor, the commit in between rendered
+    // stories[next].scenes[oldIndex]: a real slide, so the render
+    // guard did not hide it. A frame of the wrong scene, the progress
+    // strip jumping to the wrong segment, and a discarded request for
+    // the wrong preview, on every seam crossed from a non-zero cursor.
+    const [cursorFor, setCursorFor] = useState(activeIndex);
+    const [cursorToken, setCursorToken] = useState(openToken);
+    let effectiveSceneIndex = sceneIndex;
+    if (cursorFor !== activeIndex || cursorToken !== openToken) {
+        effectiveSceneIndex = 0;
+        setCursorFor(activeIndex);
+        setCursorToken(openToken);
+        if (sceneIndex !== 0) setSceneIndex(0);
+    }
+
     const activeStory = stories[activeIndex];
-    const currentScene = activeStory?.scenes[sceneIndex];
+    const currentScene = activeStory?.scenes[effectiveSceneIndex];
     // Per-source cap: video-bearing slides get 15s, stills 5s, reddit
     // text/link cards 8s (enough to read a paragraph).
     const capMs = ((): number => {
@@ -125,7 +145,6 @@ export function StoryViewer() {
     // openToken is in the deps so a reopen resets even when it lands on
     // the index the viewer was already on, which is the common case.
     useEffect(() => {
-        setSceneIndex(0);
         setPaused(false);
     }, [activeIndex, openToken]);
 
@@ -718,6 +737,32 @@ function buildSaveRequest(
     let source: SaveToStashRequest["source"] = "reddit";
     if (d === "x.com" || d === "twitter.com") source = "x";
     else if (d.includes("redgifs")) source = "redgifs";
+    else if (d === "pornhub.com") {
+        // PornHub items are folded onto the reddit scene shape, so
+        // without this they fell through as source: "reddit" and
+        // forwarded scene.mediaUrl - which is the DAEMON'S OWN preview
+        // proxy URL, carrying the Stash API key in its query string.
+        // The daemon's allowlist for source "reddit" is redd.it and
+        // friends, so it refused every one: the Save button on every
+        // PornHub story went straight to Retry and could never succeed.
+        // And had it succeeded, it would have downloaded the
+        // ten-second silent looping preview rather than the video.
+        //
+        // yt-dlp wants the watch page, and that string came from a
+        // scrape, so it is checked rather than trusted for sitting in
+        // a typed field - the same guard PornhubPlayer applies.
+        const watchPage = safeExternalUrl(scene.permalink);
+        if (!watchPage || !isPornhubHost(watchPage)) return null;
+        return {
+            performerStashId: performerId,
+            source: "pornhub",
+            mediaUrl: watchPage,
+            kind: "video",
+            sourceUrl: watchPage,
+            text: scene.title ?? undefined,
+            createdUtc: scene.createdUtc,
+        };
+    }
     let handle: string | undefined;
     let id: string | undefined;
     // The daemon's response is cast, not validated, so permalink is

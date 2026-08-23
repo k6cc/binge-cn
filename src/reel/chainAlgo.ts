@@ -167,7 +167,12 @@ export function createChainAlgo(opts: ChainAlgoOptions = {}): ChainAlgo {
                 sort: randomSeed,
             },
         });
-        randomPage += 1;
+        // Only advance past a page that had something on it.
+        // Incrementing unconditionally walked the random escape hatch
+        // off the end of the library and never came back, so the one
+        // fallback that could refill a dry chain went permanently dry
+        // itself.
+        if (data.findScenes.scenes.length > 0) randomPage += 1;
         return data.findScenes.scenes.filter((s) => !ctx.visited.has(s.id));
     }
 
@@ -276,6 +281,17 @@ export function createChainAlgo(opts: ChainAlgoOptions = {}): ChainAlgo {
                     if (picked) {
                         out.push(picked);
                         localPicked.add(picked.id);
+                        // Marked here, not only when it is PLAYED.
+                        // localPicked lives for one batch and visited
+                        // was written only by onPlay, so everything
+                        // already handed to the reel but not yet
+                        // watched was offered again next batch. The
+                        // reel dedupes it away, gets an empty array,
+                        // and sets hasMore = false - which nothing in
+                        // chained mode ever sets back. On a narrow
+                        // context, scrolling faster than you watch
+                        // stopped the reel dead with no error.
+                        ctx.visited.add(picked.id);
                         continue;
                     }
                     // Pool exhausted — fall through to random injection.
@@ -287,6 +303,7 @@ export function createChainAlgo(opts: ChainAlgoOptions = {}): ChainAlgo {
                 if (!picked) break; // library exhausted
                 out.push(picked);
                 localPicked.add(picked.id);
+                ctx.visited.add(picked.id);
 
                 if (forceRandom) {
                     // Reset streak counter so the NEXT pick doesn't
