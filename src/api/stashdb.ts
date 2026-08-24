@@ -116,6 +116,35 @@ const FIND_LINKED_PERFORMERS = /* GraphQL */ `
     }
 `;
 
+// Same list, memoised for a minute, for callers that need it to answer
+// a tap rather than to build a feed.
+//
+// getLinkedPerformers is a per_page:-1 sweep of every performer in the
+// library. Home runs it once and holds the result; a tap handler that
+// called it directly would run the whole sweep again for every name
+// pressed, which on a library of this size is seconds of delay before
+// anything opens. A minute is long enough that a run of taps costs one
+// query and short enough that following someone and immediately
+// tapping their name lands on the local profile that now exists.
+let linkedMemo: { at: number; value: Promise<LinkedPerformer[]> } | null = null;
+const LINKED_MEMO_MS = 60_000;
+
+export function getLinkedPerformersMemo(): Promise<LinkedPerformer[]> {
+    const now = Date.now();
+    if (linkedMemo && now - linkedMemo.at < LINKED_MEMO_MS) {
+        return linkedMemo.value;
+    }
+    const value = getLinkedPerformers();
+    linkedMemo = { at: now, value };
+    // A rejection must not be what the next sixty seconds of taps get
+    // handed. Clearing here leaves the failure to the caller and lets
+    // the next tap try again.
+    value.catch(() => {
+        if (linkedMemo?.value === value) linkedMemo = null;
+    });
+    return value;
+}
+
 export async function getLinkedPerformers(): Promise<LinkedPerformer[]> {
     const data = await gql<{
         findPerformers: {

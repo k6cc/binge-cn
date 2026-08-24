@@ -4,6 +4,7 @@ import { PerformerHoverCard } from "./PerformerHoverCard";
 import { Fragment } from "react";
 import type { FeedPerformer, FeedTag, SceneFeedItem } from "./useFeed";
 import type { MatchedScenePerformer } from "../api/stashdb";
+import { getLinkedPerformersMemo } from "../api/stashdb";
 import { VerifiedIcon } from "../performer/PerformerProfile";
 import { useSharedStories } from "./StoriesContext";
 import { useStoryViewer } from "./StoryViewerContext";
@@ -107,6 +108,29 @@ export function SceneFeedCard({ item, feedSceneIds }: SceneFeedCardProps) {
     const { setTab, setPinFirstSceneId, setReelMode, setPinnedQueue } =
         useTab();
     const { openProfile, openStashDBProfile } = usePerformerProfile();
+
+    // A matched name is someone StashDB put on this scene, and the
+    // library may well already have her: binge creates the local row
+    // itself on a follow, and Stash's own tagger creates one whenever
+    // it identifies a scene. Sending that tap to the read-only StashDB
+    // profile hid the library she is in and offered "+ Follow" for
+    // someone already followed, which is what the lookup below exists
+    // to prevent. The list is memoised, so a run of taps costs one
+    // query; a failure falls through to the StashDB profile, which is
+    // where the tap used to go unconditionally.
+    const routeMatchedPerformer = async (stashId: string) => {
+        try {
+            const linked = await getLinkedPerformersMemo();
+            const match = linked.find((p) => p.stashId === stashId);
+            if (match) {
+                openProfile(match.localId);
+                return;
+            }
+        } catch {
+            // Fall through.
+        }
+        openStashDBProfile(stashId);
+    };
     const { open: openStoryViewer } = useStoryViewer();
     const storiesState = useSharedStories();
     // Set of localIds with an active story right now. Used by the
@@ -384,7 +408,9 @@ export function SceneFeedCard({ item, feedSceneIds }: SceneFeedCardProps) {
                         // faces from there instead.
                         <MatchedAvatarStack
                             performers={item.matchedPerformers}
-                            onClick={(stashId) => openStashDBProfile(stashId)}
+                            onClick={(stashId) => {
+                                void routeMatchedPerformer(stashId);
+                            }}
                         />
                     ) : null}
                     <AvatarStack
