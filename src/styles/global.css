@@ -574,15 +574,20 @@ body,
 }
 
 /* ── Progress bar (bottom edge, drawn against Stash duration) ──────── */
-/* 时间码行高度（约 1.05rem）：进度条抬升到时间码上方，overlay 的
-   padding-bottom 也按此值增加，其他底部元素同步上移。原 1.15rem，
-   收紧时间码与进度条的间隙（下移 0.1rem ≈ 原间隙的 1/3）。 */
+/* 命中区（方案 A）= 进度条带 14px + 时间码行（约 1.05rem）的上半行：
+   --hit-ext = 时间码行高的一半。容器由原 "bottom: 1.05rem;
+   height: 14px" 向下扩出 --hit-ext——顶边屏幕位置不变，轨道/fill/
+   气泡锚点均不受影响；时间码行仍是纯占位（pointer-events:
+   none），但点按/拖动其上半行即命中进度条（横滑擦洗，竖滑照常
+   滚动信息流，touch-action: pan-y 不变）。overlay 的
+   padding-bottom 等底部间距仍按原行高惯例预留。 */
 .binge-progress {
+    --hit-ext: calc(1.05rem / 2);
     position: absolute;
     left: 0;
     right: 0;
-    bottom: 1.05rem; /* 时间码行高度 */
-    height: 14px; /* enlarged hit-target; only the inner 2px is visible */
+    bottom: var(--hit-ext); /* 时间码行高度的一半 */
+    height: calc(14px + var(--hit-ext)); /* enlarged hit-target; only the inner 2px is visible */
     z-index: 7;
     cursor: pointer;
     display: flex;
@@ -599,7 +604,7 @@ body,
     position: absolute;
     left: 0.6rem;
     right: 0.6rem;
-    bottom: 0.45rem;
+    bottom: calc(var(--hit-ext) + 0.45rem);
     height: 2px;
     background: rgba(255, 255, 255, 0.22);
     border-radius: 2px;
@@ -612,13 +617,13 @@ body,
 .binge-progress.is-hovering::before,
 .binge-progress.is-dragging::before {
     height: 4px;
-    bottom: 0.35rem;
+    bottom: calc(var(--hit-ext) + 0.35rem);
 }
 .binge-progress-fill {
     position: absolute;
     left: 0.6rem;
     right: 0.6rem;
-    bottom: 0.45rem;
+    bottom: calc(var(--hit-ext) + 0.45rem);
     height: 2px;
     transform-origin: left;
     background: #fff;
@@ -632,7 +637,41 @@ body,
 .binge-progress.is-hovering .binge-progress-fill,
 .binge-progress.is-dragging .binge-progress-fill {
     height: 4px;
-    bottom: 0.35rem;
+    bottom: calc(var(--hit-ext) + 0.35rem);
+}
+
+/* ── 交互提示渐变（粗进度条下方，hover/拖动时显示） ───────────────── */
+/* 粗条（4px）下沿追加同色向下渐变淡出，暗示整块命中区（进度条 +
+   时间码上半行）都属于进度条交互区。左右与轨道同宽内缩；长度
+   0.95rem 略低于时间码行高 1.05rem——顶边贴住放大态粗条下沿
+   （--hit-ext + 0.35rem），末端停在时间码行内、距屏幕底约 7px。
+   rem 定值 → 竖屏底部导航栏显示/隐藏、全屏三种状态一致。渐变
+   绘制在 .binge-progress 内（z-index:7）；时间码行是 DOM 顺序
+   靠后的同层级兄弟，天然盖在渐变之上，不遮挡数字。 */
+.binge-progress::after {
+    content: "";
+    position: absolute;
+    left: 0.6rem;
+    right: 0.6rem;
+    bottom: calc(var(--hit-ext) + 0.35rem - 0.95rem);
+    height: 0.95rem;
+    background: linear-gradient(
+        to bottom,
+        rgba(255, 255, 255, 0.32),
+        rgba(255, 255, 255, 0)
+    );
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s ease;
+}
+.binge-progress.is-hovering::after,
+.binge-progress.is-dragging::after {
+    opacity: 1;
+}
+/* 全屏 UI 淡出的“残留细条”态：细条贴底且左右无内缩，渐变几何
+   不再对应 → 禁用（该态点击/悬停会先唤出完整 UI）。 */
+.binge-progress.is-fs-collapsed::after {
+    display: none;
 }
 
 /* ── 拖动擦洗浮层（进度条上方） ───────────────────────────────── */
@@ -643,8 +682,9 @@ body,
    .binge-progress-popover 的首个子元素插入，时间码气泡保持在底部。 */
 .binge-progress-popover {
     position: absolute;
-    /* 进度条命中区（14px 高）上方，留 1.4rem 间隙（悬浮层明显脱离
-       进度条，不与其放大动画粘连）。 */
+    /* 命中区容器顶边上方，留 1.4rem 间隙（悬浮层明显脱离进度条，
+       不与其放大动画粘连）。容器向下扩出命中区后顶边位置不变，
+       气泡屏幕位置随之保持不变。 */
     bottom: calc(100% + 1.4rem);
     left: clamp(
         2.5rem,
@@ -696,6 +736,9 @@ body,
     color: rgba(255, 255, 255, 0.78);
     font-weight: 500;
     letter-spacing: 0.03em;
+    /* 交互态渐变光晕从数字后方穿过时保持对比度（渐变绘制在其
+       下层，不遮挡数字本身）。 */
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
     pointer-events: none;
     transition: opacity 0.3s ease, bottom 0.28s ease;
 }
@@ -737,7 +780,7 @@ body,
     bottom: calc(8.5rem + env(safe-area-inset-bottom, 0));
 }
 .binge-app:has(.binge-bottom-nav:not(.is-hidden)) .binge-slide:not(.is-fullscreen) .binge-progress {
-    bottom: calc(3.5rem + env(safe-area-inset-bottom, 0) + 1.05rem);
+    bottom: calc(3.5rem + env(safe-area-inset-bottom, 0) + var(--hit-ext));
 }
 .binge-app:has(.binge-bottom-nav:not(.is-hidden)) .binge-slide:not(.is-fullscreen) .binge-progress-time {
     bottom: calc(3.5rem + env(safe-area-inset-bottom, 0) + 0.08rem + 0.25rem);
