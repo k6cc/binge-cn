@@ -32,7 +32,9 @@ export function PerformerImageGrid({ performer }: PerformerImageGridProps) {
     const [galleries, setGalleries] = useState<PerformerGalleryCard[]>([]);
     const [count, setCount] = useState<number | null>(null);
     const [page, setPage] = useState(1);
-    const [loading, setLoading] = useState(false);
+    // 初始即 loading：挂载首帧（effect 在 paint 后才置 true）否则会闪
+    // 一帧"无图库"文案再转 loading——tab 切换时的错位观感来源之一。
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     // 第二层：当前打开的图库 + 该图库的图片。

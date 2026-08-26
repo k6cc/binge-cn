@@ -80,7 +80,9 @@ export function PerformerSceneGrid({
     const [count, setCount] = useState<number | null>(null);
     const [page, setPage] = useState(1);
     const [sort, setSort] = useState<PerformerSceneSort>("recent");
-    const [loading, setLoading] = useState(false);
+    // 初始即 loading：挂载首帧（effect 在 paint 后才置 true）否则会闪
+    // 一帧"无场景"文案再转 loading——tab 切换时的错位观感来源之一。
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const { replace } = useFilter();
     const { setTab, setPinFirstSceneId } = useTab();

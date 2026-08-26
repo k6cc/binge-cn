@@ -7007,13 +7007,20 @@ body,
    profile-root is fixed full-screen). */
 .binge-profile-body {
     flex: 1;
-    overflow-y: auto;
+    /* scroll（而非 auto）：滚动条空间常驻。tab 切换瞬间旧网格卸载、
+       新数据未到，内容高度塌缩成空状态——auto 下滚动条消失/复现会
+       让容器宽度抖动 ~6px，tabs 与网格整体水平错位再归位；scroll
+       根治该抖动。轨道保持透明，无内容时不显示 thumb。 */
+    overflow-y: scroll;
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
     padding-bottom: 2rem;
 }
 .binge-profile-body::-webkit-scrollbar {
     width: 6px;
+}
+.binge-profile-body::-webkit-scrollbar-track {
+    background: transparent;
 }
 .binge-profile-body::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.2);
@@ -7609,6 +7616,11 @@ body,
 
 .binge-profile-scenes {
     padding: 0.5rem 1.5rem 1.5rem;
+    /* Tab 内容区最小高度（与 .binge-profile-photos 同策略）：loading/
+       空态/矮内容都至少撑起大半屏，切换瞬间高度不塌缩——残留
+       scrollTop 不触发钳制（或钳幅被限制在固定小范围、只发生一次），
+       消除"闪"。内容超过时正常撑开，无副作用。 */
+    min-height: 70dvh;
 }
 .binge-profile-scenes-heading {
     margin: 0 0 0.75rem;
@@ -8297,6 +8309,13 @@ body,
    ────────────────────────────────────────────────────────────────────── */
 .binge-profile-photos {
     padding: 0.6rem 1.5rem 1.5rem;
+    /* 图库/X tab 内容区：图库封面 3:4 比场景卡 9:16 矮，同样行数下
+       总高更短。最小高度（与 .binge-profile-scenes 同策略）让 loading/
+       空态/矮内容撑起大半屏——从场景（高）切到图库（矮）时高度
+       塌缩大幅减小，scrollTop 钳制引起的"闪"随之消除；矮内容 tab
+       底部留黑属预期（IG 同款观感）。第二层图片网格通常很高，不受
+       影响。 */
+    min-height: 70dvh;
 }
 .binge-profile-photo-grid {
     list-style: none;

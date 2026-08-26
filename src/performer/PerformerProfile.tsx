@@ -259,6 +259,12 @@ function LocalPerformerProfile({
         return () => document.removeEventListener("keydown", handler);
     }, [currentId, close]);
 
+    // Tab 切换不做任何滚动操控：点击 tab 时 tabs 必然在视口内（用户
+    // 得看到才能点），scrollTop 较小、小于塌缩后的内容高度，浏览器
+    // 不会触发 scrollTop 钳制——保持原有滚动位置，页面不跳。
+    // （switchTab 曾滚动到 tabs 下沿，实测反而引入可见的页面跳动，
+    // 已按需求移除。）
+
     // Sticky-header opacity ramp: 0–80px scroll → transparent → glass.
     useEffect(() => {
         const el = bodyRef.current;
