@@ -6396,9 +6396,14 @@ body,
 }
 
 /* Card aspect ratio + cap. 9/16 is portrait video; max-height caps the
-   visual so it doesn't take the entire viewport on tall windows. */
+   visual so it doesn't take the entire viewport on tall windows.
+   grid-column: 2 pins the card to the centre track explicitly — with
+   auto-placement, ≤720px hides both peek containers (display:none) and
+   the only remaining grid item would land in the left 1fr column,
+   pushing the card off-centre. */
 .binge-story-viewer-card {
     position: relative;
+    grid-column: 2;
     aspect-ratio: 9 / 16;
     height: min(88vh, 880px);
     max-width: 96vw;
@@ -6876,6 +6881,22 @@ body,
        desktop chevrons become redundant chrome. */
     .binge-story-viewer-chevron {
         display: none;
+    }
+    /* Peeks are hidden here, so the 3-column grid has no side content:
+       switch the stage to flex and size the card by width so it shrinks
+       with the viewport (height follows via aspect-ratio). The original
+       height-driven sizing + max-width:96vw kept a fixed card width once
+       the viewport dropped below ~560px — the auto centre track then
+       overflowed, the left 1fr track collapsed to 0, and the right side
+       of the card was clipped: dead space on the left, shrinking on the
+       right, card off-centre. */
+    .binge-story-viewer-stage {
+        display: flex;
+        justify-content: center;
+    }
+    .binge-story-viewer-card {
+        width: min(calc(min(88vh, 880px) * 9 / 16), 100%);
+        height: auto;
     }
 }
 

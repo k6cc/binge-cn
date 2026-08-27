@@ -404,7 +404,16 @@ export function StoryViewer() {
             >
                 <ChevronRight />
             </button>
-            <div className="binge-story-viewer-stage">
+            {/* The stage (100% × 100%) covers the backdrop, so backdrop
+                clicks never land — close on stage clicks whose target is
+                the stage itself (i.e. empty space). Peeks/card keep their
+                own handlers; their event targets differ from the stage. */}
+            <div
+                className="binge-story-viewer-stage"
+                onClick={(e) => {
+                    if (e.target === e.currentTarget) close();
+                }}
+            >
                 <div className="binge-story-viewer-peeks binge-story-viewer-peeks-left">
                     {leftPeeks.map((p, idx) => (
                         <Peek
