@@ -180,7 +180,12 @@ export function composeSnippet(): string {
         "    ports:",
         '      - "7878:7878"',
         "    volumes:",
-        "      - ./binge-server-data:/data",
+        "      - binge-data:/data",
+        "",
+        "# ...and this at the TOP level of the file, alongside `services:`,",
+        "# not indented under it. A named volume needs declaring once.",
+        "volumes:",
+        "  binge-data:",
     ].join("\n");
 }
 
@@ -188,7 +193,20 @@ export function composeSnippet(): string {
  *  python, Stash in a container without Docker access, a remote daemon).
  *
  *  It holds your Stash API key, so this is a LAN publish, not an
- *  internet-facing one. */
+ *  internet-facing one.
+ *
+ *  A NAMED volume, not a bind mount. The container runs as uid 10001,
+ *  and a bind mount arrives owned by root on Linux, so SQLite cannot
+ *  create the database and the daemon dies on first boot with
+ *
+ *    open db path=/data/binge-server.db err="ping: unable to open
+ *    database file (14)"
+ *
+ *  which is exactly what the first person to try this on unraid hit.
+ *  Docker Desktop squashes ownership and hides it, so it looks fine
+ *  on macOS and Windows and fails on Linux, where most people run
+ *  Stash. Docker initialises a named volume from the image, so it
+ *  inherits the right owner and needs no chown. */
 export function manualInstallCommand(): string {
     return [
         "docker run -d \\",
@@ -200,7 +218,7 @@ export function manualInstallCommand(): string {
         // snippet directly above says as much. Binding it to 127.0.0.1
         // guaranteed the one thing they needed would not work.
         "  -p 7878:7878 \\",
-        "  -v ~/binge-server-data:/data \\",
+        "  -v binge-data:/data \\",
         "  ghcr.io/ordureconnoisseur/binge-server:latest",
     ].join("\n");
 }
