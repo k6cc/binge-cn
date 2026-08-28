@@ -82,6 +82,69 @@
         }
     });
 
+    // Show the button on a fresh install, once.
+    //
+    // Stash only renders a plugin's nav button when the plugin's id is
+    // in interface.menuItems, and a new install never has it there, so
+    // binge installed to no visible effect anywhere in Stash. People
+    // reasonably concluded it had failed. "Not in the list" cannot tell
+    // a fresh install from someone who deliberately unticked us, so
+    // this seeds the list exactly once and records that it did in the
+    // plugin's own config; after that, whatever the user sets stands,
+    // including removing us again.
+    //
+    // Plain fetch rather than PluginApi.GQL: this runs at load, not in
+    // a render pass, and firing mutations from inside a patched
+    // component is how you get a render loop.
+    var forceNav = false;
+
+    function gql(query, variables) {
+        return fetch('/graphql', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: query, variables: variables || {} })
+        }).then(function (r) { return r.json(); }).then(function (body) {
+            if (body.errors && body.errors.length) {
+                throw new Error(body.errors[0].message);
+            }
+            return body.data;
+        });
+    }
+
+    function seedNavOnce() {
+        gql('query{configuration{interface{menuItems}plugins(include:["binge"])}}')
+            .then(function (data) {
+                var cfg = data.configuration;
+                var items = (cfg.interface && cfg.interface.menuItems) || [];
+                // Already visible: nothing to do.
+                if (items.indexOf(MENU_ITEM_ID) !== -1) { return null; }
+                var mine = (cfg.plugins && cfg.plugins[MENU_ITEM_ID]) || {};
+                // We have seeded before and we are not in the list, so
+                // the user took us out. That is a choice, not a fresh
+                // install, and it stands.
+                if (mine.navSeeded) { return null; }
+                return gql(
+                    'mutation($items:[String!]){configureInterface(input:{menuItems:$items}){menuItems}}',
+                    { items: items.concat([MENU_ITEM_ID]) }
+                ).then(function () {
+                    return gql(
+                        'mutation($id:ID!,$input:Map!){configurePlugin(plugin_id:$id,input:$input)}',
+                        { id: MENU_ITEM_ID, input: { navSeeded: true } }
+                    );
+                }).then(function () {
+                    forceNav = true;
+                });
+            })
+            .catch(function (err) {
+                // Never fatal. Worst case the button stays hidden and
+                // the README's manual step still works.
+                console.warn('[binge] nav seed failed:', err);
+            });
+    }
+
+    seedNavOnce();
+
     PluginApi.patch.instead('MainNavBar.MenuItems', function (props) {
         var next = arguments[arguments.length - 1];
         try {
@@ -89,7 +152,12 @@
             var enabled = !!(data && data.configuration && data.configuration.interface &&
                 data.configuration.interface.menuItems &&
                 data.configuration.interface.menuItems.indexOf(MENU_ITEM_ID) !== -1);
-            return e(next, props, props.children, enabled ? e(BingeNavButton) : null);
+            // forceNav covers the gap between seeding the list and
+            // Stash's cached configuration query catching up.
+            return e(
+                next, props, props.children,
+                (enabled || forceNav) ? e(BingeNavButton) : null
+            );
         } catch (err) {
             console.warn('[binge] nav patch failed:', err);
             return e(next, props, props.children);
