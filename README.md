@@ -187,7 +187,11 @@ Add this URL as a source in **Stash → Settings → Plugins → Available Plugi
 https://ordureconnoisseur.github.io/plugins/main/index.yml
 ```
 
-Install **Binge** from the list. An infinity-symbol button appears in Stash's main nav, click it.
+Install **Binge** from the list.
+
+Then turn its nav button on: **Settings -> Interface -> Basic Settings -> Menu Items**, tick **Binge**. An infinity-symbol button appears in Stash's main nav; click it.
+
+That step is not optional and it is easy to miss. Stash only renders a plugin's nav button when the plugin's id is in your Menu Items list, and a fresh install never has it there, so without ticking the box nothing appears anywhere and the plugin looks like it failed to install.
 
 ### Manual
 
