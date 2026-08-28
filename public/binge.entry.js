@@ -128,9 +128,20 @@
                     'mutation($items:[String!]){configureInterface(input:{menuItems:$items}){menuItems}}',
                     { items: items.concat([MENU_ITEM_ID]) }
                 ).then(function () {
+                    // MERGE. configurePlugin REPLACES the whole map
+                    // rather than patching it, so writing
+                    // { navSeeded: true } on its own deletes every
+                    // other key - including serverUrl, which is where
+                    // the daemon address lives. That would have
+                    // silently turned off Reddit, X and PornHub for
+                    // everyone who already had one configured, on
+                    // upgrade, with nothing to point at.
                     return gql(
                         'mutation($id:ID!,$input:Map!){configurePlugin(plugin_id:$id,input:$input)}',
-                        { id: MENU_ITEM_ID, input: { navSeeded: true } }
+                        {
+                            id: MENU_ITEM_ID,
+                            input: Object.assign({}, mine, { navSeeded: true })
+                        }
                     );
                 }).then(function () {
                     forceNav = true;
