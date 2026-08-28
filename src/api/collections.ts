@@ -1,3 +1,4 @@
+import { gql } from "./graphql";
 import { findTagByName, findTagsContaining } from "./queries";
 import { sceneUpdate, tagCreate, tagDestroy, tagSetParents } from "./mutations";
 
@@ -19,7 +20,7 @@ import { sceneUpdate, tagCreate, tagDestroy, tagSetParents } from "./mutations";
 //      tag is harmless to leave orphaned.)
 
 export const COLLECTION_TAG_SUFFIX = " 📁";
-const FAVOURITES_TAG_NAME = "Favourite ★";
+export const FAVOURITES_TAG_NAME = "Favourite ★";
 const DEFAULT_WATCH_LATER_TAG_NAME = `Watch Later${COLLECTION_TAG_SUFFIX}`;
 // Parent under which every binge-managed collection tag is
 // nested in Stash's tag tree. Keeps the user's tag list tidy:
@@ -38,6 +39,14 @@ export type CollectionIconName = "favourite" | "watchLater" | "generic";
 export interface CollectionDef {
     name: string; // display label (no suffix, no star)
     tagName: string; // exact Stash tag name (with suffix or ★)
+    // The Stash tag id, when this collection's tag exists. Empty for a
+    // default that has not been created yet.
+    //
+    // Carried because the destructive path used to re-resolve the tag
+    // from its NAME at delete time, through a lookup that is a SQL LIKE
+    // underneath. The id is already in hand here - it came back with
+    // the name - and an id cannot near-miss.
+    id: string;
     icon: CollectionIconName;
     // Default collections render with their dedicated icon + can't be
     // removed by the user via binge. User-created collections render
@@ -60,6 +69,10 @@ function stripSuffix(tagName: string): string {
 
 let cachedCollectionsPromise: Promise<CollectionDef[]> | null = null;
 let cachedTagIdsPromise: Promise<Map<string, string>> | null = null;
+// The same map, resolved without creating anything. Kept separate so a
+// read can never be served a result that skipped creation to a caller
+// that needed it, nor the other way round.
+let cachedReadOnlyTagIdsPromise: Promise<Map<string, string>> | null = null;
 type Subscriber = () => void;
 const subscribers = new Set<Subscriber>();
 function notifySubscribers(): void {
@@ -82,17 +95,28 @@ export function subscribeCollections(fn: Subscriber): () => void {
 export function getCollections(): Promise<CollectionDef[]> {
     if (cachedCollectionsPromise) return cachedCollectionsPromise;
     cachedCollectionsPromise = (async () => {
-        const userTags = await findTagsContaining(COLLECTION_TAG_SUFFIX);
+        // Ends with, not contains. Stash can only search by substring,
+        // so the filter happens here: a tag that merely mentions the
+        // suffix somewhere in the middle is the user's own, and
+        // enrolling it made binge reparent it without asking and offer
+        // it for deletion on the Saved page, where deleting drops the
+        // tag from every scene, image and performer in the library.
+        const userTags = (
+            await findTagsContaining(COLLECTION_TAG_SUFFIX)
+        ).filter((t) => t.name.endsWith(COLLECTION_TAG_SUFFIX));
+        const byName = new Map(userTags.map((t) => [t.name, t.id]));
         const defaults: CollectionDef[] = [
             {
                 name: "Favourites",
                 tagName: FAVOURITES_TAG_NAME,
+                id: byName.get(FAVOURITES_TAG_NAME) ?? "",
                 icon: "favourite",
                 isDefault: true,
             },
             {
                 name: "Watch Later",
                 tagName: DEFAULT_WATCH_LATER_TAG_NAME,
+                id: byName.get(DEFAULT_WATCH_LATER_TAG_NAME) ?? "",
                 icon: "watchLater",
                 isDefault: true,
             },
@@ -104,7 +128,8 @@ export function getCollections(): Promise<CollectionDef[]> {
             .map((t) => ({
                 name: stripSuffix(t.name),
                 tagName: t.name,
-                icon: "generic",
+                id: t.id,
+                icon: "generic" as const,
                 isDefault: false,
             }));
         return [...defaults, ...userCollections];
@@ -141,18 +166,72 @@ function ensureCollectionsParentTagId(): Promise<string> {
 // the parent if missing). Existing tags that pre-date the
 // hierarchy get reparented in place on first run — a one-time
 // migration the user doesn't see.
-export function getCollectionTagIds(): Promise<Map<string, string>> {
+// Resolve the collection tag ids, creating the default tags if they do
+// not exist yet.
+//
+// `create` exists because this used to create unconditionally and was
+// called on mount, so merely scrolling one scene wrote three tags into
+// the user's tag tree: someone who installed binge, looked at it and
+// uninstalled was left with tags they never asked for, one of them in
+// another plugin's namespace. That contradicted this module's own rule
+// a few lines up, that loading the menu must not mutate anything. The
+// membership display now reads without creating, and the tags appear
+// when the user first saves something, which is what the rule intended.
+export function getCollectionTagIds(
+    create = true,
+): Promise<Map<string, string>> {
+    if (!create) {
+        // Cached like the creating path. Leaving it uncached meant one
+        // lookup per collection, serially, on every slide and card
+        // mount, and both live under a virtualizer that remounts them
+        // constantly: a fifty-slide scroll became hundreds of queries.
+        // The rule this module states a hundred lines up is one round
+        // trip per session, and the read-only path was doing the
+        // opposite of it.
+        if (cachedReadOnlyTagIdsPromise) return cachedReadOnlyTagIdsPromise;
+        cachedReadOnlyTagIdsPromise = resolveCollectionTagIds(false).catch(
+            (err) => {
+                cachedReadOnlyTagIdsPromise = null;
+                throw err;
+            },
+        );
+        return cachedReadOnlyTagIdsPromise;
+    }
     if (cachedTagIdsPromise) return cachedTagIdsPromise;
-    cachedTagIdsPromise = (async () => {
+    cachedTagIdsPromise = resolveCollectionTagIds(true)
+        .then((map) => {
+            // The creating path may have just made the tags the
+            // read-only path failed to find, so its cached answer is
+            // now wrong. Clearing only on failure left a fresh install
+            // showing empty membership everywhere until a reload,
+            // because a slide mounts and caches "nothing exists"
+            // before the first save creates anything.
+            cachedReadOnlyTagIdsPromise = null;
+            return map;
+        })
+        .catch((err) => {
+            cachedTagIdsPromise = null;
+            cachedReadOnlyTagIdsPromise = null;
+            throw err;
+        });
+    return cachedTagIdsPromise;
+}
+
+function resolveCollectionTagIds(
+    create: boolean,
+): Promise<Map<string, string>> {
+    return (async () => {
         const collections = await getCollections();
-        const parentId = await ensureCollectionsParentTagId();
+        // Creating the parent is itself a write, so a read-only
+        // resolution must not do it either.
+        const parentId = create ? await ensureCollectionsParentTagId() : "";
         const map = new Map<string, string>();
         for (const c of collections) {
             const existing = await findTagByName(c.tagName);
             // Favourite ★ is owned by Advanced Rating — leave its
             // hierarchy alone so we don't yank it out of ASR's
             // parent tree.
-            const reparent = c.tagName !== FAVOURITES_TAG_NAME;
+            const reparent = create && c.tagName !== FAVOURITES_TAG_NAME;
             if (existing) {
                 if (
                     reparent &&
@@ -178,6 +257,7 @@ export function getCollectionTagIds(): Promise<Map<string, string>> {
                 map.set(c.tagName, existing.id);
                 continue;
             }
+            if (!create) continue;
             const created = await tagCreate(
                 c.tagName,
                 true,
@@ -186,11 +266,7 @@ export function getCollectionTagIds(): Promise<Map<string, string>> {
             map.set(c.tagName, created.id);
         }
         return map;
-    })().catch((err) => {
-        cachedTagIdsPromise = null;
-        throw err;
-    });
-    return cachedTagIdsPromise;
+    })();
 }
 
 // Create a new user collection from a display name. The Stash tag
@@ -207,8 +283,9 @@ export async function createCollection(
     const parentId = await ensureCollectionsParentTagId();
     // Avoid duplicate creation if the user races: find first.
     const existing = await findTagByName(tagName);
+    let id = existing?.id ?? "";
     if (!existing) {
-        await tagCreate(tagName, true, [parentId]);
+        id = (await tagCreate(tagName, true, [parentId])).id;
     } else if (!existing.parents.some((p) => p.id === parentId)) {
         // Tag existed without the parent (e.g. pre-migration);
         // reparent in place.
@@ -219,10 +296,12 @@ export async function createCollection(
     }
     cachedCollectionsPromise = null;
     cachedTagIdsPromise = null;
+    cachedReadOnlyTagIdsPromise = null;
     notifySubscribers();
     return {
         name: trimmed,
         tagName,
+        id,
         icon: "generic",
         isDefault: false,
     };
@@ -233,38 +312,106 @@ export async function createCollection(
 // We refuse to delete the Favourites collection because it's ASR's
 // tag and the user probably doesn't want to nuke their ASR favourites
 // state. Returns true on success.
-export async function deleteCollection(tagName: string): Promise<boolean> {
-    if (tagName === FAVOURITES_TAG_NAME) {
+export async function deleteCollection(def: CollectionDef): Promise<boolean> {
+    if (def.tagName === FAVOURITES_TAG_NAME) {
         throw new Error(
             "The Favourites collection is shared with ASR and can't be deleted from binge.",
         );
     }
-    const tagIds = await getCollectionTagIds();
-    const id = tagIds.get(tagName);
+    // The id this collection was listed with, not a fresh lookup.
+    //
+    // Two separate faults lived in the old line. It re-resolved the tag
+    // by NAME through a lookup that is a SQL LIKE, so a name holding an
+    // underscore or a percent destroyed a different collection. And it
+    // resolved through getCollectionTagIds(), whose default is
+    // create: true - so pressing Delete first CREATED the two default
+    // collection tags and the parent, one of them in another plugin's
+    // namespace. Someone who made one collection, disliked it and
+    // deleted it finished with more tags than they started with.
+    const id = def.id;
     if (!id) return false;
     await tagDestroy(id);
     cachedCollectionsPromise = null;
     cachedTagIdsPromise = null;
+    cachedReadOnlyTagIdsPromise = null;
     notifySubscribers();
     return true;
 }
 
-// Toggle a scene's membership in a collection. Caller passes the scene's
-// CURRENT tag ids; we diff and sceneUpdate. Returns the new state.
+// A scene's tags as Stash holds them right now.
+//
+// Deliberately not cached and not passed in. Collection membership is
+// stored as a tag, and Stash's sceneUpdate replaces the whole tag_ids
+// array, so a write built from anything but a fresh read silently
+// deletes every tag added since that read was taken.
+const SCENE_TAG_IDS = `
+    query SceneTagIds($id: ID!) {
+        findScene(id: $id) {
+            id
+            tags { id }
+        }
+    }
+`;
+
+async function currentSceneTagIds(sceneId: string): Promise<string[]> {
+    const data = await gql<{
+        findScene: { id: string; tags: { id: string }[] } | null;
+    }>(SCENE_TAG_IDS, { id: sceneId });
+    // Fail closed. A missing scene must never be read as "this scene has
+    // no tags", because the next step writes that back as the truth.
+    if (!data.findScene) {
+        throw new Error(`scene ${sceneId} not found`);
+    }
+    return data.findScene.tags.map((t) => t.id);
+}
+
+// Turn a scene's tag ids into a "which collections is it in" map, given
+// the tagName -> id mapping. Lets a caller refresh every row from the
+// tags a write returned rather than trusting its own intent.
+export function membershipFromTagIds(
+    tagIds: string[],
+    tagIdMap: Map<string, string>,
+): Record<string, boolean> {
+    const out: Record<string, boolean> = {};
+    for (const [tagName, id] of tagIdMap) {
+        out[tagName] = tagIds.includes(id);
+    }
+    return out;
+}
+
+// Toggle a scene's membership in a collection.
+//
+// The scene's current tags are read here rather than supplied by the
+// caller. They used to be passed in, and every caller had the same
+// thing to hand: the tag array from the query that first populated the
+// feed, held in React state for the life of the session and never
+// refreshed. Since this function overwrites the whole array, that made
+// an ordinary sequence destructive. Rate a scene, which writes score
+// tags through a different path, then bookmark it: the bookmark rebuilt
+// tag_ids from the page-load snapshot, the score tags were not in it,
+// and they were deleted. The Advanced Rating hook then recomputed the
+// scene's rating from the tags that survived, which were none. Two
+// bookmarks in a row lost the first. A tag added from Stash's own UI in
+// another tab was reverted by any bookmark here.
+//
+// Returns the membership Stash actually holds afterwards, not the
+// intent, so a caller cannot show a tick for a write that did not land.
 export async function setSceneInCollection(
     sceneId: string,
-    currentTagIds: string[],
     tagName: string,
     next: boolean,
-): Promise<boolean> {
+): Promise<{ inCollection: boolean; tagIds: string[] }> {
     const tagIds = await getCollectionTagIds();
     const id = tagIds.get(tagName);
-    if (!id) return !next;
-    const has = currentTagIds.includes(id);
-    if (has === next) return next;
-    const newTagIds = next
-        ? [...currentTagIds, id]
-        : currentTagIds.filter((t) => t !== id);
-    await sceneUpdate({ id: sceneId, tag_ids: newTagIds });
-    return next;
+    if (!id) return { inCollection: !next, tagIds: [] };
+
+    const current = await currentSceneTagIds(sceneId);
+    const has = current.includes(id);
+    if (has === next) return { inCollection: next, tagIds: current };
+
+    const newTagIds = next ? [...current, id] : current.filter((t) => t !== id);
+    const updated = await sceneUpdate({ id: sceneId, tag_ids: newTagIds });
+    // Prefer what came back over what we sent.
+    const after = updated?.tags?.map((t) => t.id) ?? newTagIds;
+    return { inCollection: after.includes(id), tagIds: after };
 }

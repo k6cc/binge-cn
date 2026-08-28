@@ -86,7 +86,18 @@ export function PerformerProfileProvider({
 
     const close = useCallback(() => {
         if (readProfileFromHash()) {
+            // back() pops the entry this profile pushed, and the
+            // hashchange that follows clears the state. But there is
+            // nothing to pop when the profile hash is where the page
+            // STARTED - a shared link, a bookmark, a reload - and then
+            // nothing clears it either, so the close button did nothing
+            // at all. The timer is the fallback for exactly that: if no
+            // hashchange arrived, close directly.
+            const before = window.location.hash;
             window.history.back();
+            window.setTimeout(() => {
+                if (window.location.hash === before) setCurrentProfile(null);
+            }, 120);
         } else {
             setCurrentProfile(null);
         }

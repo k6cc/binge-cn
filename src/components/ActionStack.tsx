@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
     useHasAdvancedRating,
+    usePluginAnswered,
     useHasMultiview,
     useHasScribe,
 } from "../plugins/PluginContext";
@@ -47,6 +48,10 @@ interface ActionStackProps {
 
 // Heart hold-to-unlike duration. Mirrors common mobile long-press
 // thresholds; 1500 chosen for "long enough to never trigger by accident".
+// How far a press may travel and still count as a hold, rather than a
+// scroll that happened to start on a button. Roughly the browser's own
+// scroll slop.
+const HOLD_SLOP_PX = 10;
 const HEART_HOLD_DURATION_MS = 1500;
 // Multiview long-press → open player.
 const MULTIVIEW_HOLD_DURATION_MS = 700;
@@ -79,8 +84,23 @@ export function ActionStack({
     const hasMultiview = useHasMultiview();
     const hasScribe = useHasScribe();
     const hasAdvancedRating = useHasAdvancedRating();
+    const pluginsAnswered = usePluginAnswered();
     const [rateStripOpen, setRateStripOpen] = useState(false);
     const useAdvancedRating = hasAdvancedRating && !!onOpenAdvancedRating;
+    // The previous guard here was `pluginsKnown && hasAdvancedRating`,
+    // which changed nothing: hasAdvancedRating is built from the
+    // enumeration, so it is already false whenever the enumeration has
+    // not landed. And-ing the two could never differ from the second
+    // one alone, so the tap it was written to stop still wrote
+    // rating100 directly.
+    //
+    // What actually stops it is refusing to rate at all while the
+    // answer is unknown - during the handshake, and after a failed
+    // enumeration. Neither branch is safe to pick blind: the inline
+    // strip writes the field Advanced Rating owns and recomputes, so
+    // guessing wrong reverts or nulls the user's rating. A star that is
+    // briefly unavailable is the smaller harm, and it says so.
+    const rateUnavailable = !pluginsAnswered && !useAdvancedRating;
 
     return (
         <aside className="binge-actions" aria-label="scene actions">
@@ -95,7 +115,9 @@ export function ActionStack({
                 ratingStars={ratingStars}
                 expanded={useAdvancedRating ? false : rateStripOpen}
                 advanced={useAdvancedRating}
+                unavailable={rateUnavailable}
                 onToggleStrip={() => {
+                    if (rateUnavailable) return;
                     if (useAdvancedRating) {
                         onOpenAdvancedRating?.();
                     } else {
@@ -156,6 +178,10 @@ function HeartButton({
     const [holding, setHolding] = useState(false);
     const holdTimerRef = useRef<number | null>(null);
     const heldDownRef = useRef(false);
+    // Where the press started, and whether it has travelled far
+    // enough to stop being a hold.
+    const originRef = useRef<{ x: number; y: number } | null>(null);
+    const movedRef = useRef(false);
 
     useEffect(() => {
         return () => {
@@ -177,6 +203,8 @@ function HeartButton({
     ) => {
         e.stopPropagation();
         heldDownRef.current = false;
+        movedRef.current = false;
+        originRef.current = { x: e.clientX, y: e.clientY };
         setHolding(true);
         holdTimerRef.current = window.setTimeout(() => {
             heldDownRef.current = true;
@@ -186,20 +214,46 @@ function HeartButton({
         }, HEART_HOLD_DURATION_MS);
     };
 
+    // Travel cancels the hold, and suppresses the tap on release.
+    //
+    // Neither half was covered. The only movement-based cancellation
+    // was the browser's pointercancel, which arrives only when the
+    // scroll container actually claims the pan - so at the top or the
+    // bottom of the reel, where overscroll-behavior: none means no
+    // scroll can start, a drag that began on the heart completed the
+    // 1500ms hold and decremented the user's O counter on the server.
+    // And on touch the browser takes implicit pointer capture, so
+    // pointerleave never fires while the finger is down: dragging off
+    // the heart and releasing elsewhere still delivered pointerup here
+    // and registered a like.
+    const handlePointerMove: React.PointerEventHandler<HTMLButtonElement> = (
+        e,
+    ) => {
+        const o = originRef.current;
+        if (!o || movedRef.current) return;
+        if (Math.hypot(e.clientX - o.x, e.clientY - o.y) > HOLD_SLOP_PX) {
+            movedRef.current = true;
+            cancelHold();
+        }
+    };
+
     const handlePointerUp: React.PointerEventHandler<HTMLButtonElement> = (
         e,
     ) => {
         e.stopPropagation();
+        const moved = movedRef.current;
+        originRef.current = null;
         if (heldDownRef.current) {
             heldDownRef.current = false;
             cancelHold();
             return;
         }
         cancelHold();
-        onLike();
+        if (!moved) onLike();
     };
 
     const handlePointerLeave = () => {
+        originRef.current = null;
         if (holdTimerRef.current !== null) cancelHold();
     };
 
@@ -218,6 +272,7 @@ function HeartButton({
             }
             onPointerDown={handlePointerDown}
             onPointerUp={handlePointerUp}
+            onPointerMove={handlePointerMove}
             onPointerLeave={handlePointerLeave}
             onPointerCancel={handlePointerLeave}
             onContextMenu={suppressContextMenu}
@@ -236,6 +291,7 @@ function RateButton({
     ratingStars,
     expanded,
     advanced,
+    unavailable,
     onToggleStrip,
     onSetRating,
     onDismiss,
@@ -243,6 +299,7 @@ function RateButton({
     ratingStars: number | null;
     expanded: boolean;
     advanced: boolean;
+    unavailable: boolean;
     onToggleStrip: () => void;
     onSetRating: (stars: number | null) => void;
     onDismiss: () => void;
@@ -250,7 +307,7 @@ function RateButton({
     const rated = (ratingStars ?? 0) > 0;
     return (
         <div className="binge-action-rate-wrap">
-            {expanded && !advanced && (
+            {expanded && !advanced && !unavailable && (
                 <RateStrip
                     current={ratingStars ?? 0}
                     onPick={onSetRating}
@@ -262,20 +319,30 @@ function RateButton({
                 className={
                     "binge-action-button binge-rate-button" +
                     (rated ? " is-active" : "") +
-                    (advanced ? " is-advanced" : "")
+                    (advanced ? " is-advanced" : "") +
+                    (unavailable ? " is-unavailable" : "")
                 }
+                disabled={unavailable}
                 onClick={(e) => {
                     e.stopPropagation();
                     onToggleStrip();
                 }}
                 aria-label={
-                    ratingStars
-                        ? `Rated ${ratingStars} stars. Tap to change.`
-                        : advanced
-                          ? "Rate this scene (advanced)"
-                          : "Rate this scene"
+                    unavailable
+                        ? "Rating unavailable until Stash answers"
+                        : ratingStars
+                          ? `Rated ${ratingStars} stars. Tap to change.`
+                          : advanced
+                            ? "Rate this scene (advanced)"
+                            : "Rate this scene"
                 }
-                title={advanced ? "Rate (advanced)" : "Rate"}
+                title={
+                    unavailable
+                        ? "Rating unavailable - could not reach Stash"
+                        : advanced
+                          ? "Rate (advanced)"
+                          : "Rate"
+                }
             >
                 <StarIcon filled={rated} />
                 {rated && (
@@ -353,6 +420,10 @@ function MultiviewButton({
 }) {
     const holdTimerRef = useRef<number | null>(null);
     const heldRef = useRef(false);
+    // Where the press started, and whether it has travelled far
+    // enough to stop being a hold.
+    const originRef = useRef<{ x: number; y: number } | null>(null);
+    const movedRef = useRef(false);
 
     useEffect(() => {
         return () => {
@@ -364,26 +435,40 @@ function MultiviewButton({
     const onPointerDown: React.PointerEventHandler<HTMLButtonElement> = (e) => {
         e.stopPropagation();
         heldRef.current = false;
+        movedRef.current = false;
+        originRef.current = { x: e.clientX, y: e.clientY };
         holdTimerRef.current = window.setTimeout(() => {
             heldRef.current = true;
             holdTimerRef.current = null;
             onHold();
         }, MULTIVIEW_HOLD_DURATION_MS);
     };
+    // Same reasoning as the heart. This hold opens a new browser tab.
+    const onPointerMove: React.PointerEventHandler<HTMLButtonElement> = (e) => {
+        const o = originRef.current;
+        if (!o || movedRef.current) return;
+        if (Math.hypot(e.clientX - o.x, e.clientY - o.y) > HOLD_SLOP_PX) {
+            movedRef.current = true;
+            clearHold();
+        }
+    };
     const onPointerUp: React.PointerEventHandler<HTMLButtonElement> = (e) => {
         e.stopPropagation();
-        if (holdTimerRef.current !== null) {
-            window.clearTimeout(holdTimerRef.current);
-            holdTimerRef.current = null;
-        }
-        if (!heldRef.current) onTap();
+        const moved = movedRef.current;
+        originRef.current = null;
+        clearHold();
+        if (!heldRef.current && !moved) onTap();
     };
     const onPointerLeave = () => {
+        originRef.current = null;
+        clearHold();
+    };
+    function clearHold() {
         if (holdTimerRef.current !== null) {
             window.clearTimeout(holdTimerRef.current);
             holdTimerRef.current = null;
         }
-    };
+    }
 
     return (
         <button
@@ -394,6 +479,7 @@ function MultiviewButton({
             }
             onPointerDown={onPointerDown}
             onPointerUp={onPointerUp}
+            onPointerMove={onPointerMove}
             onPointerLeave={onPointerLeave}
             onPointerCancel={onPointerLeave}
             aria-label={

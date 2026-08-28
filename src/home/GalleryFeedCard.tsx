@@ -39,6 +39,10 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
     const pageRef = useRef(0);
     const inFlightRef = useRef(false);
     const exhaustedRef = useRef(false);
+    // Mirrored into state so flipping it re-renders and the lightbox
+    // sees a new totalCount. The ref alone is read inside callbacks; the
+    // render needs to know too.
+    const [exhausted, setExhausted] = useState(false);
 
     const loadMoreImages = useCallback(() => {
         if (inFlightRef.current || exhaustedRef.current) return;
@@ -49,8 +53,11 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                 pageRef.current = next;
                 // A short page means the gallery ran out, whatever
                 // image_count claimed: Stash's count can lag a rescan.
-                if (page.length < LIGHTBOX_PAGE_SIZE)
+                if (page.length < LIGHTBOX_PAGE_SIZE) {
                     exhaustedRef.current = true;
+                    setExhausted(true);
+                    setExhausted(true);
+                }
                 // Seeded from nothing, not from item.images: page 1
                 // starts at the same image the carousel did, so seeding
                 // would repeat the opening images and then skip a page.
@@ -69,6 +76,18 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
     }, [item.galleryId]);
 
     const lightboxImages = pagedImages ?? item.images;
+
+    // Opening asks for images when there are none.
+    //
+    // The feed swallows a failed per-gallery image fetch, so a transient
+    // error left item.images empty while imageCount still advertised
+    // "40 photos" - and the lightbox was gated on item.images, so both
+    // taps did nothing at all and nothing ever asked again. The card
+    // could not recover for the session.
+    const openLightbox = () => {
+        setLightboxOpenAt(0);
+        if (lightboxImages.length === 0) loadMoreImages();
+    };
 
     const { openProfile } = usePerformerProfile();
     const primaryPerformer = item.performers[0];
@@ -169,7 +188,7 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                                       }
                                     : undefined
                             }
-                            onClick={() => setLightboxOpenAt(0)}
+                            onClick={openLightbox}
                             aria-label={`Open ${item.title ?? "gallery"}`}
                         />
                     ) : (
@@ -200,7 +219,7 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                     <button
                         type="button"
                         className="binge-gallery-slide binge-gallery-end"
-                        onClick={() => setLightboxOpenAt(0)}
+                        onClick={openLightbox}
                         aria-label="View full gallery"
                     >
                         <span className="binge-gallery-end-inner">
@@ -252,11 +271,30 @@ export function GalleryFeedCard({ item }: GalleryFeedCardProps) {
                 <div className="binge-feed-card-caption">{item.title}</div>
             )}
 
-            {lightboxOpenAt !== null && item.images.length > 0 && (
+            {lightboxOpenAt !== null && lightboxImages.length > 0 && (
                 <ImageLightbox
                     images={lightboxImages}
                     startIndex={lightboxOpenAt}
-                    totalCount={item.imageCount}
+                    // image_count is a hint; the short-page signal is
+                    // the truth. Stash's count lags a rescan, and a
+                    // stale-LOW one made total equal the images already
+                    // loaded, so the prefetch short-circuited and the
+                    // reader was stranded with the rest of the gallery
+                    // unreachable.
+                    //
+                    // Only distrusted when a FULL page has landed and
+                    // the count still claims that is everything - the
+                    // shape a stale count makes. A card holding less
+                    // than a page has genuinely reached the end, so its
+                    // count is believed and nothing is fetched.
+                    totalCount={
+                        exhausted
+                            ? lightboxImages.length
+                            : lightboxImages.length >= LIGHTBOX_PAGE_SIZE &&
+                                item.imageCount <= lightboxImages.length
+                              ? lightboxImages.length + 1
+                              : item.imageCount
+                    }
                     onNeedMore={loadMoreImages}
                     onClose={() => setLightboxOpenAt(null)}
                 />

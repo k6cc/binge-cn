@@ -6,7 +6,8 @@
 #   └── binge/
 #       ├── binge.yml
 #       ├── binge.entry.js
-#       └── index.html
+#       ├── index.html
+#       └── binge-install.py   (binge.yml execs this by path)
 #
 # To cut a release: `git tag v0.1.0 && git push --tags`.
 name: release
@@ -32,12 +33,33 @@ jobs:
 
             - run: npm ci
 
+            # The publish gate.
+            #
+            # ci.yml runs these on push to main too, but it is a
+            # SEPARATE workflow: it starts at the same moment as this
+            # one and cannot stop it. A merge with failing tests
+            # therefore went out to every user of the plugin browser
+            # while the red X was still being drawn on the commit.
+            # Running them here costs ~90s and means a failure stops
+            # short of touching the plugins repo.
+            - run: npm run lint
+
+            - run: npm run format:check
+
+            - run: npm test
+
             - run: npm run build
 
             - name: Stage plugin files
               run: |
                   mkdir -p release/binge
-                  cp binge.yml dist/binge.entry.js dist/index.html release/binge/
+                  # binge-install.py belongs here as much as the other
+                  # three: binge.yml execs it by path, so a plugin dir
+                  # without it registers the Install binge-server task
+                  # and then fails with a missing file the moment
+                  # anyone presses the button.
+                  cp binge.yml dist/binge.entry.js dist/index.html dist/binge-install.py release/binge/
+                  test -f release/binge/binge-install.py
 
             - name: Pack zip
               run: |

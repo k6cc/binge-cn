@@ -64,6 +64,15 @@ export function PerformerImageGrid({ performer }: PerformerImageGridProps) {
         if (count == null) return;
         if (images.length >= count) return;
         if (loading) return;
+        // A failed page STOPS paging. The guard above is
+        // `loaded >= count`, and on the error path `loaded` never grows
+        // and `count` never changes - so the guard could not become
+        // true, the effect re-ran when `loading` cleared, and a fresh
+        // observer fired immediately on a sentinel that had not moved.
+        // That is an unbounded GraphQL loop against Stash for as long
+        // as the tab stays open. Page one succeeding and page two
+        // failing is enough.
+        if (error) return;
 
         const observer = new IntersectionObserver(
             (entries) => {
@@ -73,11 +82,22 @@ export function PerformerImageGrid({ performer }: PerformerImageGridProps) {
                     }
                 }
             },
-            { rootMargin: `0px 0px ${NEAR_BOTTOM_PX}px 0px` },
+            {
+                // Against the actual scrolling ancestor, not the
+                // viewport. The comment above says this mirrors
+                // PerformerSceneGrid, and the sibling does exactly this
+                // - but here root was left unset, so the sentinel is
+                // clipped by .binge-profile-body and the rootMargin
+                // preload never applied. Page two only arrived once the
+                // reader was already hard against the bottom, which is
+                // the spinner the margin exists to avoid.
+                root: sentinel.closest(".binge-profile-body"),
+                rootMargin: `0px 0px ${NEAR_BOTTOM_PX}px 0px`,
+            },
         );
         observer.observe(sentinel);
         return () => observer.disconnect();
-    }, [count, images.length, loading]);
+    }, [count, images.length, loading, error]);
 
     return (
         <section className="binge-profile-photos">

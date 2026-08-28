@@ -24,6 +24,7 @@ import {
     pornhubPreviewUrl,
     pornhubThumbUrl,
 } from "../api/bingeServer";
+import { isoFromEpochSeconds } from "../util/epoch";
 import {
     useIncludeReddit,
     useIncludeStashDB,
@@ -225,7 +226,17 @@ export function useStories(): StoriesResult {
 
                 // ── StashDB merge (toggled by plugin setting) ─────
                 if (includeStashDB) {
-                    await mergeStashDBScenes(byPerformer, sinceIsoDate);
+                    // StashDB is a garnish on this row, not its
+                    // substance. A throw here used to propagate to the
+                    // catch below and replace the WHOLE stories row -
+                    // every library story that had already loaded fine
+                    // included - with an error state. useFeed isolates
+                    // the same integration; this one did not.
+                    try {
+                        await mergeStashDBScenes(byPerformer, sinceIsoDate);
+                    } catch (err) {
+                        console.warn("[binge] stashdb story merge failed", err);
+                    }
                     if (!alive) return;
                 }
 
@@ -234,7 +245,20 @@ export function useStories(): StoriesResult {
                     const sinceUtc = Math.floor(
                         (Date.now() - lookbackDays * 24 * 3600 * 1000) / 1000,
                     );
-                    await mergeRedditPosts(byPerformer, sinceUtc);
+                    // Isolated, like the StashDB merge above and
+                    // for the same reason: a throw here landed in the
+                    // outer catch and replaced every library and
+                    // StashDB story already built with "couldn't load
+                    // stories". getRedditStories casts rather than
+                    // validates, so a digest with posts: null throws
+                    // the moment the loop reads it. The PornHub reader
+                    // was hardened against exactly this; the Reddit
+                    // one was not.
+                    try {
+                        await mergeRedditPosts(byPerformer, sinceUtc);
+                    } catch (err) {
+                        console.warn("[binge] reddit story merge failed", err);
+                    }
                     if (!alive) return;
                 }
 
@@ -243,7 +267,11 @@ export function useStories(): StoriesResult {
                     const sinceUtc = Math.floor(
                         (Date.now() - lookbackDays * 24 * 3600 * 1000) / 1000,
                     );
-                    await mergePornhubVideos(byPerformer, sinceUtc);
+                    try {
+                        await mergePornhubVideos(byPerformer, sinceUtc);
+                    } catch (err) {
+                        console.warn("[binge] pornhub story merge failed", err);
+                    }
                     if (!alive) return;
                 }
 
@@ -372,12 +400,17 @@ async function mergeStashDBScenes(
 
     let scenes: StashDBScene[] | null = readStashDBCache(sinceIsoDate);
     if (!scenes) {
-        scenes = await getNewStashDBScenesForPerformers(
+        const fresh = await getNewStashDBScenesForPerformers(
             linkedPerformers.map((p) => p.stashId),
             sinceIsoDate,
             box.api_key,
         );
-        writeStashDBCache(sinceIsoDate, scenes);
+        // Only cached when StashDB actually answered. A failure used to
+        // arrive here as [] and be written as a valid 12-hour answer, so
+        // one 502 meant no new releases for half a day - and reloading
+        // did not help, because [] reads back as a hit.
+        if (fresh != null) writeStashDBCache(sinceIsoDate, fresh);
+        scenes = fresh ?? [];
     }
 
     for (const scene of scenes) {
@@ -481,7 +514,10 @@ async function mergeRedditPosts(
                 permalink: post.permalink,
                 domain: post.domain,
                 createdUtc: post.createdUtc,
-                effectiveAt: new Date(post.createdUtc * 1000).toISOString(),
+                effectiveAt: isoFromEpochSeconds(
+                    post.createdUtc,
+                    new Date().toISOString(),
+                ),
             });
         }
     }
@@ -518,10 +554,10 @@ async function mergePornhubVideos(
             byPerformer.set(localId, bucket);
         }
         for (const v of d.videos) {
-            const effectiveAt =
-                v.createdUtc > 0
-                    ? new Date(v.createdUtc * 1000).toISOString()
-                    : new Date().toISOString();
+            const effectiveAt = isoFromEpochSeconds(
+                v.createdUtc,
+                new Date().toISOString(),
+            );
             bucket.reddit.push({
                 id: `ph:${v.id}`,
                 source: "reddit",

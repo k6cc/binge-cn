@@ -272,4 +272,51 @@ describe("paging a set larger than what is loaded", () => {
             fireEvent.keyDown(document, { key: "ArrowRight" });
         expect(shownSrc()).toBe("/img/9.jpg");
     });
+
+    it("does not rebind the key listener when a page lands", () => {
+        // The bound listener must already know about images that have
+        // just arrived, without waiting to be rebuilt.
+        //
+        // While the upper bound was a dependency of the listener effect,
+        // React committed the DOM - which then offered a next image -
+        // and deferred the rebind to a passive effect. ArrowRight
+        // pressed in between was silently dropped. It surfaced as a
+        // gallery test that failed about one run in ten, which is the
+        // only reason it was ever noticed; the window is too small to
+        // catch by hand.
+        //
+        // Counting binds rather than reproducing the race, because the
+        // race is a scheduling accident and cannot be forced. One bind
+        // across a growing set means there is no window left to lose.
+        const add = vi.spyOn(document, "addEventListener");
+        const keydowns = () =>
+            add.mock.calls.filter((c) => c[0] === "keydown").length;
+        const onClose = vi.fn();
+        const { rerender } = render(
+            <ImageLightbox
+                images={images(10)}
+                startIndex={9}
+                totalCount={1496}
+                onNeedMore={vi.fn()}
+                onClose={onClose}
+            />,
+        );
+        expect(keydowns()).toBe(1);
+
+        rerender(
+            <ImageLightbox
+                images={images(60)}
+                startIndex={9}
+                totalCount={1496}
+                onNeedMore={vi.fn()}
+                onClose={onClose}
+            />,
+        );
+        expect(keydowns()).toBe(1);
+        add.mockRestore();
+
+        // And the bound listener honours the new bound.
+        fireEvent.keyDown(document, { key: "ArrowRight" });
+        expect(shownSrc()).toBe("/img/10.jpg");
+    });
 });

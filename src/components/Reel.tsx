@@ -275,27 +275,58 @@ export function Reel() {
                     // Retrying across frames because one is not always
                     // enough while the slides are still committing.
                     //
-                    // KNOWN BUG, not fixed by this: "Watch full scene"
-                    // still opens the reel on the wrong scene. The
-                    // handoff itself is correct — instrumented, the CTA
-                    // sends scene=194036 at index 11 of 849, and the
-                    // reel resolves target=194036 found=11 — but the
-                    // view ends up elsewhere. Retrying the scroll and
-                    // going through virtualizer.scrollToIndex were both
-                    // tried and neither helped, so the cause is further
-                    // down: either activeIndex is overwritten after this
-                    // runs, or the scroll container's height disagrees
-                    // with the virtualizer's estimate. Next step is to
-                    // log scrollTop and activeIndex over the frames
-                    // after this settles.
+                    // The "opens on the wrong scene" bug this block used
+                    // to describe as open was diagnosed and fixed in
+                    // this same function - see the comment on settle()
+                    // below. Leaving it as a KNOWN BUG with a "next
+                    // step is to log scrollTop" sent the next reader
+                    // chasing something already solved.
                     const settle = (tries: number) => {
                         if (token !== fetchTokenRef.current) return;
                         const el = scrollRef.current;
                         if (!el) return;
                         const want = idx * el.clientHeight;
-                        el.scrollTo({ top: want, behavior: "auto" });
-                        if (Math.abs(el.scrollTop - want) < 2) return;
-                        if (tries >= 30) return;
+                        // "instant", not "auto".
+                        //
+                        // .binge-reel sets scroll-behavior: smooth, and
+                        // per CSSOM-View "auto" defers to that property
+                        // - so every call here was a SMOOTH scroll, and
+                        // the spec's first step for a scroll is to abort
+                        // any ongoing one. The rAF loop therefore
+                        // restarted the eased animation every frame and
+                        // only ever advanced by the first frame of a
+                        // fresh ease-in-out curve. Measured: 31 frames
+                        // reached scrollTop 1814 of a wanted 9284, and
+                        // the leftover animation plus snap landed on
+                        // index 4 - the same index whatever was asked
+                        // for, which is exactly the wrong-scene report.
+                        //
+                        // The convergence check below could not fire
+                        // either: a smooth scrollTo never moves
+                        // scrollTop synchronously, so the loop always
+                        // burned all 30 tries.
+                        //
+                        // Snap is suspended for the jump as well. With
+                        // mandatory snap the browser can only land on a
+                        // snap area that is MOUNTED, and the
+                        // virtualizer keeps about four - so one call
+                        // advanced at most two slides however it was
+                        // behaved, and the 30-try budget capped the
+                        // whole jump at roughly 62. Tapping tile 70 of
+                        // a pack opened scene 63. With snap off the
+                        // same jump lands exactly, first try.
+                        el.style.scrollSnapType = "none";
+                        el.scrollTo({ top: want, behavior: "instant" });
+                        const done = Math.abs(el.scrollTop - want) < 2;
+                        if (done || tries >= 30) {
+                            // Restored on the next frame, so the browser
+                            // does not re-snap mid-assignment.
+                            window.requestAnimationFrame(() => {
+                                const cur = scrollRef.current;
+                                if (cur) cur.style.scrollSnapType = "";
+                            });
+                            return;
+                        }
                         window.requestAnimationFrame(() => settle(tries + 1));
                     };
                     window.requestAnimationFrame(() => settle(0));

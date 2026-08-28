@@ -15,6 +15,7 @@ import type { Story } from "./useStories";
 // sibling and portals to body when isOpen.
 interface StoryViewerContextValue {
     isOpen: boolean;
+    openToken: number;
     stories: Story[];
     activeIndex: number;
     open: (stories: Story[], startIndex: number) => void;
@@ -30,10 +31,20 @@ export function StoryViewerProvider({ children }: { children: ReactNode }) {
     const [stories, setStories] = useState<Story[]>([]);
     const [activeIndex, setActiveIndex] = useState(0);
     const [isOpen, setIsOpen] = useState(false);
+    // Bumped on every open, so the viewer can tell "opened again" from
+    // "still open". Without it, opening at the index it was already on -
+    // index 0, which is what the stories row and every profile ring
+    // pass - was a no-op state write, so none of the viewer's reset
+    // effects ran and it inherited the last session's scene index,
+    // pause flag and progress. Worst case it opened on a scene index
+    // the new performer does not have, rendered nothing at all, and
+    // silently closed itself a few seconds later.
+    const [openToken, setOpenToken] = useState(0);
 
     const open = useCallback((next: Story[], startIndex: number) => {
         setStories(next);
         setActiveIndex(Math.max(0, Math.min(startIndex, next.length - 1)));
+        setOpenToken((n) => n + 1);
         setIsOpen(true);
     }, []);
 
@@ -44,8 +55,16 @@ export function StoryViewerProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const value = useMemo<StoryViewerContextValue>(
-        () => ({ isOpen, stories, activeIndex, open, close, setActiveIndex }),
-        [isOpen, stories, activeIndex, open, close],
+        () => ({
+            isOpen,
+            openToken,
+            stories,
+            activeIndex,
+            open,
+            close,
+            setActiveIndex,
+        }),
+        [isOpen, openToken, stories, activeIndex, open, close],
     );
 
     return (

@@ -117,11 +117,11 @@ export function BingeServerInstallCard() {
     return (
         <div className="binge-settings-row binge-install-card">
             <div className="binge-settings-row-text">
-                <div className="binge-settings-row-title">binge-server</div>
-                <div className="binge-settings-row-desc">
+                <div className="binge-settings-row-title">Status</div>
+                <div className="binge-settings-row-description">
                     Optional daemon that adds Reddit, X and PornHub posts to
                     your stories, plus Save-to-Stash. binge works fine without
-                    it. Installs onto the machine running Stash — if you run the
+                    it. Installs onto the machine running Stash. If you run the
                     daemon somewhere else, set its URL below instead.
                 </div>
             </div>
@@ -177,7 +177,7 @@ export function BingeServerInstallCard() {
                         </div>
                         {!state.canInstall && (
                             <div className="binge-install-status">
-                                One-click install isn't offered here — Stash has
+                                One-click install isn't offered here. Stash has
                                 no install task registered. Reload plugins in
                                 Stash if you just updated binge; otherwise use
                                 one of the options below.
@@ -186,7 +186,7 @@ export function BingeServerInstallCard() {
                         {showManual && (
                             <div className="binge-install-manual">
                                 <div className="binge-install-status">
-                                    <strong>If Stash runs in Docker</strong> —
+                                    <strong>If Stash runs in Docker</strong>:
                                     add this beside it in the same compose file,
                                     then <code>docker compose up -d</code>.
                                     Installing inside the Stash container
@@ -205,7 +205,7 @@ export function BingeServerInstallCard() {
                                         : "Copy compose service"}
                                 </button>
                                 <div className="binge-install-status">
-                                    <strong>Otherwise</strong> — run this on the
+                                    <strong>Otherwise</strong>: run this on the
                                     machine hosting Stash, then set the URL
                                     below if it isn't localhost:
                                 </div>

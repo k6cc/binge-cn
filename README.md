@@ -132,7 +132,7 @@ Every pillar has its own Settings toggle, and each one fails quiet: with no daem
 
 Reddit and X are reached with session cookies out of your own browser, and those expire every few months. When that happens the Settings card says so, with the date the stories stopped, rather than leaving you to work out why nothing is arriving. Paste a fresh cookie, or drop in a new `cookies.txt`, and it clears.
 
-**Installing it.** Settings has an install card. Press **Install binge-server** and Stash runs the installer on its own host, preferring Docker and falling back to the release binary, which it checks against the checksum published with the release before running it. A browser can't install software, so this goes through a Stash plugin task (it needs `python` on the Stash host; nothing else in binge does). If Stash itself runs in a container, the card offers a compose service to paste instead. Once the daemon answers, the card turns into a status row and the Reddit and X login fields appear, which accept a `cookies.txt` export as well as pasted values.
+**Installing it.** Settings has an install card. Press **Install binge-server** and Stash runs the installer on its own host, preferring Docker and falling back to the release binary, which it checks against the checksums published with the release, when the release has them. A browser can't install software, so this goes through a Stash plugin task (it needs `python` on the Stash host; nothing else in binge does). If Stash itself runs in a container, the card offers a compose service to paste instead. Once the daemon answers, the card turns into a status row and the Reddit and X login fields appear, which accept a `cookies.txt` export as well as pasted values.
 
 If you run the daemon somewhere else, set **binge-server URL** in Settings. A deployment can also set it once server-side, in Stash's own plugin settings for binge, and every browser will pick it up.
 
@@ -187,7 +187,11 @@ Add this URL as a source in **Stash → Settings → Plugins → Available Plugi
 https://ordureconnoisseur.github.io/plugins/main/index.yml
 ```
 
-Install **Binge** from the list. An infinity-symbol button appears in Stash's main nav, click it.
+Install **Binge** from the list.
+
+Then turn its nav button on: **Settings -> Interface -> Basic Settings -> Menu Items**, tick **Binge**. An infinity-symbol button appears in Stash's main nav; click it.
+
+That step is not optional and it is easy to miss. Stash only renders a plugin's nav button when the plugin's id is in your Menu Items list, and a fresh install never has it there, so without ticking the box nothing appears anywhere and the plugin looks like it failed to install.
 
 ### Manual
 

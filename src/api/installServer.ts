@@ -20,7 +20,13 @@ const TASK_NAME = "Install binge-server";
 export function installedUrl(): string {
     try {
         const host = window.location.hostname;
-        if (host) return `http://${host}:7878`;
+        // The scheme follows the page. Hardcoding http meant that on an
+        // https Stash - a reverse proxy or a Funnel, both supported -
+        // every poll of this URL was blocked as mixed content, so a
+        // daemon that installed correctly was reported after five
+        // minutes as never having answered.
+        const scheme = window.location.protocol === "https:" ? "https" : "http";
+        if (host) return `${scheme}://${host}:7878`;
     } catch {
         /* no window */
     }
@@ -33,7 +39,15 @@ export function installedUrl(): string {
 function bindMode(): "loopback" | "lan" {
     try {
         const h = window.location.hostname;
-        return h === "localhost" || h === "127.0.0.1" || h === "::1"
+        // location.hostname keeps the brackets on an IPv6 literal, so the
+        // bare "::1" compare never matched and browsing Stash at
+        // http://[::1]:9999 chose the LAN bind - publishing a daemon that
+        // holds the Stash API key on 0.0.0.0 when the user was on
+        // loopback and had asked for nothing of the sort.
+        return h === "localhost" ||
+            h === "127.0.0.1" ||
+            h === "::1" ||
+            h === "[::1]"
             ? "loopback"
             : "lan";
     } catch {
@@ -92,13 +106,53 @@ export async function waitForServer(
     return false;
 }
 
+/** What Stash's plugin config already says the daemon's address is.
+ *  Empty when nothing is set, or when the query fails - in which case
+ *  the caller leaves the shared copy alone rather than guessing. */
+async function readConfiguredServerUrl(): Promise<string> {
+    try {
+        const data = await gql<{
+            configuration?: {
+                plugins?: Record<string, Record<string, unknown> | null>;
+            };
+        }>(
+            // One plugin's config, not every plugin's. Stash
+            // serialises the whole set otherwise - 13 KB on a real box
+            // to read one field.
+            `query { configuration { plugins(include: ["binge"]) } }`,
+        );
+        const v = data.configuration?.plugins?.["binge"]?.["serverUrl"];
+        return typeof v === "string" ? v.trim() : "";
+    } catch {
+        // Unknown, so treat it as configured and do not overwrite.
+        return "unknown";
+    }
+}
+
 /** Record the daemon's address once it's up: locally for this browser, and
  *  in Stash's plugin config so every other binge client (including iOS)
  *  seeds from it instead of each user re-typing the same URL. A failure to
  *  write the shared copy is not fatal — the local one already works. */
 export async function recordServerUrl(url: string): Promise<void> {
-    setBingeServerUrl(url);
+    // Stored, not vouched for.
+    //
+    // The install card calls this with the URL it already has, which on
+    // a fresh install is the one seeded from Stash's plugin config. With
+    // confirm defaulting to true, opening the card was enough to vouch
+    // for a host nobody had chosen - and reaching the card is the
+    // ordinary response to a daemon that answers "not ok", which a
+    // hostile one can simply do. Confirming belongs to Settings, where
+    // it is a button with the consequence written next to it.
+    setBingeServerUrl(url, { confirm: false });
     try {
+        // Only when nothing is configured server-side.
+        //
+        // This wrote unconditionally, so one click in one browser
+        // replaced the deployment-wide serverUrl for every client that
+        // had not yet seeded - and what it wrote was a guess built from
+        // window.location, which is not the address an admin had chosen.
+        const existing = await readConfiguredServerUrl();
+        if (existing) return;
         await gql(
             `mutation($input: Map!) {
                 configurePlugin(plugin_id: "${PLUGIN_ID}", input: $input)
@@ -116,8 +170,8 @@ export async function recordServerUrl(url: string): Promise<void> {
  *  be pasted into the same compose file Stash is already in. */
 export function composeSnippet(): string {
     return [
-        "  # Reachable from your LAN, unlike the loopback-only docker run:",
-        "  # your browser has to reach it, and it isn't on the Stash host.",
+        "  # Reachable from your LAN: your browser has to reach it, and it",
+        "  # isn't always on the Stash host.",
         "  # It holds your Stash API key, so don't forward 7878 publicly.",
         "  binge-server:",
         "    image: ghcr.io/ordureconnoisseur/binge-server:latest",
@@ -131,13 +185,21 @@ export function composeSnippet(): string {
 }
 
 /** The paste-this-instead command, for hosts where the task can't run (no
- *  python, Stash in a container without Docker access, a remote daemon). */
+ *  python, Stash in a container without Docker access, a remote daemon).
+ *
+ *  It holds your Stash API key, so this is a LAN publish, not an
+ *  internet-facing one. */
 export function manualInstallCommand(): string {
     return [
         "docker run -d \\",
         "  --name binge-server \\",
         "  --restart unless-stopped \\",
-        "  -p 127.0.0.1:7878:7878 \\",
+        // Published to the LAN, not to loopback. This command is handed
+        // to people whose browser is not on the Stash host, which is the
+        // whole reason the task could not run for them, and the compose
+        // snippet directly above says as much. Binding it to 127.0.0.1
+        // guaranteed the one thing they needed would not work.
+        "  -p 7878:7878 \\",
         "  -v ~/binge-server-data:/data \\",
         "  ghcr.io/ordureconnoisseur/binge-server:latest",
     ].join("\n");

@@ -97,7 +97,23 @@ export function TabProvider({ children }: { children: ReactNode }) {
     // On first paint, make sure the hash reflects the resolved tab —
     // covers the case where no hash was set at load (default "home").
     useEffect(() => {
-        writeTabToHash(tab);
+        // Only when the hash is empty or already names a tab.
+        //
+        // The performer profile writes #/p/<id>, whose slug is not a
+        // tab, so readTabFromHash returns null and this resolved to
+        // "home" and pushed #/home straight over it. A shared or
+        // bookmarked profile link therefore worked exactly once: the
+        // profile opened, the address bar stopped describing it, and the
+        // profile became a history entry BEHIND the current one - so
+        // Back re-opened it instead of closing it and the user had to
+        // press Back twice.
+        //
+        // Scoped to mount rather than to writeTabToHash itself, because
+        // tapping a tab FROM a profile must still write: that is a
+        // deliberate navigation away from it.
+        const current = window.location.hash;
+        const ownsHash = !current || current === "#" || readTabFromHash();
+        if (ownsHash) writeTabToHash(tab);
         // Only on mount; subsequent setTab calls write the hash inline.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);

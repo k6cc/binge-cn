@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { PerformerImageCard } from "../api/queries";
 
@@ -47,20 +47,39 @@ export function ImageLightbox({
     const goPrev = () => setIndex((i) => (i > 0 ? i - 1 : i));
     const goNext = () => setIndex((i) => (i < images.length - 1 ? i + 1 : i));
 
+    // The upper bound the arrow key clamps against, held in a ref so the
+    // listener never needs re-binding to learn about a page that landed.
+    //
+    // It was a dependency of the listener effect, which meant a window
+    // between "a page arrived" and "the listener was rebuilt" where the
+    // DOM already offered a next image and ArrowRight refused to go to
+    // it - React commits the DOM synchronously but defers passive
+    // effects, so the two disagreed for as long as the scheduler took.
+    // Pressing right in that window silently did nothing.
+    //
+    // A LAYOUT effect, not a passive one: it runs inside the same
+    // commit that mutates the DOM, so there is no ordering left to
+    // lose. Not a render-phase write, which the React Compiler lint
+    // rule rejects and CI enforces.
+    const imageCountRef = useRef(images.length);
+    useLayoutEffect(() => {
+        imageCountRef.current = images.length;
+    }, [images.length]);
+
     // The handler steps the index itself rather than calling goPrev/goNext,
     // which are rebuilt every render and would re-bind the listener on each
-    // one. Functional updates mean the effect only needs the image count.
+    // one.
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
             if (e.key === "Escape") onClose();
             else if (e.key === "ArrowLeft")
                 setIndex((i) => (i > 0 ? i - 1 : i));
             else if (e.key === "ArrowRight")
-                setIndex((i) => (i < images.length - 1 ? i + 1 : i));
+                setIndex((i) => (i < imageCountRef.current - 1 ? i + 1 : i));
         };
         document.addEventListener("keydown", handler);
         return () => document.removeEventListener("keydown", handler);
-    }, [images.length, onClose]);
+    }, [onClose]);
 
     if (!current) return null;
 

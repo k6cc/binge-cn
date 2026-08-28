@@ -55,20 +55,65 @@ export function multiviewQueueCount(): number {
 
 // ── Config (source of truth) ────────────────────────────────────────
 
+// Throws rather than returning [] when the queue could not be read.
+//
+// "Could not read" and "the queue is empty" were the same answer, and
+// the caller writes the queue back afterwards. A GraphQL 200 carrying
+// an errors array, which is what an auth blip or a plugin-config read
+// failure looks like, left j.data undefined and so read as empty: the
+// next write then replaced a queue of sixteen with a single entry,
+// destroying state shared with the Multiview plugin and both iOS
+// clients. An error here has to stay an error.
 async function fetchConfigQueue(): Promise<MultiviewQueueItem[]> {
     const r = await fetch("/graphql", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: "{ configuration { plugins } }" }),
+        // Narrowed to the one plugin whose config is read on the
+        // next line. This runs on a five-second interval for as long
+        // as the tab is visible, and binge tabs stay open for hours -
+        // so asking for the WHOLE plugin config here cost 13,308 bytes
+        // every five seconds, 9.3 MB an hour, to read one string. It
+        // exceeded the entire cold Home load in forty-two minutes, and
+        // made Stash re-serialise every plugin's settings 720 times an
+        // hour to answer it.
+        //
+        // Semantics are identical, error paths included. Verified
+        // against a live box: the narrowed read returns a byte-identical
+        // multiView value, and an id Stash does not know returns {} -
+        // still truthy, so the deliberate throw below still fires only
+        // when the read genuinely failed, and an absent key still falls
+        // through to the "genuinely empty queue" branch rather than
+        // being mistaken for one.
+        body: JSON.stringify({
+            query: '{ configuration { plugins(include: ["multiView"]) } }',
+        }),
     });
+    if (!r.ok) throw new Error(`multiview queue read failed: ${r.status}`);
     const j = await r.json();
-    const raw = j?.data?.configuration?.plugins?.multiView?.queue;
-    try {
-        const a = JSON.parse(raw || "[]");
-        return Array.isArray(a) ? a : [];
-    } catch {
-        return [];
+    if (j?.errors?.length) {
+        throw new Error("multiview queue read returned errors");
     }
+    if (!j?.data?.configuration?.plugins) {
+        throw new Error("multiview queue read returned no plugin config");
+    }
+    const raw = j.data.configuration.plugins.multiView?.queue;
+    // A genuinely absent key is a genuinely empty queue; that is the
+    // one case where [] is the right answer.
+    if (raw == null || raw === "") return [];
+    let a: unknown;
+    try {
+        a = JSON.parse(raw);
+    } catch {
+        throw new Error("multiview queue is not readable json");
+    }
+    // Parsing is not the same as understanding. A value of some other
+    // shape is just as unreadable as one that would not parse, and the
+    // caller writes whatever comes back out of here straight over the
+    // stored queue, so reporting it as empty would delete it.
+    if (!Array.isArray(a)) {
+        throw new Error("multiview queue is not a list");
+    }
+    return a as MultiviewQueueItem[];
 }
 
 async function writeConfigQueue(queue: MultiviewQueueItem[]): Promise<void> {

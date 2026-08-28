@@ -1,5 +1,12 @@
-import { useEffect, useState, type ChangeEvent } from "react";
+import {
+    type ChangeEvent,
+    useCallback,
+    useEffect,
+    useRef,
+    useState,
+} from "react";
 import { createPortal } from "react-dom";
+import { linkExistingScenesToPerformer } from "../api/linkExistingScenes";
 import {
     buildPerformerCreateForm,
     getStashDBPerformerForFollow,
@@ -16,7 +23,11 @@ interface FollowPerformerModalProps {
     fallbackImage: string | null;
     // External link for "View on StashDB →" inside the modal.
     stashboxUrl?: string;
-    onCreated: (result: { id: string; name: string }) => void;
+    onCreated: (result: {
+        id: string;
+        name: string;
+        linkedScenes?: number;
+    }) => void;
     onClose: () => void;
 }
 
@@ -29,6 +40,15 @@ type ModalState =
       }
     | {
           kind: "submitting";
+          form: PerformerCreateForm;
+          detail: StashDBPerformerDetail | null;
+      }
+    // The performer exists; her existing scenes are being attached.
+    // Separate from "submitting" so the button can say which of the two
+    // is happening - the second step reads a whole-library query and is
+    // the slower half on a big library.
+    | {
+          kind: "linking";
           form: PerformerCreateForm;
           detail: StashDBPerformerDetail | null;
       }
@@ -56,12 +76,46 @@ export function FollowPerformerModal({
     onCreated,
     onClose,
 }: FollowPerformerModalProps) {
-    const { isExiting, beginClose } = useSheetClose(onClose);
+    const { isExiting, beginClose: rawClose } = useSheetClose(onClose);
     const [state, setState] = useState<ModalState>({ kind: "scraping" });
     // Currently-displayed image in the hero carousel. Resets to 0
     // whenever the detail load completes; user advances with the
     // prev/next arrows.
     const [imageIndex, setImageIndex] = useState(0);
+    /// Non-fatal note from the linking step, shown before the modal
+    /// closes. The performer was created either way.
+    const [linkNote, setLinkNote] = useState<string | null>(null);
+    // Mirrors linkNote for the same-tick check above: setState is not
+    // visible to the code that follows it.
+    const noteRef = useRef<string | null>(null);
+    const note = (msg: string) => {
+        noteRef.current = msg;
+        setLinkNote(msg);
+    };
+    // Every dismissal has to deliver a pending result.
+    //
+    // Holding the result so the note could be read created a second way
+    // out of this modal that skipped onCreated: Escape and the backdrop
+    // went straight to onClose, so a performer who now EXISTS in Stash
+    // left the caller still showing an idle "+ Follow" pill. Tapping it
+    // again scrapes and creates a second row against the same stash_id,
+    // which Stash does not refuse. Dismissing is not declining.
+    const [pendingResult, setPendingResult] = useState<{
+        id: string;
+        name: string;
+        linkedScenes?: number;
+    } | null>(null);
+
+    // The only close this component uses. Delivers a held result rather
+    // than dropping it; onCreated unmounts the modal in every caller,
+    // so there is nothing to animate out afterwards.
+    const beginClose = useCallback(() => {
+        if (pendingResult) {
+            onCreated(pendingResult);
+            return;
+        }
+        rawClose();
+    }, [pendingResult, onCreated, rawClose]);
 
     // Esc closes (matches MoreSheet and other binge sheets).
     useEffect(() => {
@@ -131,7 +185,54 @@ export function FollowPerformerModal({
         setState({ kind: "submitting", form: submittedForm, detail });
         try {
             const result = await submitPerformerCreate(submittedForm);
-            onCreated(result);
+            // Attach her to the scenes the library already holds.
+            //
+            // Following only creates the performer, so without this her
+            // brand new profile reports zero scenes even when several
+            // are sitting in the library - which reads as the follow
+            // having failed. Best-effort and additive: a failure here
+            // leaves a performer who exists but is not yet linked,
+            // which is exactly the state before this ran.
+            setState({ kind: "linking", form: submittedForm, detail });
+            let linked = 0;
+            try {
+                const r = await linkExistingScenesToPerformer({
+                    localPerformerId: result.id,
+                    stashDBPerformerId,
+                });
+                linked = r.linked;
+                // A failure here is worth saying out loud. The
+                // performer exists either way, so this is not an error
+                // state - but reporting nothing meant a pass that
+                // linked hundreds of scenes and one that linked none
+                // looked identical, and "she has no scenes here" and
+                // "StashDB was unreachable" did too.
+                if (r.failed) {
+                    note(
+                        `Added, but her ${r.matched} existing scenes could not be linked. Stash refused the update.`,
+                    );
+                } else if (r.lookupFailed) {
+                    note(
+                        "Added, but StashDB could not be reached, so her existing scenes were not linked.",
+                    );
+                }
+            } catch (err) {
+                console.warn("[binge] linking existing scenes failed", err);
+                noteRef.current = null;
+                note("Added, but her existing scenes could not be linked.");
+            }
+            // Held, not raced. Every caller unmounts this modal inside
+            // onCreated, so setting a note and calling onCreated on the
+            // next line rendered the note into a component that was
+            // already going away - the whole reporting half was
+            // unreachable, which is the second time feedback was built
+            // here that nobody could see. When there is something to
+            // say, the modal stays up until the user dismisses it.
+            if (noteRef.current) {
+                setPendingResult({ ...result, linkedScenes: linked });
+                return;
+            }
+            onCreated({ ...result, linkedScenes: linked });
         } catch (err) {
             setState({
                 kind: "error",
@@ -151,7 +252,9 @@ export function FollowPerformerModal({
                 ? state.form
                 : state.form;
     const detail = state.kind === "scraping" ? null : state.detail;
-    const isSubmitting = state.kind === "submitting";
+    const isSubmitting =
+        state.kind === "submitting" || state.kind === "linking";
+    const isLinking = state.kind === "linking";
     // Image carousel — use the StashDB image array if we have it,
     // otherwise fall back to whatever URL the user typed/inherited.
     const images = detail?.images ?? [];
@@ -464,6 +567,20 @@ export function FollowPerformerModal({
                                 {state.message}
                             </div>
                         )}
+                        {linkNote && (
+                            <div className="binge-follow-modal-note">
+                                {linkNote}
+                                {pendingResult && (
+                                    <button
+                                        type="button"
+                                        className="binge-follow-modal-note-ok"
+                                        onClick={() => onCreated(pendingResult)}
+                                    >
+                                        Done
+                                    </button>
+                                )}
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -482,11 +599,13 @@ export function FollowPerformerModal({
                         onClick={handleSubmit}
                         disabled={state.kind !== "ready" || !form?.name.trim()}
                     >
-                        {isSubmitting
-                            ? "Adding…"
-                            : state.kind === "error"
-                              ? "Retry"
-                              : "Add to library"}
+                        {isLinking
+                            ? "Finding her scenes…"
+                            : isSubmitting
+                              ? "Adding…"
+                              : state.kind === "error"
+                                ? "Retry"
+                                : "Add to library"}
                     </button>
                 </footer>
             </div>

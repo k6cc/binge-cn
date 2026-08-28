@@ -1,7 +1,8 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import type { PackFeedItem, SceneFeedItem } from "./useFeed";
 import { useTab } from "../tabs/TabContext";
+import { openPackAtScene } from "./packHandoff";
 
 // Fullscreen sheet shown when the user taps a Pack feed card.
 // Lists every scene in the pack as a 3-column grid; tapping a
@@ -30,20 +31,22 @@ export function PackDetailSheet({
         return () => document.removeEventListener("keydown", handler);
     }, [onClose]);
 
+    // Paged, because every tile carries a background-image and the
+    // browser fetches all of them as soon as they are laid out. The
+    // card's own mosaic caps itself at nine for this reason; the sheet
+    // rendered the whole pack, so opening a 944-scene pack issued 944
+    // screenshot requests at once - which also starves the scene
+    // fetches the tap is about to make.
+    const PAGE = 60;
+    const [shownCount, setShownCount] = useState(PAGE);
+    const shown = pack.scenes.slice(0, shownCount);
+
     const handlePick = (scene: SceneFeedItem) => {
-        // Same handoff pattern Home's "Watch full scene" uses —
-        // pin the tapped scene as slot N of the queued list, so
-        // the reel starts at the tap target and walks the rest
-        // of the pack in order.
-        const ids = pack.scenes.map((s) => s.sceneId);
-        const startIndex = Math.max(0, ids.indexOf(scene.sceneId));
-        // Clear any stale single-scene pin — the reel consumes the
-        // queue here (startIndex starts it at the tapped scene), and
-        // a leftover pin would otherwise resurface in chained mode.
-        // Mirrors SceneFeedCard's "Watch full scene" handoff.
-        setPinFirstSceneId(null);
-        setPinnedQueue({ ids, startIndex });
-        setTab("foryou");
+        openPackAtScene(
+            { setTab, setPinFirstSceneId, setPinnedQueue },
+            pack,
+            scene.sceneId,
+        );
         onClose();
     };
 
@@ -63,7 +66,7 @@ export function PackDetailSheet({
                     </div>
                 </header>
                 <div className="binge-pack-sheet-grid">
-                    {pack.scenes.map((scene) => (
+                    {shown.map((scene) => (
                         <button
                             type="button"
                             key={scene.sceneId}
@@ -80,6 +83,15 @@ export function PackDetailSheet({
                         />
                     ))}
                 </div>
+                {shown.length < pack.scenes.length && (
+                    <button
+                        type="button"
+                        className="binge-pack-sheet-more"
+                        onClick={() => setShownCount((n) => n + PAGE)}
+                    >
+                        Show more ({pack.scenes.length - shown.length} left)
+                    </button>
+                )}
             </div>
         </div>,
         document.body,

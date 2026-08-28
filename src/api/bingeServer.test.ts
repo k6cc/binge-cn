@@ -15,8 +15,7 @@ describe("isTrustedDaemonUrl", () => {
     // (the very case this file exists for) only had to point it at an
     // https host of their own. Transport secrecy is not the same as
     // knowing who is on the other end.
-    it("accepts https to the local machine, LAN and tailnet", () => {
-        expect(isTrustedDaemonUrl("https://foo.ts.net:7878")).toBe(true);
+    it("accepts https to the local machine and LAN", () => {
         expect(isTrustedDaemonUrl("https://localhost:7878")).toBe(true);
         expect(isTrustedDaemonUrl("https://mini.local")).toBe(true);
         expect(isTrustedDaemonUrl("https://mini")).toBe(true);
@@ -171,10 +170,33 @@ describe("where the Stash API key is actually sent", () => {
         vi.spyOn(console, "warn").mockImplementation(() => {});
     });
 
-    it("sends the key to a tailnet daemon over https", async () => {
+    // A tailnet name is only trusted from a page on the SAME tailnet.
+    // It used to be trusted from anywhere, on either scheme, because
+    // ".ts.net" sat in the local/private blanket - so a stranger's
+    // tailnet, which Funnel hands out free and resolves publicly, was
+    // trusted with the key from any page at all.
+    it("sends the key to a daemon on the page's own tailnet", async () => {
+        vi.stubGlobal("location", {
+            hostname: "stash.example.ts.net",
+            protocol: "https:",
+            origin: "https://stash.example.ts.net",
+        });
         const { mod, fetchMock } = await load("https://binge.example.ts.net");
         await mod.getBingeServerHealth();
         expect(headerOf(fetchMock)).toBe(KEY);
+    });
+
+    it("does not contact a daemon on someone else's tailnet", async () => {
+        vi.stubGlobal("location", {
+            hostname: "stash.example.ts.net",
+            protocol: "https:",
+            origin: "https://stash.example.ts.net",
+        });
+        const { mod, fetchMock } = await load(
+            "https://binge.attacker99.ts.net",
+        );
+        await mod.getBingeServerHealth();
+        expect(fetchMock).not.toHaveBeenCalled();
     });
 
     it("sends the key to a daemon on localhost", async () => {
@@ -183,22 +205,30 @@ describe("where the Stash API key is actually sent", () => {
         expect(headerOf(fetchMock)).toBe(KEY);
     });
 
-    it("withholds the key from a public http daemon", async () => {
+    it("does not contact a public http daemon at all", async () => {
         // The daemon URL can be typed by the user, seeded from Stash's
         // plugin config, or rewritten by anything with same-origin
-        // access. Every request would otherwise hand the key over.
+        // access. This used to send the request anyway and merely
+        // withhold the header, which still gave an address nobody chose
+        // a liveness and port probe from inside the user's network on
+        // every Home load.
         const { mod, fetchMock } = await load("http://evil.example.com:7878");
         await mod.getBingeServerHealth();
-        expect(fetchMock).toHaveBeenCalled();
-        expect(headerOf(fetchMock)).toBeUndefined();
+        expect(fetchMock).not.toHaveBeenCalled();
     });
 
-    it("withholds the key from the save endpoint too", async () => {
+    it("does not post to the save endpoint of an untrusted daemon", async () => {
+        // This asserted only that the header was absent, which is also
+        // true when no request is made - so it could not tell the two
+        // apart. The save body carries library metadata, and for a
+        // PornHub item its mediaUrl is a daemon URL with the Stash key
+        // in the query string, so the request itself is the problem.
         const { mod, fetchMock } = await load("http://evil.example.com:7878");
-        await mod.saveToStash({
+        const r = await mod.saveToStash({
             url: "https://x.com/i/status/1",
         } as unknown as Parameters<typeof mod.saveToStash>[0]);
-        expect(headerOf(fetchMock)).toBeUndefined();
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(r.ok).toBe(false);
     });
 
     it("keeps the key out of media URLs handed to img and video", async () => {
@@ -218,6 +248,12 @@ describe("where the Stash API key is actually sent", () => {
     });
 
     it("still keys media URLs for a daemon that may have it", async () => {
+        // Same tailnet as the page, so this one is genuinely trusted.
+        vi.stubGlobal("location", {
+            hostname: "stash.example.ts.net",
+            protocol: "https:",
+            origin: "https://stash.example.ts.net",
+        });
         const { mod } = await load("https://binge.example.ts.net");
         await mod.getBingeServerHealth();
         expect(mod.pornhubStreamUrl("abc")).toContain(

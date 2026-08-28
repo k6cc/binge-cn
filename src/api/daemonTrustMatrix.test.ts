@@ -100,18 +100,67 @@ describe("a daemon nobody configured is not trusted", () => {
         });
     });
 
-    // An install that predates the confirmation store keeps working: the
-    // URL already there was put there by someone, so it is carried over
-    // once rather than interrupting them to re-confirm it.
-    it("grandfathers a URL configured before this existed", () => {
+    // A URL already in storage is NOT carried over.
+    //
+    // This used to grandfather it, on the reasoning that anything
+    // already configured had been configured by someone. That is false
+    // for this key: the seed from Stash's plugin config has written it
+    // since v0.4.0, and the confirmation store only arrived in 0.11.0,
+    // so on every install between those releases the value waiting to be
+    // grandfathered is exactly the one nobody chose. Carrying it over
+    // laundered it into a confirmed origin on the first daemon fetch,
+    // and the Settings banner that exists to ask about a public daemon
+    // never appeared.
+    it("does not vouch for a URL merely because it is stored", () => {
         localStorage.setItem(
             "binge.bingeServerUrl",
             "https://binge.elsewhere.net",
         );
         withStashAt("stash.example.com", () => {
             expect(isTrustedDaemonUrl("https://binge.elsewhere.net")).toBe(
-                true,
+                false,
             );
+        });
+    });
+});
+
+// Under a shared suffix, two names share a landlord rather than an
+// owner. Comparing the last two labels made every duckdns.org name look
+// like every other, so a daemon at <anything>.duckdns.org was trusted
+// with the Stash key by anyone whose Stash was also there. Self-hosted
+// Stash lives under these constantly, which is the population the
+// same-domain rule exists to serve.
+describe("a shared public suffix is not a shared owner", () => {
+    const cases: Array<[string, string]> = [
+        ["stash.duckdns.org", "https://evil.duckdns.org"],
+        // Every other shared suffix had a case here and ts.net did not,
+        // which is how a stranger's tailnet stayed trusted: Funnel hands
+        // these out free and resolves them publicly, so two tailnets
+        // share a landlord in exactly the sense this list is about.
+        ["stash.mytailnet.ts.net", "https://binge.attacker99.ts.net"],
+        ["stash.no-ip.org", "https://evil.no-ip.org"],
+        ["nas.synology.me", "https://evil.synology.me"],
+        ["me.github.io", "https://someone-else.github.io"],
+        ["stash.co.uk", "https://evil.co.uk"],
+        ["a.example.co.uk", "https://b.example.co.uk"],
+    ];
+    for (const [stashHost, daemon] of cases) {
+        it(`refuses ${daemon} for a Stash at ${stashHost}`, () => {
+            withStashAt(stashHost, () => {
+                expect(isTrustedDaemonUrl(daemon)).toBe(false);
+            });
+        });
+    }
+
+    it("still trusts a genuine sibling of an ordinary domain", () => {
+        withStashAt("stash.example.com", () => {
+            expect(isTrustedDaemonUrl("https://binge.example.com")).toBe(true);
+        });
+    });
+
+    it("still trusts the very same host under a shared suffix", () => {
+        withStashAt("stash.duckdns.org", () => {
+            expect(isTrustedDaemonUrl("https://stash.duckdns.org")).toBe(true);
         });
     });
 });

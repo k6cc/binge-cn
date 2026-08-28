@@ -157,6 +157,36 @@ describe("the twelve-hour cache", () => {
         expect(readStashDBCache("2026-06-01")).toEqual(scenes);
     });
 
+    it("serves an entry whose scenes carry performers", async () => {
+        // The shape a REAL entry has. Every other test here writes
+        // `[{ id: "a" }]`, which has no performers - and the element
+        // validator short-circuits on that, so the whole suite passed
+        // while the validator required a field the performer type does
+        // not have. The cache therefore never hit once in production:
+        // a full batched StashDB fetch on every mount.
+        const { readStashDBCache, writeStashDBCache } = await load();
+        const scenes = [
+            {
+                id: "sc1",
+                title: "A scene",
+                performers: [{ id: "p1", name: "Someone" }],
+            },
+        ] as never;
+        writeStashDBCache("2026-06-01", scenes);
+        expect(readStashDBCache("2026-06-01")).toEqual(scenes);
+    });
+
+    it("still rejects a performer with no id", async () => {
+        // The guard the validator was written for stays. A null or
+        // id-less performer throws in the story builder the moment it
+        // reads sp.id, and it stayed broken for the whole TTL.
+        const { readStashDBCache, writeStashDBCache } = await load();
+        writeStashDBCache("2026-06-01", [
+            { id: "sc1", performers: [{ name: "no id" }] },
+        ] as never);
+        expect(readStashDBCache("2026-06-01")).toBeNull();
+    });
+
     it("misses when the lookback window changed", async () => {
         // A different window is a different question; answering it from
         // this entry would silently show the wrong range.
@@ -254,5 +284,87 @@ describe("the twelve-hour cache", () => {
         expect(localStorage.getItem("binge.stashdb.newScenes.v3")).toBeNull();
         expect(localStorage.getItem("binge.unrelated")).toBe("keep me");
         expect(localStorage.getItem(CACHE_KEY)).not.toBeNull();
+    });
+});
+
+describe("the memoised linked-performer list", () => {
+    // getLinkedPerformers is a per_page:-1 sweep of every performer in
+    // the library, and it is now on the path of a tap: pressing a
+    // matched name asks it whether that person is already in the
+    // library before deciding which profile to open. Re-running the
+    // sweep per tap would be seconds of delay before anything opened.
+    const linkedRow = (id: string, stashId: string) => ({
+        id,
+        name: "Ada",
+        favorite: false,
+        image_path: null,
+        stash_ids: [
+            { endpoint: "https://stashdb.org/graphql", stash_id: stashId },
+        ],
+    });
+
+    function linkedReturns(performers: unknown[]) {
+        const fetchMock = vi.fn(async () => ({
+            ok: true,
+            json: async () => ({ data: { findPerformers: { performers } } }),
+        }));
+        vi.stubGlobal("fetch", fetchMock);
+        return fetchMock;
+    }
+
+    it("answers a second tap without a second sweep", async () => {
+        const fetchMock = linkedReturns([linkedRow("42", "sdb-1")]);
+        const { getLinkedPerformersMemo } = await load();
+
+        const first = await getLinkedPerformersMemo();
+        const second = await getLinkedPerformersMemo();
+
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        expect(first).toEqual(second);
+        expect(first[0]).toMatchObject({ localId: "42", stashId: "sdb-1" });
+    });
+
+    it("sweeps again once the memo has aged out", async () => {
+        // Short enough that following someone and then tapping their
+        // name lands on the local profile that now exists.
+        vi.useFakeTimers();
+        const fetchMock = linkedReturns([linkedRow("42", "sdb-1")]);
+        const { getLinkedPerformersMemo } = await load();
+
+        await getLinkedPerformersMemo();
+        vi.advanceTimersByTime(61_000);
+        await getLinkedPerformersMemo();
+
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it("does not hand the next tap a cached failure", async () => {
+        // Caching the rejected promise would mean one blip while Stash
+        // restarted sent every tap for the next minute to the read-only
+        // StashDB profile, complete with a Follow button for someone
+        // already in the library.
+        const fetchMock = vi
+            .fn()
+            .mockRejectedValueOnce(new Error("stash is down"))
+            .mockResolvedValue({
+                ok: true,
+                json: async () => ({
+                    data: {
+                        findPerformers: {
+                            performers: [linkedRow("42", "sdb-1")],
+                        },
+                    },
+                }),
+            });
+        vi.stubGlobal("fetch", fetchMock);
+        const { getLinkedPerformersMemo } = await load();
+
+        await expect(getLinkedPerformersMemo()).rejects.toThrow(
+            "stash is down",
+        );
+        const retried = await getLinkedPerformersMemo();
+
+        expect(retried[0]).toMatchObject({ localId: "42" });
+        expect(fetchMock).toHaveBeenCalledTimes(2);
     });
 });

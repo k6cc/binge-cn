@@ -9,6 +9,22 @@ const tagDestroy = vi.fn();
 const tagSetParents = vi.fn();
 const sceneUpdate = vi.fn();
 
+// setSceneInCollection reads the scene's live tags before writing, so
+// the tests have to say what Stash currently holds.
+const gql = vi.fn();
+let sceneTagIds: string[] | null = [];
+vi.mock("./graphql", () => ({
+    gql: (...args: unknown[]) => {
+        gql(...args);
+        return Promise.resolve({
+            findScene:
+                sceneTagIds === null
+                    ? null
+                    : { id: "s1", tags: sceneTagIds.map((id) => ({ id })) },
+        });
+    },
+}));
+
 vi.mock("./queries", () => ({
     findTagByName: (...a: unknown[]) => findTagByName(...a),
     findTagsContaining: (...a: unknown[]) => findTagsContaining(...a),
@@ -35,11 +51,35 @@ const load = () => import("./collections");
 
 // A tag table findTagByName resolves against, so tests describe Stash's
 // state rather than scripting call-by-call return values.
+//
+// This used to be a plain Map.get, i.e. an exact match - which is not
+// what the real function does, and is exactly the assumption that made
+// the wrong-tag deletion invisible to all 32 tests here. Stash compiles
+// `modifier: EQUALS` to a SQL LIKE, so the mock does too: `_` matches
+// any character, `%` any run, and the compare is case-insensitive.
+// findTagByName's own exact-name check is what turns that back into a
+// real equality, and it can only be tested if the mock underneath it
+// behaves like the database.
+function likeMatches(pattern: string, name: string): boolean {
+    let rx = "";
+    for (const ch of pattern) {
+        if (ch === "%") rx += "[\\s\\S]*";
+        else if (ch === "_") rx += "[\\s\\S]";
+        else rx += ch.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    }
+    return new RegExp("^" + rx + "$", "i").test(name);
+}
+
 function stashHas(tags: Tag[]) {
     const byName = new Map(tags.map((t) => [t.name, t]));
-    findTagByName.mockImplementation((name: string) =>
-        Promise.resolve(byName.get(name) ?? null),
-    );
+    findTagByName.mockImplementation((name: string) => {
+        // Every LIKE hit, name-ASC, as Stash would page them...
+        const hits = tags
+            .filter((t) => likeMatches(name, t.name))
+            .sort((a, b) => a.name.localeCompare(b.name));
+        // ...and then the exact-name check the real one applies.
+        return Promise.resolve(hits.find((t) => t.name === name) ?? null);
+    });
     return byName;
 }
 
@@ -274,31 +314,78 @@ describe("createCollection", () => {
 describe("deleteCollection", () => {
     it("refuses to delete Favourites, which is shared with the rating plugin", async () => {
         const { deleteCollection } = await load();
-        await expect(deleteCollection(FAVOURITES)).rejects.toThrow(/ASR/);
+        await expect(
+            deleteCollection({
+                name: "Favourites",
+                tagName: FAVOURITES,
+                id: "fav",
+                icon: "favourite",
+                isDefault: true,
+            }),
+        ).rejects.toThrow(/ASR/);
         expect(tagDestroy).not.toHaveBeenCalled();
     });
 
     it("destroys the tag behind a user collection", async () => {
-        stashHas([
-            tag("p", PARENT),
-            tag("fav", FAVOURITES),
-            tag("wl", `Watch Later${SUFFIX}`, ["p"]),
-            tag("rt", `Road Trip${SUFFIX}`, ["p"]),
-        ]);
+        // Deliberately WITHOUT the default tags or the parent. Seeding
+        // them made the old create-on-delete path a no-op, which is why
+        // the suite never saw it: the tags it would have minted already
+        // existed. This is the state a user is in after making exactly
+        // one collection and deciding against it.
+        stashHas([tag("rt", `Road Trip${SUFFIX}`, ["p"])]);
         findTagsContaining.mockResolvedValue([
             { id: "rt", name: `Road Trip${SUFFIX}` },
         ]);
-        const { deleteCollection } = await load();
-        await expect(deleteCollection(`Road Trip${SUFFIX}`)).resolves.toBe(
-            true,
-        );
+        const { deleteCollection, getCollections } = await load();
+        const def = (await getCollections()).find(
+            (c) => c.tagName === `Road Trip${SUFFIX}`,
+        )!;
+        await expect(deleteCollection(def)).resolves.toBe(true);
         expect(tagDestroy).toHaveBeenCalledWith("rt");
+        // Deleting must not CREATE anything. This path used to resolve
+        // ids with create: true, so pressing Delete minted the two
+        // default collection tags and the parent - one of them in the
+        // rating plugin's namespace - on the way to destroying one.
+        expect(tagCreate).not.toHaveBeenCalled();
+    });
+
+    it("destroys the tag it was handed, not a LIKE near-miss", async () => {
+        // An underscore is an ordinary thing to put in a folder name,
+        // and it is a single-character wildcard in SQL LIKE. Resolving
+        // the victim by name meant "Golden_Hours" found the id of
+        // "Golden Hours" - which sorts first - and destroyed it, while
+        // the collection the user pointed at stayed.
+        stashHas([
+            tag("p", PARENT),
+            tag("fav", FAVOURITES),
+            tag("gh", `Golden Hours${SUFFIX}`, ["p"]),
+            tag("gu", `Golden_Hours${SUFFIX}`, ["p"]),
+        ]);
+        findTagsContaining.mockResolvedValue([
+            { id: "gh", name: `Golden Hours${SUFFIX}` },
+            { id: "gu", name: `Golden_Hours${SUFFIX}` },
+        ]);
+        const { deleteCollection, getCollections } = await load();
+        const def = (await getCollections()).find(
+            (c) => c.tagName === `Golden_Hours${SUFFIX}`,
+        )!;
+        await expect(deleteCollection(def)).resolves.toBe(true);
+        expect(tagDestroy).toHaveBeenCalledWith("gu");
+        expect(tagDestroy).not.toHaveBeenCalledWith("gh");
     });
 
     it("reports false for a collection that is not there", async () => {
         stashHas([tag("p", PARENT), tag("fav", FAVOURITES)]);
         const { deleteCollection } = await load();
-        await expect(deleteCollection(`Ghost${SUFFIX}`)).resolves.toBe(false);
+        await expect(
+            deleteCollection({
+                name: "Ghost",
+                tagName: `Ghost${SUFFIX}`,
+                id: "",
+                icon: "generic",
+                isDefault: false,
+            }),
+        ).resolves.toBe(false);
         expect(tagDestroy).not.toHaveBeenCalled();
     });
 });
@@ -318,14 +405,14 @@ describe("setSceneInCollection", () => {
 
     it("adds the tag while keeping the scene's other tags", async () => {
         withRoadTrip();
+        sceneTagIds = ["existing"];
         const { setSceneInCollection } = await load();
         const got = await setSceneInCollection(
             "s1",
-            ["existing"],
             `Road Trip${SUFFIX}`,
             true,
         );
-        expect(got).toBe(true);
+        expect(got.inCollection).toBe(true);
         expect(sceneUpdate).toHaveBeenCalledWith({
             id: "s1",
             tag_ids: ["existing", "rt"],
@@ -334,13 +421,9 @@ describe("setSceneInCollection", () => {
 
     it("removes only the collection's tag", async () => {
         withRoadTrip();
+        sceneTagIds = ["existing", "rt"];
         const { setSceneInCollection } = await load();
-        await setSceneInCollection(
-            "s1",
-            ["existing", "rt"],
-            `Road Trip${SUFFIX}`,
-            false,
-        );
+        await setSceneInCollection("s1", `Road Trip${SUFFIX}`, false);
         expect(sceneUpdate).toHaveBeenCalledWith({
             id: "s1",
             tag_ids: ["existing"],
@@ -349,21 +432,104 @@ describe("setSceneInCollection", () => {
 
     it("skips the write when the scene is already in the wanted state", async () => {
         withRoadTrip();
+        sceneTagIds = ["rt"];
         const { setSceneInCollection } = await load();
-        await setSceneInCollection("s1", ["rt"], `Road Trip${SUFFIX}`, true);
+        await setSceneInCollection("s1", `Road Trip${SUFFIX}`, true);
         expect(sceneUpdate).not.toHaveBeenCalled();
     });
 
     it("reports the unchanged state when the collection cannot be resolved", async () => {
         stashHas([tag("p", PARENT), tag("fav", FAVOURITES)]);
         const { setSceneInCollection } = await load();
-        const got = await setSceneInCollection(
-            "s1",
-            [],
-            `Ghost${SUFFIX}`,
-            true,
-        );
-        expect(got).toBe(false);
+        const got = await setSceneInCollection("s1", `Ghost${SUFFIX}`, true);
+        expect(got.inCollection).toBe(false);
         expect(sceneUpdate).not.toHaveBeenCalled();
+    });
+
+    // The bug this signature exists to prevent. Tags written by another
+    // path since the feed loaded, such as the score tags the rating
+    // modal writes, used to be deleted by the next bookmark, because the
+    // caller handed in the tag array it had held since page load and
+    // this function overwrote the whole thing with it.
+    it("keeps tags written since the scene was last fetched", async () => {
+        withRoadTrip();
+        // What the caller would have had at page load: ["existing"].
+        // What Stash holds now, after a rating was applied elsewhere.
+        sceneTagIds = ["existing", "score-body-4", "score-quality-5"];
+        const { setSceneInCollection } = await load();
+        await setSceneInCollection("s1", `Road Trip${SUFFIX}`, true);
+        expect(sceneUpdate).toHaveBeenCalledWith({
+            id: "s1",
+            tag_ids: ["existing", "score-body-4", "score-quality-5", "rt"],
+        });
+    });
+
+    // Two bookmarks in a row used to lose the first, for the same
+    // reason: both writes were built from the same page-load snapshot.
+    it("does not lose the previous collection on a second toggle", async () => {
+        withRoadTrip();
+        sceneTagIds = ["existing"];
+        const { setSceneInCollection } = await load();
+        await setSceneInCollection("s1", `Road Trip${SUFFIX}`, true);
+        // Stash now holds the first write.
+        sceneTagIds = ["existing", "rt"];
+        await setSceneInCollection("s1", `Watch Later${SUFFIX}`, true);
+        expect(sceneUpdate).toHaveBeenLastCalledWith({
+            id: "s1",
+            tag_ids: ["existing", "rt", "wl"],
+        });
+    });
+
+    // A missing scene must never be read as "this scene has no tags",
+    // because the next step writes that back as the truth.
+    it("refuses to write when the scene cannot be read", async () => {
+        withRoadTrip();
+        sceneTagIds = null;
+        const { setSceneInCollection } = await load();
+        await expect(
+            setSceneInCollection("s1", `Road Trip${SUFFIX}`, true),
+        ).rejects.toThrow();
+        expect(sceneUpdate).not.toHaveBeenCalled();
+    });
+});
+
+// Displaying which collections a scene is in must not write anything.
+// It used to create the three default tags on mount, so scrolling one
+// scene put tags in the user's library, one of them in another
+// plugin's namespace, contradicting this module's own stated rule.
+describe("reading does not write", () => {
+    it("resolves ids without creating when asked not to", async () => {
+        stashHas([tag("p", PARENT), tag("fav", FAVOURITES)]);
+        const { getCollectionTagIds } = await load();
+        const map = await getCollectionTagIds(false);
+        expect(tagCreate).not.toHaveBeenCalled();
+        // The tag that does exist is still resolved.
+        expect(map.get(FAVOURITES)).toBe("fav");
+        // The ones that do not are absent rather than invented.
+        expect(map.has(`Watch Later${SUFFIX}`)).toBe(false);
+    });
+
+    it("still creates when a save actually needs the tag", async () => {
+        stashHas([tag("p", PARENT), tag("fav", FAVOURITES)]);
+        const { getCollectionTagIds } = await load();
+        await getCollectionTagIds(true);
+        expect(tagCreate).toHaveBeenCalled();
+    });
+});
+
+// A collection tag ends with the suffix. One that merely contains it
+// belongs to the user, and enrolling it meant binge reparented it
+// without asking and offered it for deletion.
+describe("collection discovery", () => {
+    it("ignores a tag that only mentions the suffix", async () => {
+        stashHas([tag("p", PARENT), tag("fav", FAVOURITES)]);
+        findTagsContaining.mockResolvedValue([
+            { id: "mine", name: `My ${SUFFIX} notes` },
+            { id: "real", name: `Road Trip${SUFFIX}` },
+        ]);
+        const { getCollections } = await load();
+        const names = (await getCollections()).map((c) => c.tagName);
+        expect(names).toContain(`Road Trip${SUFFIX}`);
+        expect(names).not.toContain(`My ${SUFFIX} notes`);
     });
 });

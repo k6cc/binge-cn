@@ -172,6 +172,27 @@ describe("paging the whole gallery into the lightbox", () => {
         expect(findImagesByGallery).not.toHaveBeenCalled();
     });
 
+    it("keeps paging when image_count is stale-low", async () => {
+        // Stash's image_count lags a rescan. A gallery rescanned to 200
+        // whose count still reads 50 used to strand the reader at the
+        // end of the first page: total became max(50, 60) = 60, the
+        // prefetch short-circuited, and the remaining images were
+        // unreachable even though the card had never seen a short page.
+        findImagesByGallery.mockResolvedValue(page(60, 60));
+        render(
+            <GalleryFeedCard
+                item={item({
+                    imageCount: 50,
+                    images: page(0, 60) as unknown as GalleryFeedItem["images"],
+                })}
+            />,
+        );
+        fireEvent.click(screen.getByLabelText("View full gallery"));
+        for (let i = 0; i < 59; i++)
+            fireEvent.keyDown(document, { key: "ArrowRight" });
+        await waitFor(() => expect(findImagesByGallery).toHaveBeenCalled());
+    });
+
     it("shows the gallery's real size on the end panel", () => {
         render(<GalleryFeedCard item={item()} />);
         expect(

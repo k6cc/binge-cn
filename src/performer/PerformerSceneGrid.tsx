@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
     findScenesByPerformer,
     type PerformerDetail,
@@ -29,6 +29,7 @@ import {
 import { AddSceneModal } from "../home/AddSceneModal";
 import { PornhubPlayer } from "./PornhubPlayer";
 import { BingeLoading } from "../components/BingeLoading";
+import { isoFromEpochSeconds } from "../util/epoch";
 
 interface PerformerSceneGridProps {
     performer: PerformerDetail;
@@ -84,6 +85,7 @@ export function PerformerSceneGrid({
     // stash_id locally and we want to suppress duplicates).
     const includeStashDBInProfile = useIncludeStashDBInProfile();
     const [stashDBScenes, setStashDBScenes] = useState<StashDBScene[]>([]);
+    const [stashDBLoading, setStashDBLoading] = useState(false);
     const [stashBoxIndex, setStashBoxIndex] = useState<number | null>(null);
     const [sceneModalFor, setSceneModalFor] = useState<{
         sceneId: string;
@@ -120,6 +122,29 @@ export function PerformerSceneGrid({
         performer.stash_ids?.some((s) => s.endpoint === STASHDB_ENDPOINT),
     );
 
+    // The mixin also switches itself on for a linked performer the
+    // library has nothing by, because the alternative is a page
+    // reading "no scenes" over a catalogue StashDB is holding.
+    //
+    // binge makes these performers itself - a name from a StashDB
+    // match, a follow from discovery - and the row that results has no
+    // scenes attached, so the blank profile is reachable from the feed,
+    // from Following and from the discovery bar. 136 of this library's
+    // 904 linked performers are in exactly that state.
+    //
+    // It reads `count`, the server's total, rather than the length of
+    // the loaded page: page 1 being empty is the same fact, but count
+    // is unambiguous about having been answered at all (it starts
+    // null). And it deliberately does not write the setting, so a
+    // profile whose scenes later land shows the library again with the
+    // toggle still off.
+    const [autoDismissed, setAutoDismissed] = useState(false);
+    useEffect(() => {
+        setAutoDismissed(false);
+    }, [performer.id]);
+    const autoStashDB = isStashDBLinked && count === 0 && !autoDismissed;
+    const stashDBOn = includeStashDBInProfile || autoStashDB;
+
     // Reset when the performer changes (re-opening the profile for another
     // id) OR when the sort changes — both restart pagination at page 1 so
     // the next fetch replaces the list instead of appending under the old
@@ -149,7 +174,7 @@ export function PerformerSceneGrid({
     // — surfacing again would be noise), and stashes the rest for
     // interleaving with the library scenes.
     useEffect(() => {
-        if (!includeStashDBInProfile) {
+        if (!stashDBOn) {
             setStashDBScenes([]);
             return;
         }
@@ -161,6 +186,7 @@ export function PerformerSceneGrid({
             return;
         }
         let alive = true;
+        setStashDBLoading(true);
         (async () => {
             try {
                 const box = await getStashDBBox();
@@ -177,12 +203,14 @@ export function PerformerSceneGrid({
                     "[binge] performer-profile stashdb mixin failed",
                     err,
                 );
+            } finally {
+                if (alive) setStashDBLoading(false);
             }
         })();
         return () => {
             alive = false;
         };
-    }, [performer.id, performer.stash_ids, includeStashDBInProfile]);
+    }, [performer.id, performer.stash_ids, stashDBOn]);
 
     useEffect(() => {
         let alive = true;
@@ -222,6 +250,15 @@ export function PerformerSceneGrid({
         if (count == null) return;
         if (scenes.length >= count) return;
         if (loading) return;
+        // A failed page STOPS paging. The guard above is
+        // `loaded >= count`, and on the error path `loaded` never grows
+        // and `count` never changes - so the guard could not become
+        // true, the effect re-ran when `loading` cleared, and a fresh
+        // observer fired immediately on a sentinel that had not moved.
+        // That is an unbounded GraphQL loop against Stash for as long
+        // as the tab stays open. Page one succeeding and page two
+        // failing is enough.
+        if (error) return;
 
         const scrollRoot = sentinel.closest(".binge-profile-body");
         const observer = new IntersectionObserver(
@@ -239,7 +276,7 @@ export function PerformerSceneGrid({
         );
         observer.observe(sentinel);
         return () => observer.disconnect();
-    }, [count, scenes.length, loading]);
+    }, [count, scenes.length, loading, error]);
 
     const handlePick = (sceneId: string) => {
         replace({
@@ -265,6 +302,22 @@ export function PerformerSceneGrid({
     // needed — fall through with the raw list.
     const effectiveStashDBScenes = stashDBScenes;
 
+    // Memoised. This ran inside the JSX, so every parent re-render -
+    // each page, loading, count and sort transition, plus any filter or
+    // tab context change - rebuilt and re-sorted the whole list. On a
+    // performer with thousands of scenes that is a full sort per paint.
+    const cells: GridCell[] = useMemo(
+        () =>
+            buildCells(
+                scenes,
+                effectiveStashDBScenes,
+                pornhubVideos,
+                stashBoxIndex,
+                sort,
+            ),
+        [scenes, effectiveStashDBScenes, pornhubVideos, stashBoxIndex, sort],
+    );
+
     return (
         <section className="binge-profile-scenes">
             <h2 className="binge-profile-scenes-heading">
@@ -277,11 +330,20 @@ export function PerformerSceneGrid({
                         type="button"
                         className={
                             "binge-profile-stashdb-toggle" +
-                            (includeStashDBInProfile ? " is-on" : "")
+                            (stashDBOn ? " is-on" : "")
                         }
-                        onClick={() =>
-                            setIncludeStashDBInProfile(!includeStashDBInProfile)
-                        }
+                        onClick={() => {
+                            // Off means off, whichever of the two
+                            // turned it on. Flipping the setting alone
+                            // would leave the auto branch holding the
+                            // tiles up while the pill went dark.
+                            if (stashDBOn) {
+                                setIncludeStashDBInProfile(false);
+                                setAutoDismissed(true);
+                            } else {
+                                setIncludeStashDBInProfile(true);
+                            }
+                        }}
                         title="Mix StashDB scenes into this performer's grid"
                     >
                         <span className="binge-profile-stashdb-toggle-dot" />
@@ -294,23 +356,20 @@ export function PerformerSceneGrid({
                     error: {error}
                 </div>
             )}
-            {scenes.length === 0 && loading && (
+            {cells.length === 0 && (loading || stashDBLoading) && (
                 <BingeLoading minHeight="30vh" />
             )}
-            {scenes.length === 0 && !loading && !error && (
+            {/* Every source, not just the library one. "no scenes"
+                used to print above a full grid of StashDB tiles
+                whenever a performer had none of her own locally,
+                because this tested `scenes` while the grid below
+                tested all three. */}
+            {cells.length === 0 && !loading && !stashDBLoading && !error && (
                 <div className="binge-status">no scenes</div>
             )}
-            {(scenes.length > 0 ||
-                effectiveStashDBScenes.length > 0 ||
-                pornhubVideos.length > 0) && (
+            {cells.length > 0 && (
                 <ul className="binge-profile-scene-grid">
-                    {buildCells(
-                        scenes,
-                        effectiveStashDBScenes,
-                        pornhubVideos,
-                        stashBoxIndex,
-                        sort,
-                    ).map((cell) => {
+                    {cells.map((cell) => {
                         if (cell.kind === "library") {
                             return (
                                 <SceneTile
@@ -414,14 +473,17 @@ function buildCells(
             : [];
     const phCells: GridCell[] = pornhub.map((v): GridCell => ({
         kind: "pornhub",
-        date:
-            v.createdUtc > 0 ? new Date(v.createdUtc * 1000).toISOString() : "",
+        date: isoFromEpochSeconds(v.createdUtc),
         video: v,
     }));
 
     if (sort === "recent") {
+        // Plain comparison, not localeCompare. These are ISO and
+        // YYYY-MM-DD strings, so lexicographic order IS date order, and
+        // localeCompare is roughly two orders of magnitude slower per
+        // pair for an answer that is identical here.
         return [...libCells, ...sdbCells, ...phCells].sort((a, b) =>
-            b.date.localeCompare(a.date),
+            a.date < b.date ? 1 : a.date > b.date ? -1 : 0,
         );
     }
     // Non-date sorts only apply to library scenes — append the discovery

@@ -28,7 +28,13 @@ export function PerformerLinks({ urls }: PerformerLinksProps) {
     for (const u of cleaned) {
         const p = detectPlatform(u);
         if (p && !platforms.has(p)) platforms.set(p, u);
-        else if (!p) other.push(u);
+        // The runner-up falls through to `other`, it is not discarded.
+        // The old `else if (!p)` meant a second URL for a platform that
+        // already had one matched neither branch and vanished from the
+        // page entirely - not a chip, not in the overflow, not
+        // anywhere. Performers routinely list both twitter.com/x and
+        // x.com/x, or a personal and a professional account.
+        else other.push(u);
     }
 
     return (

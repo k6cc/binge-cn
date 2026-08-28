@@ -127,10 +127,24 @@ export async function fetchDiscoveryFeedItems(
         // Pulls the same scene set that powers stashdb.org's
         // homepage "Trending" section (sort: TRENDING).
         const trendingScenes = await getTrendingStashDBScenes(box.api_key);
-        for (const s of trendingScenes.slice(0, MAX_TRENDING_ITEMS)) {
+        // Capped AFTER the filters that reject, not before.
+        //
+        // Trending is sorted by heat and returns scenes of any age, so
+        // taking the top twelve first and filtering afterwards meant a
+        // run of old or already-owned scenes at the top of the chart
+        // emptied the section completely - thirty were fetched and paid
+        // for, eighteen of them qualified, and none were shown. The
+        // date rule below in the assembly loop is the same one; applying
+        // it here too is what lets the cap count only scenes that will
+        // survive.
+        let taken = 0;
+        for (const s of trendingScenes) {
+            if (taken >= MAX_TRENDING_ITEMS) break;
             if (owned.has(s.id)) continue;
+            if (!s.releaseDate || s.releaseDate < sinceIsoDate) continue;
             if (!scenesById.has(s.id)) {
                 scenesById.set(s.id, { scene: s, source: "trending" });
+                taken++;
             }
         }
     } catch (err) {
@@ -144,7 +158,10 @@ export async function fetchDiscoveryFeedItems(
                 sinceIsoDate,
                 box.api_key,
             );
-            for (const s of costarScenes) {
+            // A failed co-star fetch just contributes nothing here;
+            // the discovery feed still has its trending half. Nothing
+            // on this path is cached, so there is no outage to pin.
+            for (const s of costarScenes ?? []) {
                 if (owned.has(s.id)) continue;
                 // Trending was loaded first; don't overwrite the
                 // stronger signal.

@@ -4,6 +4,7 @@ import { PerformerHoverCard } from "./PerformerHoverCard";
 import { Fragment } from "react";
 import type { FeedPerformer, FeedTag, SceneFeedItem } from "./useFeed";
 import type { MatchedScenePerformer } from "../api/stashdb";
+import { getLinkedPerformersMemo } from "../api/stashdb";
 import { VerifiedIcon } from "../performer/PerformerProfile";
 import { useSharedStories } from "./StoriesContext";
 import { useStoryViewer } from "./StoryViewerContext";
@@ -12,6 +13,7 @@ import { useTab } from "../tabs/TabContext";
 import { usePerformerProfile } from "../performer/PerformerProfileContext";
 import { useMuteState } from "../hooks/useMuteState";
 import { sceneIncrementO } from "../api/mutations";
+import { currentOCount, rememberOCount } from "./oCounterStore";
 import { recordTagInteractions } from "../api/interactedTags";
 import {
     useHasAdvancedRating,
@@ -79,8 +81,26 @@ export function SceneFeedCard({ item, feedSceneIds }: SceneFeedCardProps) {
     const videoRef = useRef<HTMLVideoElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [isPlaying, setIsPlaying] = useState(false);
-    const [muted, setMuted] = useMuteState();
-    const [oCount, setOCount] = useState(0);
+    // All three. The second writes the user's stated preference; the
+    // third is session-only, for when the BROWSER mutes us rather than
+    // the user. The fallback below used neither, silencing the element
+    // imperatively without telling React - so the button rendered
+    // "Mute" (claiming sound) over a video the browser had already
+    // muted, and tapping it wrote a preference instead of unmuting.
+    const [muted, setMuted, setMutedSession] = useMuteState();
+    // The observer's callback is created once and would otherwise close
+    // over the first render's `muted` forever.
+    const mutedRef = useRef(muted);
+    useEffect(() => {
+        mutedRef.current = muted;
+    }, [muted]);
+    // Seeded from the scene, not from zero. The virtualizer unmounts a
+    // card that scrolls a few rows away, so a local-only count was lost
+    // on every pass - the heart came back empty and a second tap
+    // incremented the scene again.
+    const [oCount, setOCount] = useState(() =>
+        currentOCount(item.sceneId, item.oCounter),
+    );
     const [liked, setLiked] = useState(false);
     const oBusyRef = useRef(false);
 
@@ -88,6 +108,29 @@ export function SceneFeedCard({ item, feedSceneIds }: SceneFeedCardProps) {
     const { setTab, setPinFirstSceneId, setReelMode, setPinnedQueue } =
         useTab();
     const { openProfile, openStashDBProfile } = usePerformerProfile();
+
+    // A matched name is someone StashDB put on this scene, and the
+    // library may well already have her: binge creates the local row
+    // itself on a follow, and Stash's own tagger creates one whenever
+    // it identifies a scene. Sending that tap to the read-only StashDB
+    // profile hid the library she is in and offered "+ Follow" for
+    // someone already followed, which is what the lookup below exists
+    // to prevent. The list is memoised, so a run of taps costs one
+    // query; a failure falls through to the StashDB profile, which is
+    // where the tap used to go unconditionally.
+    const routeMatchedPerformer = async (stashId: string) => {
+        try {
+            const linked = await getLinkedPerformersMemo();
+            const match = linked.find((p) => p.stashId === stashId);
+            if (match) {
+                openProfile(match.localId);
+                return;
+            }
+        } catch {
+            // Fall through.
+        }
+        openStashDBProfile(stashId);
+    };
     const { open: openStoryViewer } = useStoryViewer();
     const storiesState = useSharedStories();
     // Set of localIds with an active story right now. Used by the
@@ -132,7 +175,9 @@ export function SceneFeedCard({ item, feedSceneIds }: SceneFeedCardProps) {
             try {
                 const [collections, tagIdMap] = await Promise.all([
                     getCollections(),
-                    getCollectionTagIds(),
+                    // false: displaying membership must not
+                    // write tags into the user's library.
+                    getCollectionTagIds(false),
                 ]);
                 if (!alive) return;
                 const result: Record<string, boolean> = {};
@@ -163,23 +208,48 @@ export function SceneFeedCard({ item, feedSceneIds }: SceneFeedCardProps) {
     const handleOpenScribe = () => {
         scribeModal.openScene(item.sceneId);
     };
+    // A queue, not a gate. See handleToggleCollection.
+    const collectionChainRef = useRef<Promise<void>>(Promise.resolve());
     const handleToggleCollection = async (tagName: string) => {
+        // The reel has always serialised these; this one did not, so
+        // two quick taps could put two whole-array tag writes in flight
+        // against the same scene at once.
+        // Keyed on the scene, not the collection. Two different
+        // collections of one scene each passed their own key, so both
+        // read the same tag list and the second write replaced the
+        // first: the membership that lost the race was dropped
+        // silently while both rows showed a tick. sceneUpdate replaces
+        // the whole array, so writes to one scene have to be one at a
+        // time.
+        //
+        // Queued rather than dropped. The guard used to return, so the
+        // losing tap was thrown away with no tick, no spinner and no
+        // error - tapping Favourites then Watch Later quickly wrote only
+        // the first, and the second row stayed unchecked, which is
+        // indistinguishable from a dead button.
         const next = !inCollections[tagName];
+        // Optimistic immediately, so the tap is acknowledged even while
+        // an earlier write is still in flight.
         setInCollections((m) => ({ ...m, [tagName]: next }));
         // Same intent signal as the reel: saving = strong taste data.
         if (next) recordTagInteractions(item.tags);
-        try {
-            const confirmed = await setSceneInCollection(
-                item.sceneId,
-                item.tags.map((t) => t.id),
-                tagName,
-                next,
-            );
-            setInCollections((m) => ({ ...m, [tagName]: confirmed }));
-        } catch {
-            // Revert on error.
-            setInCollections((m) => ({ ...m, [tagName]: !next }));
-        }
+        const run = async (): Promise<void> => {
+            try {
+                const { inCollection } = await setSceneInCollection(
+                    item.sceneId,
+                    tagName,
+                    next,
+                );
+                setInCollections((m) => ({ ...m, [tagName]: inCollection }));
+            } catch {
+                // Revert on error.
+                setInCollections((m) => ({ ...m, [tagName]: !next }));
+            }
+        };
+        // Chained on both settle paths, so one failure does not stall
+        // every later toggle on this card.
+        collectionChainRef.current = collectionChainRef.current.then(run, run);
+        await collectionChainRef.current;
     };
 
     const isPortrait =
@@ -198,10 +268,21 @@ export function SceneFeedCard({ item, feedSceneIds }: SceneFeedCardProps) {
                 for (const entry of entries) {
                     const active = entry.intersectionRatio >= 0.6;
                     if (active) {
-                        video.muted = muted;
-                        void video.play().catch(() => {
-                            // Retry muted, accept failure silently.
+                        video.muted = mutedRef.current;
+                        void video.play().catch((err: unknown) => {
+                            // An interrupted play() says nothing about
+                            // autoplay policy.
+                            if (
+                                err instanceof Error &&
+                                err.name === "AbortError"
+                            ) {
+                                return;
+                            }
+                            // Retry muted, and say so, or the button
+                            // keeps claiming sound the user does not
+                            // have.
                             video.muted = true;
+                            setMutedSession(true);
                             void video.play().catch(() => {});
                         });
                     } else {
@@ -213,9 +294,13 @@ export function SceneFeedCard({ item, feedSceneIds }: SceneFeedCardProps) {
         );
         observer.observe(container);
         return () => observer.disconnect();
-        // muted intentionally not a dep — IO callback reads the latest
-        // value from closure; if we depend on it the observer
-        // tears down on every mute toggle.
+        // muted intentionally not a dep, so the observer is not torn
+        // down on every mute toggle. It reads mutedRef instead: a
+        // closure over a useState value is frozen at the render that
+        // created it, so this callback used to re-apply the FIRST
+        // render's value on every scroll-in - unmute a card, scroll it
+        // out and back, and it silently re-muted while the button still
+        // read "Mute".
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -250,7 +335,12 @@ export function SceneFeedCard({ item, feedSceneIds }: SceneFeedCardProps) {
         setOCount(prev + 1);
         setLiked(true);
         sceneIncrementO(item.sceneId)
-            .then((next) => setOCount(next))
+            .then((next) => {
+                setOCount(next);
+                // Server-confirmed, so it survives this card being
+                // unmounted by the virtualizer and remounted later.
+                rememberOCount(item.sceneId, next);
+            })
             .catch(() => {
                 setOCount(prev);
                 setLiked(prev > 0);
@@ -318,7 +408,9 @@ export function SceneFeedCard({ item, feedSceneIds }: SceneFeedCardProps) {
                         // faces from there instead.
                         <MatchedAvatarStack
                             performers={item.matchedPerformers}
-                            onClick={(stashId) => openStashDBProfile(stashId)}
+                            onClick={(stashId) => {
+                                void routeMatchedPerformer(stashId);
+                            }}
                         />
                     ) : null}
                     <AvatarStack

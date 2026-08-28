@@ -1,3 +1,4 @@
+import { isPornhubHost, safeExternalUrl } from "../util/externalUrl";
 import {
     useCallback,
     useEffect,
@@ -39,16 +40,23 @@ const TEXT_LINK_CAP_MS = 8_000;
 // performer's `scenes` array; auto-advances on `ended` or on the cap
 // timer, whichever fires first.
 export function StoryViewer() {
-    const { isOpen, stories, activeIndex, setActiveIndex, close } =
+    const { isOpen, openToken, stories, activeIndex, setActiveIndex, close } =
         useStoryViewer();
     const { replace } = useFilter();
     const { setTab, setPinFirstSceneId, setReelMode } = useTab();
     const { openProfile } = usePerformerProfile();
 
     const [sceneIndex, setSceneIndex] = useState(0);
+    // Handle for goPrev's follow-up, so closing can cancel it.
+    const prevSceneTimerRef = useRef<number | null>(null);
     const [paused, setPaused] = useState(false);
     const [progress, setProgress] = useState(0);
-    const [muted, setMuted] = useMuteState();
+    // The third element is the session-only setter. The second writes
+    // the user's stated preference to localStorage, and using it in the
+    // autoplay fallback below meant an interrupted play() - which is
+    // what advancing a story does, since the video unmounts - silently
+    // rewrote that preference and muted the reel and the feed too.
+    const [muted, setMuted, setMutedSession] = useMuteState();
     // Whether the daemon can save posts to Stash (library roots set).
     const [saveConfigured, setSaveConfigured] = useState(false);
     // Per-scene save status, keyed by scene id.
@@ -72,8 +80,28 @@ export function StoryViewer() {
     const startRef = useRef<number>(0);
     const accumRef = useRef<number>(0);
 
+    // The cursor is reset during RENDER, not in an effect.
+    //
+    // This is the surviving sibling of the close-effect bug. advance()
+    // moves activeIndex first and the effect reset landed one commit
+    // later - so if the incoming performer had at least as many scenes
+    // as the outgoing cursor, the commit in between rendered
+    // stories[next].scenes[oldIndex]: a real slide, so the render
+    // guard did not hide it. A frame of the wrong scene, the progress
+    // strip jumping to the wrong segment, and a discarded request for
+    // the wrong preview, on every seam crossed from a non-zero cursor.
+    const [cursorFor, setCursorFor] = useState(activeIndex);
+    const [cursorToken, setCursorToken] = useState(openToken);
+    let effectiveSceneIndex = sceneIndex;
+    if (cursorFor !== activeIndex || cursorToken !== openToken) {
+        effectiveSceneIndex = 0;
+        setCursorFor(activeIndex);
+        setCursorToken(openToken);
+        if (sceneIndex !== 0) setSceneIndex(0);
+    }
+
     const activeStory = stories[activeIndex];
-    const currentScene = activeStory?.scenes[sceneIndex];
+    const currentScene = activeStory?.scenes[effectiveSceneIndex];
     // Per-source cap: video-bearing slides get 15s, stills 5s, reddit
     // text/link cards 8s (enough to read a paragraph).
     const capMs = ((): number => {
@@ -114,16 +142,18 @@ export function StoryViewer() {
 
     // Reset sceneIndex whenever the focused performer changes. Don't
     // reset on simple sceneIndex-bumps from within the same performer.
+    // openToken is in the deps so a reopen resets even when it lands on
+    // the index the viewer was already on, which is the common case.
     useEffect(() => {
-        setSceneIndex(0);
         setPaused(false);
-    }, [activeIndex]);
+    }, [activeIndex, openToken]);
 
     // Reset progress + accumulator on scene/performer change.
     useEffect(() => {
         accumRef.current = 0;
+        startRef.current = performance.now();
         setProgress(0);
-    }, [activeIndex, sceneIndex]);
+    }, [activeIndex, sceneIndex, openToken]);
 
     const advance = useCallback(() => {
         if (!activeStory) return;
@@ -154,8 +184,16 @@ export function StoryViewer() {
             const prevStory = stories[activeIndex - 1];
             setActiveIndex(activeIndex - 1);
             // The activeIndex effect will reset sceneIndex to 0; we want
-            // the LAST scene of the previous performer. Schedule a follow-up.
-            setTimeout(() => {
+            // the LAST scene of the previous performer. Schedule a
+            // follow-up, and keep the handle so it can be cancelled -
+            // pressing Escape in the same frame otherwise let it land a
+            // non-zero scene index on a closed viewer, which the next
+            // open then inherited.
+            if (prevSceneTimerRef.current !== null) {
+                window.clearTimeout(prevSceneTimerRef.current);
+            }
+            prevSceneTimerRef.current = window.setTimeout(() => {
+                prevSceneTimerRef.current = null;
                 setSceneIndex(Math.max(0, prevStory.scenes.length - 1));
             }, 0);
         }
@@ -173,6 +211,16 @@ export function StoryViewer() {
                 rafRef.current = null;
             }
             accumRef.current += performance.now() - startRef.current;
+            // Rebased, so a second pass through this branch adds zero.
+            //
+            // startRef was left where it was, and this effect re-runs on
+            // a scene change - so changing scene WHILE paused zeroed the
+            // accumulator and then immediately re-added the wall-clock
+            // time since the timer last started, pause included. Pause
+            // to read a text card, leave it a minute, tap next, resume:
+            // the first tick computed a fraction over 1 and skipped the
+            // slide you had just navigated to.
+            startRef.current = performance.now();
             return;
         }
         startRef.current = performance.now();
@@ -204,21 +252,70 @@ export function StoryViewer() {
             video.pause();
         } else {
             video.muted = muted;
-            void video.play().catch(() => {
+            void video.play().catch((err: unknown) => {
+                // An AbortError is a play() interrupted by pause() or by
+                // the element being removed - which is exactly what
+                // advancing a story does. It says nothing about autoplay
+                // policy, and treating it as a block rewrote the user's
+                // mute preference on every quick double-tap of Next.
+                // SceneSlide already makes this distinction.
+                if (err instanceof Error && err.name === "AbortError") return;
                 // Autoplay may need muted; retry muted, then accept failure
                 // (the progress timer still advances).
                 video.muted = true;
-                if (!muted) setMuted(true);
+                // Session-only: a policy block on this page is not a
+                // preference the user expressed.
+                if (!muted) setMutedSession(true);
                 void video.play().catch(() => {});
             });
         }
-    }, [paused, sceneIndex, activeIndex, muted, setMuted]);
+        // isOpen is in the deps because opening is exactly when a fresh
+        // <video> mounts. Without it, an open that did not change any
+        // other dep never told that element to play, so the slide the
+        // user actually opened on showed its poster and nothing else -
+        // video stories looked like photo stories until the first
+        // advance.
+    }, [isOpen, paused, sceneIndex, activeIndex, muted, setMutedSession]);
 
     // Keep <video>.muted in sync when the user toggles mute mid-story.
     useEffect(() => {
         const video = videoRef.current;
         if (video) video.muted = muted;
     }, [muted]);
+
+    // Open with nothing to show means closed, not invisible.
+    //
+    // Rendering null while isOpen stayed true left the viewer holding
+    // the document-level keydown handler below, which preventDefaults
+    // Space everywhere in Stash, with nothing on screen and no way to
+    // dismiss it. The two tests covering this asserted only that show()
+    // does not throw, which a null render satisfies, so neither could
+    // fail for this.
+    // Keyed on the STORY, never on currentScene.
+    //
+    // currentScene is undefined for one render on any advance to a
+    // performer with fewer scenes: activeIndex moves first and
+    // sceneIndex is still the previous performer's, and the reset to 0
+    // is scheduled in an effect that runs in the same commit as this
+    // one. Closing on that transient shut the viewer on roughly half of
+    // all seam crossings - a regression, and worse than the stuck-open
+    // state it was written for. The existing "starts the new performer
+    // at their first scene" test uses two performers with two scenes
+    // each, so scenes[1] exists on both sides and the case is invisible
+    // to it.
+    useEffect(() => {
+        if (!isOpen) return;
+        if (!activeStory || activeStory.scenes.length === 0) close();
+    }, [isOpen, activeStory, close]);
+
+    // Nothing pending survives a close.
+    useEffect(() => {
+        if (isOpen) return;
+        if (prevSceneTimerRef.current !== null) {
+            window.clearTimeout(prevSceneTimerRef.current);
+            prevSceneTimerRef.current = null;
+        }
+    }, [isOpen]);
 
     // Keyboard nav, mirroring ImageLightbox.
     useEffect(() => {
@@ -254,11 +351,13 @@ export function StoryViewer() {
         if (currentScene.source === "reddit") {
             // Reddit posts open on reddit.com in a new tab — that's
             // where comments + interaction live.
-            window.open(
-                currentScene.permalink,
-                "_blank",
-                "noopener,noreferrer",
-            );
+            // Through the same guard the performer links use. This is
+            // the only URL sink in the app taking a fully remote value
+            // with no scheme check, and it comes from the daemon, whose
+            // responses are cast rather than validated.
+            const safe = safeExternalUrl(currentScene.permalink);
+            if (!safe) return;
+            window.open(safe, "_blank", "noopener,noreferrer");
             close();
             return;
         }
@@ -453,11 +552,11 @@ export function StoryViewer() {
                             {currentScene.source === "reddit" && (
                                 <span
                                     className="binge-story-viewer-source-badge"
-                                    title={
+                                    title={withoutSecrets(
                                         currentScene.mediaUrl ??
-                                        currentScene.linkUrl ??
-                                        currentScene.permalink
-                                    }
+                                            currentScene.linkUrl ??
+                                            currentScene.permalink,
+                                    )}
                                 >
                                     {redditBadgeLabel(currentScene)}
                                 </span>
@@ -631,13 +730,51 @@ function buildSaveRequest(
     if (!scene.mediaUrl || (scene.kind !== "image" && scene.kind !== "video")) {
         return null;
     }
-    const d = (scene.domain ?? "").toLowerCase();
+    // ?? only catches null and undefined; a number still reaches
+    // toLowerCase and throws on the render path.
+    const d =
+        typeof scene.domain === "string" ? scene.domain.toLowerCase() : "";
     let source: SaveToStashRequest["source"] = "reddit";
     if (d === "x.com" || d === "twitter.com") source = "x";
     else if (d.includes("redgifs")) source = "redgifs";
+    else if (d === "pornhub.com") {
+        // PornHub items are folded onto the reddit scene shape, so
+        // without this they fell through as source: "reddit" and
+        // forwarded scene.mediaUrl - which is the DAEMON'S OWN preview
+        // proxy URL, carrying the Stash API key in its query string.
+        // The daemon's allowlist for source "reddit" is redd.it and
+        // friends, so it refused every one: the Save button on every
+        // PornHub story went straight to Retry and could never succeed.
+        // And had it succeeded, it would have downloaded the
+        // ten-second silent looping preview rather than the video.
+        //
+        // yt-dlp wants the watch page, and that string came from a
+        // scrape, so it is checked rather than trusted for sitting in
+        // a typed field - the same guard PornhubPlayer applies.
+        const watchPage = safeExternalUrl(scene.permalink);
+        if (!watchPage || !isPornhubHost(watchPage)) return null;
+        return {
+            performerStashId: performerId,
+            source: "pornhub",
+            mediaUrl: watchPage,
+            kind: "video",
+            sourceUrl: watchPage,
+            text: scene.title ?? undefined,
+            createdUtc: scene.createdUtc,
+        };
+    }
     let handle: string | undefined;
     let id: string | undefined;
-    const xm = scene.permalink.match(/x\.com\/([A-Za-z0-9_]+)\/status\/(\d+)/i);
+    // The daemon's response is cast, not validated, so permalink is
+    // typed string but need not be one. This runs in the component body
+    // on every render, and the only error boundary is at the app root -
+    // so a single post with no permalink replaced the whole plugin with
+    // the error screen, and kept doing it on reload because the daemon
+    // serves the same digest. Same reasoning as `truncate` below.
+    const xm =
+        typeof scene.permalink === "string"
+            ? scene.permalink.match(/x\.com\/([A-Za-z0-9_]+)\/status\/(\d+)/i)
+            : null;
     if (xm) {
         handle = xm[1];
         id = xm[2];
@@ -653,6 +790,22 @@ function buildSaveRequest(
         text: scene.title ?? undefined,
         createdUtc: scene.createdUtc,
     };
+}
+
+// A PornHub story's media URL is a daemon proxy URL, and the daemon
+// takes its credential in the query string - so the raw string carries
+// the user's Stash API key. It was printed in full on the playback-error
+// card, in large monospace, on a page people screenshot and screen-share,
+// and again as the source badge's tooltip. Neither needs the query.
+function withoutSecrets(raw: string | undefined | null): string {
+    if (typeof raw !== "string" || raw === "") return "";
+    try {
+        const u = new URL(raw, window.location.origin);
+        return u.origin + u.pathname;
+    } catch {
+        // Not parseable as a URL, so it carries no query to strip.
+        return raw;
+    }
 }
 
 function redditBadgeLabel(scene: RedditStoryScene): string {
@@ -706,7 +859,19 @@ function RedditCardBody({
         if (!el) return;
         el.setAttribute("referrerpolicy", "no-referrer");
         if (scene.kind === "video" && scene.mediaUrl) {
-            const src = rewriteRedgifsMediaUrl(scene.mediaUrl);
+            // Both rewrites, not just the redgifs one.
+            //
+            // rewriteRedditMediaUrl names v.redd.it as one of the hosts
+            // it exists to route through the daemon's proxy, and this is
+            // where a native Reddit video's mp4 is chosen - but only the
+            // redgifs rewrite ran, which passes a non-redgifs host
+            // through unchanged. So the POSTER went through the daemon's
+            // Mullvad exit while the video itself was hotlinked from
+            // v.redd.it on the user's own connection: the exact referrer
+            // and UK-block case the proxy was built for.
+            const src = rewriteRedgifsMediaUrl(
+                rewriteRedditMediaUrl(scene.mediaUrl) ?? scene.mediaUrl,
+            );
             if (src && el.src !== src) el.src = src;
         }
     };
@@ -753,7 +918,7 @@ function RedditCardBody({
                         <div>Video playback failed</div>
                         <code>{videoError}</code>
                         <code style={{ wordBreak: "break-all" }}>
-                            {scene.mediaUrl}
+                            {withoutSecrets(scene.mediaUrl)}
                         </code>
                     </div>
                 )}
@@ -806,7 +971,12 @@ function RedditCardBody({
     );
 }
 
-function truncate(text: string, limit: number): string {
+// `unknown` rather than `string`, because what arrives here is a field
+// off a daemon response that was cast rather than checked. A number got
+// through the truthiness test at the call site, `undefined <= 600` is
+// false, and `.slice` then threw during render.
+function truncate(text: unknown, limit: number): string {
+    if (typeof text !== "string") return "";
     if (text.length <= limit) return text;
     return text.slice(0, limit).trimEnd() + "…";
 }
@@ -839,7 +1009,15 @@ function Peek({
                 if (latest.source === "library") bg = latest.screenshot;
                 else if (latest.source === "stashdb") bg = latest.cover;
                 else if (latest.source === "reddit")
-                    bg = latest.thumbUrl ?? latest.mediaUrl;
+                    // Through the proxy, like the card body. Reddit's
+                    // CDN 403s a hotlinked preview, so these peeks
+                    // rendered as empty tiles - and the CSS background
+                    // request carried the Stash page URL as Referer to
+                    // redd.it while doing it.
+                    bg =
+                        rewriteRedditMediaUrl(
+                            latest.thumbUrl ?? latest.mediaUrl,
+                        ) ?? null;
                 return bg ? { backgroundImage: `url(${bg})` } : undefined;
             })()}
         >

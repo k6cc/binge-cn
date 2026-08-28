@@ -894,6 +894,42 @@ body,
         drop-shadow(0 0 14px rgba(244, 114, 182, 0.45));
 }
 
+/* -- Companion plugins -- what binge picks up when it is there ------ */
+.binge-companion-list {
+    list-style: none;
+    margin: 12px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+.binge-companion-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+}
+.binge-companion-name {
+    font-weight: 600;
+}
+/* Absent is the ordinary case and must not read as a fault: no red, no
+   icon, just quieter than the name beside it. Present is stated plainly
+   rather than celebrated. */
+.binge-companion-state {
+    font-size: 12px;
+    opacity: 0.55;
+    white-space: nowrap;
+}
+.binge-companion-state.is-present {
+    opacity: 0.85;
+}
+.binge-companion-adds {
+    margin: 3px 0 0;
+    font-size: 13px;
+    line-height: 1.45;
+    opacity: 0.75;
+}
+
 /* ── Heart burst — particles float up from bottom on every tap ─────── */
 .binge-heart-burst-layer {
     position: absolute;
@@ -4892,6 +4928,29 @@ body,
     line-height: 1.4;
     min-height: 2.5rem;
 }
+.binge-follow-modal-note-ok {
+    appearance: none;
+    display: block;
+    margin-top: 9px;
+    padding: 6px 14px;
+    border: 1px solid rgba(255, 200, 80, 0.35);
+    border-radius: 7px;
+    background: rgba(255, 200, 80, 0.14);
+    color: #f0d79a;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+.binge-follow-modal-note {
+    margin-top: 10px;
+    padding: 9px 11px;
+    border-radius: 8px;
+    background: rgba(255, 200, 80, 0.12);
+    border: 1px solid rgba(255, 200, 80, 0.3);
+    color: #f0d79a;
+    font-size: 0.78rem;
+    line-height: 1.4;
+}
 .binge-follow-modal-error {
     color: #ff8585;
     font-size: 0.82rem;
@@ -7193,6 +7252,14 @@ body,
    ────────────────────────────────────────────────────────────────────── */
 .binge-details-sheet {
     padding-bottom: 1.5rem;
+    /* .binge-sheet is a 75vh flex column with no overflow, and a flex
+       column item has min-height: auto - so a scene with a long scraped
+       description plus a full tag list overran the sheet's bottom edge
+       and rendered off the viewport, unclipped and unreachable. The
+       TECHNICAL block below is documented as "scroll within the sheet
+       to reach it"; this is what makes that true. The rating modal and
+       the performer sheet each solve it their own way already. */
+    overflow-y: auto;
 }
 
 /* Technical details block at the bottom of the scene sheet —
@@ -8344,17 +8411,35 @@ body,
     grid-template-rows: repeat(3, 1fr);
     gap: 2px;
     background: var(--bg-1, #111);
-    cursor: pointer;
 }
-.binge-pack-card-mosaic:focus-visible {
+/* The tiles are the buttons now, so the focus ring moves to them.
+   The grid itself is no longer interactive. */
+.binge-pack-card-mosaic-tile:focus-visible {
     outline: 2px solid rgba(var(--accent-rgb, 244, 114, 182), 0.8);
     outline-offset: -2px;
+    z-index: 1;
 }
 .binge-pack-card-mosaic-tile {
     background-color: #0a0a0a;
     background-size: cover;
     background-position: center;
     position: relative;
+    /* Reset the UA button styling a <div> did not have: a button
+       brings its own border, padding, font and centring, any of which
+       would break a flush 3x3 grid of cover art. */
+    appearance: none;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    -webkit-tap-highlight-color: transparent;
 }
 .binge-pack-card-mosaic-overflow {
     position: absolute;
@@ -8399,6 +8484,23 @@ body,
     gap: 2px;
     overflow-y: auto;
     padding-bottom: env(safe-area-inset-bottom);
+}
+.binge-pack-sheet-more {
+    appearance: none;
+    display: block;
+    width: calc(100% - 24px);
+    margin: 10px 12px calc(12px + env(safe-area-inset-bottom));
+    padding: 11px 14px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--fg-1, #eee);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+.binge-pack-sheet-more:hover {
+    background: rgba(255, 255, 255, 0.1);
 }
 .binge-pack-sheet-tile {
     appearance: none;
@@ -8600,4 +8702,271 @@ body,
     background: rgba(255, 255, 255, 0.08);
     border-radius: 0.25rem;
     padding: 0.05rem 0.3rem;
+}
+
+/* ── Settings: sections, search, folded descriptions ──────────────────
+   Later than the original .binge-settings-* rules on purpose, so these
+   win without editing the block above (later-rule-wins is how this file
+   is organised).
+
+   The page had grown to twenty settings in one flat list, 5,800px tall
+   at 430px wide: six and a bit screens, every row the same weight, in
+   the order the features were built. These rules give it groups, a
+   filter, and a way to stop showing every word of every explanation at
+   once. */
+
+.binge-settings-toolbar {
+    position: sticky;
+    /* Sits directly under .binge-saved-header, which is sticky at 0 and
+       measures 3.2rem tall. Coupled by hand: if that header's padding
+       changes, this number does too. */
+    top: 3.2rem;
+    z-index: 4;
+    padding: 0.15rem 0.85rem 0.7rem;
+    background: linear-gradient(
+        to bottom,
+        var(--bg-0) 0%,
+        var(--bg-0) 68%,
+        rgba(10, 10, 10, 0) 100%
+    );
+}
+.binge-settings-search {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.7rem;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    color: rgba(255, 255, 255, 0.45);
+    transition:
+        border-color 0.15s ease,
+        background 0.15s ease;
+}
+.binge-settings-search:focus-within {
+    border-color: rgba(var(--accent-rgb, 244, 114, 182), 0.55);
+    background: rgba(255, 255, 255, 0.09);
+    color: rgba(255, 255, 255, 0.7);
+}
+.binge-settings-search input {
+    flex: 1 1 auto;
+    min-width: 0;
+    background: none;
+    border: 0;
+    outline: none;
+    color: #fff;
+    font: inherit;
+    font-size: 0.9rem;
+}
+.binge-settings-search input::placeholder {
+    color: rgba(255, 255, 255, 0.38);
+}
+/* The native one appears mid-type and sits next to our own. */
+.binge-settings-search input::-webkit-search-cancel-button {
+    display: none;
+}
+.binge-settings-search-clear {
+    appearance: none;
+    background: none;
+    border: 0;
+    padding: 0 0.15rem;
+    font-size: 1.15rem;
+    line-height: 1;
+    color: rgba(255, 255, 255, 0.45);
+    cursor: pointer;
+}
+.binge-settings-search-clear:hover {
+    color: #fff;
+}
+
+.binge-settings-list {
+    padding: 0 0 0.25rem;
+}
+
+.binge-settings-section {
+    margin: 0 0 1.2rem;
+}
+.binge-settings-section-head {
+    padding: 0 1.25rem 0.45rem;
+}
+.binge-settings-section-label {
+    margin: 0;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: rgba(var(--accent-rgb, 244, 114, 182), 0.9);
+}
+.binge-settings-section-hint {
+    margin: 0.18rem 0 0;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+/* One surface per section, so a group reads as a group rather than as
+   more rows separated by another hairline. */
+.binge-settings-group {
+    margin: 0 0.85rem;
+    background: rgba(255, 255, 255, 0.035);
+    border: 1px solid rgba(255, 255, 255, 0.075);
+    border-radius: 16px;
+    overflow: hidden;
+}
+.binge-settings-group > .binge-settings-row {
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.binge-settings-group > .binge-settings-row:last-child {
+    border-bottom: none;
+}
+
+/* Cards drop their own box inside a group: two nested rounded surfaces
+   read as two unrelated things, which is how the daemon cards used to
+   look next to the rows they belong with. */
+.binge-settings-group > .binge-settings-card {
+    margin: 0;
+    padding: 0.95rem 1rem;
+    background: none;
+    border: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 0;
+}
+.binge-settings-group > .binge-settings-card:last-child {
+    border-bottom: none;
+}
+.binge-settings-group > .binge-settings-card.is-disconnected {
+    background: rgba(248, 113, 113, 0.05);
+}
+
+/* A section whose rows have all filtered themselves out disappears with
+   them. :not(:has(...)) rather than :has(...) so that a browser without
+   :has() shows every section instead of hiding every one. */
+.binge-settings-section:not(:has(.binge-settings-group > *)) {
+    display: none;
+}
+
+.binge-settings-noresults {
+    display: none;
+    margin: 0;
+    padding: 2.5rem 1.25rem;
+    text-align: center;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.4);
+}
+.binge-settings-list.is-filtering:not(:has(.binge-settings-group > *))
+    .binge-settings-noresults {
+    display: block;
+}
+
+/* Control on its own line. See the note on SettingRow's `layout` prop:
+   inline gives the control the width it asks for and the text what is
+   left, which for a 16rem field on a phone was about forty pixels. */
+.binge-settings-row.is-stacked {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.6rem;
+}
+.binge-settings-row.is-stacked .binge-settings-row-control {
+    align-self: stretch;
+}
+.binge-settings-row.is-stacked .binge-settings-url-row {
+    display: flex;
+    width: 100%;
+}
+.binge-settings-row.is-stacked .binge-settings-input {
+    flex: 1 1 auto;
+    width: 100%;
+}
+/* Belt and braces for every other field on a narrow screen: ask for
+   16rem, accept less rather than pushing the label off the row. */
+.binge-settings-input {
+    min-width: min(16rem, 100%);
+    max-width: 100%;
+}
+.binge-settings-select {
+    max-width: 100%;
+}
+
+.binge-settings-row-description.is-folded {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.binge-settings-row-more {
+    appearance: none;
+    background: none;
+    border: 0;
+    padding: 0.3rem 0 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+}
+.binge-settings-row-more:hover {
+    color: #fff;
+}
+.binge-settings-row-more:focus-visible {
+    outline: 2px solid rgba(var(--accent-rgb, 244, 114, 182), 0.5);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+/* "Needs binge-server". Quiet: a fact about what is not set up yet, not
+   an error, and the switch stays usable so it can be set in advance. */
+.binge-settings-row-badge {
+    display: inline-block;
+    margin-left: 0.45rem;
+    padding: 2px 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.07);
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.5);
+    vertical-align: 1px;
+    white-space: nowrap;
+}
+.binge-settings-row.is-unmet .binge-settings-row-text {
+    opacity: 0.75;
+}
+
+/* Anything that is not a switch gets its own line on a phone.
+   The four rows marked layout="stacked" in the JSX are the ones that
+   were unreadable at any width; these are the merely cramped ones, so
+   the rule is a width query rather than a prop. A select asking for
+   13rem next to the text leaves the description about half a column,
+   which is where "forage watch quality" broke over two lines with its
+   own description clamped beside it.
+
+   :has() again, and again the failure mode of an unsupported selector
+   is the layout as it is today rather than a broken one. */
+@media (max-width: 560px) {
+    .binge-settings-row:has(.binge-settings-select),
+    .binge-settings-row:has(.binge-settings-input),
+    .binge-settings-row:has(.binge-settings-gender-row) {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.6rem;
+    }
+    .binge-settings-row:has(.binge-settings-select) .binge-settings-row-control,
+    .binge-settings-row:has(.binge-settings-input) .binge-settings-row-control,
+    .binge-settings-row:has(.binge-settings-gender-row)
+        .binge-settings-row-control {
+        align-self: stretch;
+    }
+    .binge-settings-row:has(.binge-settings-select) .binge-settings-select {
+        width: 100%;
+    }
+    /* The five circles spread across the row rather than bunching at
+       one end of a line they now have to themselves. */
+    .binge-settings-row .binge-settings-gender-row {
+        display: flex;
+        justify-content: space-between;
+        width: 100%;
+    }
 }

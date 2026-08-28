@@ -24,11 +24,13 @@ function fakeStash() {
             state.queue = JSON.parse(body.variables.input.queue);
             state.writes.push(state.queue);
             return {
+                ok: true,
                 json: async () => ({ data: { configurePlugin: true } }),
             } as unknown as Response;
         }
         state.onFetch?.();
         return {
+            ok: true,
             json: async () => ({
                 data: {
                     configuration: {
@@ -232,6 +234,36 @@ describe("syncMultiviewFromConfig", () => {
         ).toEqual(["keep"]);
     });
 
+    it("asks Stash for one plugin's config, not every plugin's", async () => {
+        // This read runs on a five-second interval for as long as the
+        // tab is visible. Unnarrowed it pulled the whole plugin config
+        // - 13,308 bytes on a real box - to get one string, which is
+        // 9.3 MB an hour and more than a cold Home load every
+        // forty-two minutes. The narrowed form is 67 bytes.
+        const seen: string[] = [];
+        vi.stubGlobal(
+            "fetch",
+            vi.fn(async (_url: string, init?: RequestInit) => {
+                seen.push(String(init?.body ?? ""));
+                return {
+                    ok: true,
+                    json: async () => ({
+                        data: {
+                            configuration: {
+                                plugins: { multiView: { queue: "[]" } },
+                            },
+                        },
+                    }),
+                };
+            }),
+        );
+        const { syncMultiviewFromConfig } = await load();
+        await syncMultiviewFromConfig();
+        expect(seen).toHaveLength(1);
+        expect(seen[0]).toContain("multiView");
+        expect(seen[0]).toContain("include");
+    });
+
     it("treats a Stash with no multiview config as an empty queue", async () => {
         vi.stubGlobal(
             "fetch",
@@ -262,5 +294,116 @@ describe("subscribeMultiviewQueue", () => {
         cb.mockClear();
         toggleMultiviewQueueScene("b");
         expect(cb).not.toHaveBeenCalled();
+    });
+});
+
+// "Could not read the queue" and "the queue is empty" were the same
+// answer, and the caller writes back afterwards. A GraphQL 200 carrying
+// an errors array, which is what an auth blip looks like, therefore
+// replaced a full queue with a single entry.
+//
+// These assert on what was written. An earlier version relied on a
+// throw inside the mutation mock to fail the test, which applyIntent
+// catches and swallows, so both tests passed even with the bug present.
+describe("a queue that cannot be read is not an empty queue", () => {
+    it("writes nothing when the read returns graphql errors", async () => {
+        const state = fakeStash();
+        state.queue = ["theirs-1", "theirs-2"];
+        const good = globalThis.fetch as typeof fetch;
+        vi.stubGlobal(
+            "fetch",
+            vi.fn(async (url: string, init?: RequestInit) => {
+                const body = JSON.parse(String(init?.body ?? "{}"));
+                if (String(body.query).includes("mutation")) {
+                    return good(url, init);
+                }
+                return {
+                    ok: true,
+                    json: async () => ({ errors: [{ message: "nope" }] }),
+                } as unknown as Response;
+            }),
+        );
+        const { toggleMultiviewQueueScene, startMultiviewSync } = await load();
+        toggleMultiviewQueueScene("mine");
+        startMultiviewSync();
+        await settle();
+        expect(state.writes).toHaveLength(0);
+        expect(state.queue).toEqual(["theirs-1", "theirs-2"]);
+    });
+
+    it("writes nothing when the response is not ok", async () => {
+        const state = fakeStash();
+        state.queue = ["theirs-1", "theirs-2"];
+        const good = globalThis.fetch as typeof fetch;
+        vi.stubGlobal(
+            "fetch",
+            vi.fn(async (url: string, init?: RequestInit) => {
+                const body = JSON.parse(String(init?.body ?? "{}"));
+                if (String(body.query).includes("mutation")) {
+                    return good(url, init);
+                }
+                return { ok: false, status: 502 } as unknown as Response;
+            }),
+        );
+        const { toggleMultiviewQueueScene, startMultiviewSync } = await load();
+        toggleMultiviewQueueScene("mine");
+        startMultiviewSync();
+        await settle();
+        expect(state.writes).toHaveLength(0);
+        expect(state.queue).toEqual(["theirs-1", "theirs-2"]);
+    });
+});
+
+describe("an unreadable queue", () => {
+    // A queue that cannot be understood is not an empty queue. Every
+    // caller writes back what this read returns, and configurePlugin is
+    // last-write-wins, so answering [] for a value we failed to parse
+    // deletes whatever was really there.
+    function stashServing(queue: unknown) {
+        vi.stubGlobal(
+            "fetch",
+            vi.fn(async () => ({
+                ok: true,
+                json: async () => ({
+                    data: {
+                        configuration: {
+                            plugins: { multiView: { queue } },
+                        },
+                    },
+                }),
+            })) as unknown as typeof fetch,
+        );
+    }
+
+    it("refuses a queue that is not valid json", async () => {
+        stashServing('[{"id": ');
+        const { syncMultiviewFromConfig, MULTIVIEW_STORAGE_KEY } = await load();
+        localStorage.setItem(MULTIVIEW_STORAGE_KEY, JSON.stringify(["a", "b"]));
+        // The sync wrapper keeps the cache on any failure, so what
+        // matters is that the read reported one rather than reporting
+        // an empty queue it would then have cached over the top.
+        await syncMultiviewFromConfig();
+        expect(
+            JSON.parse(localStorage.getItem(MULTIVIEW_STORAGE_KEY) ?? "[]"),
+        ).toEqual(["a", "b"]);
+    });
+
+    it("refuses a queue that parses to the wrong shape", async () => {
+        stashServing(JSON.stringify({ scenes: ["a", "b"] }));
+        const { syncMultiviewFromConfig, MULTIVIEW_STORAGE_KEY } = await load();
+        localStorage.setItem(MULTIVIEW_STORAGE_KEY, JSON.stringify(["a", "b"]));
+        await syncMultiviewFromConfig();
+        expect(
+            JSON.parse(localStorage.getItem(MULTIVIEW_STORAGE_KEY) ?? "[]"),
+        ).toEqual(["a", "b"]);
+    });
+
+    it("still treats a genuinely absent queue as empty", async () => {
+        stashServing(null);
+        const { syncMultiviewFromConfig, MULTIVIEW_STORAGE_KEY } = await load();
+        await syncMultiviewFromConfig();
+        expect(
+            JSON.parse(localStorage.getItem(MULTIVIEW_STORAGE_KEY) ?? "null"),
+        ).toEqual([]);
     });
 });
