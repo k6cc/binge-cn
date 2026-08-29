@@ -10,6 +10,7 @@ import {
     recordServerUrl,
     startServerInstall,
     waitForServer,
+    probeInstall,
 } from "../api/installServer";
 
 type InstallState =
@@ -72,6 +73,26 @@ export function BingeServerInstallCard() {
 
     const install = async () => {
         setState({ kind: "installing", elapsed: 0 });
+        // Ask first. The install task REFUSES when Stash is in a
+        // container without Docker access, which is most people, and it
+        // refuses in about a second with a good clear sentence. Without
+        // this the card started the task anyway, watched port 7878 for
+        // five minutes, then said "Settings, then Tasks, has its log" -
+        // five minutes of false hope followed by a log hunt, for a
+        // question already answered before the wait began.
+        const probe = await probeInstall();
+        if (probe && !probe.can_install) {
+            setState({
+                kind: "failed",
+                message:
+                    probe.message ??
+                    "Stash cannot install binge-server on this host.",
+                // Not a retry: pressing it again gets the same refusal.
+                canInstall: false,
+            });
+            setShowManual(true);
+            return;
+        }
         try {
             await startServerInstall();
         } catch (err) {
@@ -89,10 +110,23 @@ export function BingeServerInstallCard() {
             setState({ kind: "installing", elapsed })
         );
         if (!up) {
+            // Name the real reason when there is one. A daemon installed
+            // on this host serves plain http, and an https page cannot
+            // fetch that: the browser blocks it as mixed content before
+            // it leaves. The install very likely worked and there is
+            // nothing in any log to find, so sending someone to read one
+            // wastes their time on a question with a known answer.
+            const mixed =
+                typeof window !== "undefined" &&
+                window.location.protocol === "https:";
             setState({
                 kind: "failed",
-                message: t("settings.install_card.failed_no_answer"),
-                canInstall: true,
+                message: mixed
+                    ? t("settings.install_card.failed_mixed_content")
+                    : t("settings.install_card.failed_no_answer"),
+                // https 页面下本地 daemon 无论如何都够不到，
+                // 重试只会得到同样的结果
+                canInstall: !mixed,
             });
             setShowManual(true);
             return;

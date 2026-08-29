@@ -489,7 +489,8 @@ export default {
                 copy_run: "Copy docker run",
                 copied: "Copied",
                 failed_task: "Stash refused to start the install task: {{error}}",
-                failed_no_answer: "The task ran but nothing answered on port 7878. Settings, then Tasks, has its log."
+                failed_no_answer: "The task ran but nothing answered on port 7878. Settings, then Tasks, has its log.",
+                failed_mixed_content: "binge-server may well have installed, but this page is served over https and the daemon speaks plain http, so your browser refuses to reach it. Put it behind the same proxy as Stash and set that https address below."
             },
             forage_url: {
                 title: "forage server URL",

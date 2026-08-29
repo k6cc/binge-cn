@@ -20,13 +20,22 @@ const TASK_NAME = "Install binge-server";
 export function installedUrl(): string {
     try {
         const host = window.location.hostname;
-        // The scheme follows the page. Hardcoding http meant that on an
-        // https Stash - a reverse proxy or a Funnel, both supported -
-        // every poll of this URL was blocked as mixed content, so a
-        // daemon that installed correctly was reported after five
-        // minutes as never having answered.
-        const scheme = window.location.protocol === "https:" ? "https" : "http";
-        if (host) return `${scheme}://${host}:7878`;
+        // http, always, because that is what the daemon serves.
+        //
+        // This briefly followed the page scheme, to fix installs on an
+        // https Stash being reported as failures. It did not fix them.
+        // The poll that decides success goes through
+        // defaultBingeServerUrl, which is hardcoded http and was not
+        // touched, so the fetch was still blocked as mixed content; and
+        // had it ever succeeded, this value is written back into Stash's
+        // deployment-wide plugin config, so it would have replaced a
+        // working http://host:7878 with an https URL the daemon cannot
+        // answer, for every browser.
+        //
+        // A locally installed daemon is genuinely unreachable from an
+        // https page. That is a real constraint, not a scheme bug, and
+        // the install card says so rather than papering over it.
+        if (host) return `http://${host}:7878`;
     } catch {
         /* no window */
     }
@@ -168,6 +177,48 @@ export async function recordServerUrl(url: string): Promise<void> {
  *  container. Installing into that container would put the daemon on a port
  *  nothing outside can reach, so the answer is a sibling service. Written to
  *  be pasted into the same compose file Stash is already in. */
+/** What will happen if we press Install, asked before we press it.
+ *
+ *  runPluginOperation runs the plugin synchronously and hands back its
+ *  output, where runPluginTask is fire-and-forget. That distinction was
+ *  useless until the installer started wrapping its JSON the way Stash's
+ *  raw-plugin protocol expects: unwrapped, Stash parsed the output, found
+ *  no "output" key and returned null, so nothing the script knew could
+ *  ever reach the UI.
+ *
+ *  Returns null when the probe cannot be run at all (old installer, no
+ *  python, Stash refusing) - callers should fall through to offering the
+ *  install rather than blocking on a question that went unanswered. */
+export async function probeInstall(): Promise<{
+    can_install: boolean;
+    running: boolean;
+    reason?: string;
+    message?: string;
+} | null> {
+    try {
+        const data = await gql<{ runPluginOperation: unknown }>(
+            `mutation ProbeBingeServerInstall {
+                runPluginOperation(
+                    plugin_id: "binge"
+                    args: { mode: "probe" }
+                )
+            }`,
+        );
+        const out = data.runPluginOperation;
+        if (!out || typeof out !== "object") return null;
+        const o = out as Record<string, unknown>;
+        if (typeof o.can_install !== "boolean") return null;
+        return {
+            can_install: o.can_install,
+            running: o.running === true,
+            reason: typeof o.reason === "string" ? o.reason : undefined,
+            message: typeof o.message === "string" ? o.message : undefined,
+        };
+    } catch {
+        return null;
+    }
+}
+
 export function composeSnippet(): string {
     return [
         "  # Reachable from your LAN: your browser has to reach it, and it",
@@ -180,7 +231,12 @@ export function composeSnippet(): string {
         "    ports:",
         '      - "7878:7878"',
         "    volumes:",
-        "      - ./binge-server-data:/data",
+        "      - binge-data:/data",
+        "",
+        "# ...and this at the TOP level of the file, alongside `services:`,",
+        "# not indented under it. A named volume needs declaring once.",
+        "volumes:",
+        "  binge-data:",
     ].join("\n");
 }
 
@@ -188,7 +244,20 @@ export function composeSnippet(): string {
  *  python, Stash in a container without Docker access, a remote daemon).
  *
  *  It holds your Stash API key, so this is a LAN publish, not an
- *  internet-facing one. */
+ *  internet-facing one.
+ *
+ *  A NAMED volume, not a bind mount. The container runs as uid 10001,
+ *  and a bind mount arrives owned by root on Linux, so SQLite cannot
+ *  create the database and the daemon dies on first boot with
+ *
+ *    open db path=/data/binge-server.db err="ping: unable to open
+ *    database file (14)"
+ *
+ *  which is exactly what the first person to try this on unraid hit.
+ *  Docker Desktop squashes ownership and hides it, so it looks fine
+ *  on macOS and Windows and fails on Linux, where most people run
+ *  Stash. Docker initialises a named volume from the image, so it
+ *  inherits the right owner and needs no chown. */
 export function manualInstallCommand(): string {
     return [
         "docker run -d \\",
@@ -200,7 +269,7 @@ export function manualInstallCommand(): string {
         // snippet directly above says as much. Binding it to 127.0.0.1
         // guaranteed the one thing they needed would not work.
         "  -p 7878:7878 \\",
-        "  -v ~/binge-server-data:/data \\",
+        "  -v binge-data:/data \\",
         "  ghcr.io/ordureconnoisseur/binge-server:latest",
     ].join("\n");
 }

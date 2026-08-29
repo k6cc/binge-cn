@@ -183,8 +183,17 @@ export function PerformerSceneGrid({
     // — surfacing again would be noise), and stashes the rest for
     // interleaving with the library scenes.
     useEffect(() => {
+        // Both early returns clear the spinner, and that is not
+        // belt-and-braces. The `finally` below only resets it when
+        // `alive`, so turning the pill off cancels the in-flight fetch
+        // (alive = false, finally skipped), re-runs the effect, and
+        // lands here - leaving stashDBLoading stuck true. On a linked
+        // performer the library has no scenes for, cells.length is 0
+        // and the grid then renders the loading state forever, with no
+        // way back except leaving the profile.
         if (!stashDBOn) {
             setStashDBScenes([]);
+            setStashDBLoading(false);
             return;
         }
         const sdb = performer.stash_ids?.find(
@@ -192,6 +201,7 @@ export function PerformerSceneGrid({
         );
         if (!sdb) {
             setStashDBScenes([]);
+            setStashDBLoading(false);
             return;
         }
         let alive = true;

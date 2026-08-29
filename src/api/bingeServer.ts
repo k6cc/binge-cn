@@ -194,11 +194,18 @@ export function isTrustedDaemonUrl(raw: string): boolean {
     // BEFORE the bare-hostname rule: an IPv6 address contains no dots, so
     // "no dot means LAN name" would wave a public address like
     // [2001:4860:4860::8888] straight through.
-    if (host.startsWith("[") && host.endsWith("]")) {
-        return isPrivateIPv6(host.slice(1, -1));
-    }
+    const isIPv6Literal = host.startsWith("[") && host.endsWith("]");
+    if (isIPv6Literal && isPrivateIPv6(host.slice(1, -1))) return true;
     // Bare hostname (no dot) is a LAN/tailnet machine name, not public.
-    if (!host.includes(".")) return true;
+    //
+    // An IPv6 literal is excluded explicitly, and this is the whole
+    // reason the IPv6 case is settled first: an address contains no
+    // dots, so without the guard "no dot means LAN name" trusts
+    // [2001:4860:4860::8888] over cleartext. Letting a PUBLIC IPv6
+    // literal fall through to the https + confirmed rule below - so that
+    // it has some way in at all - reopened exactly that hole, and the
+    // suite caught it.
+    if (!isIPv6Literal && !host.includes(".")) return true;
     // RFC1918 private + Tailscale CGNAT (100.64/10) IPv4 literals.
     const m = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
     if (m) {
@@ -208,7 +215,11 @@ export function isTrustedDaemonUrl(raw: string): boolean {
         if (a === 172 && b >= 16 && b <= 31) return true;
         if (a === 192 && b === 168) return true;
         if (a === 100 && b >= 64 && b <= 127) return true; // CGNAT / tailnet
-        return false;
+        // A public IPv4 literal falls through to https + confirmed, for
+        // the same reason as IPv6 above. Someone running the daemon on a
+        // VPS reachable only by address has no hostname to give us, and
+        // refusing here left the documented escape hatch unreachable for
+        // that shape alone.
     }
 
     // A public hostname. Cleartext to one is never acceptable.

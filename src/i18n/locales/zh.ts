@@ -489,7 +489,8 @@ export default {
                 copy_run: "复制 docker run",
                 copied: "已复制",
                 failed_task: "Stash 拒绝启动安装任务：{{error}}",
-                failed_no_answer: "任务已运行但端口 7878 无响应。设置 → 任务中有其日志。"
+                failed_no_answer: "任务已运行但端口 7878 无响应。设置 → 任务中有其日志。",
+                failed_mixed_content: "binge-server 很可能已安装成功，但此页面以 https 提供，而守护进程只说 http，浏览器拒绝访问。请将其置于与 Stash 相同的反向代理后，并在下方填入该 https 地址。"
             },
             forage_url: {
                 title: "forage 服务器 URL",
