@@ -6,6 +6,9 @@ AGENTS.md
 # 本地草稿文件（社区分享贴草稿、上游 issue 草稿等，不推送）
 drafts/
 
+# 本地回归测试清单（仅本地维护，不推送）
+回归测试清单.md
+
 # TRAE 生成的临时 HTML 分享包，不推送
 .trae-html-share-packages/
 

@@ -495,15 +495,12 @@ async function fetchJSON<T>(
         return null;
     }
     try {
-        // ApiKey as a query param instead of a header: a custom header
-        // triggers a CORS preflight the daemon doesn't answer, breaking
-        // every call (including /healthz) when Stash API auth is on.
-        // The daemon already accepts ?apikey= on its media routes (same
-        // mechanism Stash itself uses), so this is consistent and keeps
-        // requests as simple CORS requests.
-        const url = key ? withKey(base + path) : base + path;
-        const resp = await fetch(url, {
+        const resp = await fetch(base + path, {
             ...init,
+            headers: {
+                ...(init?.headers ?? {}),
+                ...(key ? { ApiKey: key } : {}),
+            },
             // Tailscale Funnel + Mullvad NL adds latency vs a local
             // daemon. 8s is enough for the fast (DB-backed) endpoints;
             // callers that shell out server-side (X → gallery-dl) pass a
@@ -569,10 +566,11 @@ export async function getXFeed(
 
 // saveToStash asks the daemon to download a social post and add it to
 // Stash (folder placement + studio/tag/performer/url/date/caption). The
-// daemon returns immediately (pending:true) and applies the metadata in
-// the background once Stash finishes scanning. Returns the error string
-// on failure (daemon down, not configured, upstream block) so the UI
-// can surface it.
+// daemon handles /save synchronously: it downloads the media itself
+// (PornHub via yt-dlp) and only answers once the file is in place, with
+// a server-side budget of 4 minutes. Returns the error string on
+// failure (daemon down, not configured, upstream block) so the UI can
+// surface it.
 export async function saveToStash(
     req: SaveToStashRequest,
 ): Promise<
@@ -600,16 +598,20 @@ export async function saveToStash(
     }
     try {
         const key = await ensureStashKey();
-        // query param auth — see fetchJSON (avoid CORS preflight)。
-        // 信任检查已在上方提前拒绝，这里 base 必为受信地址。
-        const url = key ? withKey(base + "/save") : base + "/save";
-        const resp = await fetch(url, {
+        const resp = await fetch(base + "/save", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
+                ...(key ? { ApiKey: key } : {}),
             },
             body: JSON.stringify(req),
-            signal: AbortSignal.timeout(30_000),
+            // 上游 30s 会掐断仍在进行的 daemon 端下载（/save 同步执行且
+            // ctx 派生自请求，浏览器断开即取消 yt-dlp），而 daemon 对 PH
+            // 下载无断点续传（每次尝试写唯一 .incoming 临时名并在结束
+            // 时删除），重试等于从零开始——大视频永远下不完。对齐 daemon
+            // 的 4 分钟服务端预算（240s + 余量）。
+            // 这是相对上游的刻意偏离，理由是上游未修复此 bug。
+            signal: AbortSignal.timeout(245_000),
         });
         const body = (await resp.json().catch(() => ({}))) as
             SaveToStashResult | { error?: string };
@@ -776,12 +778,11 @@ export async function setBingeServerConfig(
     }
     try {
         const key = await ensureStashKey();
-        // query param auth — see fetchJSON (avoid CORS preflight).
-        const url = key ? withKey(base + "/config") : base + "/config";
-        const resp = await fetch(url, {
+        const resp = await fetch(base + "/config", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
+                ...(key ? { ApiKey: key } : {}),
             },
             body: JSON.stringify(payload),
             signal: AbortSignal.timeout(15_000),
