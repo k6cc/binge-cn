@@ -1,6 +1,6 @@
 # Binge（汉化版）
 
-> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.7.7**。
+> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.7.8**。
 
 为 [Stash](https://github.com/stashapp/stash) 提供的 Instagram 风格社交与发现层：竖屏 Reel、Stories、演员档案、StashDB 驱动的发现功能——全部基于 Stash 既有的 GraphQL API。Web 插件形态。
 
@@ -44,6 +44,7 @@ v0.4.17 将原硬编码中文迁移为基于 `react-i18next` 的动态多语言�
 
 - **PH 保存超时修复**：`saveToStash` 超时 30s → 245s，对齐 daemon 4 分钟同步下载预算——上游 30s 会掐断 daemon 端仍在进行的 yt-dlp 下载（且无断点续传，重试从零开始），大视频永远下不完；daemon 认证回退为上游 `ApiKey` header 写法（CORS preflight 问题上游已随 binge-server v0.3.0 修复，消除 fork 最后一处刻意偏离）
 - **设置页输入框窄屏溢出修复**：极窄屏下「要忽略的图库文件夹」「要忽略的文件夹名」「守护进程写入路径」不再超出屏幕——输入框改 `box-sizing: border-box`（原 content-box 使 `min-width: 100%` 叠加 padding/border 必然溢出），与按钮同行的输入框解除 min-width 下限以允许 flex 收缩
+- **合并上游 v0.12.1**：Docker 安装片段改命名卷（bind mount 在 Linux 上 SQLite 建库失败）、安装探针（容器化 Stash 点安装约 1 秒返回拒绝原因，不再空等 5 分钟）、daemon 信任区修复（"使用此 daemon"按钮反馈 / 公网 IP 字面量可信任 / IPv6 明文信任漏洞）、StashDB 网格永久转圈修复
 - **合并上游 0.12.0 系**（upstream HEAD 1b9e803）：设置页搜索 + 分组（含 Advanced Rating / Multiview / Scribe 伴侣插件状态展示）、StashDB 网络降级优化（限流/缓存/超时上调，瞬时故障不再误判）、安全修复（外部 URL 过滤、`redirect: "error"` 防密钥泄露）、演员图片网格无限滚动修复、Pack 卡片 mosaic 点击直达场景；本地定制全部保留（两层图库架构、默认合集保护、chained 播放模式等），按用户决策移除上游测试栈与保存进度跟踪定制（放弃 binge-server fork、改用上游镜像）
 - **进度条拖动擦洗 + 命中区扩容**：拖动实时显示时间码气泡（加粗纯白、深色圆角底），松手才跳转（转码流硬 seek 安全模式）；命中区上下对称扩容，鼠标/触屏拖动更易命中、移动端擦洗不易滑出；移动端去除浏览器默认点按高亮，点按反馈由元素自身状态承担
 - **转码流加载指示 + 居中定位修复**：转码冷启动 / 硬 seek / 断线重连期间画面中央弧形转圈，不再黑屏无反馈；从演员/合集卡进入的居中元素（首个视频按钮/转圈）直达"新居中位置"且无位移动画；横滑 seek 指示器跟随视频内容区居中
