@@ -29,6 +29,7 @@ import {
     pornhubPreviewUrl,
     pornhubThumbUrl,
 } from "../api/bingeServer";
+import { isoFromEpochSeconds } from "../util/epoch";
 import {
     useIncludeReddit,
     useIncludeStashDB,
@@ -419,12 +420,17 @@ async function mergeStashDBScenes(
 
     let scenes: StashDBScene[] | null = readStashDBCache(sinceIsoDate);
     if (!scenes) {
-        scenes = await getNewStashDBScenesForPerformers(
+        const fresh = await getNewStashDBScenesForPerformers(
             linkedPerformers.map((p) => p.stashId),
             sinceIsoDate,
             box.api_key
         );
-        writeStashDBCache(sinceIsoDate, scenes);
+        // Only cached when StashDB actually answered. A failure used to
+        // arrive here as [] and be written as a valid 12-hour answer, so
+        // one 502 meant no new releases for half a day - and reloading
+        // did not help, because [] reads back as a hit.
+        if (fresh != null) writeStashDBCache(sinceIsoDate, fresh);
+        scenes = fresh ?? [];
     }
     if (scenes.length === 0) return;
 
@@ -537,9 +543,10 @@ async function mergeRedditPosts(
                 permalink: post.permalink,
                 domain: post.domain,
                 createdUtc: post.createdUtc,
-                effectiveAt: new Date(
-                    post.createdUtc * 1000
-                ).toISOString(),
+                effectiveAt: isoFromEpochSeconds(
+                    post.createdUtc,
+                    new Date().toISOString(),
+                ),
             });
         }
     }
@@ -576,10 +583,10 @@ async function mergePornhubVideos(
             byPerformer.set(localId, bucket);
         }
         for (const v of d.videos) {
-            const effectiveAt =
-                v.createdUtc > 0
-                    ? new Date(v.createdUtc * 1000).toISOString()
-                    : new Date().toISOString();
+            const effectiveAt = isoFromEpochSeconds(
+                v.createdUtc,
+                new Date().toISOString(),
+            );
             bucket.reddit.push({
                 id: `ph:${v.id}`,
                 source: "reddit",

@@ -94,19 +94,6 @@ export interface SaveToStashResult {
     handle: string;
 }
 
-// Live progress of an in-flight save, from the daemon's
-// /save/progress endpoint. Mirrors internal/social/saver.go
-// SaveProgress.
-export interface SaveProgress {
-    state: "downloading" | "done" | "error";
-    percent: number;
-    downloaded: number;
-    total: number;
-    speed?: string;
-    eta?: string;
-    error?: string;
-}
-
 export interface BingeServerConfigPayload {
     stashUrl?: string;
     stashApiKey?: string;
@@ -179,12 +166,30 @@ export function isTrustedDaemonUrl(raw: string): boolean {
     // outright no matter whose it was.
     if (host === "localhost" || host === "127.0.0.1" || host === "::1")
         return true;
-    if (
-        host.endsWith(".local") ||
-        host.endsWith(".internal") ||
-        host.endsWith(".ts.net")
-    )
-        return true;
+    if (host.endsWith(".local") || host.endsWith(".internal")) return true;
+    // A tailnet name is trusted only when it is the SAME tailnet as the
+    // page, not because it ends in .ts.net.
+    //
+    // This used to sit in the blanket above, which returned before the
+    // https requirement, before the same-domain rule and before the
+    // confirmation list - so any stranger's tailnet was trusted with the
+    // Stash key, on either scheme, from any page. SHARED_SUFFIXES has
+    // carried "ts.net" all along with a comment explaining exactly why
+    // (Funnel makes these publicly resolvable, so two of them share a
+    // landlord rather than an owner), but isSharedSuffix is only reached
+    // from sharesRegistrableDomain, which this early return skipped. The
+    // entry could never fire for a daemon host.
+    //
+    // Same-tailnet is the last three labels: <machine>.<tailnet>.ts.net.
+    if (host.endsWith(".ts.net")) {
+        const tailnetOf = (h: string) => h.split(".").slice(-3).join(".");
+        const page = pageHostname();
+        if (page.endsWith(".ts.net") && tailnetOf(host) === tailnetOf(page)) {
+            return true;
+        }
+        // Otherwise fall through: https + confirmed, like any other
+        // public host.
+    }
     // IPv6 literal, which the URL parser hands back in brackets. Settled
     // BEFORE the bare-hostname rule: an IPv6 address contains no dots, so
     // "no dot means LAN name" would wave a public address like
@@ -237,8 +242,29 @@ export function daemonCanReachStashAt(raw: string): boolean {
     }
     if (u.protocol !== "https:" && u.protocol !== "http:") return false;
     const host = u.hostname.toLowerCase();
-    if (host === "localhost" || host === "127.0.0.1" || host === "::1")
-        return true;
+    // Loopback is the daemon's own machine, so it only names this Stash
+    // when the daemon runs beside it. The function never checked that
+    // and returned true for loopback before anything else, which is the
+    // one address a REMOTE daemon certainly cannot use: browsing Stash
+    // at localhost while the daemon is on another box made Settings
+    // offer localhost:9999, the daemon fail to find a Stash on its own
+    // port 9999, and the whole config write be refused - so first-time
+    // setup of a remote daemon could not complete, and the key never
+    // landed.
+    if (host === "localhost" || host === "127.0.0.1" || host === "[::1]") {
+        const daemon = (() => {
+            try {
+                return new URL(readBingeServerUrl()).hostname.toLowerCase();
+            } catch {
+                return "";
+            }
+        })();
+        return (
+            daemon === "localhost" ||
+            daemon === "127.0.0.1" ||
+            daemon === "[::1]"
+        );
+    }
     if (
         host.endsWith(".local") ||
         host.endsWith(".internal") ||
@@ -276,9 +302,76 @@ function pageHostname(): string {
 /// working" rather than "a stranger gets the key" -- the value still has
 /// to be an https host that someone put in the settings. A real PSL is a
 /// large table for a check this small.
+// Suffixes under which second-level names belong to different people.
+// Two names sharing one of these share a landlord, not an owner, so the
+// last two labels say nothing about whether the same person controls
+// both. Self-hosted Stash lives under these constantly, which is
+// exactly the population this check was meant to serve.
+//
+// Not a full public suffix list, which is a large table for a check
+// this small; just the families a self-hoster actually lands on, plus
+// the shape of the multi-part country domains.
+const SHARED_SUFFIXES = [
+    // Tailscale: every tailnet is a sibling under ts.net, and Funnel
+    // makes those names publicly resolvable, so two of them share a
+    // landlord in exactly the sense this list is about.
+    "ts.net",
+    "duckdns.org",
+    "hopto.org",
+    "zapto.org",
+    "myftp.org",
+    "dynu.net",
+    "myds.me",
+    "diskstation.me",
+    "dscloud.me",
+    "quickconnect.to",
+    "nip.io",
+    "sslip.io",
+    "cloudflareaccess.com",
+    "no-ip.org",
+    "no-ip.com",
+    "ddns.net",
+    "synology.me",
+    "myqnapcloud.com",
+    "github.io",
+    "ngrok-free.app",
+    "ngrok.app",
+    "ngrok.io",
+    "trycloudflare.com",
+    "netlify.app",
+    "vercel.app",
+    "pages.dev",
+    "workers.dev",
+];
+
+function isSharedSuffix(host: string): boolean {
+    if (SHARED_SUFFIXES.some((sfx) => host === sfx || host.endsWith("." + sfx)))
+        return true;
+    // co.uk, com.au, co.nz and the rest: a two-part suffix whose first
+    // label is one of the usual second-level names.
+    const parts = host.split(".");
+    if (parts.length >= 3) {
+        const second = parts[parts.length - 2];
+        const tld = parts[parts.length - 1];
+        if (
+            tld.length === 2 &&
+            ["co", "com", "net", "org", "ac", "gov", "edu"].includes(second)
+        ) {
+            return true;
+        }
+    }
+    return false;
+}
+
 function sharesRegistrableDomain(a: string, b: string): boolean {
     if (!a || !b) return false;
     if (a === b) return true;
+    // Under a shared suffix, only an exact host match means anything.
+    // Comparing the last two labels made every duckdns.org name look
+    // like every other one, so a daemon URL of <anything>.duckdns.org
+    // was trusted with the Stash key by anyone whose Stash was also
+    // there -- which is most of the people this rule exists for.
+    if (isSharedSuffix(a) || isSharedSuffix(b)) return false;
     const tail = (h: string) => h.split(".").slice(-2).join(".");
     const ta = tail(a);
     return ta !== "" && ta === tail(b);
@@ -388,7 +481,19 @@ async function fetchJSON<T>(
     // anything with same-origin access, so trust is checked per request
     // rather than assumed from wherever the value came from.
     const trusted = isTrustedDaemonUrl(base);
-    if (key && !trusted) warnUntrusted(base);
+    if (!trusted) {
+        // Not contacted at all, rather than contacted without the key.
+        //
+        // Withholding the header still left a request going out on every
+        // Home load: a liveness and port probe from inside the user's
+        // network, to an address they may never have chosen. The forage
+        // client closed exactly this and called it a beacon that costs
+        // nothing to close; this one was left open. It is also what let
+        // the install card's poll reach a hostile host and come back
+        // with the answer that confirmed it.
+        warnUntrusted(base);
+        return null;
+    }
     try {
         // ApiKey as a query param instead of a header: a custom header
         // triggers a CORS preflight the daemon doesn't answer, breaking
@@ -464,34 +569,47 @@ export async function getXFeed(
 
 // saveToStash asks the daemon to download a social post and add it to
 // Stash (folder placement + studio/tag/performer/url/date/caption). The
-// daemon downloads synchronously (yt-dlp for pornhub can take minutes)
-// and applies the metadata in the background once Stash finishes
-// scanning. Returns the error string on failure (daemon down, not
-// configured, upstream block) so the UI can surface it.
-//
-// timeoutMs defaults to 30s (fine for images / short clips); pornhub
-// callers pass ~4min to match the daemon's request budget, pairing
-// with getSaveProgress for a live progress bar.
+// daemon returns immediately (pending:true) and applies the metadata in
+// the background once Stash finishes scanning. Returns the error string
+// on failure (daemon down, not configured, upstream block) so the UI
+// can surface it.
 export async function saveToStash(
     req: SaveToStashRequest,
-    timeoutMs = 30_000,
 ): Promise<
     { ok: true; result: SaveToStashResult } | { ok: false; error: string }
 > {
+    // Seeded first, like fetchJSON. Without this a save on a cold page
+    // posts to the derived default rather than the configured daemon.
+    await ensureBingeServerUrlSeeded();
     const base = readBingeServerUrl();
+    // Refused outright, not merely sent without the key.
+    //
+    // fetchJSON was closed for this and saveToStash was not, so an
+    // address nobody chose still received a POST carrying library
+    // metadata - the performer id, the media URL, the source URL and the
+    // caption. Worse, a PornHub item's mediaUrl is itself a daemon proxy
+    // URL with the Stash key in its query string, so if the daemon
+    // setting changed between the story being built and Save being
+    // pressed, the key went to the new host in the body.
+    if (!isTrustedDaemonUrl(base)) {
+        warnUntrusted(base);
+        return {
+            ok: false,
+            error: "该 binge-server 地址不在已确认的信任列表中——请先在设置里确认。",
+        };
+    }
     try {
         const key = await ensureStashKey();
-        const trusted = isTrustedDaemonUrl(base);
-        if (key && !trusted) warnUntrusted(base);
-        // query param auth — see fetchJSON (avoid CORS preflight).
-        const url = key && trusted ? withKey(base + "/save") : base + "/save";
+        // query param auth — see fetchJSON (avoid CORS preflight)。
+        // 信任检查已在上方提前拒绝，这里 base 必为受信地址。
+        const url = key ? withKey(base + "/save") : base + "/save";
         const resp = await fetch(url, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
             },
             body: JSON.stringify(req),
-            signal: AbortSignal.timeout(timeoutMs),
+            signal: AbortSignal.timeout(30_000),
         });
         const body = (await resp.json().catch(() => ({}))) as
             SaveToStashResult | { error?: string };
@@ -508,22 +626,6 @@ export async function saveToStash(
             error: err instanceof Error ? err.message : String(err),
         };
     }
-}
-
-// getSaveProgress polls the daemon's live progress registry for an
-// in-flight save (pairing with saveToStash for long pornhub downloads).
-// null when nothing is registered — the save hasn't started on the
-// daemon, or the daemon restarted (its .part file survives and the
-// download resumes, so the caller can keep waiting / retry).
-export async function getSaveProgress(
-    source: string,
-    id: string,
-): Promise<SaveProgress | null> {
-    return fetchJSON<SaveProgress>(
-        `/save/progress?source=${encodeURIComponent(source)}&id=${encodeURIComponent(id)}`,
-        undefined,
-        5000,
-    );
 }
 
 // ── PornHub pillar ──────────────────────────────────────────────────
@@ -551,19 +653,80 @@ export interface PornhubStoryDigest {
     videos: PornhubVideo[];
 }
 
+// The daemon's answers are cast, not parsed, and this one reaches a
+// synchronous render path in the performer grid - so a body that is not
+// the shape the type claims throws during render, and with the only
+// error boundary at the app root that replaces the whole of binge with
+// the error screen. It does not recover on reload either: the profile
+// hash survives, so the reload lands on the same performer and fetches
+// the same body again.
+//
+// Shapes actually reachable: Go marshalling a nil element gives [null];
+// an error object gives {"error": "..."} where .map is not a function;
+// and any field can arrive as the wrong type. isoFromEpochSeconds
+// hardened the timestamp VALUE for exactly this reason - this hardens
+// the container and the elements around it.
+function sanitisePornhubVideos(raw: unknown): PornhubVideo[] {
+    if (!Array.isArray(raw)) return [];
+    const str = (v: unknown): string | null =>
+        typeof v === "string" ? v : null;
+    return raw.flatMap((v): PornhubVideo[] => {
+        if (typeof v !== "object" || v === null) return [];
+        const o = v as Record<string, unknown>;
+        const id = str(o.id);
+        const sourceUrl = str(o.sourceUrl);
+        // Both are required to do anything with the video - it cannot be
+        // opened, played or saved without them - so an entry missing
+        // either is dropped rather than given a made-up value.
+        if (!id || !sourceUrl) return [];
+        const num = (v: unknown): number =>
+            typeof v === "number" && Number.isFinite(v) ? v : 0;
+        return [
+            {
+                id,
+                sourceUrl,
+                title: str(o.title),
+                thumbUrl: str(o.thumbUrl),
+                uploadDate: str(o.uploadDate),
+                duration: num(o.duration),
+                viewCount: num(o.viewCount),
+                createdUtc: num(o.createdUtc),
+            },
+        ];
+    });
+}
+
 export async function getPornhubFeed(
     stashId: number,
     limit = 60,
 ): Promise<PornhubVideo[] | null> {
-    return fetchJSON<PornhubVideo[]>(`/pornhub/feed/${stashId}?limit=${limit}`);
+    const raw = await fetchJSON<unknown>(
+        `/pornhub/feed/${stashId}?limit=${limit}`,
+    );
+    if (raw == null) return null;
+    return sanitisePornhubVideos(raw);
 }
 
 export async function getPornhubStories(
     sinceUtc: number,
 ): Promise<PornhubStoryDigest[] | null> {
-    return fetchJSON<PornhubStoryDigest[]>(
+    // Same treatment as the feed above: the digest's videos reach the
+    // story viewer's render path.
+    const raw = await fetchJSON<unknown>(
         `/pornhub/stories?sinceUtc=${sinceUtc}`,
     );
+    if (raw == null) return null;
+    if (!Array.isArray(raw)) return [];
+    return raw.flatMap((d): PornhubStoryDigest[] => {
+        if (typeof d !== "object" || d === null) return [];
+        const o = d as Record<string, unknown>;
+        return [
+            {
+                ...(o as unknown as PornhubStoryDigest),
+                videos: sanitisePornhubVideos(o.videos),
+            },
+        ];
+    });
 }
 
 // Proxy-URL builders. PornHub stream/preview/thumbnail URLs are time/IP-

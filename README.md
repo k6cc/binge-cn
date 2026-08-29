@@ -1,6 +1,6 @@
 # Binge（汉化版）
 
-> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.7.4**。
+> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.7.5**。
 
 为 [Stash](https://github.com/stashapp/stash) 提供的 Instagram 风格社交与发现层：竖屏 Reel、Stories、演员档案、StashDB 驱动的发现功能——全部基于 Stash 既有的 GraphQL API。Web 插件形态。
 
@@ -39,6 +39,14 @@ v0.4.17 将原硬编码中文迁移为基于 `react-i18next` 的动态多语言�
 - 详见 [汉化及修复.md](./汉化及修复.md)
 
 ### 功能修复
+
+#### v0.7.5
+
+- **合并上游 0.12.0 系**（upstream HEAD 1b9e803）：设置页搜索 + 分组（含 Advanced Rating / Multiview / Scribe 伴侣插件状态展示）、StashDB 网络降级优化（限流/缓存/超时上调，瞬时故障不再误判）、安全修复（外部 URL 过滤、`redirect: "error"` 防密钥泄露）、演员图片网格无限滚动修复、Pack 卡片 mosaic 点击直达场景
+- **本地定制全部保留**：两层图库架构、默认合集保护、chained 播放模式等；A类 13 个已删文件保持删除
+- **汉化补漏**：新并入模块 4 处硬编码文案改走 i18n，新增 8 个翻译 key，`t()` key 与语言文件比对无缺失
+- **移除上游测试栈**：按用户决策不带任何测试功能（9 个测试文件、vitest 及相关依赖全部移除）
+- **移除保存进度跟踪前端定制**：放弃 binge-server fork、改用上游镜像的第一步——删除 `getSaveProgress` 进度轮询与保存按钮进度条 UI，`saveToStash` 恢复固定 30s 超时
 
 #### v0.7.0–v0.7.4
 
@@ -106,7 +114,11 @@ https://raw.githubusercontent.com/k6cc/stash-plugins/main/plugins/main/index.yml
 
 > 此 URL 是统一插件源，同时包含 Binge、nfoSceneParser、sceneTranslate 等多个插件，可一并安装。
 
-然后从列表中安装 **Binge**。Stash 主导航栏会出现一个无穷符号按钮——点击即可。
+然后从列表中安装 **Binge**。
+
+安装后需手动开启导航按钮（默认关闭）：**Stash → 设置 → 界面 → 基本设置 → 菜单选项**，勾选 **Binge**。之后 Stash 主导航栏会出现一个无穷符号按钮——点击即可。
+
+> ⚠️ 这一步不可省略且容易遗漏：Stash 只在插件 id 出现在菜单选项列表中时才渲染其导航按钮，而全新安装默认不含它——不勾选则任何地方都不会出现按钮，插件看起来像安装失败。
 
 ### 手动部署
 

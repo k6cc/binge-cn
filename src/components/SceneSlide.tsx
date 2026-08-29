@@ -25,6 +25,7 @@ import { recordTagInteractions } from "../api/interactedTags";
 import {
     getCollections,
     getCollectionTagIds,
+    membershipFromTagIds,
     setSceneInCollection,
     subscribeCollections,
 } from "../api/collections";
@@ -454,9 +455,14 @@ export function SceneSlide({
     // can create new ones via the SaveSheet) — we subscribe to the
     // collections module so a new collection's row appears here
     // unchecked the moment it's created.
-    const [inCollections, setInCollections] = useState<
-        Record<string, boolean>
-    >(() => collectionsOverride ?? {});
+    const [inCollections, setInCollections] = useState<Record<string, boolean>>(
+        () => collectionsOverride ?? {},
+    );
+    // tagName -> tag id, so a write's returned tag ids can be turned
+    // back into a membership map without another round trip.
+    const [collectionTagIds, setCollectionTagIds] = useState<
+        Map<string, string>
+    >(() => new Map());
     useEffect(() => {
         if (collectionsOverride) {
             setInCollections(collectionsOverride);
@@ -467,9 +473,12 @@ export function SceneSlide({
             try {
                 const [collections, tagIdMap] = await Promise.all([
                     getCollections(),
-                    getCollectionTagIds(),
+                    // false: displaying membership must not
+                    // write tags into the user's library.
+                    getCollectionTagIds(false),
                 ]);
                 if (!alive) return;
+                setCollectionTagIds(tagIdMap);
                 const result: Record<string, boolean> = {};
                 for (const c of collections) {
                     const id = tagIdMap.get(c.tagName);
@@ -509,7 +518,7 @@ export function SceneSlide({
     const ratingBusyRef = useRef(false);
     // Per-collection busy ref so concurrent taps on the same row are
     // ignored. Keyed by tagName.
-    const collectionBusyRef = useRef<Record<string, boolean>>({});
+    const collectionBusyRef = useRef<{ busy: boolean }>({ busy: false });
 
     // Attempt playback at the user's mute preference, with the
     // autoplay-policy fallback. Centralised so the IO observer,
@@ -1073,8 +1082,15 @@ export function SceneSlide({
 
     // ── Save / collection toggle ─────────────────────────────────
     const handleToggleCollection = (tagName: string) => {
-        if (collectionBusyRef.current[tagName]) return;
-        collectionBusyRef.current[tagName] = true;
+        // Keyed on the scene, not the collection. Two different
+        // collections of one scene each passed their own key, so both
+        // read the same tag list and the second write replaced the
+        // first: the membership that lost the race was dropped
+        // silently while both rows showed a tick. sceneUpdate replaces
+        // the whole array, so writes to one scene have to be one at a
+        // time.
+        if (collectionBusyRef.current.busy) return;
+        collectionBusyRef.current.busy = true;
         const currently = inCollections[tagName] ?? false;
         const next = !currently;
         setInCollections((prev) => ({ ...prev, [tagName]: next }));
@@ -1084,18 +1100,20 @@ export function SceneSlide({
         // Explore as chip shortcuts. Only on saves (not removes) so
         // un-bookmarking doesn't pollute taste data.
         if (next) recordTagInteractions(scene.tags);
-        setSceneInCollection(
-            scene.id,
-            scene.tags.map((t) => t.id),
-            tagName,
-            next
-        )
-            .then((confirmed) => {
+        setSceneInCollection(scene.id, tagName, next)
+            .then(({ inCollection, tagIds }) => {
                 setInCollections((prev) => ({
                     ...prev,
-                    [tagName]: confirmed,
+                    [tagName]: inCollection,
+                    // Every other collection re-derived from the tags
+                    // Stash just returned. The map used to be updated
+                    // one key at a time from the toggle's own intent,
+                    // so a second collection could be shown unticked
+                    // while the scene was in it, and tapping to add it
+                    // removed it instead.
+                    ...membershipFromTagIds(tagIds, collectionTagIds),
                 }));
-                onCollectionChange?.(scene.id, tagName, confirmed);
+                onCollectionChange?.(scene.id, tagName, inCollection);
             })
             .catch(() => {
                 // Roll back on failure.
@@ -1106,7 +1124,7 @@ export function SceneSlide({
                 onCollectionChange?.(scene.id, tagName, currently);
             })
             .finally(() => {
-                collectionBusyRef.current[tagName] = false;
+                collectionBusyRef.current.busy = false;
             });
     };
 
@@ -1210,6 +1228,17 @@ export function SceneSlide({
     const togglePlayPause = () => {
         const video = videoRef.current;
         if (!video) return;
+        // Not if this slide is no longer the one on screen.
+        //
+        // handleTap arms a 280ms timer to tell a single tap from a
+        // double. Tap, then flick to the next slide inside that window:
+        // the observer pauses this video, the timer fires, sees
+        // paused === true and plays it again - unmuted, since
+        // playPreferred restores the persisted preference. The scene
+        // the user just scrolled past resumed with audio over the top
+        // of the one they were watching, and nothing stopped it until
+        // the slide left the overscan window entirely.
+        if (!isActive) return;
         if (video.paused) {
             // Tap IS a gesture, so we can confidently try the user's
             // preference here even if a prior autoplay failed.
@@ -1621,6 +1650,19 @@ export function SceneSlide({
                         return;
                     }
                     if (!autoScroll || !isActive) return;
+                    // Not while a sheet is open over this slide. All
+                    // three portal to document.body, so they stay on
+                    // screen while the reel scrolls behind them - and
+                    // their sceneId prop is frozen at the scene that
+                    // left. "Open in Stash" then opened a scene the
+                    // user was no longer looking at, and the rating
+                    // modal's stars wrote to it. One more advance
+                    // unmounts the slide and the sheet vanishes
+                    // mid-write. Turning auto-scroll ON from MoreSheet
+                    // is the standing case: the toggle deliberately
+                    // leaves the sheet open, so the user is still
+                    // inside it when the video ends.
+                    if (detailsOpen || advancedRatingOpen || moreOpen) return;
                     onAutoAdvance?.();
                 }}
             >

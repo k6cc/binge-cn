@@ -120,7 +120,7 @@ export function BingeServerInstallCard() {
                 <div className="binge-settings-row-title">
                     {t("settings.install_card.title")}
                 </div>
-                <div className="binge-settings-row-desc">
+                <div className="binge-settings-row-description">
                     {t("settings.install_card.desc")}
                 </div>
             </div>

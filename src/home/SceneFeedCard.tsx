@@ -4,6 +4,7 @@ import { PerformerHoverCard } from "./PerformerHoverCard";
 import { Fragment } from "react";
 import type { FeedPerformer, FeedTag, SceneFeedItem } from "./useFeed";
 import type { MatchedScenePerformer } from "../api/stashdb";
+import { getLinkedPerformersMemo } from "../api/stashdb";
 import { VerifiedIcon } from "../performer/PerformerProfile";
 import { useSharedStories } from "./StoriesContext";
 import { useStoryViewer } from "./StoryViewerContext";
@@ -17,6 +18,7 @@ import {
     subscribePlaybackGate,
 } from "../util/playbackStack";
 import { sceneIncrementO } from "../api/mutations";
+import { currentOCount, rememberOCount } from "./oCounterStore";
 import { recordTagInteractions } from "../api/interactedTags";
 import {
     useHasAdvancedRating,
@@ -78,8 +80,20 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
     const videoRef = useRef<HTMLVideoElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [isPlaying, setIsPlaying] = useState(false);
+    // All three. The second writes the user's stated preference; the
+    // third is session-only, for when the BROWSER mutes us rather than
+    // the user. The fallback below used neither, silencing the element
+    // imperatively without telling React - so the button rendered
+    // "Mute" (claiming sound) over a video the browser had already
+    // muted, and tapping it wrote a preference instead of unmuting.
     const [muted, setMuted, setMutedSession] = useMuteState();
-    const [oCount, setOCount] = useState(0);
+    // Seeded from the scene, not from zero. The virtualizer unmounts a
+    // card that scrolls a few rows away, so a local-only count was lost
+    // on every pass - the heart came back empty and a second tap
+    // incremented the scene again.
+    const [oCount, setOCount] = useState(() =>
+        currentOCount(item.sceneId, item.oCounter),
+    );
     const [liked, setLiked] = useState(false);
     const oBusyRef = useRef(false);
     const { t } = useTranslation();
@@ -87,6 +101,29 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
     const { replace } = useFilter();
     const { setTab, setPinFirstSceneId, setReelMode } = useTab();
     const { openProfile, openStashDBProfile } = usePerformerProfile();
+
+    // A matched name is someone StashDB put on this scene, and the
+    // library may well already have her: binge creates the local row
+    // itself on a follow, and Stash's own tagger creates one whenever
+    // it identifies a scene. Sending that tap to the read-only StashDB
+    // profile hid the library she is in and offered "+ Follow" for
+    // someone already followed, which is what the lookup below exists
+    // to prevent. The list is memoised, so a run of taps costs one
+    // query; a failure falls through to the StashDB profile, which is
+    // where the tap used to go unconditionally.
+    const routeMatchedPerformer = async (stashId: string) => {
+        try {
+            const linked = await getLinkedPerformersMemo();
+            const match = linked.find((p) => p.stashId === stashId);
+            if (match) {
+                openProfile(match.localId);
+                return;
+            }
+        } catch {
+            // Fall through.
+        }
+        openStashDBProfile(stashId);
+    };
     const { open: openStoryViewer } = useStoryViewer();
     const storiesState = useSharedStories();
     // Set of localIds with an active story right now. Used by the
@@ -131,7 +168,9 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
             try {
                 const [collections, tagIdMap] = await Promise.all([
                     getCollections(),
-                    getCollectionTagIds(),
+                    // false: displaying membership must not
+                    // write tags into the user's library.
+                    getCollectionTagIds(false),
                 ]);
                 if (!alive) return;
                 const result: Record<string, boolean> = {};
@@ -162,23 +201,48 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
     const handleOpenScribe = () => {
         scribeModal.openScene(item.sceneId);
     };
+    // A queue, not a gate. See handleToggleCollection.
+    const collectionChainRef = useRef<Promise<void>>(Promise.resolve());
     const handleToggleCollection = async (tagName: string) => {
+        // The reel has always serialised these; this one did not, so
+        // two quick taps could put two whole-array tag writes in flight
+        // against the same scene at once.
+        // Keyed on the scene, not the collection. Two different
+        // collections of one scene each passed their own key, so both
+        // read the same tag list and the second write replaced the
+        // first: the membership that lost the race was dropped
+        // silently while both rows showed a tick. sceneUpdate replaces
+        // the whole array, so writes to one scene have to be one at a
+        // time.
+        //
+        // Queued rather than dropped. The guard used to return, so the
+        // losing tap was thrown away with no tick, no spinner and no
+        // error - tapping Favourites then Watch Later quickly wrote only
+        // the first, and the second row stayed unchecked, which is
+        // indistinguishable from a dead button.
         const next = !inCollections[tagName];
+        // Optimistic immediately, so the tap is acknowledged even while
+        // an earlier write is still in flight.
         setInCollections((m) => ({ ...m, [tagName]: next }));
         // Same intent signal as the reel: saving = strong taste data.
         if (next) recordTagInteractions(item.tags);
-        try {
-            const confirmed = await setSceneInCollection(
-                item.sceneId,
-                item.tags.map((t) => t.id),
-                tagName,
-                next
-            );
-            setInCollections((m) => ({ ...m, [tagName]: confirmed }));
-        } catch {
-            // Revert on error.
-            setInCollections((m) => ({ ...m, [tagName]: !next }));
-        }
+        const run = async (): Promise<void> => {
+            try {
+                const { inCollection } = await setSceneInCollection(
+                    item.sceneId,
+                    tagName,
+                    next,
+                );
+                setInCollections((m) => ({ ...m, [tagName]: inCollection }));
+            } catch {
+                // Revert on error.
+                setInCollections((m) => ({ ...m, [tagName]: !next }));
+            }
+        };
+        // Chained on both settle paths, so one failure does not stall
+        // every later toggle on this card.
+        collectionChainRef.current = collectionChainRef.current.then(run, run);
+        await collectionChainRef.current;
     };
 
     const isPortrait =
@@ -219,7 +283,12 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
                             // AbortError: play() 被 pause()/load() 打断
                             // （滚走、src 切换），不是 autoplay 拦截，
                             // 不做静音降级。
-                            if ((err as DOMException | null)?.name === "AbortError") return;
+                            if (
+                                err instanceof Error &&
+                                err.name === "AbortError"
+                            ) {
+                                return;
+                            }
                             // 浏览器拦截未静音自动播放 → 降级静音重试，
                             // 并同步本卡片状态，让静音图标显示真实
                             // 状态（原来只改 video.muted，图标仍显示
@@ -238,6 +307,9 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
         observer.observe(container);
         return () => observer.disconnect();
         // setMutedSession 是 useCallback 稳定引用，可安全用于空依赖闭包。
+        // （muted 同理不是 dep：闭包通过 mutedRef 读实时值，避免每次
+        // 静音切换都重建 observer。）
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [setMutedSession]);
 
     // 覆盖层（story 弹窗/演员详情/PH 播放器）打开时暂停本卡片视
@@ -295,7 +367,12 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
         setOCount(prev + 1);
         setLiked(true);
         sceneIncrementO(item.sceneId)
-            .then((next) => setOCount(next))
+            .then((next) => {
+                setOCount(next);
+                // Server-confirmed, so it survives this card being
+                // unmounted by the virtualizer and remounted later.
+                rememberOCount(item.sceneId, next);
+            })
             .catch(() => {
                 setOCount(prev);
                 setLiked(prev > 0);
@@ -356,7 +433,9 @@ export function SceneFeedCard({ item }: SceneFeedCardProps) {
                         // faces from there instead.
                         <MatchedAvatarStack
                             performers={item.matchedPerformers}
-                            onClick={(stashId) => openStashDBProfile(stashId)}
+                            onClick={(stashId) => {
+                                void routeMatchedPerformer(stashId);
+                            }}
                         />
                     ) : null}
                     <AvatarStack

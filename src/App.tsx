@@ -69,16 +69,31 @@ interface RefractTheme {
     accentRgb: string; // "r, g, b"
 }
 
+// These four end up as CSS custom properties, and one of them is
+// substituted straight into a `background` shorthand. localStorage is
+// writable by anything else on Stash's origin, so an unvalidated value
+// here is an arbitrary CSS declaration: `url("https://elsewhere/…")`
+// in an accent makes the page fetch it. They are colours, so they are
+// required to look like colours.
+const HEX_COLOUR = /^#[0-9a-f]{3,8}$/i;
+const RGB_TRIPLE = /^\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*$/;
+
 function readRefractTheme(): RefractTheme | null {
     try {
         const accent = localStorage.getItem("mv.theme.accent");
         const accentRgb = localStorage.getItem("mv.theme.accentRgb");
         if (!accent || !accentRgb) return null;
+        if (!HEX_COLOUR.test(accent) || !RGB_TRIPLE.test(accentRgb)) {
+            return null;
+        }
+        const hexOr = (key: string) => {
+            const v = localStorage.getItem(key);
+            return v && HEX_COLOUR.test(v) ? v : accent;
+        };
         return {
             accent,
-            accentBright:
-                localStorage.getItem("mv.theme.accentBright") || accent,
-            accentTint: localStorage.getItem("mv.theme.accentTint") || accent,
+            accentBright: hexOr("mv.theme.accentBright"),
+            accentTint: hexOr("mv.theme.accentTint"),
             accentRgb,
         };
     } catch {

@@ -91,7 +91,13 @@ export function parseCookiesTxt(text: string): ParsedCookies {
         ) {
             // The daemon wants a Cookie-header value, not a bare token.
             out.redditSessionCookie = `reddit_session=${r.value}`;
-            out.found.push("Reddit session");
+            // Named once however many rows carry it. A per-host exporter
+            // writes reddit_session for both .reddit.com and
+            // www.reddit.com, which read back as
+            // "Found Reddit session and Reddit session."
+            if (!out.found.includes("Reddit session")) {
+                out.found.push("Reddit session");
+            }
         }
         if (hostMatches(r.domain, ["x.com", "twitter.com"])) {
             if (r.name === "auth_token") out.xAuthToken = r.value;

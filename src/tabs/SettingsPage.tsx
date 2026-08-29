@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+    createContext,
+    useContext,
+    useEffect,
+    useRef,
+    useState,
+    type ReactNode,
+} from "react";
 import { useTranslation } from "react-i18next";
 import i18n from "../i18n/config";
 import { getTagLanguage, syncTagLanguage } from "../api/collections";
@@ -45,6 +52,7 @@ import {
     useTranscodeType,
     type ForageWatchTarget,
     type Gender,
+    hasChosenBingeServer,
 } from "../home/pluginSettings";
 import {
     daemonCanReachStashAt,
@@ -58,18 +66,150 @@ import {
 import { getForageHealth } from "../api/forageServer";
 import { parseCookiesTxt, describeParse } from "../api/cookiesTxt";
 import { BingeServerInstallCard } from "./BingeServerInstallCard";
+import { isLongDescription, matchesSettingQuery } from "./settingsSearch";
+import {
+    PLUGIN_ID_ADVANCED_RATING,
+    PLUGIN_ID_MULTIVIEW,
+    PLUGIN_ID_SCRIBE,
+    useHasAdvancedRating,
+    useHasMultiview,
+    useHasScribe,
+    usePluginLoaded,
+} from "../plugins/PluginContext";
 import { fetchStashApiKey } from "../api/queries";
 import { DEFAULT_LIBRARY_FOLDER_NAMES } from "../home/impliedSource";
 import { DEFAULT_GALLERY_IGNORE_FOLDERS } from "../home/galleryNoise";
 
+// Which of binge's neighbours are installed, and what each one adds.
+//
+// Several features here are not binge's at all: the per-criterion
+// rating modal, the multiview grid and the Scribe pencil all belong to
+// other plugins and simply do not appear without them. That is the
+// right behaviour and the wrong presentation, because a feature you
+// have read about and cannot find reads as broken. Naming them, saying
+// what each adds and whether it is present, turns an invisible
+// dependency into a choice.
+const COMPANIONS: {
+    id: string;
+    name: string;
+    addsKey: string;
+    url?: string;
+}[] = [
+    {
+        id: PLUGIN_ID_ADVANCED_RATING,
+        name: "Advanced Rating",
+        addsKey: "settings.companion.advanced_rating",
+        url: "https://github.com/ordureconnoisseur/stash-advanced-rating",
+    },
+    {
+        id: PLUGIN_ID_MULTIVIEW,
+        name: "Multiview",
+        addsKey: "settings.companion.multiview",
+        url: "https://github.com/ordureconnoisseur/stash-multiview",
+    },
+    {
+        id: PLUGIN_ID_SCRIBE,
+        name: "Scribe",
+        addsKey: "settings.companion.scribe",
+    },
+];
+
+function CompanionPluginsCard() {
+    // The named helpers cover one plugin each; this card wants them
+    // side by side.
+    const { t } = useTranslation();
+    const loaded = usePluginLoaded();
+    const present: Record<string, boolean> = {
+        [PLUGIN_ID_ADVANCED_RATING]: useHasAdvancedRating(),
+        [PLUGIN_ID_MULTIVIEW]: useHasMultiview(),
+        [PLUGIN_ID_SCRIBE]: useHasScribe(),
+    };
+    if (!loaded) return null;
+    return (
+        <div className="binge-settings-card">
+            <p className="binge-settings-card-description">
+                {t("settings.companion.hint")}
+            </p>
+            <ul className="binge-companion-list">
+                {COMPANIONS.map((c) => {
+                    const installed = present[c.id] === true;
+                    return (
+                        <li key={c.id} className="binge-companion">
+                            <div className="binge-companion-head">
+                                <span className="binge-companion-name">
+                                    {c.name}
+                                </span>
+                                <span
+                                    className={
+                                        "binge-companion-state" +
+                                        (installed ? " is-present" : "")
+                                    }
+                                >
+                                    {installed
+                                        ? t("settings.companion.installed")
+                                        : t("settings.companion.not_enabled")}
+                                </span>
+                            </div>
+                            <p className="binge-companion-adds">
+                                {t(c.addsKey)}
+                                {!installed && c.url && (
+                                    <>
+                                        {" "}
+                                        <a
+                                            href={c.url}
+                                            target="_blank"
+                                            rel="noreferrer noopener"
+                                            className="binge-settings-card-link"
+                                        >
+                                            {t("settings.companion.get_it")}
+                                        </a>
+                                    </>
+                                )}
+                            </p>
+                        </li>
+                    );
+                })}
+            </ul>
+        </div>
+    );
+}
+
 // In-app settings page — all preferences that used to live in Stash's
 // plugin settings UI now live here. Same localStorage keys + pubsub,
 // so any change here propagates to open Reel slides immediately.
+// What the filter box currently holds. Every row reads it and decides
+// for itself whether to render, so the searchable text of a setting is
+// its own title and description rather than a second copy kept in a
+// registry that would drift the first time someone reworded one.
+const SettingsFilterContext = createContext("");
+
+// The sections, in the order someone looks for things rather than the
+// order the features were built. What appears on Home comes first,
+// because that is what people open this page to change. The two daemons
+// come last, because most installs never touch them.
 export function SettingsPage() {
     const { setTab } = useTab();
     const scrollRef = useRef<HTMLDivElement>(null);
     const { t } = useTranslation();
     useAutoHideTabBar(scrollRef);
+    const [query, setQuery] = useState("");
+
+    // Reddit, X and PornHub are all served by binge-server. Without one
+    // configured those three switches do nothing whatsoever, and the
+    // page used to present them exactly like the switches that work.
+    // Reading the stored URL costs no request and is honest: it says
+    // the feature needs something not set up yet, rather than letting
+    // someone switch it on and wonder why nothing ever arrives.
+    //
+    // The verdict comes from hasChosenBingeServer(), not from the URL:
+    // useBingeServerUrl() falls back to http://<this host>:7878, so it
+    // is NEVER empty and a test against it would have been dead code
+    // that quietly never fired. The hook is still called, to re-render
+    // this page when the URL is written from the card below.
+    useBingeServerUrl();
+    const needsDaemon = hasChosenBingeServer()
+        ? null
+        : t("settings.needs_daemon");
 
     return (
         <div className="binge-tab-scroll" ref={scrollRef}>
@@ -87,29 +227,172 @@ export function SettingsPage() {
                 <span className="binge-saved-spacer" />
             </header>
 
-            <div className="binge-settings-list">
-                <LanguageRow />
-                <GenderRow />
-                <TranscodeRow />
-                <GalleriesRow />
-                <GalleryIgnoreRow />
-                <LibraryFolderNamesRow />
-                <LookbackRow />
-                <StashDBRow />
-                <StashDBProfileRow />
-                <RedditRow />
-                <XRow />
-                <PornhubRow />
-                <BingeServerInstallCard />
-                <BingeServerRow />
-                <BingeServerConfigCard />
-                <ForageUrlRow />
-                <ForageTargetRow />
-                <RefractRow />
-                <ShowcaseRow />
-                <DebugRow />
+            <div className="binge-settings-toolbar">
+                <div className="binge-settings-search">
+                    <SearchIcon />
+                    <input
+                        type="search"
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        placeholder={t("settings.search_placeholder")}
+                        aria-label={t("settings.search_placeholder")}
+                        spellCheck={false}
+                        autoComplete="off"
+                    />
+                    {query !== "" && (
+                        <button
+                            type="button"
+                            className="binge-settings-search-clear"
+                            onClick={() => setQuery("")}
+                            aria-label={t("settings.search_clear")}
+                        >
+                            &times;
+                        </button>
+                    )}
+                </div>
             </div>
+
+            <SettingsFilterContext.Provider value={query}>
+                <div
+                    className={
+                        "binge-settings-list" +
+                        (query.trim() !== "" ? " is-filtering" : "")
+                    }
+                >
+                    <SettingsSection
+                        label={t("settings.section_feed")}
+                        hint={t("settings.section_feed_hint")}
+                    >
+                        <GenderRow />
+                        <LookbackRow />
+                        <GalleriesRow />
+                        <GalleryIgnoreRow />
+                        <LibraryFolderNamesRow />
+                    </SettingsSection>
+
+                    <SettingsSection
+                        label={t("settings.section_sources")}
+                        hint={t("settings.section_sources_hint")}
+                    >
+                        <StashDBRow />
+                        <StashDBProfileRow />
+                        <RedditRow requires={needsDaemon} />
+                        <XRow requires={needsDaemon} />
+                        <PornhubRow requires={needsDaemon} />
+                    </SettingsSection>
+
+                    <SettingsSection label={t("settings.section_playback")}>
+                        <TranscodeRow />
+                    </SettingsSection>
+
+                    <SettingsSection label={t("settings.section_appearance")}>
+                        <LanguageRow />
+                        <ShowcaseRow />
+                        <RefractRow />
+                    </SettingsSection>
+
+                    <SettingsSection
+                        label={t("settings.section_companions")}
+                        hint={t("settings.section_companions_hint")}
+                    >
+                        <Searchable text="plugins binge works with companion advanced rating multiview scribe">
+                            <CompanionPluginsCard />
+                        </Searchable>
+                    </SettingsSection>
+
+                    <SettingsSection
+                        label="binge-server"
+                        hint={t("settings.section_binge_server_hint")}
+                    >
+                        <Searchable text="binge-server install daemon reddit x twitter pornhub">
+                            <BingeServerInstallCard />
+                        </Searchable>
+                        <BingeServerRow />
+                        <Searchable text="binge-server configuration stash key reddit cookie x auth token library roots">
+                            <BingeServerConfigCard />
+                        </Searchable>
+                    </SettingsSection>
+
+                    <SettingsSection
+                        label="forage"
+                        hint={t("settings.section_forage_hint")}
+                    >
+                        <ForageUrlRow />
+                        <ForageTargetRow />
+                    </SettingsSection>
+
+                    <SettingsSection label={t("settings.section_advanced")}>
+                        <DebugRow />
+                    </SettingsSection>
+
+                    <p className="binge-settings-noresults">
+                        {t("settings.no_results")}
+                    </p>
+                </div>
+            </SettingsFilterContext.Provider>
+
+            <SupportFooter />
         </div>
+    );
+}
+
+// A titled group of settings. Hidden entirely once everything inside it
+// has filtered itself out, which is done in CSS with :has() rather than
+// by counting children here: a section cannot know whether its children
+// rendered without them reporting back up, and an unsupported selector
+// degrades to showing the section rather than to hiding the page.
+function SettingsSection({
+    label,
+    hint,
+    children,
+}: {
+    label: string;
+    hint?: string;
+    children: ReactNode;
+}) {
+    return (
+        <section className="binge-settings-section">
+            <div className="binge-settings-section-head">
+                <h2 className="binge-settings-section-label">{label}</h2>
+                {hint && <p className="binge-settings-section-hint">{hint}</p>}
+            </div>
+            <div className="binge-settings-group">{children}</div>
+        </section>
+    );
+}
+
+// Filter wrapper for the cards, which carry their own layout and so do
+// not go through SettingRow. The text is what typing has to match.
+function Searchable({ text, children }: { text: string; children: ReactNode }) {
+    const query = useContext(SettingsFilterContext);
+    if (!matchesSettingQuery(text, query)) return null;
+    return <>{children}</>;
+}
+
+// Quiet footer under the settings list. No toggle, no dismiss state, no nag:
+// it just sits at the bottom of the page for anyone who scrolls that far.
+function SupportFooter() {
+    const { t } = useTranslation();
+    return (
+        <p className="binge-settings-support">
+            {t("settings.support_free")}{" "}
+            <a
+                href="https://github.com/sponsors/ordureconnoisseur"
+                target="_blank"
+                rel="noopener noreferrer"
+            >
+                {t("settings.support_sponsor")}
+            </a>{" "}
+            {t("settings.support_or")}{" "}
+            <a
+                href="https://ko-fi.com/ordureconnoisseur"
+                target="_blank"
+                rel="noopener noreferrer"
+            >
+                Ko-fi
+            </a>{" "}
+            {t("settings.support_chip_in")}
+        </p>
     );
 }
 
@@ -348,6 +631,7 @@ function LibraryFolderNamesRow() {
 
     return (
         <SettingRow
+            layout="stacked"
             title={t("settings.library_folders.title")}
             description={t("settings.library_folders.desc")}
         >
@@ -395,6 +679,7 @@ function GalleryIgnoreRow() {
 
     return (
         <SettingRow
+            layout="stacked"
             title={t("settings.gallery_ignore.title")}
             description={t("settings.gallery_ignore.desc")}
         >
@@ -484,11 +769,12 @@ function StashDBProfileRow() {
     );
 }
 
-function RedditRow() {
+function RedditRow({ requires }: { requires: string | null }) {
     const value = useIncludeReddit();
     const { t } = useTranslation();
     return (
         <SettingRow
+            requires={requires}
             title={t("settings.reddit.title")}
             description={t("settings.reddit.desc")}
         >
@@ -501,11 +787,12 @@ function RedditRow() {
     );
 }
 
-function XRow() {
+function XRow({ requires }: { requires: string | null }) {
     const value = useIncludeX();
     const { t } = useTranslation();
     return (
         <SettingRow
+            requires={requires}
             title={t("settings.x.title")}
             description={t("settings.x.desc")}
         >
@@ -518,11 +805,12 @@ function XRow() {
     );
 }
 
-function PornhubRow() {
+function PornhubRow({ requires }: { requires: string | null }) {
     const value = useIncludePornhub();
     const { t } = useTranslation();
     return (
         <SettingRow
+            requires={requires}
             title={t("settings.pornhub.title")}
             description={t("settings.pornhub.desc")}
         >
@@ -548,6 +836,7 @@ function BingeServerRow() {
 
     return (
         <SettingRow
+            layout="stacked"
             title={t("settings.server_url.title")}
             description={t("settings.server_url.desc")}
         >
@@ -565,7 +854,15 @@ function BingeServerRow() {
                     autoCorrect="off"
                     placeholder="http://localhost:7878"
                 />
-                <BingeServerHealthDot url={stored} />
+                {/* Only once somebody has actually asked for a daemon.
+                    Otherwise a fresh install showed a red fault dot
+                    beside the very card explaining that binge-server is
+                    optional, which is the thing this was meant to stop.
+                    Read at render from the same source as the card, so
+                    the two always agree. */}
+                {hasChosenBingeServer() && (
+                    <BingeServerHealthDot url={stored} />
+                )}
             </div>
         </SettingRow>
     );
@@ -897,6 +1194,32 @@ function BingeServerConfigCard() {
                         {t("status.checking")}
                     </span>
                 </div>
+            </div>
+        );
+    }
+
+    if (health === null && !hasChosenBingeServer()) {
+        // Nobody has asked for a daemon here. Reporting it as
+        // unreachable, with a red dot, made an optional add-on look
+        // like a broken required component on every fresh install: the
+        // majority of people want the reel and their own library and
+        // never wanted Reddit at all. Say what it would add, and
+        // otherwise stay out of the way.
+        return (
+            <div className="binge-settings-card">
+                <div className="binge-settings-card-header">
+                    <h3 className="binge-settings-card-title">
+                        binge-server (optional)
+                    </h3>
+                </div>
+                <p className="binge-settings-card-description">
+                    The reel, your own library's stories, discovery and the
+                    performer pages all work without it. Add binge-server only
+                    if you want Reddit, X and PornHub posts in your stories row
+                    as well, and the button to save one into your library. Use
+                    Install binge-server above, or point binge at one you
+                    already run.
+                </p>
             </div>
         );
     }
@@ -1275,6 +1598,7 @@ function ForageUrlRow() {
 
     return (
         <SettingRow
+            layout="stacked"
             title={t("settings.forage_url.title")}
             description={t("settings.forage_url.desc")}
         >
@@ -1422,20 +1746,106 @@ function DebugRow() {
 function SettingRow({
     title,
     description,
+    layout = "inline",
+    requires = null,
     children,
 }: {
     title: string;
     description: string;
+    // "stacked" puts the control on its own line under the text.
+    //
+    // The inline layout gives the control whatever width it asks for
+    // and the text whatever is left. That is fine for a switch and a
+    // disaster for a text field: .binge-settings-input asks for 16rem,
+    // a Reset button sits beside it, and at 430px, which is the width
+    // binge is mostly used at, roughly forty pixels were left for the
+    // title. "Gallery folders to ignore" came out one word per line,
+    // over four lines, above forty more lines of description set one
+    // word wide. Four rows did this and between them they were about a
+    // quarter of the page's height.
+    layout?: "inline" | "stacked";
+    // Why this setting cannot do anything yet, if it cannot. Shown as a
+    // quiet badge; the control stays live so it can be set up in
+    // advance.
+    requires?: string | null;
     children: ReactNode;
 }) {
+    const query = useContext(SettingsFilterContext);
+    const [expanded, setExpanded] = useState(false);
+    const { t } = useTranslation();
+
+    if (!matchesSettingQuery(title + " " + description, query)) return null;
+
+    // Long descriptions fold away. Not deleted: several of them are the
+    // only place a non-obvious behaviour is written down, and the ones
+    // that read as over-explained on the tenth visit are exactly the
+    // ones that are load-bearing on the first. Folded, the page is a
+    // list of settings again; unfolded, nothing has been lost.
+    //
+    // While filtering, everything is open, so a match inside a folded
+    // description is not hidden by the fold that the search caused.
+    const foldable = isLongDescription(description);
+    const open = expanded || query.trim() !== "";
+
     return (
-        <div className="binge-settings-row">
+        <div
+            className={
+                "binge-settings-row" +
+                (layout === "stacked" ? " is-stacked" : "") +
+                (requires ? " is-unmet" : "")
+            }
+        >
             <div className="binge-settings-row-text">
-                <h3 className="binge-settings-row-title">{title}</h3>
-                <p className="binge-settings-row-description">{description}</p>
+                <h3 className="binge-settings-row-title">
+                    {title}
+                    {requires && (
+                        <span className="binge-settings-row-badge">
+                            {requires}
+                        </span>
+                    )}
+                </h3>
+                <p
+                    className={
+                        "binge-settings-row-description" +
+                        (foldable && !open ? " is-folded" : "")
+                    }
+                >
+                    {description}
+                </p>
+                {foldable && query.trim() === "" && (
+                    <button
+                        type="button"
+                        className="binge-settings-row-more"
+                        onClick={() => setExpanded((v) => !v)}
+                        aria-expanded={expanded}
+                    >
+                        {expanded
+                            ? t("settings.show_less")
+                            : t("settings.show_more")}
+                    </button>
+                )}
             </div>
             <div className="binge-settings-row-control">{children}</div>
         </div>
+    );
+}
+
+function SearchIcon() {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            aria-hidden="true"
+        >
+            <circle cx="11" cy="11" r="7" />
+            <path d="M20 20l-3.2-3.2" />
+        </svg>
     );
 }
 

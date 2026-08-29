@@ -128,9 +128,15 @@ export async function fetchSceneTagsAndRating(
         }`,
         { id: sceneId },
     );
+    // Fail closed. Every caller feeds this straight into a whole-array
+    // tag write, so treating a missing scene as one with no tags would
+    // write that emptiness back as the truth and strip the entity.
+    if (!resp.findScene) {
+        throw new Error(`scene ${sceneId} not found`);
+    }
     return {
-        tags: resp.findScene?.tags ?? [],
-        rating100: resp.findScene?.rating100 ?? null,
+        tags: resp.findScene.tags ?? [],
+        rating100: resp.findScene.rating100 ?? null,
     };
 }
 
@@ -153,8 +159,12 @@ export async function fetchPerformerTagsAndRating(
         }`,
         { id: performerId },
     );
+    // Same reasoning as the scene loader above.
+    if (!resp.findPerformer) {
+        throw new Error(`performer ${performerId} not found`);
+    }
     return {
-        tags: resp.findPerformer?.tags ?? [],
-        rating100: resp.findPerformer?.rating100 ?? null,
+        tags: resp.findPerformer.tags ?? [],
+        rating100: resp.findPerformer.rating100 ?? null,
     };
 }

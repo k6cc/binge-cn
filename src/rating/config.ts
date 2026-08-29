@@ -37,12 +37,41 @@ interface ConfigQueryResponse {
     errors?: { message: string }[];
 }
 
+// A rejecting fetch used to be cached in both the promise and the
+// parsed map and never cleared - Stash restarting for one second meant
+// "couldn't load rating config" on every scene and every performer
+// until a full page reload, because invalidateRatingConfig is called by
+// nothing but the tests.
+//
+// Which is why this now catches. An HTTP 500 was already handled by the
+// !resp.ok branch, but a network-level rejection - Stash restarting for
+// one second, a dropped connection - propagated out of here and was
+// stored, rejected, in configFetchPromise and again in parsedCache.
+// From that moment every open of the rating modal, scene AND performer,
+// rendered "couldn't load rating config" until the page was reloaded.
+// A one-second outage while the tab sat idle cost the rest of the
+// session.
 async function fetchPluginConfig(): Promise<RawPluginConfig | null> {
+    try {
+        return await fetchPluginConfigInner();
+    } catch (err) {
+        console.warn("[binge] rating config fetch failed:", err);
+        return null;
+    }
+}
+
+async function fetchPluginConfigInner(): Promise<RawPluginConfig | null> {
     const resp = await fetch(STASH_GRAPHQL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-            query: `query { configuration { plugins } }`,
+            // One plugin's config, not every plugin's. Stash
+            // serialises the whole set otherwise - 13 KB on a real box
+            // to read one field. PLUGIN_ID is a module constant, so
+            // nothing user-supplied is interpolated here.
+            query:
+                `query { configuration { plugins(include: ` +
+                `["${PLUGIN_ID}"]) } }`,
         }),
     });
     if (!resp.ok) return null;
@@ -175,7 +204,7 @@ const PERFORMER_DEFAULT_CRITERIA: Criterion[] = [
     },
     {
         id: "body",
-        name: "Body",
+        name: "Body Overall",
         groupId: "physical",
         weight: 1,
         enabled: true,
@@ -199,7 +228,7 @@ const PERFORMER_DEFAULT_CRITERIA: Criterion[] = [
     },
     {
         id: "energy",
-        name: "Energy",
+        name: "Energy & Presence",
         groupId: "performance",
         weight: 1,
         enabled: true,

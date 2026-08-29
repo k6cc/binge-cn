@@ -48,7 +48,7 @@ const WEB_INCOMPATIBLE_CODECS = new Set([
 ]);
 
 function getPrimaryExtension(scene: BingeScene): string {
-    const path = scene.files[0]?.path ?? "";
+    const path = scene.files?.[0]?.path ?? "";
     const lastDot = path.lastIndexOf(".");
     if (lastDot < 0) return "";
     return path.slice(lastDot).toLowerCase();
@@ -59,10 +59,13 @@ function getPrimaryExtension(scene: BingeScene): string {
 // HTTP Range 请求，而 Stash 的 live transcode 不稳定支持 Range → 快进会
 // 从头播放。播放器需要用 ?start=N 参数重建 src 来实现"硬 seek"。
 export function isWebCompatible(scene: BingeScene): boolean {
+    // files 缺失（老缓存数据/测试夹具）时无从判断容器后缀，回退到
+    // 需求2 之前的旧行为：不拦截 direct stream。
+    if (!scene.files || scene.files.length === 0) return true;
     if (!WEB_COMPATIBLE_EXTS.has(getPrimaryExtension(scene))) return false;
     // web 容器 + 浏览器不可解编码（.mp4 里的 mpeg4/xvid 等）→ 需转码。
     // video_codec 缺失（老缓存数据）时只按后缀判断，保持旧行为。
-    const codec = scene.files[0]?.video_codec;
+    const codec = scene.files?.[0]?.video_codec;
     if (codec && WEB_INCOMPATIBLE_CODECS.has(codec.toLowerCase())) {
         return false;
     }
@@ -153,13 +156,25 @@ function matches(
     switch (pref) {
         case "direct":
             return l.includes("direct");
+        // The direct exclusion has to cover the mime clause too.
+        //
+        // Stash lists the direct entry first, and for an .mp4 source its
+        // mime_type IS video/mp4 - so `|| m === "video/mp4"` matched the
+        // direct stream and Array.find returned it before ever reaching
+        // the transcode entry. The setting exists for exactly the person
+        // whose direct stream will not decode (HEVC in MP4), and it
+        // handed them the same undecodable stream while the settings
+        // panel said it would force a transcode. Same hole for webm.
         case "mp4":
             return (
-                (l.includes("mp4") && !l.includes("direct")) ||
-                m === "video/mp4"
+                !l.includes("direct") &&
+                (l.includes("mp4") || m === "video/mp4")
             );
         case "webm":
-            return l.includes("webm") || m === "video/webm";
+            return (
+                !l.includes("direct") &&
+                (l.includes("webm") || m === "video/webm")
+            );
         case "hls":
             return (
                 l.includes("hls") ||

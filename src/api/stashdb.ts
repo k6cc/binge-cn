@@ -116,6 +116,35 @@ const FIND_LINKED_PERFORMERS = /* GraphQL */ `
     }
 `;
 
+// Same list, memoised for a minute, for callers that need it to answer
+// a tap rather than to build a feed.
+//
+// getLinkedPerformers is a per_page:-1 sweep of every performer in the
+// library. Home runs it once and holds the result; a tap handler that
+// called it directly would run the whole sweep again for every name
+// pressed, which on a library of this size is seconds of delay before
+// anything opens. A minute is long enough that a run of taps costs one
+// query and short enough that following someone and immediately
+// tapping their name lands on the local profile that now exists.
+let linkedMemo: { at: number; value: Promise<LinkedPerformer[]> } | null = null;
+const LINKED_MEMO_MS = 60_000;
+
+export function getLinkedPerformersMemo(): Promise<LinkedPerformer[]> {
+    const now = Date.now();
+    if (linkedMemo && now - linkedMemo.at < LINKED_MEMO_MS) {
+        return linkedMemo.value;
+    }
+    const value = getLinkedPerformers();
+    linkedMemo = { at: now, value };
+    // A rejection must not be what the next sixty seconds of taps get
+    // handed. Clearing here leaves the failure to the caller and lets
+    // the next tap try again.
+    value.catch(() => {
+        if (linkedMemo?.value === value) linkedMemo = null;
+    });
+    return value;
+}
+
 export async function getLinkedPerformers(): Promise<LinkedPerformer[]> {
     const data = await gql<{
         findPerformers: {
@@ -175,11 +204,19 @@ export function invalidateOwnedStashDBSceneIds(): void {
 
 export function getOwnedStashDBSceneIds(): Promise<Set<string>> {
     if (!ownedIdsPromise) {
-        ownedIdsPromise = fetchOwnedStashDBSceneIds().catch((err) => {
-            // Never cache a failure: the next caller should retry.
-            ownedIdsPromise = null;
-            throw err;
-        });
+        const p: Promise<Set<string>> = fetchOwnedStashDBSceneIds().catch(
+            (err) => {
+                // Never cache a failure: the next caller should retry.
+                // Only clear the slot if it still holds THIS promise -
+                // clearing unconditionally let a slow failure discard a
+                // newer in-flight fetch that had already replaced it,
+                // so one answer cost three runs of the most expensive
+                // query binge makes.
+                if (ownedIdsPromise === p) ownedIdsPromise = null;
+                throw err;
+            },
+        );
+        ownedIdsPromise = p;
     }
     return ownedIdsPromise;
 }
@@ -207,13 +244,13 @@ const PERFORMER_BATCH_SIZE = 100;
 const PAGE_SIZE = 100;
 const MAX_PAGES = 50;
 
-// Abort stashdb fetches after 10s. Without this, an unreachable
+// Abort stashdb fetches after 25s. Without a deadline, an unreachable
 // stashdb.org hangs the feed/stories load for the browser's own
 // timeout (60-300s), which is what makes binge's home take minutes
-// to appear on networks where stashdb is blocked. 10s is generous
-// for a warm request (typical <1s) and short enough that the
-// degraded path lights up fast.
-const STASHDB_TIMEOUT_MS = 10_000;
+// to appear on networks where stashdb is blocked. 25s is well past
+// its slowest observed answer and well short of a user giving up —
+// 之前的 10s 过紧，超时被上层当作"站点故障"缓存成 12 小时判定。
+const STASHDB_TIMEOUT_MS = 25_000;
 
 async function postStashDB<T>(
     apiKey: string,
@@ -231,6 +268,13 @@ async function postStashDB<T>(
                 ApiKey: apiKey,
             },
             body: JSON.stringify({ query, variables }),
+            // fetch strips Authorization and Cookie across an origin
+            // change but re-sends a custom header, and the key rides on
+            // one. A 30x from stashdb.org - a CDN move, an operator
+            // slip, a hijacked record - would deliver the user's StashDB
+            // key to wherever it pointed. There is no legitimate
+            // redirect on this endpoint.
+            redirect: "error",
             signal: ctrl.signal,
         });
         if (!res.ok) {
@@ -252,7 +296,17 @@ async function postStashDB<T>(
                 "[binge] stashdb graphql errors",
                 body.errors.map((e) => e.message).join("; "),
             );
-            return null;
+            // But keep the data when there is any.
+            //
+            // GraphQL partial success is ordinary, and the batched cast
+            // document asks for twenty scenes in one request under
+            // aliases. Discarding the whole response because one alias
+            // errored threw away the nineteen good answers beside it -
+            // and since nothing was then cached, the same request was
+            // reissued and rediscarded on every feed load, forever. One
+            // bad stash_id in the library was enough. Per-alias nulls
+            // are already handled downstream.
+            if (body.data == null) return null;
         }
         return body.data ?? null;
     } catch (err) {
@@ -366,11 +420,17 @@ function shapeScene(s: RawStashDBScene): StashDBScene {
 
 // Fetch new StashDB scenes for the given performer batch, dated after
 // `sinceIsoDate` (YYYY-MM-DD). Paginated. Returns flat list.
+// null means the fetch failed, [] means StashDB genuinely has nothing
+// new. The caller writes this into a 12-hour cache, so confusing the two
+// pins an outage in place: one 502, or one answer slower than the 25s
+// abort, and the stories row reports no new releases for half a day.
+// The cache reads [] back as a valid hit, so reloading does not help
+// either - only the explicit refresh button clears it.
 async function fetchStashDBScenesBatch(
     apiKey: string,
     performerStashIds: string[],
     sinceIsoDate: string,
-): Promise<StashDBScene[]> {
+): Promise<StashDBScene[] | null> {
     const out: StashDBScene[] = [];
     let page = 1;
     while (page <= MAX_PAGES) {
@@ -389,7 +449,13 @@ async function fetchStashDBScenesBatch(
                 per_page: PAGE_SIZE,
             },
         });
-        if (!data?.queryScenes?.scenes) break;
+        // Distinguishes "no more pages" from "we never got an answer".
+        // postStashDB returns null for a non-2xx, a GraphQL error, a
+        // parse failure or the abort, and this used to break out of the
+        // loop and hand back whatever it had - which for a failure on
+        // page one is an empty list.
+        if (data == null) return null;
+        if (!data.queryScenes?.scenes) break;
         for (const s of data.queryScenes.scenes) out.push(shapeScene(s));
         if (data.queryScenes.scenes.length < PAGE_SIZE) break;
         page++;
@@ -673,13 +739,22 @@ export async function getStashDBScene(
             site: u.site?.name ?? "",
         })),
         studio: s.studio ? { stashId: s.studio.id, name: s.studio.name } : null,
-        performers: (s.performers ?? []).map((pa) => ({
-            stashId: pa.performer.id,
-            name: pa.performer.name,
-            gender: pa.performer.gender,
-            image: pa.performer.images?.[0]?.url ?? null,
-            as: pa.as,
-        })),
+        // Filtered, like shapeScene and getMatchedScenePerformers. This
+        // was the third copy of the same shape and the only one still
+        // unguarded: StashDB returns appearances orphaned by an edit,
+        // where the join row exists with no performer on it. The throw
+        // is caught by the Add Scene modal, which then proceeds with a
+        // null detail and silently creates a bare stub in Stash - no
+        // performers, no studio, no date, no urls.
+        performers: (s.performers ?? [])
+            .filter((pa) => pa && pa.performer)
+            .map((pa) => ({
+                stashId: pa.performer.id,
+                name: pa.performer.name,
+                gender: pa.performer.gender,
+                image: pa.performer.images?.[0]?.url ?? null,
+                as: pa.as,
+            })),
         tags: (s.tags ?? []).map((t) => ({
             stashId: t.id,
             name: t.name,
@@ -915,11 +990,13 @@ export async function getTrendingStashDBScenes(
     return data.queryScenes.scenes.map(shapeScene);
 }
 
+// null when any batch failed, so the caller can decline to cache a
+// partial or empty answer as if it were the whole truth.
 export async function getNewStashDBScenesForPerformers(
     performerStashIds: string[],
     sinceIsoDate: string,
     apiKey: string,
-): Promise<StashDBScene[]> {
+): Promise<StashDBScene[] | null> {
     if (performerStashIds.length === 0) return [];
     const merged: StashDBScene[] = [];
     for (let i = 0; i < performerStashIds.length; i += PERFORMER_BATCH_SIZE) {
@@ -929,6 +1006,9 @@ export async function getNewStashDBScenesForPerformers(
             batch,
             sinceIsoDate,
         );
+        // One failed batch makes the whole answer partial. Caching a
+        // partial as complete is what pins an outage in place.
+        if (scenes == null) return null;
         merged.push(...scenes);
     }
     // Dedupe by id (a scene with two of our performers shows up in two
@@ -967,6 +1047,48 @@ export function readStashDBCache(sinceIsoDate: string): StashDBScene[] | null {
         // something it iterates, so the stories row dies with a
         // TypeError until the cache happens to be invalidated.
         if (!Array.isArray(entry.scenes)) return null;
+        // The elements too, not just the array. The comment above is
+        // right about the danger and stops one level short: a scene
+        // whose performers field is not iterable throws in the story
+        // builder exactly the same way, and the row then stays broken
+        // for the whole TTL.
+        if (
+            !entry.scenes.every(
+                (sc) =>
+                    !!sc &&
+                    typeof sc === "object" &&
+                    typeof (sc as { id?: unknown }).id === "string" &&
+                    (sc.performers === undefined ||
+                        (Array.isArray(sc.performers) &&
+                            // And the elements of THAT array. Checking
+                            // only the array left performers: [null]
+                            // valid, which throws in the story builder
+                            // the moment it reads sp.id - the same
+                            // failure one level deeper, and it stayed
+                            // broken for the whole TTL.
+                            // `id`, which is the field the story
+                            // builder reads and shapeScene writes.
+                            // Asking for `stashId` - a field this type
+                            // does not have - meant EVERY cached entry
+                            // holding a scene with a performer failed
+                            // validation and was thrown away, so the
+                            // 12-hour cache never hit once: a full
+                            // batched StashDB fetch on every mount,
+                            // settings toggle and lookback change. The
+                            // tests could not see it because every
+                            // fixture is `[{ id: "a" }]` with no
+                            // performers, which short-circuits above.
+                            sc.performers.every(
+                                (sp) =>
+                                    !!sp &&
+                                    typeof sp === "object" &&
+                                    typeof (sp as { id?: unknown }).id ===
+                                        "string",
+                            ))),
+            )
+        ) {
+            return null;
+        }
         const age = Date.now() - entry.fetchedAt;
         // Negative age means the entry claims to be from the future,
         // which happens when the clock moves backwards. Treat it as
@@ -1028,6 +1150,20 @@ export function invalidateStashDBCache(): void {
     // left it in place would keep hiding scenes the user has since
     // added, or keep offering ones they have.
     invalidateOwnedStashDBSceneIds();
+    // And the matched-cast cache.
+    //
+    // It has no TTL, and an empty result is recorded so the scene is not
+    // asked for again - which is right for a scene StashDB has really
+    // dropped, and permanent for one that merely failed to resolve
+    // during a reindex or a merge. Nothing anywhere cleared this key, so
+    // a card fell back to its studio name forever and no user action
+    // short of clearing site data could recover it. Refresh is exactly
+    // the action that should.
+    try {
+        localStorage.removeItem(SCENE_PERFORMERS_CACHE_KEY);
+    } catch {
+        /* ignore */
+    }
 }
 
 // ── Performers for already-matched scenes ───────────────────────────
@@ -1063,6 +1199,33 @@ const SCENE_PERFORMERS_MAX_FETCH = 1500;
 
 type PerformerCache = Record<string, MatchedScenePerformer[]>;
 
+// Entries as well as the container.
+//
+// Checking only the shape of the top level and casting the values let a
+// single bad entry, from a co-resident plugin or a hand edit, throw
+// inside the feed builder. That error is caught and shown as a failed
+// Home feed, and because this cache had no version key, no TTL and no
+// invalidator anywhere, reloading read the same value back: the feed
+// stayed broken until the user cleared site data by hand. A cache is
+// only worth having if a bad entry costs a refetch rather than the
+// feature.
+function isPerformerList(v: unknown): v is MatchedScenePerformer[] {
+    return (
+        Array.isArray(v) &&
+        v.every(
+            (p) =>
+                !!p &&
+                typeof p === "object" &&
+                // stashId, not id. MatchedScenePerformer has no `id`
+                // field, so checking for one rejected every real entry
+                // and made the cache write-only: the batches it exists
+                // to avoid ran on every single load.
+                typeof (p as { stashId?: unknown }).stashId === "string" &&
+                typeof (p as { name?: unknown }).name === "string",
+        )
+    );
+}
+
 function readScenePerformerCache(): PerformerCache {
     try {
         const raw = localStorage.getItem(SCENE_PERFORMERS_CACHE_KEY);
@@ -1070,18 +1233,55 @@ function readScenePerformerCache(): PerformerCache {
         const parsed: unknown = JSON.parse(raw);
         if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
             return {};
-        return parsed as PerformerCache;
+        const out: PerformerCache = {};
+        for (const [id, value] of Object.entries(parsed)) {
+            if (isPerformerList(value)) out[id] = value;
+        }
+        return out;
     } catch {
         return {};
     }
 }
 
+// Cast so the cache cannot grow until the origin's storage quota is
+// gone. Up to SCENE_PERFORMERS_MAX_FETCH entries could be added per
+// feed load with nothing ever removed, and once the quota filled, every
+// other setItem on Stash's origin began failing: this plugin's other
+// caches, its interaction ring, and Stash's own keys. All of those
+// swallow the error, so the symptom was several unrelated features
+// quietly ceasing to persist anything.
+const SCENE_PERFORMERS_CACHE_MAX = 4000;
+
 function writeScenePerformerCache(cache: PerformerCache): void {
     try {
-        localStorage.setItem(SCENE_PERFORMERS_CACHE_KEY, JSON.stringify(cache));
+        let toStore = cache;
+        const ids = Object.keys(cache);
+        if (ids.length > SCENE_PERFORMERS_CACHE_MAX) {
+            // Object key order is insertion order for string keys, so
+            // the oldest entries are at the front. Nothing here records
+            // access times, and inventing one to evict more cleverly is
+            // not worth a localStorage cache: keeping the most recent
+            // window is enough.
+            toStore = {};
+            for (const id of ids.slice(
+                ids.length - SCENE_PERFORMERS_CACHE_MAX,
+            )) {
+                toStore[id] = cache[id];
+            }
+        }
+        localStorage.setItem(
+            SCENE_PERFORMERS_CACHE_KEY,
+            JSON.stringify(toStore),
+        );
     } catch {
-        // Quota. The lookups still worked for this session; they will
-        // just be repeated next time.
+        // Quota, despite the cap. Drop the cache rather than leaving a
+        // full one that can never be written to again; the lookups
+        // still worked for this session.
+        try {
+            localStorage.removeItem(SCENE_PERFORMERS_CACHE_KEY);
+        } catch {
+            /* nothing further to try */
+        }
     }
 }
 
@@ -1111,12 +1311,18 @@ export async function getMatchedScenePerformers(
         chunks.push(toFetch.slice(i, i + SCENE_PERFORMERS_BATCH));
     }
     let changed = false;
-    // Together rather than one after another. The browser caps how many
-    // reach StashDB at once anyway, and sequentially this was the
-    // difference between a fraction of a second and several.
-    await Promise.all(
-        chunks.map(async (chunk) => {
-            const query = `query BatchScenePerformers {
+    // A few at a time rather than all of them.
+    //
+    // This was Promise.all over every chunk, and the comment claimed the
+    // browser caps how many reach StashDB at once - over HTTP/2 to one
+    // origin the cap is around a hundred streams, so it did not bind
+    // here. A cold cache on a large library meant 1500 ids in 75 chunks
+    // hitting a shared community service in one burst, from a browser.
+    // Throttled answers come back as nulls, nothing is cached, and the
+    // identical burst repeats on the next load.
+    const CHUNK_CONCURRENCY = 5;
+    const runChunk = async (chunk: string[]) => {
+        const query = `query BatchScenePerformers {
 ${chunk
     .map(
         (id, n) => `  s${n}: findScene(id: "${id}") {
@@ -1125,39 +1331,63 @@ ${chunk
     )
     .join("\n")}
 }`;
-            const data = await postStashDB<
-                Record<
-                    string,
-                    {
-                        performers: {
-                            performer: {
-                                id: string;
-                                name: string;
-                                gender: string | null;
-                                images: { url: string }[];
-                            };
-                        }[];
-                    } | null
-                >
-            >(apiKey, query, {});
-            // An outage leaves whatever is cached in place and this
-            // chunk unanswered; the next load retries it.
-            if (!data) return;
-            chunk.forEach((id, n) => {
-                const scene = data[`s${n}`];
-                // A null scene means StashDB no longer has it. Cached as an
-                // empty list so it is not asked for again every load.
-                const performers = (scene?.performers ?? []).map((pa) => ({
+        const data = await postStashDB<
+            Record<
+                string,
+                {
+                    performers: {
+                        performer: {
+                            id: string;
+                            name: string;
+                            gender: string | null;
+                            images: { url: string }[];
+                        };
+                    }[];
+                } | null
+            >
+        >(apiKey, query, {});
+        // An outage leaves whatever is cached in place and this
+        // chunk unanswered; the next load retries it.
+        if (!data) return;
+        chunk.forEach((id, n) => {
+            const scene = data[`s${n}`];
+            // A null scene means StashDB no longer has it. Cached as an
+            // empty list so it is not asked for again every load.
+            // Filtered the way shapeScene does a few hundred lines
+            // up, and for the reason its comment gives: StashDB
+            // returns scenes whose performer appearances have been
+            // orphaned by an edit, so the join row exists with no
+            // performer on it. Unguarded, one such record threw
+            // inside this Promise.all, which is on the Home feed's
+            // critical path with no catch of its own - the whole
+            // feed showed an error, and because the throw happened
+            // before the cache write, every reload fetched the same
+            // record and threw again.
+            const performers = (scene?.performers ?? [])
+                .filter((pa) => pa && pa.performer)
+                .map((pa) => ({
                     stashId: pa.performer.id,
                     name: pa.performer.name,
                     gender: pa.performer.gender,
                     image: pa.performer.images?.[0]?.url ?? null,
                 }));
-                cache[id] = performers;
-                out.set(id, performers);
-                changed = true;
-            });
-        }),
+            cache[id] = performers;
+            out.set(id, performers);
+            changed = true;
+        });
+    };
+    let nextChunk = 0;
+    await Promise.all(
+        Array.from(
+            { length: Math.min(CHUNK_CONCURRENCY, chunks.length) },
+            async () => {
+                for (;;) {
+                    const i = nextChunk++;
+                    if (i >= chunks.length) return;
+                    await runChunk(chunks[i]);
+                }
+            },
+        ),
     );
     if (changed) writeScenePerformerCache(cache);
     return out;

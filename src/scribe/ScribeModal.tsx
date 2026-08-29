@@ -31,7 +31,7 @@ interface LoadedState {
 
 interface Generated {
     review: string;
-    scores: Record<string, number>;
+    scores: Record<string, number | null>;
 }
 
 function buildFreshSystem(
@@ -77,7 +77,10 @@ export function ScribeModal({
     const [busy, setBusy] = useState(false);
     const [busyMsg, setBusyMsg] = useState("");
     const [reviewText, setReviewText] = useState("");
-    const [scores, setScores] = useState<Record<string, number>>({});
+    // null is a score the user cleared, which is different from a
+    // criterion they never touched: the save strips the first and
+    // leaves the second alone.
+    const [scores, setScores] = useState<Record<string, number | null>>({});
     const [editMode, setEditMode] = useState(false);
     const transcriptRef = useRef<HTMLDivElement>(null);
 
@@ -120,6 +123,13 @@ export function ScribeModal({
                         setScores(saved.generated.scores);
                         setPhase("result");
                     } else {
+                        // Seeded here too. This is the one resume path
+                        // that was missed: an interview left in progress
+                        // came back with no scores loaded, so every
+                        // rated criterion rendered as unrated, and the
+                        // clear button on such a row would have written
+                        // that emptiness back as a deliberate clear.
+                        setScores(subject.initialScores);
                         setPhase("interview");
                     }
                 } else if (subject.existingReview) {
@@ -128,6 +138,13 @@ export function ScribeModal({
                     setScores(subject.initialScores);
                     setPhase("result");
                 } else {
+                    // Seeded even here, where no review exists yet: the
+                    // subject may already be rated, and generating
+                    // merges over whatever is in this state. Leaving it
+                    // empty meant every criterion the model did not
+                    // mention showed as unrated, one click from being
+                    // written back as a deliberate clear.
+                    setScores(subject.initialScores);
                     // Fresh open: show intro screen with LLM-vs-manual
                     // choice rather than auto-firing the LLM. Keeps
                     // the modal usable when Ollama is offline.
@@ -218,7 +235,15 @@ export function ScribeModal({
         if (!loaded) return;
         setEditMode(true);
         setReviewText("");
-        setScores({});
+        // Also seeded on the interview path, below, so generating has
+        // the subject's existing ratings to merge over. Without that
+        // the merge base was empty and every criterion the model did
+        // not mention showed as unrated, one click away from being
+        // written as a deliberate clear.
+        // Seeded from what the subject already has, not blank. Starting
+        // empty meant the sliders showed nothing for criteria that were
+        // rated, and the save then wrote that emptiness back.
+        setScores(loaded.subject.initialScores);
         setPhase("result");
     }, [loaded]);
 
@@ -273,10 +298,21 @@ export function ScribeModal({
             const reply = await callLLM(genMessages, loaded.config);
             const parsed = parseGenerated(reply, loaded.subject.criteria);
             setReviewText(parsed.review);
-            setScores(parsed.scores);
+            // Merged over what is already there, not substituted for it.
+            // parseGenerated only fills criteria whose names the model
+            // echoed back, so replacing wholesale silently dropped every
+            // score it happened not to mention.
+            // Over the scores as they stand, not over the ones the
+            // subject started with: merging the originals back in
+            // resurrected any score the user had deliberately cleared.
+            const merged: Record<string, number | null> = {
+                ...scores,
+                ...parsed.scores,
+            };
+            setScores(merged);
             persist(messages, {
                 review: parsed.review,
-                scores: parsed.scores,
+                scores: merged,
             });
             setPhase("result");
         } catch (e) {
@@ -285,7 +321,7 @@ export function ScribeModal({
             setBusy(false);
             setBusyMsg("");
         }
-    }, [loaded, busy, canGenerate, messages, persist]);
+    }, [loaded, busy, canGenerate, messages, persist, scores]);
 
     const backToInterview = useCallback(() => {
         if (!loaded) return;
@@ -301,7 +337,9 @@ export function ScribeModal({
             const sys = buildFreshSystem(loaded, tone);
             setMessages([sys]);
             setReviewText("");
-            setScores({});
+            // Back to what the subject actually has, not to blank: the
+            // ratings are not part of the draft being discarded.
+            setScores(loaded.subject.initialScores);
             setPhase("interview");
             void runKickoff(sys);
             return;
@@ -321,7 +359,7 @@ export function ScribeModal({
         clearSession(loaded.subject.sessionKey);
         setEditMode(false);
         setReviewText("");
-        setScores({});
+        setScores(loaded.subject.initialScores);
         // Drop back to the intro screen so the user can pick LLM
         // vs manual fresh — same choice they had on first open.
         setMessages([]);
@@ -561,13 +599,14 @@ export function ScribeModal({
                                         criterion={c}
                                         value={scores[c.id] ?? null}
                                         onChange={(v) =>
-                                            setScores((prev) => {
-                                                const next = { ...prev };
-                                                if (v == null)
-                                                    delete next[c.id];
-                                                else next[c.id] = v;
-                                                return next;
-                                            })
+                                            setScores((prev) => ({
+                                                ...prev,
+                                                // null, not deleted: the
+                                                // save cannot tell a
+                                                // removed key from one
+                                                // that was never set.
+                                                [c.id]: v,
+                                            }))
                                         }
                                         t={t}
                                     />

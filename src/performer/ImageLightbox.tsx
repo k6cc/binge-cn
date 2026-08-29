@@ -36,9 +36,10 @@ export function ImageLightbox({
         }
     }, [startIndex]);
 
-    // The handler steps the index itself rather than calling goPrev/goNext,
+    // The handler steps the track itself rather than calling goPrev/goNext,
     // which are rebuilt every render and would re-bind the listener on each
-    // one. Functional updates mean the effect only needs the image count.
+    // one. stepRef 每次渲染都指向最新 step（含最新 images.length 上
+    // 限），不存在上游"翻页落定后箭头键短暂失灵"的时序窗口。
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
             if (e.key === "Escape") onClose();

@@ -56,19 +56,122 @@
         );
     }
 
+    // Both callbacks below run inside Stash's own render, and Stash's
+    // PatchFunction does not wrap them. MainNavBar.MenuItems renders on
+    // every page and sits under App.tsx's TOP-LEVEL error boundary, so
+    // anything thrown here replaces the whole Stash UI - navbar, routes
+    // and Settings - with the error screen, on every page and every
+    // reload. There is then no in-app way back: the setting that
+    // disables plugin customisations lives in the Settings that just
+    // disappeared, so recovery means editing Stash's config by hand or
+    // deleting the plugin directory.
+    //
+    // A binge nav button failing to appear is a small problem. Stash
+    // becoming unusable because of it is not, so every failure here
+    // degrades to the untouched arguments.
     PluginApi.patch.before('CheckboxGroup', function (props) {
-        if (!props || props.groupId !== 'menu-items') { return [props]; }
-        return [Object.assign({}, props, {
-            items: props.items.concat([{ id: MENU_ITEM_ID, headingID: 'Binge' }])
-        })];
+        try {
+            if (!props || props.groupId !== 'menu-items') { return [props]; }
+            if (!Array.isArray(props.items)) { return [props]; }
+            return [Object.assign({}, props, {
+                items: props.items.concat([{ id: MENU_ITEM_ID, headingID: 'Binge' }])
+            })];
+        } catch (err) {
+            console.warn('[binge] menu-items patch failed:', err);
+            return [props];
+        }
     });
+
+    // Show the button on a fresh install, once.
+    //
+    // Stash only renders a plugin's nav button when the plugin's id is
+    // in interface.menuItems, and a new install never has it there, so
+    // binge installed to no visible effect anywhere in Stash. People
+    // reasonably concluded it had failed. "Not in the list" cannot tell
+    // a fresh install from someone who deliberately unticked us, so
+    // this seeds the list exactly once and records that it did in the
+    // plugin's own config; after that, whatever the user sets stands,
+    // including removing us again.
+    //
+    // Plain fetch rather than PluginApi.GQL: this runs at load, not in
+    // a render pass, and firing mutations from inside a patched
+    // component is how you get a render loop.
+    var forceNav = false;
+
+    function gql(query, variables) {
+        return fetch('/graphql', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: query, variables: variables || {} })
+        }).then(function (r) { return r.json(); }).then(function (body) {
+            if (body.errors && body.errors.length) {
+                throw new Error(body.errors[0].message);
+            }
+            return body.data;
+        });
+    }
+
+    function seedNavOnce() {
+        gql('query{configuration{interface{menuItems}plugins(include:["binge"])}}')
+            .then(function (data) {
+                var cfg = data.configuration;
+                var items = (cfg.interface && cfg.interface.menuItems) || [];
+                // Already visible: nothing to do.
+                if (items.indexOf(MENU_ITEM_ID) !== -1) { return null; }
+                var mine = (cfg.plugins && cfg.plugins[MENU_ITEM_ID]) || {};
+                // We have seeded before and we are not in the list, so
+                // the user took us out. That is a choice, not a fresh
+                // install, and it stands.
+                if (mine.navSeeded) { return null; }
+                return gql(
+                    'mutation($items:[String!]){configureInterface(input:{menuItems:$items}){menuItems}}',
+                    { items: items.concat([MENU_ITEM_ID]) }
+                ).then(function () {
+                    // MERGE. configurePlugin REPLACES the whole map
+                    // rather than patching it, so writing
+                    // { navSeeded: true } on its own deletes every
+                    // other key - including serverUrl, which is where
+                    // the daemon address lives. That would have
+                    // silently turned off Reddit, X and PornHub for
+                    // everyone who already had one configured, on
+                    // upgrade, with nothing to point at.
+                    return gql(
+                        'mutation($id:ID!,$input:Map!){configurePlugin(plugin_id:$id,input:$input)}',
+                        {
+                            id: MENU_ITEM_ID,
+                            input: Object.assign({}, mine, { navSeeded: true })
+                        }
+                    );
+                }).then(function () {
+                    forceNav = true;
+                });
+            })
+            .catch(function (err) {
+                // Never fatal. Worst case the button stays hidden and
+                // the README's manual step still works.
+                console.warn('[binge] nav seed failed:', err);
+            });
+    }
+
+    seedNavOnce();
 
     PluginApi.patch.instead('MainNavBar.MenuItems', function (props) {
         var next = arguments[arguments.length - 1];
-        var data = PluginApi.GQL.useConfigurationQuery().data;
-        var enabled = !!(data && data.configuration && data.configuration.interface &&
-            data.configuration.interface.menuItems &&
-            data.configuration.interface.menuItems.indexOf(MENU_ITEM_ID) !== -1);
-        return e(next, props, props.children, enabled ? e(BingeNavButton) : null);
+        try {
+            var data = PluginApi.GQL.useConfigurationQuery().data;
+            var enabled = !!(data && data.configuration && data.configuration.interface &&
+                data.configuration.interface.menuItems &&
+                data.configuration.interface.menuItems.indexOf(MENU_ITEM_ID) !== -1);
+            // forceNav covers the gap between seeding the list and
+            // Stash's cached configuration query catching up.
+            return e(
+                next, props, props.children,
+                (enabled || forceNav) ? e(BingeNavButton) : null
+            );
+        } catch (err) {
+            console.warn('[binge] nav patch failed:', err);
+            return e(next, props, props.children);
+        }
     });
 })();

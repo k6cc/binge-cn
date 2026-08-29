@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import type { PackFeedItem, SceneFeedItem } from "./useFeed";
 import { useTab } from "../tabs/TabContext";
@@ -40,6 +40,16 @@ export function PackDetailSheet({
         document.addEventListener("keydown", handler);
         return () => document.removeEventListener("keydown", handler);
     }, [onClose]);
+
+    // Paged, because every tile carries a background-image and the
+    // browser fetches all of them as soon as they are laid out. The
+    // card's own mosaic caps itself at nine for this reason; the sheet
+    // rendered the whole pack, so opening a 944-scene pack issued 944
+    // screenshot requests at once - which also starves the scene
+    // fetches the tap is about to make.
+    const PAGE = 60;
+    const [shownCount, setShownCount] = useState(PAGE);
+    const shown = pack.scenes.slice(0, shownCount);
 
     const handlePick = (scene: SceneFeedItem) => {
         // Bug 修复（需求1）：原先 setPinnedQueue 走 queue 路径，会按
@@ -89,7 +99,7 @@ export function PackDetailSheet({
                     </div>
                 </header>
                 <div className="binge-pack-sheet-grid">
-                    {pack.scenes.map((scene) => (
+                    {shown.map((scene) => (
                         <button
                             type="button"
                             key={scene.sceneId}
@@ -116,6 +126,17 @@ export function PackDetailSheet({
                         </button>
                     ))}
                 </div>
+                {shown.length < pack.scenes.length && (
+                    <button
+                        type="button"
+                        className="binge-pack-sheet-more"
+                        onClick={() => setShownCount((n) => n + PAGE)}
+                    >
+                        {t("action.show_more_left", {
+                            count: pack.scenes.length - shown.length,
+                        })}
+                    </button>
+                )}
             </div>
         </div>,
         document.body

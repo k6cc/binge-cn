@@ -239,13 +239,25 @@ const FIND_TAGS = /* GraphQL */ `
     }
 `;
 
-// Exact-match tag lookup by name. Used by favourites.ts to find ASR's
-// "Favourite ★" tag (or create it on first use).
+// Tag lookup by exact name.
+//
+// Stash compiles `modifier: EQUALS` to a SQL LIKE, so `%` and `_` in the
+// name are WILDCARDS and the compare is case-insensitive. This asked for
+// one row and returned `tags[0]` without checking it was the row it
+// asked for, which made the answer a near-miss whenever the name held
+// either character: "Golden_Hours 📁" resolved to the id of "Golden
+// Hours 📁". Every caller then acted on the wrong tag - and one of them
+// is tagDestroy, so deleting a collection destroyed a DIFFERENT
+// collection, stripping that tag from every scene, image, gallery and
+// performer carrying it, with no undo.
+//
+// So: ask for several rows and return only an exact match. The LIKE
+// still does the searching; this decides what counts as a hit.
 const FIND_TAG_BY_NAME = /* GraphQL */ `
     query FindTagByName($name: String!) {
         findTags(
             tag_filter: { name: { value: $name, modifier: EQUALS } }
-            filter: { per_page: 1 }
+            filter: { per_page: 25 }
         ) {
             tags {
                 id
@@ -272,7 +284,7 @@ export async function findTagByName(name: string): Promise<{
             }[];
         };
     }>(FIND_TAG_BY_NAME, { name });
-    return data.findTags.tags[0] ?? null;
+    return data.findTags.tags.find((t) => t.name === name) ?? null;
 }
 
 // Tags pulled from the user's most-recently-liked scenes. Powers the
@@ -916,11 +928,51 @@ export async function fetchSceneFileDetails(
 // Stash's findScenes filter doesn't accept an `ids` array cleanly,
 // so we parallelize single-fetches. For a typical performer grid
 // (~24-60 ids) that's well within reasonable network budgets.
+// A few at a time, and one failure does not lose the rest.
+//
+// This was Promise.all over the whole list, which is fine for the
+// performer grid it was sized for but not for the two callers that hand
+// over a whole feed: a Home window of 849 scenes issued 849 concurrent
+// POSTs, and because Promise.all rejects on the first failure, a single
+// 502 from a reverse proxy or a restarting Stash threw away every one of
+// them - the reel showed an error and the user's tap was simply lost.
+//
+// Still one request per id, which is the shape of the underlying query;
+// bounding the concurrency is what stops it being a thundering herd.
+const SCENE_FETCH_CONCURRENCY = 6;
+
 export async function findScenesByIds(ids: string[]): Promise<BingeScene[]> {
     if (ids.length === 0) return [];
-    const results = await Promise.all(ids.map((id) => findSceneById(id)));
-    const out: BingeScene[] = [];
-    for (const s of results) if (s != null) out.push(s);
+    const out: BingeScene[] = new Array<BingeScene>();
+    const resolved: (BingeScene | null)[] = new Array(ids.length).fill(null);
+    let next = 0;
+    async function worker(): Promise<void> {
+        for (;;) {
+            const i = next++;
+            if (i >= ids.length) return;
+            try {
+                resolved[i] = await findSceneById(ids[i]);
+            } catch {
+                // One scene that could not be read is one missing slide,
+                // not a failed navigation.
+                resolved[i] = null;
+            }
+        }
+    }
+    await Promise.all(
+        Array.from(
+            { length: Math.min(SCENE_FETCH_CONCURRENCY, ids.length) },
+            worker,
+        ),
+    );
+    // Order is preserved, but a scene that could not be read is dropped,
+    // which shifts every later index down by one. That was true of the
+    // previous implementation too, and callers that hand over a
+    // startIndex computed against the ORIGINAL id list can therefore
+    // land one or more scenes off. Not introduced here and not fixed
+    // here; written down because it is a live lead on the wrong-scene
+    // bug Reel.tsx already documents.
+    for (const sc of resolved) if (sc != null) out.push(sc);
     return out;
 }
 
@@ -943,6 +995,11 @@ export interface RecentSceneRow {
     // the frame. Null when Stash hasn't probed the file yet.
     sceneWidth: number | null;
     sceneHeight: number | null;
+    // Stash's o-counter for the scene. Carried so a card can show the
+    // real number on first paint: without it the heart started at zero
+    // on a scene that already had twelve, and the first tap read 1
+    // before snapping to 13.
+    sceneOCounter: number;
     // Scene-level tag list. Carried on every row (same scene → same
     // tags), so callers can dedupe down to one item per scene and read
     // tags off any row.
@@ -1018,6 +1075,7 @@ function buildFindRecentScenesQuery(): string {
                         height
                         path
                     }
+                    o_counter
                     paths {
                         screenshot
                         preview
@@ -1089,6 +1147,14 @@ function buildFindScenesByDateQuery(): string {
                     details
                     created_at
                     date
+                    # The ONLY field this query was missing next to
+                    # RecentScenes, and the shared flattener coerces a
+                    # missing one to 0 - so every scene that reached
+                    # the feed through the release-date query rendered
+                    # zero likes regardless of its real count, and the
+                    # two queries disagreed about the same scene
+                    # depending on which of them surfaced it.
+                    o_counter
                     files {
                         width
                         height
@@ -1139,6 +1205,7 @@ type RawSceneNode = {
     details: string | null;
     created_at: string;
     date: string | null;
+    o_counter: number | null;
     files: { width: number; height: number; path: string | null }[];
     paths: {
         screenshot: string | null;
@@ -1176,6 +1243,7 @@ function flattenSceneNodes(scenes: RawSceneNode[]): RecentSceneRow[] {
             sceneDate: s.date,
             sceneWidth: firstFile?.width ?? null,
             sceneHeight: firstFile?.height ?? null,
+            sceneOCounter: s.o_counter ?? 0,
             sceneTags,
             studioName: s.studio?.name ?? null,
             filePath: firstFile?.path ?? null,

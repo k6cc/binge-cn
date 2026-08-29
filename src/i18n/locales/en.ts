@@ -299,6 +299,7 @@ export default {
             clear_this_score: "Clear this score",
             dont_write_this_score: "Don't write this score",
             open_pack_aria: "Open pack — {{count}} scenes",
+            play_scene_aria: "Play {{title}}",
             open_batch_aria: "Open batch — {{name}}",
             download_to_stash: "Download to Stash",
             browse_performer_content: "Browse {{name}}'s content",
@@ -323,7 +324,16 @@ export default {
             preview_score: "Preview · {{score}} / 100",
             stash_plugin_hook_lock: "Stash's plugin hook will lock this value.",
             criterion_score: "{{name}}: {{score}} / 5",
-            clear_criterion_score: "Clear {{name}} score"
+            clear_criterion_score: "Clear {{name}} score",
+            saved_not_read_back: "Saved, but the new score could not be read back. It will be right the next time this opens.",
+            save_failed: "That rating could not be saved, so nothing was changed. Check that Stash is still reachable and try again."
+        },
+
+        follow: {
+            finding_scenes: "Finding scenes…",
+            added_link_failed_refused: "Added, but her {{count}} existing scenes could not be linked. Stash refused the update.",
+            added_link_failed_stashdb: "Added, but StashDB could not be reached, so her existing scenes were not linked.",
+            added_link_failed: "Added, but her existing scenes could not be linked."
         },
 
         sort: {
@@ -508,7 +518,43 @@ export default {
                 desc: "Pins a small diagnostic panel showing number of videos mounted, JS heap, scroll/tab state, and recent GraphQL response times. Shortcut: \\",
                 label: "Debug overlay"
             },
-            sync_tags: "Sync Stash tags to {{lang}}"
+            sync_tags: "Sync Stash tags to {{lang}}",
+
+            // Settings search / sections (upstream v0.5)
+            search_placeholder: "Search settings",
+            search_clear: "Clear search",
+            section_feed: "Feed",
+            section_feed_hint: "What lands on Home, and what stays out of it.",
+            section_sources: "Outside sources",
+            section_sources_hint: "Material mixed in from beyond your own library.",
+            section_playback: "Playback",
+            section_appearance: "Appearance",
+            section_companions: "Companion plugins",
+            section_companions_hint: "Optional. binge picks these up on its own and hides what belongs to the ones it cannot see.",
+            section_binge_server_hint: "The optional daemon behind Reddit, X and PornHub.",
+            section_forage_hint: "Sending a scene off to be found and downloaded.",
+            section_advanced: "Advanced",
+            no_results: "No setting matches that.",
+            needs_daemon: "Needs binge-server",
+            show_more: "More",
+            show_less: "Less",
+
+            // Companion plugins card
+            companion: {
+                hint: "A plugin you have installed but left switched off reads the same as one you do not have, so check Stash's plugin list before going to fetch anything.",
+                installed: "Installed",
+                not_enabled: "Not enabled",
+                get_it: "Get it",
+                advanced_rating: "Rate scenes and performers on separate criteria, from inside the reel. binge writes the same score tags, so the two stay in step.",
+                multiview: "Queue scenes from the action stack and watch several at once. Tap to queue, hold to open.",
+                scribe: "The pencil in the action stack, which writes a review of a scene with a local language model."
+            },
+
+            // Support footer
+            support_free: "binge is free.",
+            support_sponsor: "Sponsor",
+            support_or: "or",
+            support_chip_in: "if you would like to chip in."
         },
 
         // 5.5 Time
@@ -705,7 +751,8 @@ export default {
 
         // Common
         common: {
-            stashdb: "StashDB"
+            stashdb: "StashDB",
+            scene: "scene"
         },
         story: {
             new_scenes_title: "{{name}} — {{count}} new scenes",

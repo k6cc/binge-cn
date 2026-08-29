@@ -34,6 +34,19 @@ export function parseRatingsFromTags(
         const prefix = m[1].trim();
         const score = parseInt(m[2], 10);
         const c = byPrefix.get(prefix);
+        // KNOWN DIVERGENCE, deliberately not fixed here. When Stash
+        // holds two score tags for one criterion - a scene merge unions
+        // tag sets, and bulk "add tags" and hand edits do it too - the
+        // hook weights EACH matching tag into its group bucket, so that
+        // criterion counts twice. This takes the last one, which makes
+        // the preview depend on an array order Stash decides.
+        //
+        // Averaging here would not be faithful either: the hook's
+        // double-weighting only cancels when the criterion is alone in
+        // its group. Doing it properly means carrying every hit through
+        // computeRating100, which changes what the star row displays
+        // too, and that is not a change to make alongside the precision
+        // fix in this commit.
         if (c) out[c.id] = score;
     }
     return out;
@@ -105,7 +118,10 @@ export function computeRating100(
             weightedScoreSum += score * c.weight;
             weightSum += c.weight;
         }
-        if (weightSum > 0) {
+        // A group with a non-positive weight is skipped, as the
+        // Python does. Including it made den sum to zero and the whole
+        // preview vanish, where the hook simply ignores that group.
+        if (weightSum > 0 && g.weight > 0) {
             groupContrib.push({
                 groupWeight: g.weight,
                 groupAvg: weightedScoreSum / weightSum,

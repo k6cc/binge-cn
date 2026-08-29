@@ -115,6 +115,16 @@ export function PerformerImageGrid({ performer }: PerformerImageGridProps) {
         if (count == null) return;
         if (galleries.length >= count) return;
         if (loading) return;
+        // A failed page STOPS paging. The guard above is
+        // `loaded >= count`, and on the error path `loaded` never grows
+        // and `count` never changes - so the guard could not become
+        // true, the effect re-ran when `loading` cleared, and a fresh
+        // observer fired immediately on a sentinel that had not moved.
+        // That is an unbounded GraphQL loop against Stash for as long
+        // as the tab stays open. Page one succeeding and page two
+        // failing is enough.
+        if (error) return;
+
         const observer = new IntersectionObserver(
             (entries) => {
                 for (const entry of entries) {
@@ -123,11 +133,19 @@ export function PerformerImageGrid({ performer }: PerformerImageGridProps) {
                     }
                 }
             },
-            { rootMargin: `0px 0px ${NEAR_BOTTOM_PX}px 0px` }
+            {
+                // Against the actual scrolling ancestor, not the
+                // viewport（与 PerformerSceneGrid 同款）：root 不设时
+                // 哨兵被 .binge-profile-body 裁剪，rootMargin 预载从不
+                // 生效，读者顶到底才翻页——那正是 margin 要避免的
+                // 转圈等待。
+                root: sentinel.closest(".binge-profile-body"),
+                rootMargin: `0px 0px ${NEAR_BOTTOM_PX}px 0px`,
+            },
         );
         observer.observe(sentinel);
         return () => observer.disconnect();
-    }, [count, galleries.length, loading]);
+    }, [count, galleries.length, loading, error]);
 
     // ── 第二层：图库内图片网格 ───────────────────────────────
     if (openGallery) {

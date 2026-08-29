@@ -3,6 +3,10 @@ import { loadRatingConfig } from "../rating/config";
 import type { Criterion } from "../rating/types";
 import { TAG_SUFFIX } from "../rating/types";
 import {
+    fetchPerformerTagsAndRating,
+    fetchSceneTagsAndRating,
+} from "../rating/mutations";
+import {
     DEFAULT_MODEL,
     DEFAULT_OLLAMA_URL,
     DEFAULT_VOICES,
@@ -128,7 +132,10 @@ interface PluginConfigResp {
 
 export async function getScribeConfig(): Promise<ScribeConfig> {
     const data = await gql<PluginConfigResp>(
-        `query { configuration { plugins } }`,
+        // One plugin's config, not every plugin's. SCRIBE_PLUGIN_ID
+        // is a module constant, so nothing user-supplied reaches the
+        // document.
+        `query { configuration { plugins(include: ["${SCRIBE_PLUGIN_ID}"]) } }`,
     );
     const cfg = data.configuration?.plugins?.[SCRIBE_PLUGIN_ID] ?? {};
     let tone = String(cfg.defaultTone ?? "filthy").toLowerCase() as VoiceMode;
@@ -151,7 +158,13 @@ export async function getScribeConfig(): Promise<ScribeConfig> {
         model: String(cfg.model ?? DEFAULT_MODEL),
         voicePrompts,
         defaultTone: tone,
-        autoCreateTags: cfg.autoCreateTags !== false,
+        // Default off. Creating a score tag here makes it with no
+        // parent, which is the loose root-level tag the rating modal
+        // explicitly refuses to make, so defaulting it on meant a user
+        // who had never opened Advanced Rating's settings got a handful
+        // of orphans in their tag tree from one saved review. Whoever
+        // turns it on has chosen that.
+        autoCreateTags: cfg.autoCreateTags === true,
     };
 }
 
@@ -470,15 +483,37 @@ async function findOrCreateTag(name: string): Promise<string> {
 async function buildUpdatedTagIds(
     scene: SceneForScribe,
     criteria: Criterion[],
-    scoresByCriterion: Record<string, number>,
+    scoresByCriterion: Record<string, number | null>,
     autoCreate: boolean,
+    freshTags?: { id: string; name: string }[],
 ): Promise<string[]> {
-    const existingTags = scene.tags ?? [];
+    // Prefer what the server holds now over the copy taken when the
+    // modal opened. sceneUpdate replaces the whole tag array, so
+    // anything written elsewhere while the modal sat open would
+    // otherwise be dropped by this save.
+    const existingTags = freshTags ?? scene.tags ?? [];
+    // A criterion the caller mentions is a criterion the caller owns.
+    //
+    // Present with a number means "set it to this"; present with null
+    // means "clear it"; absent means "this one is not mine to touch".
+    // Absent is what protects a rating the modal never showed, which is
+    // the bug this replaced: every configured criterion used to be
+    // stripped and only those with scores re-added, so saving a review
+    // with one slider set destroyed the rest.
+    //
+    // The first attempt at that used "has a number" as the test, which
+    // fixed the destruction and made clearing a rating impossible,
+    // because a cleared score and an untouched one are both just
+    // missing. Distinguishing them is the whole point of the null.
+    const touched = new Set(
+        criteria
+            .filter((c) => Object.hasOwn(scoresByCriterion, c.id))
+            .map((c) => c.name),
+    );
     const keep = existingTags.filter((t) => {
         const m = (t.name || "").match(RATING_TAG_RE);
         if (!m) return true;
-        const criterionName = m[1].trim();
-        return !criteria.some((c) => c.name === criterionName);
+        return !touched.has(m[1].trim());
     });
     const newTagIds = keep.map((t) => t.id);
     for (const c of criteria) {
@@ -510,7 +545,7 @@ export async function saveSceneReview(args: {
     scene: SceneForScribe;
     reviewText: string;
     criteria: Criterion[];
-    scoresByCriterion: Record<string, number>;
+    scoresByCriterion: Record<string, number | null>;
     autoCreate: boolean;
 }): Promise<void> {
     const { scene, reviewText, criteria, scoresByCriterion, autoCreate } = args;
@@ -519,11 +554,13 @@ export async function saveSceneReview(args: {
     const cleaned = stripReviewBlock(scene.details);
     if (cleaned !== (scene.details ?? "")) input.details = cleaned;
     if (Object.keys(scoresByCriterion).length > 0) {
+        const fresh = await fetchSceneTagsAndRating(scene.id);
         input.tag_ids = await buildUpdatedTagIds(
             scene,
             criteria,
             scoresByCriterion,
             autoCreate,
+            fresh.tags,
         );
     }
     await gql(
@@ -862,15 +899,17 @@ export async function savePerformerReview(args: {
     performer: PerformerForScribe;
     reviewText: string;
     criteria: Criterion[];
-    scoresByCriterion: Record<string, number>;
+    scoresByCriterion: Record<string, number | null>;
     autoCreate: boolean;
 }): Promise<void> {
     const { performer, reviewText, criteria, scoresByCriterion, autoCreate } =
         args;
     const baseInput: PerformerUpdateInput = { id: performer.id };
     if (Object.keys(scoresByCriterion).length > 0) {
+        const freshPerformer = await fetchPerformerTagsAndRating(performer.id);
         baseInput.tag_ids = await buildUpdatedTagIdsForSubject(
             performer,
+            freshPerformer.tags,
             criteria,
             scoresByCriterion,
             autoCreate,
@@ -929,10 +968,18 @@ export async function savePerformerReview(args: {
 // Generic "replace this subject's score tags" — same body as
 // buildUpdatedTagIds but typed against a subject-with-tags so the
 // performer path can reuse it. The subject only needs `.tags`.
+// Exposed for tests only. The rule this function encodes decides which
+// of a subject's tags survive a review save, and it has been wrong in
+// both directions: once destroying scores it was not given, once making
+// a cleared score impossible to express. A test that re-implements the
+// rule cannot catch either, so the test calls this.
+export const __testBuildUpdatedTagIds = buildUpdatedTagIds;
+
 async function buildUpdatedTagIdsForSubject(
     subject: { tags: SceneTag[] },
+    freshTags: SceneTag[],
     criteria: Criterion[],
-    scoresByCriterion: Record<string, number>,
+    scoresByCriterion: Record<string, number | null>,
     autoCreate: boolean,
 ): Promise<string[]> {
     return buildUpdatedTagIds(
@@ -940,6 +987,7 @@ async function buildUpdatedTagIdsForSubject(
         criteria,
         scoresByCriterion,
         autoCreate,
+        freshTags,
     );
 }
 

@@ -299,6 +299,7 @@ export default {
             clear_this_score: "清除这个评分",
             dont_write_this_score: "不写这个评分",
             open_pack_aria: "打开包 — {{count}} 个场景",
+            play_scene_aria: "播放 {{title}}",
             open_batch_aria: "打开批次 — {{name}}",
             download_to_stash: "下载到 Stash",
             browse_performer_content: "浏览 {{name}} 的内容",
@@ -323,7 +324,16 @@ export default {
             preview_score: "预览 · {{score}} / 100",
             stash_plugin_hook_lock: "Stash 的插件钩子将锁定此值。",
             criterion_score: "{{name}}：{{score}} / 5",
-            clear_criterion_score: "清除 {{name}} 评分"
+            clear_criterion_score: "清除 {{name}} 评分",
+            saved_not_read_back: "已保存，但新分数读取失败。下次打开时会恢复正常。",
+            save_failed: "评分保存失败，未做任何更改。请检查 Stash 是否仍可连接，然后重试。"
+        },
+
+        follow: {
+            finding_scenes: "正在查找场景…",
+            added_link_failed_refused: "已添加，但她已有的 {{count}} 个场景未能关联。Stash 拒绝了更新。",
+            added_link_failed_stashdb: "已添加，但 StashDB 无法访问，她已有的场景未能关联。",
+            added_link_failed: "已添加，但她已有的场景未能关联。"
         },
 
         sort: {
@@ -508,7 +518,43 @@ export default {
                 desc: "固定一个小型诊断面板，显示已挂载的视频数量、JS 堆、滚动/标签页状态以及最近的 GraphQL 响应时间。快捷键：\\",
                 label: "调试覆盖层"
             },
-            sync_tags: "同步 Stash 标签为{{lang}}"
+            sync_tags: "同步 Stash 标签为{{lang}}",
+
+            // 设置页搜索 / 分区（上游 v0.5 新增）
+            search_placeholder: "搜索设置",
+            search_clear: "清除搜索",
+            section_feed: "动态",
+            section_feed_hint: "什么会出现在首页，什么不会。",
+            section_sources: "外部来源",
+            section_sources_hint: "从你自己的库之外混入的内容。",
+            section_playback: "播放",
+            section_appearance: "外观",
+            section_companions: "伴侣插件",
+            section_companions_hint: "可选。binge 会自动检测这些插件；未安装或未启用时对应功能自动隐藏。",
+            section_binge_server_hint: "驱动 Reddit、X 和 PH 的可选守护进程。",
+            section_forage_hint: "把场景发送出去寻找并下载。",
+            section_advanced: "高级",
+            no_results: "没有匹配的设置。",
+            needs_daemon: "需要 binge-server",
+            show_more: "更多",
+            show_less: "收起",
+
+            // 伴侣插件卡片
+            companion: {
+                hint: "已安装但未启用的插件与未安装的显示效果相同，因此安装前请先检查 Stash 的插件列表。",
+                installed: "已安装",
+                not_enabled: "未启用",
+                get_it: "获取",
+                advanced_rating: "在 reel 中按多个维度为场景和演员评分。binge 写入相同的评分标签，两者保持同步。",
+                multiview: "从操作栏把场景加入队列，同时观看多个。点击入队，长按打开。",
+                scribe: "操作栏中的铅笔图标，使用本地语言模型为场景撰写评价。"
+            },
+
+            // 支持页脚
+            support_free: "binge 是免费的。",
+            support_sponsor: "赞助",
+            support_or: "或",
+            support_chip_in: "——如果你愿意支持一下。"
         },
 
         // 5.5 时间
@@ -705,7 +751,8 @@ export default {
 
         // Common
         common: {
-            stashdb: "StashDB"
+            stashdb: "StashDB",
+            scene: "场景"
         },
         story: {
             new_scenes_title: "{{name}} — {{count}} 个新场景",

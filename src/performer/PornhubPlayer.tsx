@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
+import { isPornhubHost, safeExternalUrl } from "../util/externalUrl";
 import {
     pornhubStreamUrl,
     saveToStash,
-    getSaveProgress,
     type PornhubVideo,
 } from "../api/bingeServer";
 import {
@@ -16,6 +16,9 @@ import {
 // Fullscreen inline player for a PornHub video — plays the stream proxy
 // (extracted + relayed mp4, no download) and offers a one-tap "Save to
 // Stash" (which downloads the full video server-side via yt-dlp).
+// The daemon only knows how to fetch PornHub watch pages from this
+// route, so anything else is a scrape that went wrong rather than
+// something to hand a downloader.
 export function PornhubPlayer({
     video,
     performerId,
@@ -28,19 +31,7 @@ export function PornhubPlayer({
     const [saveState, setSaveState] = useState<
         "idle" | "saving" | "saved" | "error"
     >("idle");
-    // Live download percent (0-100) while saving, null when the daemon
-    // hasn't reported anything yet (old daemon without /save/progress,
-    // or the download hasn't produced its first progress line).
-    const [savePercent, setSavePercent] = useState<number | null>(null);
-    const pollRef = useRef<number | null>(null);
     const { t } = useTranslation();
-
-    // Stop polling if the player unmounts mid-download.
-    useEffect(() => {
-        return () => {
-            if (pollRef.current !== null) window.clearInterval(pollRef.current);
-        };
-    }, []);
 
     // 播放层栈：PH 播放器（z:120）打开期间登记最高层——演员详情页内
     // 的悬停预览等下层视频全部暂停，杜绝两层同时出声。
@@ -51,42 +42,34 @@ export function PornhubPlayer({
 
     const handleSave = async () => {
         if (saveState === "saving" || saveState === "saved") return;
+        // The daemon runs yt-dlp on whatever URL this sends, and the URL
+        // came from a scrape - so it is checked here rather than trusted
+        // for being in a typed field. Same guard the story viewer's
+        // external links use.
+        const watchPage = safeExternalUrl(video.sourceUrl);
+        if (!watchPage || !isPornhubHost(watchPage)) {
+            setSaveState("error");
+            return;
+        }
         setSaveState("saving");
-        setSavePercent(null);
-        // Poll the daemon's live progress while the yt-dlp download
-        // runs (a large video can take minutes; the POST only resolves
-        // at the end).
-        pollRef.current = window.setInterval(async () => {
-            const p = await getSaveProgress("pornhub", video.id);
-            if (p && p.state === "downloading" && p.percent > 0) {
-                setSavePercent(Math.min(99, p.percent));
-            }
-        }, 800);
+        // try/catch：saveToStash 在自身 try 之外读取 localStorage
+        // 中的 daemon URL——storage 故障会直接 reject 而非返回错误；没有
+        // catch 时按钮会永久停在"保存中"且禁用，且无任何提示。
         try {
-            const res = await saveToStash(
-                {
-                    performerStashId: performerId,
-                    source: "pornhub",
-                    id: video.id,
-                    // yt-dlp downloads from the watch page.
-                    mediaUrl: video.sourceUrl,
-                    kind: "video",
-                    sourceUrl: video.sourceUrl,
-                    text: video.title ?? undefined,
-                    createdUtc: video.createdUtc || undefined,
-                },
-                // Match the daemon's 4-minute request budget — the
-                // default 30s would cut off any but the smallest
-                // videos mid-download.
-                240_000,
-            );
+            const res = await saveToStash({
+                performerStashId: performerId,
+                source: "pornhub",
+                id: video.id,
+                // yt-dlp downloads from the watch page.
+                mediaUrl: watchPage,
+                kind: "video",
+                sourceUrl: watchPage,
+                text: video.title ?? undefined,
+                createdUtc: video.createdUtc || undefined,
+            });
             setSaveState(res.ok ? "saved" : "error");
-        } finally {
-            if (pollRef.current !== null) {
-                window.clearInterval(pollRef.current);
-                pollRef.current = null;
-            }
-            setSavePercent(null);
+        } catch {
+            setSaveState("error");
         }
     };
 
@@ -122,23 +105,13 @@ export function PornhubPlayer({
                                 : t("action.download_to_stash")
                         }
                     >
-                        <span className="binge-ph-player-save-label">
-                            {saveState === "saved"
-                                ? t("status.saved_with_check")
-                                : saveState === "saving"
-                                  ? savePercent !== null
-                                      ? `${Math.floor(savePercent)}%`
-                                      : t("action.saving")
-                                  : saveState === "error"
-                                    ? t("action.retry")
-                                    : t("action.save_to_stash")}
-                        </span>
-                        {saveState === "saving" && savePercent !== null && (
-                            <span
-                                className="binge-ph-player-save-bar"
-                                style={{ width: `${savePercent}%` }}
-                            />
-                        )}
+                        {saveState === "saved"
+                            ? t("status.saved_with_check")
+                            : saveState === "saving"
+                              ? t("action.saving")
+                              : saveState === "error"
+                                ? t("action.retry")
+                                : t("action.save_to_stash")}
                     </button>
                     <button
                         type="button"
