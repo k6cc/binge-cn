@@ -422,6 +422,7 @@ export default {
             },
             server_config: {
                 title: "binge-server 配置",
+                optional_hint: "Reel、你自己库的 stories、发现页和演员页没有它也能正常工作。只有当你还希望在 stories 栏里看到 Reddit、X 和 PornHub 的帖子，以及把其中一条保存进你库的按钮时，才需要添加 binge-server。使用上方的“安装 binge-server”，或让 binge 指向你已在运行的实例。",
                 unreachable_desc: "在 {{url}} 上无法连接到守护进程。在它运行之前，Reddit 故事会被静默跳过。",
                 setup_link: "设置 binge-server →",
                 auto_detected: "✓ 已自动检测",
@@ -680,6 +681,7 @@ export default {
             black: "黑色",
             red: "红色",
             auburn: "赤褐色",
+            brunette: "深褐色",
             chestnut: "栗色",
             grey: "灰色",
             white: "白色",
@@ -692,6 +694,9 @@ export default {
             green_eyes: "绿色眼睛",
             hazel_eyes: "淡褐色眼睛",
             amber_eyes: "琥珀色眼睛",
+            black_eyes: "黑色眼睛",
+            grey_eyes: "灰色眼睛",
+            green_hair: "绿色",
         },
 
         // 5.9 性别

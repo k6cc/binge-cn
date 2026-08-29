@@ -422,6 +422,7 @@ export default {
             },
             server_config: {
                 title: "binge-server config",
+                optional_hint: "The reel, your own library's stories, discovery and the performer pages all work without it. Add binge-server only if you want Reddit, X and PornHub posts in your stories row as well, and the button to save one into your library. Use Install binge-server above, or point binge at one you already run.",
                 unreachable_desc: "Daemon unreachable on {{url}}. Reddit stories silently skipped until it's running.",
                 setup_link: "Set up binge-server →",
                 auto_detected: "✓ Auto-detected",
@@ -680,6 +681,7 @@ export default {
             black: "black",
             red: "red",
             auburn: "auburn",
+            brunette: "brunette",
             chestnut: "chestnut",
             grey: "grey",
             white: "white",
@@ -692,6 +694,9 @@ export default {
             green_eyes: "green eyes",
             hazel_eyes: "hazel eyes",
             amber_eyes: "amber eyes",
+            black_eyes: "black eyes",
+            grey_eyes: "grey eyes",
+            green_hair: "green",
         },
 
         // 5.9 Gender

@@ -3892,6 +3892,22 @@ body,
 .binge-settings-card-link:hover {
     color: #fff;
 }
+.binge-settings-support {
+    margin: 0;
+    padding: 1.5rem 0 1rem;
+    text-align: center;
+    font-size: 0.68rem;
+    color: rgba(255, 255, 255, 0.28);
+    line-height: 1.6;
+}
+.binge-settings-support a {
+    color: rgba(255, 255, 255, 0.4);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+.binge-settings-support a:hover {
+    color: rgba(255, 255, 255, 0.6);
+}
 .binge-settings-card-description code {
     background: rgba(255, 255, 255, 0.1);
     padding: 1px 5px;

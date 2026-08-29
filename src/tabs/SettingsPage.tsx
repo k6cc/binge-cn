@@ -1213,12 +1213,7 @@ function BingeServerConfigCard() {
                     </h3>
                 </div>
                 <p className="binge-settings-card-description">
-                    The reel, your own library's stories, discovery and the
-                    performer pages all work without it. Add binge-server only
-                    if you want Reddit, X and PornHub posts in your stories row
-                    as well, and the button to save one into your library. Use
-                    Install binge-server above, or point binge at one you
-                    already run.
+                    {t("settings.server_config.optional_hint")}
                 </p>
             </div>
         );

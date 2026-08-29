@@ -20,8 +20,16 @@ export function PerformerBio({ performer, nameAccessory }: PerformerBioProps) {
     if (performer.country) attributes.push(performer.country);
     const birthYear = parseBirthYear(performer.birthdate);
     if (birthYear) attributes.push(String(birthYear));
-    if (performer.hair_color) attributes.push(performer.hair_color);
-    if (performer.eye_color) attributes.push(t("performer.eye_color_desc", { color: performer.eye_color }));
+    if (performer.hair_color) {
+        const key = `color.${performer.hair_color.toLowerCase()}`;
+        const fallback = performer.hair_color.toLowerCase();
+        attributes.push(t(key, fallback));
+    }
+    if (performer.eye_color) {
+        const key = `color.${performer.eye_color.toLowerCase()}_eyes`;
+        const fallback = t("performer.eye_color_desc", { color: performer.eye_color.toLowerCase() });
+        attributes.push(t(key, fallback));
+    }
 
     const aliases = performer.alias_list ?? [];
 

@@ -1,6 +1,6 @@
 # Binge（汉化版）
 
-> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.7.5**。
+> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.7.6**。
 
 为 [Stash](https://github.com/stashapp/stash) 提供的 Instagram 风格社交与发现层：竖屏 Reel、Stories、演员档案、StashDB 驱动的发现功能——全部基于 Stash 既有的 GraphQL API。Web 插件形态。
 
@@ -39,6 +39,12 @@ v0.4.17 将原硬编码中文迁移为基于 `react-i18next` 的动态多语言�
 - 详见 [汉化及修复.md](./汉化及修复.md)
 
 ### 功能修复
+
+#### v0.7.6
+
+- **赞助信息弱化**：设置页底部赞助文案改为暗色小号居中（0.68rem / 28% 白），退为安静页脚
+- **设置页补翻**：binge-server 未配置时的可选说明长段（原硬编码英文）改走 i18n
+- **演员属性颜色翻译**：本地库演员详情页属性行接入 `color.*` 翻译体系（此前 hair_color/eye_color 显示 Stash 原文，如 "brunette · Brown色眼睛"），补 brunette/black_eyes/grey_eyes/green_hair 4 个 key
 
 #### v0.7.5
 
