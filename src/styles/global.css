@@ -2931,6 +2931,9 @@ body,
     font-size: 0.88rem;
     min-width: 16rem;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    /* Without this the min-width below is a content-box min: 100% of the
+       container plus padding and border, which always overflows. */
+    box-sizing: border-box;
 }
 .binge-settings-input:focus {
     outline: 2px solid rgba(255, 255, 255, 0.25);
@@ -10437,6 +10440,12 @@ body,
 .binge-settings-row.is-stacked .binge-settings-input {
     flex: 1 1 auto;
     width: 100%;
+}
+/* Input sharing a row with a nowrap button/dot: it must be allowed to
+   shrink below the row width, or min-width: 100% plus the sibling pushes
+   the pair off screen on narrow phones. */
+.binge-settings-row.is-stacked .binge-settings-url-row .binge-settings-input {
+    min-width: 0;
 }
 /* Belt and braces for every other field on a narrow screen: ask for
    16rem, accept less rather than pushing the label off the row. */
