@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { isTrustedDaemonUrl } from "./bingeServer";
+import { confirmDaemonOrigin } from "../home/pluginSettings";
 
 // This gate decides whether binge will hand the Stash API key, the Reddit
 // session cookie and the X auth cookies to a given daemon URL. Its job is
@@ -258,6 +259,44 @@ describe("where the Stash API key is actually sent", () => {
         await mod.getBingeServerHealth();
         expect(mod.pornhubStreamUrl("abc")).toContain(
             "apikey=" + encodeURIComponent(KEY),
+        );
+    });
+});
+
+describe("public IP-literal daemons", () => {
+    // These had no way in at all: not trusted, and not confirmable
+    // either, because the IPv4 and IPv6 branches both returned false
+    // before reaching the https + confirmation rule. Someone running the
+    // daemon on a VPS reachable only by address has no hostname to
+    // offer, so the documented escape hatch was unreachable for that
+    // shape alone.
+    it("still refuses cleartext to a public IPv4 literal", () => {
+        expect(isTrustedDaemonUrl("http://203.0.113.9:7878")).toBe(false);
+    });
+
+    it("refuses https to a public IPv4 literal until it is confirmed", () => {
+        expect(isTrustedDaemonUrl("https://203.0.113.9:7878")).toBe(false);
+    });
+
+    it("trusts a confirmed public IPv4 literal over https", () => {
+        confirmDaemonOrigin("https://203.0.113.9:7878");
+        expect(isTrustedDaemonUrl("https://203.0.113.9:7878")).toBe(true);
+    });
+
+    it("trusts a confirmed public IPv6 literal over https", () => {
+        confirmDaemonOrigin("https://[2001:4860:4860::8888]:7878");
+        expect(isTrustedDaemonUrl("https://[2001:4860:4860::8888]:7878")).toBe(
+            true,
+        );
+    });
+
+    it("never trusts a confirmed public IPv6 literal over cleartext", () => {
+        // The bare-hostname rule says "no dot means LAN name", and an
+        // IPv6 address has no dots. Confirming the https origin must not
+        // open the http one.
+        confirmDaemonOrigin("https://[2001:4860:4860::8888]:7878");
+        expect(isTrustedDaemonUrl("http://[2001:4860:4860::8888]:7878")).toBe(
+            false,
         );
     });
 });

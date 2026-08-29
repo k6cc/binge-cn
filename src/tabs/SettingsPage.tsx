@@ -50,6 +50,7 @@ import {
     type ForageWatchTarget,
     type Gender,
     hasChosenBingeServer,
+    useDaemonOriginsRevision,
 } from "../home/pluginSettings";
 import {
     daemonCanReachStashAt,
@@ -847,6 +848,16 @@ function BingeServerHealthDot({ url }: { url: string }) {
 // never sees that step.
 function BingeServerConfigCard() {
     const url = useBingeServerUrl();
+    // Re-render when a daemon origin is confirmed.
+    //
+    // Without this the "Use this daemon" button below did nothing you
+    // could see: it recorded the origin, then wrote the URL that was
+    // already stored, and React's eager-state bailout skipped the
+    // re-render because the string was identical. The warning stayed on
+    // screen and the button read as broken. useDaemonOriginsRevision was
+    // written for exactly this and never imported anywhere - its own
+    // source calls it "the missing half".
+    useDaemonOriginsRevision();
     const [health, setHealth] = useState<BingeServerHealth | null | "pending">(
         "pending",
     );
@@ -1094,10 +1105,10 @@ function BingeServerConfigCard() {
                         type="button"
                         className="binge-server-config-cookie-save"
                         onClick={() => {
+                            // The revision hook above re-renders the
+                            // card. Writing the URL back does not: it is
+                            // the same string, so the store bails out.
                             confirmDaemonOrigin(url);
-                            // Re-read through the same path a URL change
-                            // takes, so the card rebuilds with it trusted.
-                            setBingeServerUrl(url);
                         }}
                     >
                         Use this daemon

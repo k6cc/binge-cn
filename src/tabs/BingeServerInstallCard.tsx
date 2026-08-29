@@ -108,12 +108,26 @@ export function BingeServerInstallCard() {
             setState({ kind: "installing", elapsed }),
         );
         if (!up) {
+            // Name the real reason when there is one. A daemon installed
+            // on this host serves plain http, and an https page cannot
+            // fetch that: the browser blocks it as mixed content before
+            // it leaves. The install very likely worked and there is
+            // nothing in any log to find, so sending someone to read one
+            // wastes their time on a question with a known answer.
+            const mixed =
+                typeof window !== "undefined" &&
+                window.location.protocol === "https:";
             setState({
                 kind: "failed",
-                message:
-                    "The task ran but nothing answered on port 7878. " +
-                    "Settings, then Tasks, has its log.",
-                canInstall: true,
+                message: mixed
+                    ? "binge-server may well have installed, but this page " +
+                      "is served over https and the daemon speaks plain " +
+                      "http, so your browser refuses to reach it. Put it " +
+                      "behind the same proxy as Stash and set that https " +
+                      "address below."
+                    : "The task ran but nothing answered on port 7878. " +
+                      "Settings, then Tasks, has its log.",
+                canInstall: !mixed,
             });
             setShowManual(true);
             return;

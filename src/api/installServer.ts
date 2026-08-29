@@ -20,13 +20,22 @@ const TASK_NAME = "Install binge-server";
 export function installedUrl(): string {
     try {
         const host = window.location.hostname;
-        // The scheme follows the page. Hardcoding http meant that on an
-        // https Stash - a reverse proxy or a Funnel, both supported -
-        // every poll of this URL was blocked as mixed content, so a
-        // daemon that installed correctly was reported after five
-        // minutes as never having answered.
-        const scheme = window.location.protocol === "https:" ? "https" : "http";
-        if (host) return `${scheme}://${host}:7878`;
+        // http, always, because that is what the daemon serves.
+        //
+        // This briefly followed the page scheme, to fix installs on an
+        // https Stash being reported as failures. It did not fix them.
+        // The poll that decides success goes through
+        // defaultBingeServerUrl, which is hardcoded http and was not
+        // touched, so the fetch was still blocked as mixed content; and
+        // had it ever succeeded, this value is written back into Stash's
+        // deployment-wide plugin config, so it would have replaced a
+        // working http://host:7878 with an https URL the daemon cannot
+        // answer, for every browser.
+        //
+        // A locally installed daemon is genuinely unreachable from an
+        // https page. That is a real constraint, not a scheme bug, and
+        // the install card says so rather than papering over it.
+        if (host) return `http://${host}:7878`;
     } catch {
         /* no window */
     }
