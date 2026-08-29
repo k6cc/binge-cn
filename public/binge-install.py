@@ -50,6 +50,26 @@ PUBLISH_LOOPBACK = "127.0.0.1:%d:%d" % (PORT, PORT)
 PUBLISH_LAN = "%d:%d" % (PORT, PORT)
 
 
+def emit(obj):
+    """Stash's raw-plugin protocol wants {"output": ...}, not bare JSON.
+
+    Everything this script printed went out unwrapped, so Stash parsed it,
+    found no "output" key and handed the caller null. runPluginOperation
+    could never return anything and runPluginTask recorded no error, which
+    is why the Settings card could only offer "Settings, then Tasks, has
+    its log" - the reason for a failure existed, in a good clear sentence,
+    and had no way to reach the person who needed it.
+    """
+    print(json.dumps({"output": obj}))
+
+
+def fail(msg, **extra):
+    """A refusal the caller can act on, rather than a log line."""
+    payload = {"error": msg}
+    payload.update(extra)
+    print(json.dumps(payload))
+
+
 def log(msg):
     """Progress line. Stash captures plugin stderr into its log, and the
     task UI shows it live, so this is the user-visible progress."""
@@ -443,7 +463,36 @@ def main():
     mode = args.get("mode", "install")
 
     if mode == "status":
-        print(json.dumps({"running": health()}))
+        emit({"running": health()})
+        return 0
+
+    if mode == "probe":
+        # Asked BEFORE the install task starts, so the card can say what
+        # will happen instead of spinning for five minutes and then
+        # sending the user to read a log. Cheap: no downloads, no daemon
+        # start, just the same checks the install itself would make.
+        if health():
+            emit({"can_install": True, "running": True})
+            return 0
+        if in_container() and not docker_available():
+            emit({
+                "can_install": False,
+                "running": False,
+                "reason": "stash-in-container",
+                "message": (
+                    "Stash is running inside a container with no access to "
+                    "Docker, so it cannot start binge-server for you. "
+                    "Installing it in here would put it on a port nothing "
+                    "outside the container can reach, and it would vanish "
+                    "on the next restart. Add it alongside Stash with the "
+                    "snippet below instead."),
+            })
+            return 0
+        if not docker_available() and in_container():
+            emit({"can_install": False, "running": False,
+                  "reason": "no-docker"})
+            return 0
+        emit({"can_install": True, "running": False})
         return 0
 
     # "lan" when the user is browsing from another machine, so the daemon
@@ -461,8 +510,8 @@ def main():
         if not want_lan or reachable_off_host():
             log("binge-server is already running on port %d - nothing to do."
                 % PORT)
-            print(json.dumps({"ok": True, "url": installed_url(want_lan),
-                              "method": "already-running"}))
+            emit({"ok": True, "url": installed_url(want_lan),
+              "method": "already-running"})
             return 0
         log("binge-server is running but only on this machine's loopback, "
             "and your browser is somewhere else. Reinstalling it so it "
@@ -518,8 +567,8 @@ def main():
         log("NOTE: installed as a plain background process, so it will not "
             "restart by itself after a reboot. Install Docker, or add it to "
             "your init system, if you want it always on.")
-    print(json.dumps({"ok": True, "url": "http://localhost:%d" % PORT,
-                      "method": method}))
+    emit({"ok": True, "url": "http://localhost:%d" % PORT,
+          "method": method})
     return 0
 
 

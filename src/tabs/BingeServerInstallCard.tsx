@@ -9,6 +9,7 @@ import {
     recordServerUrl,
     startServerInstall,
     waitForServer,
+    probeInstall,
 } from "../api/installServer";
 
 type InstallState =
@@ -70,6 +71,26 @@ export function BingeServerInstallCard() {
 
     const install = async () => {
         setState({ kind: "installing", elapsed: 0 });
+        // Ask first. The install task REFUSES when Stash is in a
+        // container without Docker access, which is most people, and it
+        // refuses in about a second with a good clear sentence. Without
+        // this the card started the task anyway, watched port 7878 for
+        // five minutes, then said "Settings, then Tasks, has its log" -
+        // five minutes of false hope followed by a log hunt, for a
+        // question already answered before the wait began.
+        const probe = await probeInstall();
+        if (probe && !probe.can_install) {
+            setState({
+                kind: "failed",
+                message:
+                    probe.message ??
+                    "Stash cannot install binge-server on this host.",
+                // Not a retry: pressing it again gets the same refusal.
+                canInstall: false,
+            });
+            setShowManual(true);
+            return;
+        }
         try {
             await startServerInstall();
         } catch (err) {

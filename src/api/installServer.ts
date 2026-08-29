@@ -168,6 +168,48 @@ export async function recordServerUrl(url: string): Promise<void> {
  *  container. Installing into that container would put the daemon on a port
  *  nothing outside can reach, so the answer is a sibling service. Written to
  *  be pasted into the same compose file Stash is already in. */
+/** What will happen if we press Install, asked before we press it.
+ *
+ *  runPluginOperation runs the plugin synchronously and hands back its
+ *  output, where runPluginTask is fire-and-forget. That distinction was
+ *  useless until the installer started wrapping its JSON the way Stash's
+ *  raw-plugin protocol expects: unwrapped, Stash parsed the output, found
+ *  no "output" key and returned null, so nothing the script knew could
+ *  ever reach the UI.
+ *
+ *  Returns null when the probe cannot be run at all (old installer, no
+ *  python, Stash refusing) - callers should fall through to offering the
+ *  install rather than blocking on a question that went unanswered. */
+export async function probeInstall(): Promise<{
+    can_install: boolean;
+    running: boolean;
+    reason?: string;
+    message?: string;
+} | null> {
+    try {
+        const data = await gql<{ runPluginOperation: unknown }>(
+            `mutation ProbeBingeServerInstall {
+                runPluginOperation(
+                    plugin_id: "binge"
+                    args: { mode: "probe" }
+                )
+            }`,
+        );
+        const out = data.runPluginOperation;
+        if (!out || typeof out !== "object") return null;
+        const o = out as Record<string, unknown>;
+        if (typeof o.can_install !== "boolean") return null;
+        return {
+            can_install: o.can_install,
+            running: o.running === true,
+            reason: typeof o.reason === "string" ? o.reason : undefined,
+            message: typeof o.message === "string" ? o.message : undefined,
+        };
+    } catch {
+        return null;
+    }
+}
+
 export function composeSnippet(): string {
     return [
         "  # Reachable from your LAN: your browser has to reach it, and it",
