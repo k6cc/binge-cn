@@ -488,10 +488,6 @@ def main():
                     "snippet below instead."),
             })
             return 0
-        if not docker_available() and in_container():
-            emit({"can_install": False, "running": False,
-                  "reason": "no-docker"})
-            return 0
         emit({"can_install": True, "running": False})
         return 0
 
