@@ -15,7 +15,9 @@
 # 流程：
 #   1. 构建 + 打包 zip
 #   2. 计算 sha256 + 北京时间戳 + 下载 URL
-#   3. clone stash-plugins 仓库 → sed 原地更新 index.yml → commit + push
+#   3. clone stash-plugins 仓库 → 同一 commit 更新 index.yml + README 版本表 → commit + push
+#      （单次 push 只触发一次 Pages 部署；stash-plugins 侧 sync-readme.yml 保留作兜底，
+#        README 已同步时其幂等检查不会再产生 commit）
 #   4. 创建 GitHub Release（上传 zip）
 # index.yml 已从本仓库迁移到 k6cc/stash-plugins 仓库（commit 4ba6950），
 # 需要 STASH_PLUGINS_TOKEN secret（PAT with repo scope）才能跨仓库 push。
@@ -104,11 +106,11 @@ jobs:
           echo "sha256  : $SHA"
           echo "path    : $PATH_URL"
 
-      # 更新 k6cc/stash-plugins 仓库的 plugins/main/index.yml。
+      # 更新 k6cc/stash-plugins 仓库的 plugins/main/index.yml 与 README 版本表。
       # index.yml 已从本仓库迁移到 stash-plugins（commit 4ba6950），
       # 需要 STASH_PLUGINS_TOKEN secret（PAT with repo scope）跨仓库 push。
       # secret 未设置时跳过，仅创建 release。
-      - name: Update stash-plugins index.yml
+      - name: Update stash-plugins index.yml and README
         env:
           PLUGIN_ID: binge
           VERSION: ${{ steps.ver.outputs.version }}
@@ -127,25 +129,41 @@ jobs:
           cd /tmp/stash-plugins
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # awk 只更新匹配 PLUGIN_ID 的条目，避免误改其他插件
-          awk -v id="$PLUGIN_ID" -v version="$VERSION" -v date="$DATE" -v path="$PATH_URL" -v sha="$SHA" '
-          /^- id: / { in_block = ($3 == id) }
-          in_block && /^  version: / { print "  version: " version; next }
-          in_block && /^  date: / { print "  date: " date; next }
-          in_block && /^  path: / { print "  path: " path; next }
-          in_block && /^  sha256: / { print "  sha256: " sha; next }
-          { print }
-          ' plugins/main/index.yml > /tmp/index.yml && mv /tmp/index.yml plugins/main/index.yml
-          echo "=== Updated plugins/main/index.yml ==="
-          cat plugins/main/index.yml
-          git add plugins/main/index.yml
-          if git diff --cached --quiet; then
-            echo "index.yml already up to date — nothing to commit"
-          else
+          # 竞争安全：多个 release 并发推送时 push 可能被拒（non-fast-forward），
+          # 每次重试前 fetch + reset 到远程最新（已包含其他插件刚推的改动），
+          # 再重新套用本插件的 index.yml 更新与 README 同步。
+          # index.yml 与 README 版本表放同一个 commit：一次 push 只触发一次 Pages 部署
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            git reset --hard origin/main
+            # awk 只更新匹配 PLUGIN_ID 的条目，避免误改其他插件
+            awk -v id="$PLUGIN_ID" -v version="$VERSION" -v date="$DATE" -v path="$PATH_URL" -v sha="$SHA" '
+            /^- id: / { in_block = ($3 == id) }
+            in_block && /^  version: / { print "  version: " version; next }
+            in_block && /^  date: / { print "  date: " date; next }
+            in_block && /^  path: / { print "  path: " path; next }
+            in_block && /^  sha256: / { print "  sha256: " sha; next }
+            { print }
+            ' plugins/main/index.yml > /tmp/index.yml && mv /tmp/index.yml plugins/main/index.yml
+            # 从 index.yml 同步 README 版本表（复用仓库自带脚本，幂等）；
+            # 失败不阻塞 index.yml 提交，README 由 stash-plugins 的 sync-readme.yml 兜底
+            python3 scripts/sync_readme.py || echo "⚠ sync_readme.py failed — README left to fallback workflow"
+            git add plugins/main/index.yml README.md
+            if git diff --cached --quiet; then
+              echo "index.yml and README.md already up to date — nothing to commit"
+              exit 0
+            fi
             git commit -m "chore: bump ${PLUGIN_ID} to ${TAG}"
-            git push
-            echo "Pushed index.yml update to stash-plugins"
-          fi
+            if git push; then
+              echo "=== Pushed index.yml + README update (attempt ${attempt}) ==="
+              cat plugins/main/index.yml
+              exit 0
+            fi
+            echo "⚠ push failed (attempt ${attempt}) — concurrent release detected, retrying"
+            sleep $((attempt * 5))
+          done
+          echo "✗ failed to push index.yml after 5 attempts"
+          exit 1
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
