@@ -47,7 +47,11 @@
 - `plugins/main/index.yml` **不在本仓库**，位于独立的 `k6cc/stash-plugins` 仓库（commit 4ba6950 迁移），发布后务必检查它是否已同步。
 - `binge.yml` 的 version、zip 文件名、GitHub tag 三者必须统一为同一版本号，否则 Stash 内显示的版本与 Release 名不一致。
 - tag 名必须是 `v*.*.*` 格式（如 `v0.8.1`），否则 release workflow 不触发。
-- **打 tag 前必查同名遗留 tag**：合并上游时可能带入上游的本地 tag（上游 release commit，作者 ordureconnoisseur）与本仓库版本号撞名（`git tag` 报 "already exists" 即命中；2026-09-04 曾有 v0.5.3 / v0.8.1–v0.8.3 / v0.9.x / v0.10.0 / v0.12.x 等 15 个遗留，已全部清理，本地 tag 现与远程一致）。v0.8.0 曾因此把上游旧 commit 推上远程、触发上游版 workflow 发布了错误产物（2026-09-04 事故，已修复：删 release + tag 后在正确 commit 重建）。正确做法：`git tag -d <tag>` 删除遗留后重建，push 前用 `git rev-parse <tag>~1` 之类核对指向最新发布 commit。
+- **避免撞名上游遗留 tag（根因 + 预防，2026-09-04 事故教训）**：上游 `ordureconnoisseur/binge` 每次发布都打 tag（其版本线已到 v0.12.x），而 `git fetch / pull upstream` 默认会顺带拉取指向所拉历史的 tag，累积后必与本仓库未来版本号撞名（`git tag` 报 "already exists" 即命中；v0.8.0 曾因此把上游旧 commit 推上远程、触发上游版 workflow 发布错误产物，已删 release + tag 后在正确 commit 重建）。
+  1. **一次性配置（根治）**：`git config remote.upstream.tagOpt --no-tags` —— 此后对该 remote 的 fetch / pull 不再自动拉 tag（2026-09-04 查证尚未配置，**建议尽快执行**）。
+  2. **合并上游后自查**：`git ls-remote --tags upstream` 可看上游全部 tag；本地多出 origin 上不存在的 tag 即遗留。
+  3. **一键清理**：`git fetch origin --prune --prune-tags` —— 删除所有 origin 上不存在的本地 tag，使本地 tag 与远程发布 tag 对齐（本地与 origin 已核实一致；注意：未 push 的新建 tag 也会被删，须在打新 tag **之前**执行）。
+  4. **打 tag 前最后核对**：`git tag -l v<版本号>` 确认无同名遗留；创建后 `git rev-parse <tag>` 与 `git rev-parse HEAD` 输出一致再 push（PowerShell 下写 `^{commit}` 会被转义，用裸 tag 名比对即可）。
 - 本地 `release/`、`screenshots/`、`drafts/` 目录已于 2026-08-31 仓库清理时删除（release 旧 zip 仅历史留档、screenshots 已从 README 移除引用）；发布产物完全由 GitHub tag 触发的 CI 生成并上传 Release，无需在仓库内留档 zip/截图。
 - 发布前用 `git status` 确认无未提交改动，避免版本号改了却漏提交。
 - 仅改 README/文档、不改源码的发布（纯版本号 bump），同样要同步第一节全部 5 处版本号。

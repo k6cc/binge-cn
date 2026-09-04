@@ -68,13 +68,25 @@ export function sourcePerformerUrl(endpoint: string, id: string): string {
     return `${sourceWebBase(endpoint)}/performers/${id}`;
 }
 
-// 展示名：默认源叫 "StashDB"（品牌名本就不带 .org），其余实例用去掉
-// .org 后缀的 host（javstash.org → "javstash"；非 .org 后缀原样保留）。
+// 展示名：已知实例用品牌写法（StashDB / JAVStash / ThePornDB，大小写
+// 美观），未知实例回退为去掉 .org 后缀的 host（非 .org 后缀原样保留）。
+// 按 host 子串匹配以兼容不同 TLD / 镜像域名（javstash.org /
+// theporndb.net / javstash.com …）；全大写位置由 CSS uppercase 处理，
+// 无需特殊分支。
 // i18n 的 sourceName 后处理器（i18n/config.ts）把文案里的 "StashDB"
 // 替换成它，所以这里提供同步读取的模块级缓存，首帧（源未解析时）
 // 返回 "StashDB" 与默认行为一致。
+const KNOWN_SOURCE_BRANDS: ReadonlyArray<readonly [RegExp, string]> = [
+    // 具体名在前，纯防御性排序（javstash 不含 stashdb 子串）
+    [/javstash/i, "JAVStash"],
+    [/theporndb/i, "ThePornDB"],
+    [/stashdb/i, "StashDB"],
+];
+
 export function sourceDisplayName(host: string): string {
-    if (host === sourceHost(DEFAULT_SOURCE_ENDPOINT)) return "StashDB";
+    for (const [pattern, brand] of KNOWN_SOURCE_BRANDS) {
+        if (pattern.test(host)) return brand;
+    }
     return host.replace(/\.org$/, "");
 }
 
