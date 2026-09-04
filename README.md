@@ -294,8 +294,7 @@ Minimal `scripts/push.sh`:
 ```bash
 #!/usr/bin/env bash
 set -euo pipefail
-scp binge.yml dist/binge.entry.js dist/index.html \
-    user@host:'/path/to/stash/plugins/binge/'
+scp binge.yml dist/* user@host:'/path/to/stash/plugins/binge/'
 ```
 
 ---
