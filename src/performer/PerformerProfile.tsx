@@ -18,6 +18,7 @@ import { useSharedStories } from "../home/StoriesContext";
 import { useStoryViewer } from "../home/StoryViewerContext";
 import { useIncludeX } from "../home/pluginSettings";
 import { getXFeed, xHandleFromUrls } from "../api/bingeServer";
+import { getActiveSource } from "../api/source";
 import type { Story, StoryScene } from "../home/useStories";
 import { BingeLoading } from "../components/BingeLoading";
 import {
@@ -136,6 +137,23 @@ function LocalPerformerProfile({
     // Bumped by the refresh action in the ⋯ menu — forces the fetch
     // effect below to re-run by changing one of its deps.
     const [refreshTick, setRefreshTick] = useState(0);
+    // 活动数据源 endpoint（会话级 memo）。repair 行的 stash_id 匹配以它
+    // 为准（上游硬编码 stashdb.org，本仓库按活动源参数化），与
+    // PerformerSceneGrid 的 linked 判定同源。
+    const [sourceEndpoint, setSourceEndpoint] = useState<string | null>(null);
+    useEffect(() => {
+        let alive = true;
+        getActiveSource()
+            .then((s) => {
+                if (alive) setSourceEndpoint(s.endpoint);
+            })
+            .catch(() => {
+                /* 配置查询失败 → 保持 null，repair 行不展示 */
+            });
+        return () => {
+            alive = false;
+        };
+    }, []);
     const bodyRef = useRef<HTMLDivElement>(null);
     const hasAdvancedRating = useHasAdvancedRating();
     // If this performer is in the stories list, the avatar gets the
@@ -248,7 +266,17 @@ function LocalPerformerProfile({
             return;
         }
         let alive = true;
-        setState({ kind: "loading" });
+        // A refetch of the performer already on screen keeps her there
+        // until the new row arrives. Dropping to loading unmounted the
+        // whole ready layout, and with it the more-sheet: the repair
+        // row reports its result in that sheet and then asks for a
+        // refresh, so the report was gone before anyone could read it.
+        // A different id is a navigation and starts from loading.
+        setState((prev) =>
+            prev.kind === "ready" && prev.performer.id === currentId
+                ? prev
+                : { kind: "loading" },
+        );
         findPerformer(currentId)
             .then((performer) => {
                 if (!alive) return;
@@ -429,9 +457,16 @@ function LocalPerformerProfile({
                         {moreOpen && state.kind === "ready" && (
                             <PerformerMoreSheet
                                 performerId={state.performer.id}
-                                onRefresh={() =>
-                                    setRefreshTick((n) => n + 1)
+                                stashDBPerformerId={
+                                    sourceEndpoint
+                                        ? state.performer.stash_ids?.find(
+                                              (s) =>
+                                                  s.endpoint ===
+                                                  sourceEndpoint,
+                                          )?.stash_id ?? null
+                                        : null
                                 }
+                                onRefresh={() => setRefreshTick((n) => n + 1)}
                                 onClose={() => setMoreOpen(false)}
                             />
                         )}

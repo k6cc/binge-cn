@@ -22,6 +22,7 @@
 
 import { gql } from "./graphql";
 import { getActiveSource, sourceHost } from "./source";
+import i18n from "../i18n/config";
 
 export interface StashBoxConfig {
     endpoint: string;
@@ -956,7 +957,23 @@ export async function getStashDBScenesForPerformer(
                 per_page: perPage,
             },
         });
-        if (!data?.queryScenes?.scenes) break;
+        if (!data?.queryScenes?.scenes) {
+            // A failed first page is not an empty answer. Returning []
+            // here made "she has no scenes" and "the source did not
+            // reply" the same value, and the caller that attaches her
+            // to the library's scenes had to report every empty list
+            // as a lookup failure to stay honest. A later page failing
+            // still returns what was gathered: partial is better than
+            // nothing for a list, and the count is only ever a floor.
+            // 本仓库适配：该错误经 StashDBPerformerProfile 的
+            // err.message 直接展示，故走 i18n（源名由 sourceName
+            // 后处理器替换）。
+            if (page === 1)
+                throw new Error(
+                    i18n.t("performer.stashdb_scene_lookup_failed"),
+                );
+            break;
+        }
         for (const s of data.queryScenes.scenes) out.push(shapeScene(s));
         if (data.queryScenes.scenes.length < perPage) break;
         page++;

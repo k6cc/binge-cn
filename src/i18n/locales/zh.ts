@@ -223,6 +223,10 @@ export default {
             like_unlike: "点击喜欢 · 长按取消喜欢",
             like: "喜欢",
             rated_stars: "已评 {{count}} 颗星。点击修改。",
+            rating_unavailable: "评分不可用",
+            rating_unreachable: "暂时无法获取评分",
+            rated_stars_tap_to_change: "已评 {{count}} 颗星。点击修改。",
+            show_more_left: "再显示 {{count}} 个",
             rate_advanced: "为场景评分（高级）",
             rate_scene: "为场景评分",
             rate: "评分",
@@ -651,7 +655,44 @@ export default {
             ignore_auto_tag: "忽略自动标签",
             unknown: "未知",
             other_links_count: "{{count}} 个其他链接",
-            other_links: "其他链接"
+            other_links: "其他链接",
+            stashdb_scene_lookup_failed: "StashDB 场景查询失败，请稍后重试。",
+            // 从数据源修复空壳演员（v0.8.2，合并上游 0.13.0）
+            repair: {
+                action: "从 StashDB 修复",
+                working: "正在从 StashDB 修复…",
+                failed: "修复失败，请重试。",
+                attached_one: "已挂接 1 个你库中已有的场景",
+                attached_other: "已挂接 {{count}} 个你库中已有的场景",
+                attach_failed: "未能挂接她的场景",
+                filled: "补全了{{fields}}",
+                unreachable: "暂时无法连接 StashDB。",
+                nothing_to_do: "无需修复：这份资料已拥有 StashDB 所知的全部内容。",
+                list_joiner: "、",
+                list_final_joiner: "、",
+                parts_joiner: "，并",
+                sentence_end: "。",
+                fields: {
+                    gender: "性别",
+                    birthdate: "出生日期",
+                    death_date: "逝世日期",
+                    country: "国家",
+                    ethnicity: "种族",
+                    hair_color: "发色",
+                    eye_color: "瞳色",
+                    measurements: "三围",
+                    fake_tits: "胸部类型",
+                    career_length: "从业时间",
+                    tattoos: "纹身",
+                    piercings: "穿孔",
+                    disambiguation: "消歧名",
+                    details: "简介",
+                    height: "身高",
+                    weight: "体重",
+                    alias_list: "别名",
+                    urls: "社交链接"
+                }
+            }
         },
 
         // 场景

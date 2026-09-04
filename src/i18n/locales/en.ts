@@ -223,6 +223,10 @@ export default {
             like_unlike: "Tap to like · Long-press to unlike",
             like: "Like",
             rated_stars: "Rated {{count}} stars. Tap to edit.",
+            rating_unavailable: "Rating unavailable",
+            rating_unreachable: "Couldn't fetch the rating right now",
+            rated_stars_tap_to_change: "Rated {{count}} stars. Tap to change.",
+            show_more_left: "Show {{count}} more",
             rate_advanced: "Rate scene (Advanced)",
             rate_scene: "Rate scene",
             rate: "Rate",
@@ -651,7 +655,44 @@ export default {
             ignore_auto_tag: "Ignore auto-tag",
             unknown: "Unknown",
             other_links_count: "{{count}} other links",
-            other_links: "Other links"
+            other_links: "Other links",
+            stashdb_scene_lookup_failed: "StashDB scene lookup failed. Try again later.",
+            // Repair a stub performer from the source (v0.8.2, upstream 0.13.0)
+            repair: {
+                action: "Repair from StashDB",
+                working: "Repairing from StashDB…",
+                failed: "Couldn't repair this profile. Try again.",
+                attached_one: "attached 1 scene you already had",
+                attached_other: "attached {{count}} scenes you already had",
+                attach_failed: "could not attach her scenes",
+                filled: "filled in {{fields}}",
+                unreachable: "Couldn't reach StashDB just now.",
+                nothing_to_do: "Nothing to do. This profile already has everything StashDB knows.",
+                list_joiner: ", ",
+                list_final_joiner: " and ",
+                parts_joiner: ", and ",
+                sentence_end: ".",
+                fields: {
+                    gender: "gender",
+                    birthdate: "birth date",
+                    death_date: "death date",
+                    country: "country",
+                    ethnicity: "ethnicity",
+                    hair_color: "hair colour",
+                    eye_color: "eye colour",
+                    measurements: "measurements",
+                    fake_tits: "breast type",
+                    career_length: "career length",
+                    tattoos: "tattoos",
+                    piercings: "piercings",
+                    disambiguation: "disambiguation",
+                    details: "bio",
+                    height: "height",
+                    weight: "weight",
+                    alias_list: "aliases",
+                    urls: "links"
+                }
+            }
         },
 
         // Scene

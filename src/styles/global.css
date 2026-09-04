@@ -10567,3 +10567,19 @@ p.binge-settings-source-note {
         width: 100%;
     }
 }
+
+/* Result line under the Repair row in the performer more-sheet. The
+   sheet reports what it did rather than closing onto a profile that
+   has quietly changed underneath, so this is a note in the list, not
+   another pressable row. */
+.binge-more-sheet-note {
+    margin: 0;
+    padding: 0.2rem 1.1rem 0.9rem;
+    font-size: 0.82rem;
+    line-height: 1.45;
+    color: rgba(255, 255, 255, 0.55);
+}
+.binge-more-sheet-row:disabled {
+    opacity: 0.55;
+    cursor: default;
+}

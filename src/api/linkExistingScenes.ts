@@ -43,6 +43,9 @@ function buildFindLocalSourceScenesQuery(endpoint: string): string {
             ) {
                 scenes {
                     id
+                    performers {
+                        id
+                    }
                     stash_ids {
                         endpoint
                         stash_id
@@ -81,11 +84,12 @@ const SCENES_ADD_PERFORMER = /* GraphQL */ `
 `;
 
 export interface LinkExistingScenesResult {
-    /// How many of the library's StashDB-matched scenes are hers.
+    /// How many of the library's StashDB-matched scenes are hers and
+    /// do not list her yet. A scene that already does is not a
+    /// candidate: ADD would leave it unchanged, and counting it made a
+    /// repeat of the repair claim to have attached scenes it had not.
     matched: number;
-    /// How many the update covered. Equal to `matched` on success,
-    /// since ADD is idempotent - a scene that already lists her is
-    /// unchanged rather than counted separately.
+    /// How many the update covered. Equal to `matched` on success.
     linked: number;
     /// True when the update itself failed, so nothing was written.
     /// Distinct from `matched: 0`, which means she has no scenes here.
@@ -122,12 +126,10 @@ export async function linkExistingScenesToPerformer(args: {
     } catch {
         return { ...empty, lookupFailed: true };
     }
-    // An empty answer here is ambiguous: getStashDBScenesForPerformer
-    // breaks out of its pager on a failed request and returns what it
-    // has, so nothing distinguishes "she has none" from "the source was
-    // unreachable". Reported as a lookup failure so the caller does not
-    // tell the user she has no scenes when nobody knows.
-    if (hers.length === 0) return { ...empty, lookupFailed: true };
+    // An empty answer means she has no scenes on the source. The pager
+    // throws when its first page fails, which is the catch above, so
+    // [] is no longer standing in for "nobody knows".
+    if (hers.length === 0) return empty;
     const hersById = new Set(hers.map((s) => s.id));
 
     // The library's source-matched scenes.
@@ -137,6 +139,7 @@ export async function linkExistingScenesToPerformer(args: {
             findScenes: {
                 scenes: {
                     id: string;
+                    performers: { id: string }[];
                     stash_ids: { endpoint: string; stash_id: string }[];
                 }[];
             };
@@ -150,7 +153,11 @@ export async function linkExistingScenesToPerformer(args: {
         const isHers = sc.stash_ids.some(
             (sid) => sid.endpoint === endpoint && hersById.has(sid.stash_id),
         );
-        if (isHers) candidates.push(sc.id);
+        if (!isHers) continue;
+        if (sc.performers.some((p) => p.id === args.localPerformerId)) {
+            continue;
+        }
+        candidates.push(sc.id);
     }
     if (candidates.length === 0) return empty;
 
