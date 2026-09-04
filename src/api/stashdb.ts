@@ -956,7 +956,17 @@ export async function getStashDBScenesForPerformer(
                 per_page: perPage,
             },
         });
-        if (!data?.queryScenes?.scenes) break;
+        if (!data?.queryScenes?.scenes) {
+            // A failed first page is not an empty answer. Returning []
+            // here made "she has no scenes" and "StashDB did not reply"
+            // the same value, and the caller that attaches her to the
+            // library's scenes had to report every empty list as a
+            // lookup failure to stay honest. A later page failing still
+            // returns what was gathered: partial is better than nothing
+            // for a list, and the count is only ever a floor.
+            if (page === 1) throw new Error("StashDB scene lookup failed");
+            break;
+        }
         for (const s of data.queryScenes.scenes) out.push(shapeScene(s));
         if (data.queryScenes.scenes.length < perPage) break;
         page++;

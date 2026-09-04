@@ -29,6 +29,7 @@ interface Call {
 const calls: Call[] = [];
 let localScenes: {
     id: string;
+    performers?: { id: string }[];
     stash_ids: { endpoint: string; stash_id: string }[];
 }[] = [];
 let writeThrows = false;
@@ -37,7 +38,14 @@ vi.mock("./graphql", () => ({
     gql: async (query: string, variables: Record<string, unknown> = {}) => {
         calls.push({ query, variables });
         if (query.includes("FindLocalStashDBScenes")) {
-            return { findScenes: { scenes: localScenes } };
+            return {
+                findScenes: {
+                    scenes: localScenes.map((s) => ({
+                        performers: [],
+                        ...s,
+                    })),
+                },
+            };
         }
         if (query.includes("ScenesAddPerformer")) {
             if (writeThrows) throw new Error("stash said no");
@@ -105,6 +113,26 @@ describe("linking a followed performer to scenes already in the library", () => 
         expect(r.matched).toBe(2);
     });
 
+    it("skips a scene that already lists her", async () => {
+        // ADD would leave it unchanged, so it is not work, and counting
+        // it told the user a repeat of the repair had attached a scene
+        // she was already on.
+        scenesForPerformer.mockResolvedValue([{ id: "sc-a" }, { id: "sc-b" }]);
+        localScenes = [
+            {
+                id: "1",
+                performers: [{ id: "p9" }],
+                stash_ids: [{ endpoint: SD, stash_id: "sc-a" }],
+            },
+            { id: "2", stash_ids: [{ endpoint: SD, stash_id: "sc-b" }] },
+        ];
+
+        const r = await run();
+
+        expect(r).toMatchObject({ matched: 1, linked: 1 });
+        expect(writes()[0].variables.ids).toEqual(["2"]);
+    });
+
     it("ignores a scene matched to a different stash-box", async () => {
         scenesForPerformer.mockResolvedValue([{ id: "sc-a" }]);
         localScenes = [
@@ -134,12 +162,12 @@ describe("linking a followed performer to scenes already in the library", () => 
         expect(r).toMatchObject({ matched: 1, linked: 0, failed: true });
     });
 
-    it("says the lookup failed rather than that she has no scenes", async () => {
-        // getStashDBScenesForPerformer breaks out of its pager and
-        // returns what it has on a failed request, so an empty answer
-        // cannot be trusted to mean "none". Telling the user she has no
-        // scenes here when nobody knows is the wrong thing to say.
-        scenesForPerformer.mockResolvedValue([]);
+    it("says the lookup failed when StashDB did not answer", async () => {
+        // The pager throws on a failed first page, so a failure reaches
+        // here as a rejection and never as an empty list. Telling the
+        // user she has no scenes here when nobody knows is the wrong
+        // thing to say.
+        scenesForPerformer.mockRejectedValue(new Error("stashdb 502"));
         localScenes = [
             { id: "1", stash_ids: [{ endpoint: SD, stash_id: "sc-a" }] },
         ];
@@ -147,6 +175,18 @@ describe("linking a followed performer to scenes already in the library", () => 
         const r = await run();
 
         expect(r.lookupFailed).toBe(true);
+        expect(writes()).toHaveLength(0);
+    });
+
+    it("treats an empty answer as her having no scenes here", async () => {
+        scenesForPerformer.mockResolvedValue([]);
+        localScenes = [
+            { id: "1", stash_ids: [{ endpoint: SD, stash_id: "sc-a" }] },
+        ];
+
+        const r = await run();
+
+        expect(r).toMatchObject({ matched: 0, linked: 0, lookupFailed: false });
         expect(writes()).toHaveLength(0);
     });
 
