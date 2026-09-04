@@ -47,6 +47,7 @@
 - `plugins/main/index.yml` **不在本仓库**，位于独立的 `k6cc/stash-plugins` 仓库（commit 4ba6950 迁移），发布后务必检查它是否已同步。
 - `binge.yml` 的 version、zip 文件名、GitHub tag 三者必须统一为同一版本号，否则 Stash 内显示的版本与 Release 名不一致。
 - tag 名必须是 `v*.*.*` 格式（如 `v0.8.1`），否则 release workflow 不触发。
+- **打 tag 前必查同名遗留 tag**：合并上游时带入的本地 tag（上游 release commit，作者 ordureconnoisseur）可能与本仓库版本号撞名——现存 v0.5.3 / v0.8.1–v0.8.3 / v0.9.0–v0.9.1 / v0.10.0 / v0.12.0–v0.12.1 及更早（`git tag` 报 "already exists" 即命中）。v0.8.0 曾因此把上游旧 commit 推上远程、触发上游版 workflow 发布了错误产物（2026-09-04 事故，已修复：删 release + tag 后在正确 commit 重建）。正确做法：`git tag -d <tag>` 删除遗留后重建，push 前用 `git rev-parse <tag>~1` 之类核对指向最新发布 commit。
 - 本地 `release/`、`screenshots/`、`drafts/` 目录已于 2026-08-31 仓库清理时删除（release 旧 zip 仅历史留档、screenshots 已从 README 移除引用）；发布产物完全由 GitHub tag 触发的 CI 生成并上传 Release，无需在仓库内留档 zip/截图。
 - 发布前用 `git status` 确认无未提交改动，避免版本号改了却漏提交。
 - 仅改 README/文档、不改源码的发布（纯版本号 bump），同样要同步第一节全部 5 处版本号。
