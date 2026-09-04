@@ -1,20 +1,21 @@
 import { gql } from "./graphql";
-import { getStashDBScenesForPerformer, getStashDBBox } from "./stashdb";
+import { getStashDBScenesForPerformer, getSourceBox } from "./stashdb";
+import { getActiveSource } from "./source";
 
 // Attaching a newly-followed performer to the scenes you already have.
 //
 // Following someone creates a local performer in Stash with a stash_ids
-// link back to StashDB, and nothing else. Scenes already in the library
-// that feature her are not touched, so her brand new profile reports
-// zero scenes even when the library holds several - which reads as the
-// follow having failed.
+// link back to the active source, and nothing else. Scenes already in
+// the library that feature her are not touched, so her brand new
+// profile reports zero scenes even when the library holds several -
+// which reads as the follow having failed.
 //
 // The link that makes this possible is the one binge already relies on
-// everywhere else: a scene matched to StashDB carries a stashdb.org
-// entry in its own stash_ids. So the question "which of my scenes are
-// hers" has an exact answer - the intersection of her StashDB scenes
-// with the StashDB scenes this library owns - and needs no name
-// matching or guessing.
+// everywhere else: a scene matched to the source carries its entry in
+// its own stash_ids. So the question "which of my scenes are hers" has
+// an exact answer - the intersection of her source scenes with the
+// source scenes this library owns - and needs no name matching or
+// guessing.
 //
 // Deliberately additive. Every write appends her to the scene's existing
 // performers and never removes anyone, and the list it appends to is
@@ -22,32 +23,35 @@ import { getStashDBScenesForPerformer, getStashDBBox } from "./stashdb";
 // below, because sceneUpdate replaces the whole performer_ids array and
 // a scan is a snapshot.
 
-const STASHDB_ENDPOINT = "https://stashdb.org/graphql";
-
-// Local scenes carrying a stashdb.org stash_id, with the ids themselves.
-// The sibling scan in stashdb.ts selects only the stash_ids because all
-// it needs is a membership set; this one needs the local id to write to.
-const FIND_LOCAL_STASHDB_SCENES = /* GraphQL */ `
-    query FindLocalStashDBScenes {
-        findScenes(
-            scene_filter: {
-                stash_id_endpoint: {
-                    endpoint: "https://stashdb.org/graphql"
-                    modifier: NOT_NULL
+// Local scenes carrying an active-source stash_id, with the ids
+// themselves. The sibling scan in stashdb.ts selects only the
+// stash_ids because all it needs is a membership set; this one needs
+// the local id to write to.
+function buildFindLocalSourceScenesQuery(endpoint: string): string {
+    // endpoint 内插进文档（同 queries.ts 的处理，剥引号/反斜杠）。
+    const safe = endpoint.replace(/["\\]/g, "");
+    return /* GraphQL */ `
+        query FindLocalSourceScenes {
+            findScenes(
+                scene_filter: {
+                    stash_id_endpoint: {
+                        endpoint: "${safe}"
+                        modifier: NOT_NULL
+                    }
                 }
-            }
-            filter: { page: 1, per_page: -1 }
-        ) {
-            scenes {
-                id
-                stash_ids {
-                    endpoint
-                    stash_id
+                filter: { page: 1, per_page: -1 }
+            ) {
+                scenes {
+                    id
+                    stash_ids {
+                        endpoint
+                        stash_id
+                    }
                 }
             }
         }
-    }
-`;
+    `;
+}
 
 // ADD, not SET, and one request for the whole set.
 //
@@ -104,10 +108,11 @@ export async function linkExistingScenesToPerformer(args: {
         lookupFailed: false,
     };
 
-    const box = await getStashDBBox();
+    const box = await getSourceBox();
     if (!box) return { ...empty, lookupFailed: true };
+    const { endpoint } = await getActiveSource();
 
-    // Her scenes, as StashDB knows them.
+    // Her scenes, as the source knows them.
     let hers;
     try {
         hers = await getStashDBScenesForPerformer(
@@ -119,13 +124,13 @@ export async function linkExistingScenesToPerformer(args: {
     }
     // An empty answer here is ambiguous: getStashDBScenesForPerformer
     // breaks out of its pager on a failed request and returns what it
-    // has, so nothing distinguishes "she has none" from "StashDB was
+    // has, so nothing distinguishes "she has none" from "the source was
     // unreachable". Reported as a lookup failure so the caller does not
     // tell the user she has no scenes when nobody knows.
     if (hers.length === 0) return { ...empty, lookupFailed: true };
     const hersById = new Set(hers.map((s) => s.id));
 
-    // The library's StashDB-matched scenes.
+    // The library's source-matched scenes.
     let local;
     try {
         local = await gql<{
@@ -135,7 +140,7 @@ export async function linkExistingScenesToPerformer(args: {
                     stash_ids: { endpoint: string; stash_id: string }[];
                 }[];
             };
-        }>(FIND_LOCAL_STASHDB_SCENES);
+        }>(buildFindLocalSourceScenesQuery(endpoint));
     } catch {
         return { ...empty, lookupFailed: true };
     }
@@ -143,8 +148,7 @@ export async function linkExistingScenesToPerformer(args: {
     const candidates: string[] = [];
     for (const sc of local.findScenes.scenes) {
         const isHers = sc.stash_ids.some(
-            (sid) =>
-                sid.endpoint === STASHDB_ENDPOINT && hersById.has(sid.stash_id),
+            (sid) => sid.endpoint === endpoint && hersById.has(sid.stash_id),
         );
         if (isHers) candidates.push(sc.id);
     }

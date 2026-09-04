@@ -6,6 +6,7 @@ import {
 } from "../home/pluginSettings";
 import { isTrustedDaemonUrl } from "./bingeServer";
 import { fetchStashApiKey } from "./queries";
+import { getActiveSource } from "./source";
 
 // Client for the forage daemon (github.com/ordureconnoisseur/forager).
 // binge only uses ONE forage endpoint: POST /watches, which adds a
@@ -100,6 +101,16 @@ let probeUrl: string | null = null;
 let probePromise: Promise<boolean> | null = null;
 
 export function forageAvailable(): Promise<boolean> {
+    // forage 的 watch 语义绑定 stashdb.org 的 scene id——其他 stash-box
+    // 实例（javstash 等）的 id 在 forage 侧查无此物，watch 会静默失效。
+    // 活动数据源非默认源时直接禁用入口（不 probe）；配置读取失败时
+    // 按默认源放行（与全代码的回退规则一致）。
+    return getActiveSource()
+        .then((src) => (src.isDefault ? probeForageUrl() : false))
+        .catch(() => probeForageUrl());
+}
+
+function probeForageUrl(): Promise<boolean> {
     // Can't read the URL synchronously any more — it may still be
     // arriving from Stash's plugin config. Seed first, then probe.
     if (!probePromise) {

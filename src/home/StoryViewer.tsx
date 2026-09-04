@@ -610,7 +610,7 @@ export function StoryViewer() {
                                     className="binge-story-viewer-source-badge"
                                     title={t("status.from_stashdb_not_in_library")}
                                 >
-                                    StashDB
+                                    {t("common.stashdb")}
                                 </span>
                             )}
                             {currentScene.source === "reddit" && (

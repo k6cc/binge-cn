@@ -78,6 +78,8 @@ import {
     usePluginLoaded,
 } from "../plugins/PluginContext";
 import { fetchStashApiKey } from "../api/queries";
+import { getActiveSource, type ActiveSource } from "../api/source";
+import { getLinkedPerformers } from "../api/stashdb";
 import { DEFAULT_LIBRARY_FOLDER_NAMES } from "../home/impliedSource";
 import { DEFAULT_GALLERY_IGNORE_FOLDERS } from "../home/galleryNoise";
 
@@ -275,6 +277,7 @@ export function SettingsPage() {
                         label={t("settings.section_sources")}
                         hint={t("settings.section_sources_hint")}
                     >
+                        <SourceRow />
                         <StashDBRow />
                         <StashDBProfileRow />
                         <RedditRow requires={needsDaemon} />
@@ -736,6 +739,146 @@ function LookbackRow() {
     );
 }
 
+// 发现数据源只读展示（不是配置入口——源在 Stash 的插件设置页
+// sourceEndpoint 配置，语义见 src/api/source.ts 头注释）。
+//
+// 健康四态：
+//   - ok          活动源解析成功，且本地库有演员链接到它（联动可用）
+//   - warn        源可用，但 0 位链接演员 → 发现流/stories 将为空
+//                 （数据前提：需先用该实例刮削库，代码无法弥补）
+//   - fault       stashBoxes 无匹配条目（无 API key）或本地查询失败
+//   - pending     解析中
+// 另有一行回退说明：配置的 endpoint 与 Stash 的 stash-box 列表
+// 不匹配时说明已回退 stashdb.org 及原因，不静默。
+type SourceRowState =
+    | { kind: "pending" }
+    | { kind: "fault" }
+    | {
+          kind: "resolved";
+          host: string;
+          fallbackReason: ActiveSource["fallbackReason"];
+          health:
+              | { kind: "no-key" }
+              | { kind: "query-failed" }
+              | { kind: "unlinked" }
+              | { kind: "ok"; linked: number };
+      };
+
+function SourceRow() {
+    const { t } = useTranslation();
+    const [state, setState] = useState<SourceRowState>({ kind: "pending" });
+
+    useEffect(() => {
+        let alive = true;
+        (async () => {
+            let src: ActiveSource;
+            try {
+                src = await getActiveSource();
+            } catch {
+                if (alive) setState({ kind: "fault" });
+                return;
+            }
+            if (!alive) return;
+            if (!src.apiKey) {
+                setState({
+                    kind: "resolved",
+                    host: src.host,
+                    fallbackReason: src.fallbackReason,
+                    health: { kind: "no-key" },
+                });
+                return;
+            }
+            // linked 计数复用 getLinkedPerformers 的查询（按活动源
+            // endpoint 过滤）。失败（查询出错）与 0（库未用该实例
+            // 刮削）必须区分：前者是故障，后者是数据前提。
+            try {
+                const linked = await getLinkedPerformers();
+                if (!alive) return;
+                setState({
+                    kind: "resolved",
+                    host: src.host,
+                    fallbackReason: src.fallbackReason,
+                    health:
+                        linked.length > 0
+                            ? { kind: "ok", linked: linked.length }
+                            : { kind: "unlinked" },
+                });
+            } catch {
+                if (!alive) return;
+                setState({
+                    kind: "resolved",
+                    host: src.host,
+                    fallbackReason: src.fallbackReason,
+                    health: { kind: "query-failed" },
+                });
+            }
+        })();
+        return () => {
+            alive = false;
+        };
+    }, []);
+
+    // 状态点 + 附注的展示参数。warn 用黄字（数据前提，不是故障），
+    // fault 用红（真故障）。
+    let dot = "is-pending";
+    let host = "…";
+    let note = t("settings.source.status_pending");
+    let noteKind = "";
+    if (state.kind === "fault") {
+        dot = "is-down";
+        note = t("settings.source.status_fault");
+        noteKind = "is-fault";
+    } else if (state.kind === "resolved") {
+        host = state.host;
+        if (state.health.kind === "ok") {
+            dot = "is-ok";
+            note = t("settings.source.status_ok", {
+                count: state.health.linked,
+            });
+        } else if (state.health.kind === "unlinked") {
+            dot = "is-warn";
+            note = t("settings.source.status_unlinked");
+            noteKind = "is-warn";
+        } else if (state.health.kind === "no-key") {
+            dot = "is-down";
+            note = t("settings.source.status_no_key");
+            noteKind = "is-fault";
+        } else {
+            dot = "is-down";
+            note = t("settings.source.status_query_failed");
+            noteKind = "is-fault";
+        }
+    }
+
+    return (
+        <SettingRow
+            layout="stacked"
+            title={t("settings.source.title")}
+            description={t("settings.source.desc")}
+        >
+            <div className="binge-settings-source-status">
+                <span
+                    className={`binge-settings-status-dot ${dot}`}
+                    role="status"
+                    aria-label={note}
+                />
+                <span className="binge-settings-source-host">{host}</span>
+                <span
+                    className={`binge-settings-source-note ${noteKind}`.trim()}
+                >
+                    {note}
+                </span>
+            </div>
+            {state.kind === "resolved" &&
+                state.fallbackReason === "no-match" && (
+                    <p className="binge-settings-source-note is-warn">
+                        {t("settings.source.fallback_no_match")}
+                    </p>
+                )}
+        </SettingRow>
+    );
+}
+
 function StashDBRow() {
     const value = useIncludeStashDB();
     const { t } = useTranslation();
@@ -747,7 +890,7 @@ function StashDBRow() {
             <SwitchToggle
                 checked={value}
                 onChange={(v) => setIncludeStashDB(v)}
-                label="StashDB"
+                label={t("common.stashdb")}
             />
         </SettingRow>
     );
@@ -1598,6 +1741,24 @@ function ForageUrlRow() {
     const stored = useForageUrl();
     const [draft, setDraft] = useState(stored);
     const { t } = useTranslation();
+    // forage 的 watch 语义绑定 stashdb.org 的 scene id。活动数据源
+    // 非默认源时"发送到 forage"整体禁用（见 forageServer.ts 的
+    // forageAvailable）；此处用 badge 说明原因，而不是让入口静默
+    // 消失。
+    const [sourceLimited, setSourceLimited] = useState(false);
+    useEffect(() => {
+        let alive = true;
+        getActiveSource()
+            .then((s) => {
+                if (alive) setSourceLimited(!s.isDefault);
+            })
+            .catch(() => {
+                /* 配置读取失败 → 按默认源放行，不显示 badge */
+            });
+        return () => {
+            alive = false;
+        };
+    }, []);
     useEffect(() => {
         setDraft(stored);
     }, [stored]);
@@ -1607,6 +1768,11 @@ function ForageUrlRow() {
             layout="stacked"
             title={t("settings.forage_url.title")}
             description={t("settings.forage_url.desc")}
+            requires={
+                sourceLimited
+                    ? t("settings.forage_url.source_limited")
+                    : null
+            }
         >
             <div className="binge-settings-url-row">
                 <input

@@ -16,10 +16,15 @@ import {
 } from "../util/playbackStack";
 import {
     getOwnedStashDBSceneIds,
-    getStashDBBox,
+    getSourceBox,
     getStashDBScenesForPerformer,
     type StashDBScene,
 } from "../api/stashdb";
+import {
+    getActiveSource,
+    sourceSceneUrl,
+    DEFAULT_SOURCE_ENDPOINT,
+} from "../api/source";
 import {
     setIncludeStashDBInProfile,
     useIncludeStashDBInProfile,
@@ -53,8 +58,6 @@ type GridCell =
           stashBoxIndex: number;
       }
     | { kind: "pornhub"; date: string; video: PornhubVideo };
-
-const STASHDB_ENDPOINT = "https://stashdb.org/graphql";
 
 // 24 was one flick of the wrist on a wide grid (5-6 columns = 4 rows), so
 // the loader showed up constantly. 60 is ~10 rows even at desktop width
@@ -124,11 +127,30 @@ export function PerformerSceneGrid({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [performer.id, includePornhub]);
 
-    // True when this performer is actually linked to a stashdb
-    // entry — gates the toggle pill in the heading. No link →
+    // 活动数据源 endpoint（会话级 memo，页面加载时已被各链路解析过，
+    // 这里通常立即命中）。linked 判定与外链 URL 都以它为准，切源后
+    // 重开页面即切换到新实例。
+    const [sourceEndpoint, setSourceEndpoint] = useState<string | null>(null);
+    useEffect(() => {
+        let alive = true;
+        getActiveSource()
+            .then((s) => {
+                if (alive) setSourceEndpoint(s.endpoint);
+            })
+            .catch(() => {
+                /* 配置查询失败 → 保持 null，linked 判定按未链接处理 */
+            });
+        return () => {
+            alive = false;
+        };
+    }, []);
+
+    // True when this performer is actually linked to the active
+    // source — gates the toggle pill in the heading. No link →
     // nothing to fetch, so hide the control entirely.
     const isStashDBLinked = Boolean(
-        performer.stash_ids?.some((s) => s.endpoint === STASHDB_ENDPOINT)
+        sourceEndpoint &&
+            performer.stash_ids?.some((s) => s.endpoint === sourceEndpoint)
     );
 
     // The mixin also switches itself on for a linked performer the
@@ -196,9 +218,9 @@ export function PerformerSceneGrid({
             setStashDBLoading(false);
             return;
         }
-        const sdb = performer.stash_ids?.find(
-            (s) => s.endpoint === STASHDB_ENDPOINT
-        );
+        const sdb = sourceEndpoint
+            ? performer.stash_ids?.find((s) => s.endpoint === sourceEndpoint)
+            : undefined;
         if (!sdb) {
             setStashDBScenes([]);
             setStashDBLoading(false);
@@ -208,7 +230,7 @@ export function PerformerSceneGrid({
         setStashDBLoading(true);
         (async () => {
             try {
-                const box = await getStashDBBox();
+                const box = await getSourceBox();
                 if (!box) return;
                 const [list, owned] = await Promise.all([
                     getStashDBScenesForPerformer(sdb.stash_id, box.api_key),
@@ -231,7 +253,7 @@ export function PerformerSceneGrid({
         return () => {
             alive = false;
         };
-    }, [performer.id, performer.stash_ids, stashDBOn]);
+    }, [performer.id, performer.stash_ids, stashDBOn, sourceEndpoint]);
 
     useEffect(() => {
         let alive = true;
@@ -370,7 +392,7 @@ export function PerformerSceneGrid({
                         title={t("performer.stashdb_mixin_title")}
                     >
                         <span className="binge-profile-stashdb-toggle-dot" />
-                        StashDB
+                        {t("common.stashdb")}
                     </button>
                 )}
             </h2>
@@ -423,7 +445,11 @@ export function PerformerSceneGrid({
                                         sceneId: cell.scene.id,
                                         title: cell.scene.title,
                                         cover: cell.scene.coverUrl,
-                                        stashboxUrl: `https://stashdb.org/scenes/${cell.scene.id}`,
+                                        stashboxUrl: sourceSceneUrl(
+                                            sourceEndpoint ??
+                                                DEFAULT_SOURCE_ENDPOINT,
+                                            cell.scene.id,
+                                        ),
                                     })
                                 }
                             />

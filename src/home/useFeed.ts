@@ -30,11 +30,11 @@ import { useSharedStories } from "./StoriesContext";
 import { buildSourceResolver } from "./impliedSource";
 import { buildGalleryNoiseMatcher } from "./galleryNoise";
 import {
-    getStashDBBox,
+    getSourceBox,
     getMatchedScenePerformers,
-    STASHDB_ENDPOINT,
     type MatchedScenePerformer,
 } from "../api/stashdb";
+import { getActiveSource } from "../api/source";
 
 // Performer summary inside a feed item. Multiple performers per item are
 // kept so the card can show their names and route taps to the correct
@@ -458,6 +458,10 @@ export function useFeed(): FeedHookResult {
                     libraryFolderKey.split(",").filter(Boolean),
                 );
 
+                // 活动数据源 endpoint（getActiveSource 有 memo，这里零额外
+                // 往返）。下面的"场景是否已按活动源建档"判定必须用它，
+                // 而不是写死 stashdb.org。
+                const { endpoint: activeEndpoint } = await getActiveSource();
                 // StashDB scene match per scene, or null. Only scenes
                 // with one may appear without a performer.
                 const stashIdBySceneId = new Map<string, string | null>();
@@ -505,7 +509,7 @@ export function useFeed(): FeedHookResult {
                         stashIdBySceneId.set(
                             r.sceneId,
                             r.stashIds.find(
-                                (x) => x.endpoint === STASHDB_ENDPOINT,
+                                (x) => x.endpoint === activeEndpoint,
                             )?.stashId ?? null,
                         );
                         sceneItems.set(r.sceneId, item);
@@ -604,7 +608,7 @@ export function useFeed(): FeedHookResult {
                     .map(([id]) => stashIdBySceneId.get(id))
                     .filter((x): x is string => Boolean(x));
                 if (needPerformers.length > 0 && includeStashDB) {
-                    const box = await getStashDBBox();
+                    const box = await getSourceBox();
                     if (box) {
                         const byStashId = await getMatchedScenePerformers(
                             needPerformers,

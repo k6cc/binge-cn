@@ -1,11 +1,12 @@
 import { gql } from "./graphql";
 import {
-    getStashDBBox,
+    getSourceBox,
     getStashDBPerformer,
     getStashDBScene,
     type StashDBPerformerDetail,
     type StashDBSceneDetail,
 } from "./stashdb";
+import { getActiveSource } from "./source";
 
 const SCENE_INCREMENT_O = /* GraphQL */ `
     mutation SceneIncrementO($id: ID!) {
@@ -296,7 +297,7 @@ export interface ScrapedPerformer {
 export async function getStashDBPerformerForFollow(
     stashId: string,
 ): Promise<StashDBPerformerDetail | null> {
-    const box = await getStashDBBox();
+    const box = await getSourceBox();
     if (!box) return null;
     return getStashDBPerformer(stashId, box.api_key);
 }
@@ -403,22 +404,21 @@ const PERFORMER_CREATE = /* GraphQL */ `
     }
 `;
 
-const STASHDB_ENDPOINT = "https://stashdb.org/graphql";
-
 // Submit the form. Cleans empty strings → undefined, parses numeric
 // fields, and translates a few binge-form-shaped values (the
 // newline-separated URL textarea, the comma-separated alias
 // textarea) into the array shapes Stash expects. Always carries
-// stash_ids back to StashDB so the new local performer stays
-// linked.
+// stash_ids back to the active source so the new local performer
+// stays linked.
 export async function submitPerformerCreate(
     form: PerformerCreateForm,
 ): Promise<{ id: string; name: string }> {
+    const { endpoint } = await getActiveSource();
     const input: Record<string, unknown> = {
         name: form.name.trim(),
         stash_ids: [
             {
-                endpoint: STASHDB_ENDPOINT,
+                endpoint,
                 stash_id: form.stashDBPerformerId,
             },
         ],
@@ -498,12 +498,13 @@ export async function followStashDBPerformer(
     // "180 cm" for height; Stash's create input wants the raw number.
     // For v1 we keep it simple: pass through what we can, skip
     // anything that requires parsing.
+    const { endpoint } = await getActiveSource();
     const input: Record<string, unknown> = {
         name: scraped?.name?.trim() || args.fallbackName,
         // Always carry the stash_ids link so Stash can match this
-        // performer to StashDB in the future.
+        // performer to the source in the future.
         stash_ids: [
-            { endpoint: STASHDB_ENDPOINT, stash_id: args.stashDBPerformerId },
+            { endpoint, stash_id: args.stashDBPerformerId },
         ],
     };
     const firstImage = scraped?.images?.[0] ?? args.fallbackImage;
@@ -556,7 +557,7 @@ export async function followStashDBPerformer(
 export async function getStashDBSceneForCreate(
     stashDBSceneId: string,
 ): Promise<StashDBSceneDetail | null> {
-    const box = await getStashDBBox();
+    const box = await getSourceBox();
     if (!box) return null;
     return getStashDBScene(stashDBSceneId, box.api_key);
 }
@@ -606,6 +607,7 @@ async function buildPerformerStashIdMap(
     stashIds: string[],
 ): Promise<Map<string, string>> {
     if (stashIds.length === 0) return new Map();
+    const { endpoint } = await getActiveSource();
     const data = await gql<{
         findPerformers: {
             performers: {
@@ -617,7 +619,7 @@ async function buildPerformerStashIdMap(
     const allMap = new Map<string, string>();
     for (const p of data.findPerformers.performers) {
         for (const sid of p.stash_ids) {
-            if (sid.endpoint === STASHDB_ENDPOINT) {
+            if (sid.endpoint === endpoint) {
                 allMap.set(sid.stash_id, p.id);
             }
         }
@@ -631,6 +633,7 @@ async function buildPerformerStashIdMap(
 }
 
 async function findStudioByStashId(stashId: string): Promise<string | null> {
+    const { endpoint } = await getActiveSource();
     const data = await gql<{
         findStudios: {
             studios: {
@@ -641,7 +644,7 @@ async function findStudioByStashId(stashId: string): Promise<string | null> {
     }>(FIND_STUDIOS_BY_STASH_ID);
     for (const s of data.findStudios.studios) {
         for (const sid of s.stash_ids) {
-            if (sid.endpoint === STASHDB_ENDPOINT && sid.stash_id === stashId) {
+            if (sid.endpoint === endpoint && sid.stash_id === stashId) {
                 return s.id;
             }
         }
@@ -693,10 +696,11 @@ const SCENE_CREATE = /* GraphQL */ `
 export async function submitSceneCreate(
     form: SceneCreateForm,
 ): Promise<{ id: string; title: string | null }> {
+    const { endpoint } = await getActiveSource();
     const input: Record<string, unknown> = {
         stash_ids: [
             {
-                endpoint: STASHDB_ENDPOINT,
+                endpoint,
                 stash_id: form.stashDBSceneId,
             },
         ],

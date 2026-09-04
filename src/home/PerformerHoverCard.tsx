@@ -310,7 +310,9 @@ export function PerformerHoverCard({
                                             : " is-stashdb")
                                     }
                                 >
-                                    {inLibrary ? t("status.in_library") : "StashDB"}
+                                    {inLibrary
+                                        ? t("status.in_library")
+                                        : t("common.stashdb")}
                                 </span>
                             </div>
                         </div>

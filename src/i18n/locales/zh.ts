@@ -390,6 +390,17 @@ export default {
                 desc: "首页“新”内容的回溯范围。同时影响故事栏和初始动态加载。窗口越短越紧凑；窗口越长展示更多内容，但库较大时首屏加载会变慢。",
                 days: "天"
             },
+            source: {
+                title: "发现数据源",
+                desc: "发现流、热门、关注和演员页“未拥有”混排所使用的 stash-box 实例。在 Stash 设置 → 插件 → binge 的 sourceEndpoint 中配置（须与 Stash 配置的 stash-box endpoint 一致，默认 stashdb.org）；修改后重新打开 binge 页生效。此处仅展示当前状态。",
+                status_pending: "正在检测…",
+                status_ok: "已链接 {{count}} 位演员",
+                status_unlinked: "本地库没有演员链接到该实例，发现流和故事联动将为空（需先用该实例刮削库）",
+                status_no_key: "Stash 未配置该实例的 stash-box 条目（缺少 API 密钥）",
+                status_query_failed: "无法查询本地库的链接状态",
+                status_fault: "无法读取插件配置",
+                fallback_no_match: "配置的 endpoint 与 Stash 的 stash-box 列表不匹配，已回退到 stashdb.org。请检查插件设置中的 sourceEndpoint 是否与 Stash 设置 → 元数据提供商 → StashBox 中的 endpoint 完全一致。"
+            },
             stashdb: {
                 title: "在故事中包含 StashDB 新发布",
                 desc: "故事栏也会展示你库中演员在 StashDB 上的新发布（你尚未拥有的内容）。需要在 Stash → 设置 → 元数据提供商 → StashBox 中配置 StashDB API 密钥。结果缓存 12 小时。"
@@ -494,7 +505,8 @@ export default {
             },
             forage_url: {
                 title: "forage 服务器 URL",
-                desc: "可选。你的 forage 守护进程的基础 URL（如果你运行的话）。当此守护进程可达时，发现场景上会出现“发送到 forage”；为空时保持隐藏。认证是自动的——binge 出示你的 Stash API 密钥，forage 已信任它；无需粘贴。状态点会 ping /healthz。若 Stash 以 https 提供，请使用 https，否则浏览器会因混合内容阻止。"
+                desc: "可选。你的 forage 守护进程的基础 URL（如果你运行的话）。当此守护进程可达时，发现场景上会出现“发送到 forage”；为空时保持隐藏。认证是自动的——binge 出示你的 Stash API 密钥，forage 已信任它；无需粘贴。状态点会 ping /healthz。若 Stash 以 https 提供，请使用 https，否则浏览器会因混合内容阻止。",
+                source_limited: "需 stashdb.org 数据源"
             },
             forage_health: {
                 ok: "forage 可达",

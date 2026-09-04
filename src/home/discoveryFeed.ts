@@ -13,7 +13,7 @@
 // remains followable via their @mention hover-card in the card body.
 
 import {
-    getStashDBBox,
+    getSourceBox,
     getLinkedPerformers,
     getOwnedStashDBSceneIds,
     getNewStashDBScenesForPerformers,
@@ -21,21 +21,26 @@ import {
     type StashDBScene,
     type StashDBScenePerformer,
 } from "../api/stashdb";
+import { sourceHost, sourceSceneUrl } from "../api/source";
 import { readAllowedGenders } from "./pluginSettings";
 
 // ── 12h cache for discovery seeds ───────────────────────────────────
 //
 // Without this, every cold load of Home fires both trending and co-star
-// queries at stashdb.org. On networks where stashdb is slow or blocked
-// that's minutes of wait per page open. Stories already caches its own
-// stashdb pull (see stashdb.ts CACHE_KEY); this mirrors that for the
-// Feed's discovery seeds. The cache is keyed by sinceIsoDate + which
-// seeds were requested, so toggling "hide trending" or changing the
-// lookback window correctly invalidates. The Home refresh button calls
+// queries at the active source. On networks where the source is slow or
+// blocked that's minutes of wait per page open. Stories already caches
+// its own source pull (see stashdb.ts); this mirrors that for the
+// Feed's discovery seeds. The cache is keyed by source host +
+// sinceIsoDate + which seeds were requested, so toggling "hide
+// trending", changing the lookback window or switching the active
+// instance correctly invalidates. The Home refresh button calls
 // invalidateDiscoveryFeedCache() to force a fresh pull.
 
 const DISCOVERY_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
-const DISCOVERY_CACHE_KEY = "binge.discovery.seeds.v1";
+
+function discoveryCacheKey(endpoint: string): string {
+    return `binge.source.${sourceHost(endpoint)}.discovery.seeds.v1`;
+}
 
 interface DiscoveryCacheEntry {
     sinceIsoDate: string;
@@ -47,10 +52,11 @@ interface DiscoveryCacheEntry {
 
 function readDiscoveryCache(
     sinceIsoDate: string,
-    skipTrending: boolean
+    skipTrending: boolean,
+    endpoint: string
 ): DiscoveryCacheEntry | null {
     try {
-        const raw = localStorage.getItem(DISCOVERY_CACHE_KEY);
+        const raw = localStorage.getItem(discoveryCacheKey(endpoint));
         if (!raw) return null;
         const entry = JSON.parse(raw) as DiscoveryCacheEntry;
         if (entry.sinceIsoDate !== sinceIsoDate) return null;
@@ -62,10 +68,13 @@ function readDiscoveryCache(
     }
 }
 
-function writeDiscoveryCache(entry: DiscoveryCacheEntry): void {
+function writeDiscoveryCache(
+    entry: DiscoveryCacheEntry,
+    endpoint: string
+): void {
     try {
         localStorage.setItem(
-            DISCOVERY_CACHE_KEY,
+            discoveryCacheKey(endpoint),
             JSON.stringify(entry)
         );
     } catch {
@@ -74,8 +83,20 @@ function writeDiscoveryCache(entry: DiscoveryCacheEntry): void {
 }
 
 export function invalidateDiscoveryFeedCache(): void {
+    // refresh 语义 = 拉新：清所有 host 的种子缓存 + 旧版未隔离 key。
     try {
-        localStorage.removeItem(DISCOVERY_CACHE_KEY);
+        const stale: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (
+                key &&
+                (key.includes(".discovery.seeds.") ||
+                    key === "binge.discovery.seeds.v1")
+            ) {
+                stale.push(key);
+            }
+        }
+        for (const key of stale) localStorage.removeItem(key);
     } catch {
         /* ignore */
     }
@@ -150,7 +171,7 @@ export async function fetchDiscoveryFeedItems(
     opts: { skipTrending?: boolean } = {}
 ): Promise<DiscoveryFeedItem[]> {
     const skipTrending = !!opts.skipTrending;
-    const box = await getStashDBBox();
+    const box = await getSourceBox();
     if (!box) return [];
 
     const linkedPerformers = await getLinkedPerformers();
@@ -173,7 +194,7 @@ export async function fetchDiscoveryFeedItems(
     // cheap and depends on live library state, so we only cache the
     // raw stashdb pull — not the final items — so follow/unfollow
     // still takes effect immediately on the next build.
-    let cached = readDiscoveryCache(sinceIsoDate, skipTrending);
+    let cached = readDiscoveryCache(sinceIsoDate, skipTrending, box.endpoint);
     let trendingScenes: StashDBScene[] = [];
     let costarScenes: StashDBScene[] = [];
 
@@ -239,7 +260,7 @@ export async function fetchDiscoveryFeedItems(
                 trending: trendingScenes,
                 costar: costarScenes,
             };
-            writeDiscoveryCache(cached);
+            writeDiscoveryCache(cached, box.endpoint);
         }
     }
 
@@ -377,7 +398,7 @@ export async function fetchDiscoveryFeedItems(
             effectiveAt:
                 scene.releaseDate ??
                 new Date().toISOString().slice(0, 10),
-            stashboxUrl: `https://stashdb.org/scenes/${scene.id}`,
+            stashboxUrl: sourceSceneUrl(box.endpoint, scene.id),
             stashBoxIndex: box.index,
             primaryPerformer: {
                 stashId: poster.id,

@@ -2985,6 +2985,34 @@ body,
 .binge-settings-status-dot.is-pending {
     background: rgba(255, 255, 255, 0.3);
 }
+.binge-settings-status-dot.is-warn {
+    background: #fbbf24;
+    box-shadow: 0 0 6px rgba(251, 191, 36, 0.6);
+}
+
+/* 发现数据源只读状态行（SettingsPage SourceRow）：host + 健康附注。 */
+.binge-settings-source-status {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.72);
+    flex-wrap: wrap;
+}
+.binge-settings-source-host {
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.92);
+}
+.binge-settings-source-note.is-warn {
+    color: #fbbf24;
+}
+.binge-settings-source-note.is-fault {
+    color: #f87171;
+}
+p.binge-settings-source-note {
+    margin: 0.35rem 0 0;
+    font-size: 0.8rem;
+}
 
 /* ── Saved page (binge collections manager) ────────────────────────── */
 .binge-saved-header {

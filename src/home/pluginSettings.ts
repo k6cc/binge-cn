@@ -546,9 +546,9 @@ export function useShowDebug(): boolean {
     return useStoredBool(SHOW_DEBUG_KEY, false);
 }
 
-// StashDB integration. On by default; if the user hasn't configured a
-// StashDB API key in Stash's stashbox config, the merge silently
-// does nothing (getStashDBBox returns null). No-op cost is one
+// StashDB integration. On by default; if the active source has no
+// matching entry in Stash's stashbox config, the merge silently
+// does nothing (getSourceBox returns null). No-op cost is one
 // configuration GraphQL query.
 export function useIncludeStashDB(): boolean {
     return useStoredBool(INCLUDE_STASHDB_KEY, true);

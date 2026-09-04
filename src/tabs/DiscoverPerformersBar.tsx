@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import {
-    getStashDBBox,
+    getSourceBox,
     getLinkedPerformers,
     getTrendingStashDBPerformers,
     type StashDBTrendingPerformer,
 } from "../api/stashdb";
+import { getActiveSource, sourceHost } from "../api/source";
 import { usePerformerProfile } from "../performer/PerformerProfileContext";
 import { useTab } from "./TabContext";
 import { PerformerHoverCard } from "../home/PerformerHoverCard";
@@ -29,12 +30,20 @@ import { useTranslation } from "react-i18next";
 // Last good row, per gender selection. Six hours: long enough that
 // this is warm whenever you open Explore in a session, short enough
 // that "recently active" still means something.
-const CACHE_KEY = "binge.discoverPerformers";
+//
+// Key 按源 host 隔离（binge.source.<host>.discoverPerformers）：
+// 切换活动源后气泡行立即反映新实例，切回旧源时 TTL 内仍能命中。
+// 旧的未隔离 key（binge.discoverPerformers）在写入时顺带清理。
+const LEGACY_CACHE_KEY = "binge.discoverPerformers";
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 
-function readCache(genderKey: string): BarItem[] | null {
+function cacheKey(endpoint: string): string {
+    return `binge.source.${sourceHost(endpoint)}.discoverPerformers`;
+}
+
+function readCache(endpoint: string, genderKey: string): BarItem[] | null {
     try {
-        const raw = localStorage.getItem(CACHE_KEY);
+        const raw = localStorage.getItem(cacheKey(endpoint));
         if (!raw) return null;
         const parsed = JSON.parse(raw) as {
             at: number;
@@ -51,11 +60,12 @@ function readCache(genderKey: string): BarItem[] | null {
     }
 }
 
-function writeCache(genderKey: string, items: BarItem[]): void {
+function writeCache(endpoint: string, genderKey: string, items: BarItem[]): void {
     if (items.length === 0) return;
     try {
+        localStorage.removeItem(LEGACY_CACHE_KEY);
         localStorage.setItem(
-            CACHE_KEY,
+            cacheKey(endpoint),
             JSON.stringify({ at: Date.now(), genders: genderKey, items }),
         );
     } catch {
@@ -87,6 +97,10 @@ export function DiscoverPerformersBar() {
     const [canScrollLeft, setCanScrollLeft] = useState(false);
     const [canScrollRight, setCanScrollRight] = useState(false);
     const { t } = useTranslation();
+    // 活动源在 Stash stashBoxes 中的下标，hover 卡的"关注"动作
+    // scrapeSinglePerformer(stash_box_index) 需要它。undefined（box
+    // 未解析 / 未配置）时 hover 卡的关注按钮安全降级为无操作。
+    const [boxIndex, setBoxIndex] = useState<number | undefined>(undefined);
 
     // Stable cache key so flipping a gender toggle re-runs the
     // effect (the Set reference changes on every render).
@@ -94,22 +108,26 @@ export function DiscoverPerformersBar() {
     useEffect(() => {
         if (!includeStashDB || !visible) return;
         let alive = true;
-        // Serve the last answer immediately while a fresh one is
-        // fetched. Explore fires over a hundred StashDB requests of its
-        // own, and this one queues behind them, so even a fast query
-        // lands late enough to look broken. What it returns is the most
-        // recently active performers on StashDB, which does not change
-        // meaningfully within a day.
-        const cached = readCache(genderKey);
-        if (cached) setState({ kind: "ready", performers: cached });
         (async () => {
             try {
-                const box = await getStashDBBox();
+                // 缓存 key 依赖活动源 host，因此先取活动源再读缓存。
+                const src = await getActiveSource();
+                if (!alive) return;
+                // Serve the last answer immediately while a fresh one is
+                // fetched. Explore fires over a hundred StashDB requests of its
+                // own, and this one queues behind them, so even a fast query
+                // lands late enough to look broken. What it returns is the most
+                // recently active performers on StashDB, which does not change
+                // meaningfully within a day.
+                const cached = readCache(src.endpoint, genderKey);
+                if (cached) setState({ kind: "ready", performers: cached });
+                const box = await getSourceBox();
                 if (!box) {
                     if (!alive) return;
                     setState({ kind: "error" });
                     return;
                 }
+                setBoxIndex(box.index);
                 const [trending, linked] = await Promise.all([
                     getTrendingStashDBPerformers(
                         box.api_key,
@@ -127,7 +145,7 @@ export function DiscoverPerformersBar() {
                     ...p,
                     localId: linkedByStashId.get(p.id) ?? null,
                 }));
-                writeCache(genderKey, performers);
+                writeCache(src.endpoint, genderKey, performers);
                 setState({ kind: "ready", performers });
             } catch {
                 if (!alive) return;
@@ -202,6 +220,7 @@ export function DiscoverPerformersBar() {
                               <PerformerBubble
                                   key={p.id}
                                   performer={p}
+                                  boxIndex={boxIndex}
                                   onOpenStashDB={() => openStashDBProfile(p.id)}
                                   onOpenLocal={(localId) =>
                                       openProfile(localId)
@@ -232,10 +251,12 @@ interface BarItem extends StashDBTrendingPerformer {
 
 function PerformerBubble({
     performer,
+    boxIndex,
     onOpenStashDB,
     onOpenLocal,
 }: {
     performer: BarItem;
+    boxIndex: number | undefined;
     onOpenStashDB: () => void;
     onOpenLocal: (localId: string) => void;
 }) {
@@ -252,7 +273,7 @@ function PerformerBubble({
             inLibrary={performer.localId !== null}
             onOpenProfile={handleOpen}
             stashDBPerformerId={performer.id}
-            stashBoxIndex={0 /* not used here unless follow is tapped */}
+            stashBoxIndex={boxIndex}
         >
             <span className="binge-discover-bubble">
                 <span

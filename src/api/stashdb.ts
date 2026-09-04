@@ -3,23 +3,25 @@
 // yet imported. Cribbed from `ordureconnoisseur/stash-new-scene-discovery`.
 //
 // Flow:
-//   1. Pull StashDB endpoint + api_key from Stash's config
-//      (configuration.general.stashBoxes).
-//   2. List local performers that have a stash_id pointing at
-//      stashdb.org/graphql.
+//   1. Pull the active source endpoint + api_key (see src/api/source.ts —
+//      defaults to stashdb.org, switchable to any stash-box instance
+//      via the plugin's sourceEndpoint setting).
+//   2. List local performers that have a stash_id pointing at the
+//      active source endpoint.
 //   3. List stash_ids of scenes ALREADY in the library, so we can
 //      filter them out of the "new" results.
-//   4. Batched POST to stashdb.org/graphql with
+//   4. Batched POST to the source's /graphql with
 //      `queryScenes(input: { date: { value, modifier: GREATER_THAN },
 //                            performers: { value: [batch], modifier: INCLUDES } })`.
 //   5. Return scenes the user doesn't already own, grouped by performer.
 //
-// Caching: 12h TTL in localStorage. StashDB doesn't add new content
-// minute-by-minute, and the StashDB GraphQL endpoint is rate-sensitive.
+// Caching: 12h TTL in localStorage, keyed per source host so switching
+// the active instance never serves another instance's data. StashDB
+// doesn't add new content minute-by-minute, and the GraphQL endpoints
+// are rate-sensitive.
 
 import { gql } from "./graphql";
-
-export const STASHDB_ENDPOINT = "https://stashdb.org/graphql";
+import { getActiveSource, sourceHost } from "./source";
 
 export interface StashBoxConfig {
     endpoint: string;
@@ -69,34 +71,17 @@ export interface StashDBScene {
 
 // ── Local Stash config + linked-performer queries ────────────────────
 
-const FIND_STASHBOX_CONFIG = /* GraphQL */ `
-    query Configuration {
-        configuration {
-            general {
-                stashBoxes {
-                    endpoint
-                    api_key
-                    name
-                }
-            }
-        }
-    }
-`;
-
-export async function getStashDBBox(): Promise<StashBoxConfig | null> {
-    const data = await gql<{
-        configuration: {
-            general: {
-                stashBoxes: { endpoint: string; api_key: string }[];
-            };
-        };
-    }>(FIND_STASHBOX_CONFIG);
-    const boxes = data.configuration.general.stashBoxes;
-    const index = boxes.findIndex((b) => b.endpoint === STASHDB_ENDPOINT);
-    if (index < 0) return null;
-    const box = boxes[index];
-    if (!box.api_key) return null;
-    return { endpoint: box.endpoint, api_key: box.api_key, index };
+// 活动数据源的 box 凭据。null = 活动源（或回退后的默认源）在 Stash 的
+// stashBoxes 里没有匹配条目 / 没有 api_key —— 等价于旧版 "StashDB 未
+// 配置"，各消费方按集成关闭处理。
+export async function getSourceBox(): Promise<StashBoxConfig | null> {
+    const src = await getActiveSource();
+    if (src.boxIndex < 0 || !src.apiKey) return null;
+    return {
+        endpoint: src.endpoint,
+        api_key: src.apiKey,
+        index: src.boxIndex,
+    };
 }
 
 const FIND_LINKED_PERFORMERS = /* GraphQL */ `
@@ -146,6 +131,7 @@ export function getLinkedPerformersMemo(): Promise<LinkedPerformer[]> {
 }
 
 export async function getLinkedPerformers(): Promise<LinkedPerformer[]> {
+    const { endpoint } = await getActiveSource();
     const data = await gql<{
         findPerformers: {
             performers: {
@@ -159,7 +145,7 @@ export async function getLinkedPerformers(): Promise<LinkedPerformer[]> {
     }>(FIND_LINKED_PERFORMERS);
     const out: LinkedPerformer[] = [];
     for (const p of data.findPerformers.performers) {
-        const link = p.stash_ids.find((s) => s.endpoint === STASHDB_ENDPOINT);
+        const link = p.stash_ids.find((s) => s.endpoint === endpoint);
         if (!link) continue;
         out.push({
             localId: p.id,
@@ -222,6 +208,7 @@ export function getOwnedStashDBSceneIds(): Promise<Set<string>> {
 }
 
 async function fetchOwnedStashDBSceneIds(): Promise<Set<string>> {
+    const { endpoint } = await getActiveSource();
     const data = await gql<{
         findScenes: {
             scenes: {
@@ -232,7 +219,7 @@ async function fetchOwnedStashDBSceneIds(): Promise<Set<string>> {
     const owned = new Set<string>();
     for (const s of data.findScenes.scenes) {
         for (const sid of s.stash_ids) {
-            if (sid.endpoint === STASHDB_ENDPOINT) owned.add(sid.stash_id);
+            if (sid.endpoint === endpoint) owned.add(sid.stash_id);
         }
     }
     return owned;
@@ -258,10 +245,14 @@ async function postStashDB<T>(
     variables: Record<string, unknown>,
     timeoutMs: number = STASHDB_TIMEOUT_MS,
 ): Promise<T | null> {
+    // fetch 目标 = 活动数据源。所有调用方的 apiKey 都源自 getSourceBox
+    // → getActiveSource，因此这里再取一次（memo 化，零额外往返）即能
+    // 保证 key 与 endpoint 永远同源。
+    const { endpoint } = await getActiveSource();
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), timeoutMs);
     try {
-        const res = await fetch(STASHDB_ENDPOINT, {
+        const res = await fetch(endpoint, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -1026,9 +1017,14 @@ export async function getNewStashDBScenesForPerformers(
 // v4: performers now include scene_count for the "most popular"
 // poster fallback. Old v3 entries lack the field, so reads should
 // return null and force a refetch.
-const CACHE_PREFIX = "binge.stashdb.newScenes.";
-const CACHE_KEY = CACHE_PREFIX + "v4";
+//
+// Key 按源 host 隔离（binge.source.<host>.newScenes.v4）：切换活动源
+// 不串数据，切回旧源时 TTL 内仍能命中。
 const CACHE_TTL_MS = 12 * 60 * 60 * 1000;
+
+function newScenesCacheKey(endpoint: string): string {
+    return `binge.source.${sourceHost(endpoint)}.newScenes.v4`;
+}
 
 interface CacheEntry {
     sinceIsoDate: string;
@@ -1036,9 +1032,12 @@ interface CacheEntry {
     scenes: StashDBScene[];
 }
 
-export function readStashDBCache(sinceIsoDate: string): StashDBScene[] | null {
+export function readStashDBCache(
+    sinceIsoDate: string,
+    endpoint: string,
+): StashDBScene[] | null {
     try {
-        const raw = localStorage.getItem(CACHE_KEY);
+        const raw = localStorage.getItem(newScenesCacheKey(endpoint));
         if (!raw) return null;
         const entry = JSON.parse(raw) as CacheEntry;
         if (entry.sinceIsoDate !== sinceIsoDate) return null;
@@ -1100,18 +1099,26 @@ export function readStashDBCache(sinceIsoDate: string): StashDBScene[] | null {
     }
 }
 
-// Drop entries written by older versions of this cache. The version
-// lives in the key, so a bumped version silently orphans the previous
-// payload instead of replacing it: those are hundreds of KB of scenes
-// each, they are never read again, and they count against the origin's
-// quota. Once that quota is reached the write below fails, and it fails
-// silently, so the cache simply stops working.
-function pruneOldCacheVersions(): void {
+// Drop entries this reader can never use again:
+//   - same host, older version of this cache (a bumped version silently
+//     orphans the previous payload: hundreds of KB of scenes each, never
+//     read again, counting against the origin's quota — once that quota
+//     is reached the write below fails silently and the cache simply
+//     stops working);
+//   - the pre-source-scoping legacy keys (binge.stashdb.newScenes.*),
+//     unreadable since caches became per-host.
+function pruneOldCacheVersions(endpoint: string): void {
+    const keep = newScenesCacheKey(endpoint);
+    const versionPrefix = `binge.source.${sourceHost(endpoint)}.newScenes.`;
     try {
         const stale: string[] = [];
         for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
-            if (key && key.startsWith(CACHE_PREFIX) && key !== CACHE_KEY) {
+            if (
+                key &&
+                ((key.startsWith(versionPrefix) && key !== keep) ||
+                    key.startsWith("binge.stashdb.newScenes."))
+            ) {
                 stale.push(key);
             }
         }
@@ -1124,11 +1131,12 @@ function pruneOldCacheVersions(): void {
 export function writeStashDBCache(
     sinceIsoDate: string,
     scenes: StashDBScene[],
+    endpoint: string,
 ): void {
-    pruneOldCacheVersions();
+    pruneOldCacheVersions(endpoint);
     try {
         localStorage.setItem(
-            CACHE_KEY,
+            newScenesCacheKey(endpoint),
             JSON.stringify({
                 sinceIsoDate,
                 fetchedAt: Date.now(),
@@ -1140,30 +1148,42 @@ export function writeStashDBCache(
     }
 }
 
-export function invalidateStashDBCache(): void {
+// 遍历 localStorage 删除满足条件的 key。refresh 路径用：refresh 的语义
+// 是"拉新"，因此清掉该缓存家族在所有 host 下的条目（活动 host 之外
+// 的也一并清，代价只是切回旧源时重新拉一次），顺带清理永不再读的
+// 旧版未隔离 key（binge.stashdb.*），避免白白占用配额。
+function removeCacheKeys(pred: (key: string) => boolean): void {
     try {
-        localStorage.removeItem(CACHE_KEY);
+        const stale: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && pred(key)) stale.push(key);
+        }
+        for (const key of stale) localStorage.removeItem(key);
     } catch {
-        /* ignore */
+        /* storage unavailable — nothing to remove */
     }
+}
+
+export function invalidateStashDBCache(): void {
+    removeCacheKeys(
+        (key) =>
+            (key.startsWith("binge.source.") &&
+                (key.includes(".newScenes.") ||
+                    key.includes(".scenePerformers."))) ||
+            key.startsWith("binge.stashdb.newScenes.") ||
+            key.startsWith("binge.stashdb.scenePerformers."),
+    );
     // The owned-ids memo is part of the same picture: a refresh that
     // left it in place would keep hiding scenes the user has since
     // added, or keep offering ones they have.
     invalidateOwnedStashDBSceneIds();
-    // And the matched-cast cache.
-    //
-    // It has no TTL, and an empty result is recorded so the scene is not
-    // asked for again - which is right for a scene StashDB has really
-    // dropped, and permanent for one that merely failed to resolve
-    // during a reindex or a merge. Nothing anywhere cleared this key, so
-    // a card fell back to its studio name forever and no user action
-    // short of clearing site data could recover it. Refresh is exactly
-    // the action that should.
-    try {
-        localStorage.removeItem(SCENE_PERFORMERS_CACHE_KEY);
-    } catch {
-        /* ignore */
-    }
+    // The matched-cast cache is swept above (per host + legacy). It has
+    // no TTL, and an empty result is recorded so the scene is not
+    // asked for again - which is right for a scene the source has
+    // really dropped, and permanent for one that merely failed to
+    // resolve during a reindex or a merge. Refresh is exactly the
+    // action that should clear it.
 }
 
 // ── Performers for already-matched scenes ───────────────────────────
@@ -1185,7 +1205,11 @@ export interface MatchedScenePerformer {
     image: string | null;
 }
 
-const SCENE_PERFORMERS_CACHE_KEY = "binge.stashdb.scenePerformers.v1";
+// 按 host 隔离：不同实例的 scene id 是不同 UUID，本可共存于一个 key，
+// 但 4000 条上限会跨源互相挤占，且切换后旧条目全是死重。
+function scenePerformersCacheKey(endpoint: string): string {
+    return `binge.source.${sourceHost(endpoint)}.scenePerformers.v1`;
+}
 // Ids per request. StashDB is a shared community service, so this
 // trades a slightly larger document for far fewer requests.
 const SCENE_PERFORMERS_BATCH = 20;
@@ -1226,9 +1250,9 @@ function isPerformerList(v: unknown): v is MatchedScenePerformer[] {
     );
 }
 
-function readScenePerformerCache(): PerformerCache {
+function readScenePerformerCache(endpoint: string): PerformerCache {
     try {
-        const raw = localStorage.getItem(SCENE_PERFORMERS_CACHE_KEY);
+        const raw = localStorage.getItem(scenePerformersCacheKey(endpoint));
         if (!raw) return {};
         const parsed: unknown = JSON.parse(raw);
         if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
@@ -1252,7 +1276,10 @@ function readScenePerformerCache(): PerformerCache {
 // quietly ceasing to persist anything.
 const SCENE_PERFORMERS_CACHE_MAX = 4000;
 
-function writeScenePerformerCache(cache: PerformerCache): void {
+function writeScenePerformerCache(
+    cache: PerformerCache,
+    endpoint: string,
+): void {
     try {
         let toStore = cache;
         const ids = Object.keys(cache);
@@ -1270,7 +1297,7 @@ function writeScenePerformerCache(cache: PerformerCache): void {
             }
         }
         localStorage.setItem(
-            SCENE_PERFORMERS_CACHE_KEY,
+            scenePerformersCacheKey(endpoint),
             JSON.stringify(toStore),
         );
     } catch {
@@ -1278,7 +1305,7 @@ function writeScenePerformerCache(cache: PerformerCache): void {
         // full one that can never be written to again; the lookups
         // still worked for this session.
         try {
-            localStorage.removeItem(SCENE_PERFORMERS_CACHE_KEY);
+            localStorage.removeItem(scenePerformersCacheKey(endpoint));
         } catch {
             /* nothing further to try */
         }
@@ -1294,7 +1321,8 @@ export async function getMatchedScenePerformers(
     sceneStashIds: readonly string[],
     apiKey: string,
 ): Promise<Map<string, MatchedScenePerformer[]>> {
-    const cache = readScenePerformerCache();
+    const { endpoint } = await getActiveSource();
+    const cache = readScenePerformerCache(endpoint);
     const out = new Map<string, MatchedScenePerformer[]>();
     const missing: string[] = [];
     for (const id of sceneStashIds) {
@@ -1389,7 +1417,7 @@ ${chunk
             },
         ),
     );
-    if (changed) writeScenePerformerCache(cache);
+    if (changed) writeScenePerformerCache(cache, endpoint);
     return out;
 }
 
@@ -1398,16 +1426,17 @@ ${chunk
 // is independent from the Home Stories/Feed stashdb data — refreshing
 // Home shouldn't blow away Discover's cache and force a slow refetch
 // that might time out on degraded networks.
+//
+// 该家族同时覆盖 Discover 演员条的缓存（binge.source.<host>.
+// discoverPerformers）：key 改为按源隔离后，refresh 也必须能清到它，
+// 否则切源后 6h 内气泡行仍是旧源数据。
 export function invalidateTrendingPerformersCache(): void {
-    try {
-        const prefix = "binge.stashdb.trendingPerformers.v1.";
-        const toRemove: string[] = [];
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key && key.startsWith(prefix)) toRemove.push(key);
-        }
-        for (const key of toRemove) localStorage.removeItem(key);
-    } catch {
-        /* ignore */
-    }
+    removeCacheKeys(
+        (key) =>
+            (key.startsWith("binge.source.") &&
+                (key.includes(".trendingPerformers.") ||
+                    key.endsWith(".discoverPerformers"))) ||
+            key.startsWith("binge.stashdb.trendingPerformers.") ||
+            key === "binge.discoverPerformers",
+    );
 }

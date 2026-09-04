@@ -3,13 +3,17 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import {
-    getStashDBBox,
+    getSourceBox,
     getOwnedStashDBSceneIds,
     getStashDBPerformer,
     getStashDBScenesForPerformer,
     type StashDBPerformerDetail,
     type StashDBScene,
 } from "../api/stashdb";
+import {
+    sourceSceneUrl,
+    sourcePerformerUrl,
+} from "../api/source";
 import { usePerformerProfile } from "./PerformerProfileContext";
 import { FollowPerformerModal } from "../home/FollowPerformerModal";
 import { AddSceneModal } from "../home/AddSceneModal";
@@ -35,6 +39,8 @@ type State =
           scenes: StashDBScene[];
           ownedSceneIds: Set<string>;
           stashBoxIndex: number;
+          // 活动数据源 endpoint，外链 URL（演员页/场景页）由它拼接。
+          endpoint: string;
       }
     | { kind: "error"; message: string };
 
@@ -62,7 +68,7 @@ export function StashDBPerformerProfile({
         setState({ kind: "loading" });
         (async () => {
             try {
-                const box = await getStashDBBox();
+                const box = await getSourceBox();
                 if (!box) {
                     throw new Error(
                         t("performer.stashdb_config_error")
@@ -86,6 +92,7 @@ export function StashDBPerformerProfile({
                     scenes,
                     ownedSceneIds,
                     stashBoxIndex: box.index,
+                    endpoint: box.endpoint,
                 });
             } catch (err) {
                 if (!alive) return;
@@ -202,7 +209,10 @@ export function StashDBPerformerProfile({
                             <div className="binge-profile-name-row">
                                 <h1 className="binge-profile-name">
                                     <a
-                                        href={`https://stashdb.org/performers/${state.performer.id}`}
+                                        href={sourcePerformerUrl(
+                                        state.endpoint,
+                                        state.performer.id
+                                    )}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="binge-profile-name-link"
@@ -263,7 +273,10 @@ export function StashDBPerformerProfile({
                                                     sceneId: s.id,
                                                     title: s.title,
                                                     cover: s.coverUrl,
-                                                    stashboxUrl: `https://stashdb.org/scenes/${s.id}`,
+                                                    stashboxUrl: sourceSceneUrl(
+                                                        state.endpoint,
+                                                        s.id
+                                                    ),
                                                 })
                                             }
                                         />
@@ -281,7 +294,10 @@ export function StashDBPerformerProfile({
                     stashBoxIndex={state.stashBoxIndex}
                     fallbackName={state.performer.name}
                     fallbackImage={state.performer.images[0]?.url ?? null}
-                    stashboxUrl={`https://stashdb.org/performers/${state.performer.id}`}
+                    stashboxUrl={sourcePerformerUrl(
+                        state.endpoint,
+                        state.performer.id
+                    )}
                     onCreated={() => {
                         setFollowed(true);
                         setFollowOpen(false);

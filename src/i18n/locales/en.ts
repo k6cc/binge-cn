@@ -390,6 +390,17 @@ export default {
                 desc: "How far back in time to look for 'new' content in the home feed. Affects both story bar and initial feed load. Shorter window for more compact; longer window for more content, but slower initial load with large libraries.",
                 days: "days"
             },
+            source: {
+                title: "Discovery data source",
+                desc: "The stash-box instance powering discovery, trending, follow and the performer-profile 'not owned' mix. Configure it as sourceEndpoint in Stash Settings → Plugins → binge (must exactly match one of the stash-box endpoints configured in Stash; defaults to stashdb.org); reopen the binge page after changing it. This row is read-only status.",
+                status_pending: "Checking…",
+                status_ok: "{{count}} performers linked",
+                status_unlinked: "No performers in your library are linked to this instance — the discovery feed and stories linkage will be empty (scrape your library with this instance first)",
+                status_no_key: "Stash has no stash-box entry for this instance (missing API key)",
+                status_query_failed: "Could not query your library's link status",
+                status_fault: "Could not read the plugin configuration",
+                fallback_no_match: "The configured endpoint doesn't match any stash-box in Stash's list; fell back to stashdb.org. Check that sourceEndpoint in the plugin settings exactly matches an endpoint under Stash Settings → Metadata providers → StashBox."
+            },
             stashdb: {
                 title: "Include StashDB new releases in stories",
                 desc: "The story bar will also show new releases on StashDB for performers in your library (content you don't already own). Requires Stash → Settings → Metadata providers → StashBox to have a StashDB API key configured. Results cached for 12 hours."
@@ -494,7 +505,8 @@ export default {
             },
             forage_url: {
                 title: "forage server URL",
-                desc: "Optional. Base URL of your forage daemon, if you run one. \"Send to forage\" appears on discovery scenes once this daemon is reachable, and stays hidden while this is blank. Authentication is automatic — binge presents your Stash API key, which forage already trusts; nothing to paste. Status dot pings /healthz. Use https if Stash is served over https, or the browser blocks it as mixed content."
+                desc: "Optional. Base URL of your forage daemon, if you run one. \"Send to forage\" appears on discovery scenes once this daemon is reachable, and stays hidden while this is blank. Authentication is automatic — binge presents your Stash API key, which forage already trusts; nothing to paste. Status dot pings /healthz. Use https if Stash is served over https, or the browser blocks it as mixed content.",
+                source_limited: "Requires stashdb.org source"
             },
             forage_health: {
                 ok: "forage reachable",

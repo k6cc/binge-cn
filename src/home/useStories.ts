@@ -7,7 +7,7 @@ import {
     invalidateRecentGalleries,
 } from "./recentScenesCache";
 import {
-    getStashDBBox,
+    getSourceBox,
     getLinkedPerformers,
     getOwnedStashDBSceneIds,
     getNewStashDBScenesForPerformers,
@@ -18,6 +18,7 @@ import {
     type StashDBScene,
     type LinkedPerformer,
 } from "../api/stashdb";
+import { sourceSceneUrl } from "../api/source";
 import {
     getCachedRedditStories,
     invalidateRedditCaches,
@@ -408,7 +409,7 @@ async function mergeStashDBScenes(
     byPerformer: Map<string, PerformerBucket>,
     sinceIsoDate: string
 ): Promise<void> {
-    const box = await getStashDBBox();
+    const box = await getSourceBox();
     if (!box) return; // no API key configured
     const linkedPerformers = await getLinkedPerformers();
     if (linkedPerformers.length === 0) return;
@@ -418,18 +419,21 @@ async function mergeStashDBScenes(
         stashIdToLocal.set(p.stashId, p);
     }
 
-    let scenes: StashDBScene[] | null = readStashDBCache(sinceIsoDate);
+    let scenes: StashDBScene[] | null = readStashDBCache(
+        sinceIsoDate,
+        box.endpoint,
+    );
     if (!scenes) {
         const fresh = await getNewStashDBScenesForPerformers(
             linkedPerformers.map((p) => p.stashId),
             sinceIsoDate,
             box.api_key
         );
-        // Only cached when StashDB actually answered. A failure used to
+        // Only cached when the source actually answered. A failure used to
         // arrive here as [] and be written as a valid 12-hour answer, so
         // one 502 meant no new releases for half a day - and reloading
         // did not help, because [] reads back as a hit.
-        if (fresh != null) writeStashDBCache(sinceIsoDate, fresh);
+        if (fresh != null) writeStashDBCache(sinceIsoDate, fresh, box.endpoint);
         scenes = fresh ?? [];
     }
     if (scenes.length === 0) return;
@@ -474,7 +478,7 @@ async function mergeStashDBScenes(
                 cover: scene.coverUrl,
                 date: scene.releaseDate,
                 effectiveAt,
-                stashboxUrl: `https://stashdb.org/scenes/${scene.id}`,
+                stashboxUrl: sourceSceneUrl(box.endpoint, scene.id),
             });
         }
     }

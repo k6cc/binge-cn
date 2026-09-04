@@ -1,4 +1,5 @@
 import { gql } from "./graphql";
+import { getActiveSource } from "./source";
 
 // Minimal shape of a Stash scene used by the reel. Fields are the union of
 // what we need for: <video> playback, the overlay (title, performers,
@@ -610,8 +611,8 @@ export interface PerformerDetail {
     urls: string[] | null;
     tags: { id: string; name: string }[];
     // Linked stashbox ids — used by the in-profile StashDB mixin
-    // (PerformerSceneGrid pulls StashDB scenes by this performer's
-    // stash_id when one points at stashdb.org/graphql).
+    // (PerformerSceneGrid pulls source scenes by this performer's
+    // stash_id when one points at the active source endpoint).
     stash_ids: { endpoint: string; stash_id: string }[];
 }
 
@@ -1031,7 +1032,13 @@ export interface RecentScenePerformer {
     gender: string | null;
 }
 
-function buildFindRecentScenesQuery(): string {
+// endpoint 直接内插进文档（Stash 的 stash_id_endpoint 过滤器不支持变量），
+// 剥掉引号/反斜杠以防配置值里混入时截断字符串字面量。
+function gqlSafeEndpoint(endpoint: string): string {
+    return endpoint.replace(/["\\]/g, "");
+}
+
+function buildFindRecentScenesQuery(endpoint: string): string {
     return /* GraphQL */ `
         query RecentScenes($since: String!, $per_page: Int!) {
             findScenes(
@@ -1052,7 +1059,7 @@ function buildFindRecentScenesQuery(): string {
                     OR: {
                         created_at: { value: $since, modifier: GREATER_THAN }
                         stash_id_endpoint: {
-                            endpoint: "https://stashdb.org/graphql"
+                            endpoint: "${gqlSafeEndpoint(endpoint)}"
                             modifier: NOT_NULL
                         }
                     }
@@ -1108,7 +1115,7 @@ function buildFindRecentScenesQuery(): string {
 // library-add date. The user has scenes whose `date` is recent but
 // whose `created_at` is months/years old; they wouldn't show up in
 // the created_at-filtered query above. We run both and merge by id.
-function buildFindScenesByDateQuery(): string {
+function buildFindScenesByDateQuery(endpoint: string): string {
     return /* GraphQL */ `
         query ScenesByDate($since: String!, $per_page: Int!) {
             findScenes(
@@ -1129,7 +1136,7 @@ function buildFindScenesByDateQuery(): string {
                     OR: {
                         date: { value: $since, modifier: GREATER_THAN }
                         stash_id_endpoint: {
-                            endpoint: "https://stashdb.org/graphql"
+                            endpoint: "${gqlSafeEndpoint(endpoint)}"
                             modifier: NOT_NULL
                         }
                     }
@@ -1284,8 +1291,9 @@ export async function findRecentScenes(
     sinceIso: string,
     perPage = 500,
 ): Promise<RecentSceneRow[]> {
+    const { endpoint } = await getActiveSource();
     const data = await gql<{ findScenes: { scenes: RawSceneNode[] } }>(
-        buildFindRecentScenesQuery(),
+        buildFindRecentScenesQuery(endpoint),
         { since: sinceIso, per_page: perPage },
     );
     return flattenSceneNodes(data.findScenes.scenes);
@@ -1306,6 +1314,7 @@ export async function findRecentScenes(
 export async function countUnidentifiedScenes(
     sinceIso: string,
 ): Promise<number> {
+    const { endpoint } = await getActiveSource();
     const data = await gql<{ findScenes: { count: number } }>(
         /* GraphQL */ `
             query CountUnidentified($since: String!) {
@@ -1314,7 +1323,7 @@ export async function countUnidentifiedScenes(
                         created_at: { value: $since, modifier: GREATER_THAN }
                         performer_count: { value: 0, modifier: EQUALS }
                         stash_id_endpoint: {
-                            endpoint: "https://stashdb.org/graphql"
+                            endpoint: "${gqlSafeEndpoint(endpoint)}"
                             modifier: IS_NULL
                         }
                     }
@@ -1333,8 +1342,9 @@ export async function findScenesByDate(
     sinceDate: string,
     perPage = 500,
 ): Promise<RecentSceneRow[]> {
+    const { endpoint } = await getActiveSource();
     const data = await gql<{ findScenes: { scenes: RawSceneNode[] } }>(
-        buildFindScenesByDateQuery(),
+        buildFindScenesByDateQuery(endpoint),
         { since: sinceDate, per_page: perPage },
     );
     return flattenSceneNodes(data.findScenes.scenes);
