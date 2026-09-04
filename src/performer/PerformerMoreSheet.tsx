@@ -1,11 +1,18 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useSheetClose } from "../hooks/useSheetClose";
 import { useHasScribe } from "../plugins/PluginContext";
 import { useScribeModal } from "../scribe/ScribeContext";
+import {
+    describeRepair,
+    repairPerformerFromStashDB,
+} from "../api/repairPerformer";
 
 interface PerformerMoreSheetProps {
     performerId: string;
+    /// The performer's stashdb.org id, when she has one. Gates the
+    /// repair row: without a link there is nothing to repair from.
+    stashDBPerformerId?: string | null;
     onRefresh: () => void;
     onClose: () => void;
 }
@@ -17,6 +24,7 @@ interface PerformerMoreSheetProps {
 // evolve independently from the per-scene one.
 export function PerformerMoreSheet({
     performerId,
+    stashDBPerformerId,
     onRefresh,
     onClose,
 }: PerformerMoreSheetProps) {
@@ -41,6 +49,31 @@ export function PerformerMoreSheet({
         scribeModal.openPerformer(performerId);
         beginClose();
     };
+    // The sheet stays open and reports what happened, rather than
+    // closing onto a profile that has silently changed. There is no
+    // toast in this plugin, and inventing one for a row nobody presses
+    // twice would be the wrong place to start.
+    const [repairing, setRepairing] = useState(false);
+    const [repairMessage, setRepairMessage] = useState<string | null>(null);
+    const handleRepair = async () => {
+        if (repairing || !stashDBPerformerId) return;
+        setRepairing(true);
+        setRepairMessage(null);
+        try {
+            const result = await repairPerformerFromStashDB({
+                localPerformerId: performerId,
+                stashDBPerformerId,
+            });
+            setRepairMessage(describeRepair(result));
+            if (result.linked > 0 || result.filled.length > 0) onRefresh();
+        } catch (err) {
+            console.warn("[binge] repair failed", err);
+            setRepairMessage("Couldn't repair this profile. Try again.");
+        } finally {
+            setRepairing(false);
+        }
+    };
+
     const handleOpenInStash = () => {
         window.open(
             `/performers/${performerId}`,
@@ -91,6 +124,30 @@ export function PerformerMoreSheet({
                             <RefreshIcon />
                         </button>
                     </li>
+                    {stashDBPerformerId && (
+                        <li>
+                            <button
+                                type="button"
+                                className="binge-more-sheet-row"
+                                onClick={() => void handleRepair()}
+                                disabled={repairing}
+                            >
+                                <span className="binge-more-sheet-row-label">
+                                    {repairing
+                                        ? "Repairing from StashDB…"
+                                        : "Repair from StashDB"}
+                                </span>
+                                <BandageIcon />
+                            </button>
+                        </li>
+                    )}
+                    {repairMessage && (
+                        <li>
+                            <p className="binge-more-sheet-note">
+                                {repairMessage}
+                            </p>
+                        </li>
+                    )}
                     <li>
                         <button
                             type="button"
@@ -143,6 +200,27 @@ function RefreshIcon() {
             aria-hidden="true"
         >
             <path d="M21 12C21 16.97 16.97 21 12 21C9.69 21 7.59 20.13 6 18.71L3 16M3 12C3 7.03 7.03 3 12 3C14.31 3 16.41 3.87 18 5.29L21 8M3 21V16M3 16H8M21 3V8M21 8H16" />
+        </svg>
+    );
+}
+
+function BandageIcon() {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            width="18"
+            height="18"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+        >
+            <rect x="1.5" y="7.5" width="21" height="9" rx="4.5" />
+            <line x1="8" y1="7.5" x2="8" y2="16.5" />
+            <line x1="16" y1="7.5" x2="16" y2="16.5" />
         </svg>
     );
 }

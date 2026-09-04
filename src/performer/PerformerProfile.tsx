@@ -198,7 +198,17 @@ function LocalPerformerProfile({ localId }: { localId: string }) {
             return;
         }
         let alive = true;
-        setState({ kind: "loading" });
+        // A refetch of the performer already on screen keeps her there
+        // until the new row arrives. Dropping to loading unmounted the
+        // whole ready layout, and with it the more-sheet: the repair
+        // row reports its result in that sheet and then asks for a
+        // refresh, so the report was gone before anyone could read it.
+        // A different id is a navigation and starts from loading.
+        setState((prev) =>
+            prev.kind === "ready" && prev.performer.id === currentId
+                ? prev
+                : { kind: "loading" },
+        );
         findPerformer(currentId)
             .then((performer) => {
                 if (!alive) return;
@@ -372,6 +382,13 @@ function LocalPerformerProfile({ localId }: { localId: string }) {
                         {moreOpen && state.kind === "ready" && (
                             <PerformerMoreSheet
                                 performerId={state.performer.id}
+                                stashDBPerformerId={
+                                    state.performer.stash_ids?.find(
+                                        (s) =>
+                                            s.endpoint ===
+                                            "https://stashdb.org/graphql",
+                                    )?.stash_id ?? null
+                                }
                                 onRefresh={() => setRefreshTick((n) => n + 1)}
                                 onClose={() => setMoreOpen(false)}
                             />

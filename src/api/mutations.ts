@@ -465,10 +465,15 @@ export interface FollowStashDBPerformerArgs {
     stashBoxIndex: number;
 }
 
-export async function followStashDBPerformer(
-    args: FollowStashDBPerformerArgs,
-): Promise<{ id: string; name: string }> {
-    let scraped: ScrapedPerformer | null = null;
+// The scrape on its own, for callers that are not creating anyone.
+// Repairing an existing performer needs exactly this record and has no
+// business duplicating the query to get it. Returns null rather than
+// throwing: every caller so far treats a failed scrape as "carry on
+// with less", not as an error.
+export async function scrapeStashBoxPerformer(args: {
+    stashBoxIndex: number;
+    stashDBPerformerId: string;
+}): Promise<ScrapedPerformer | null> {
     try {
         const data = await gql<{
             scrapeSinglePerformer: ScrapedPerformer[] | null;
@@ -476,11 +481,21 @@ export async function followStashDBPerformer(
             stash_box_index: args.stashBoxIndex,
             stash_id: args.stashDBPerformerId,
         });
-        scraped = data.scrapeSinglePerformer?.[0] ?? null;
+        return data.scrapeSinglePerformer?.[0] ?? null;
     } catch (err) {
-        // Non-fatal — fall back to a minimal create.
         console.warn("[binge] scrapeSinglePerformer failed", err);
+        return null;
     }
+}
+
+export async function followStashDBPerformer(
+    args: FollowStashDBPerformerArgs,
+): Promise<{ id: string; name: string }> {
+    // Non-fatal — a failure falls through to a minimal create.
+    const scraped: ScrapedPerformer | null = await scrapeStashBoxPerformer({
+        stashBoxIndex: args.stashBoxIndex,
+        stashDBPerformerId: args.stashDBPerformerId,
+    });
 
     // Build PerformerCreateInput. The scraper may return strings like
     // "180 cm" for height; Stash's create input wants the raw number.

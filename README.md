@@ -82,6 +82,8 @@ Following lists performers you've favourited, sorted by recent activity. Saved h
 
 Full-screen page mirroring Instagram's profile layout: avatar (with binge's pink→purple→blue story ring on new content), bio, stats, **social-link row**, Favourite/Follow action, Scenes + Images tabs. StashDB-only profiles get a **+ Follow** button instead of the favourite toggle, plus a Stash-style scrape modal. Hash-routed: `#/p/<localId>` and `#/sdbp/<stashDBId>`, both deep-linkable.
 
+The profile's **⋯** sheet has **Repair from StashDB** for a performer with a StashDB link. Stash's tagger and other tools create a performer from a scene match with a name, an image and the link, and nothing else, so the profile has no gender for the feed filter, no socials for a story ring, and zero scenes even when the library holds several of hers. Repair fills the blank columns from StashDB and attaches her to the StashDB-matched scenes already in your library. It only ever adds: a column Stash already holds is never overwritten, and scenes are added to, never replaced. The sheet says exactly what it did.
+
 The scenes grid sorts by Recent, Most views, Most orgasms, Highest rated or Recently added, and each tile carries a badge showing the stat you sorted by. With binge-server running, that performer's PornHub videos join the grid as extra tiles (hover to preview, tap for inline playback) and their last week of X media folds into their story ring.
 
 <br clear="all" />
