@@ -1,6 +1,6 @@
 # Binge（汉化版）
 
-> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.8.0**。
+> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.8.1**。
 
 为 [Stash](https://github.com/stashapp/stash) 提供的 Instagram 风格社交与发现层：竖屏 Reel、Stories、演员档案、StashDB 驱动的发现功能——全部基于 Stash 既有的 GraphQL API。Web 插件形态。
 
@@ -53,6 +53,8 @@ v0.4.17 将原硬编码中文迁移为基于 `react-i18next` 的动态多语言�
 ### 功能修复
 
 #### v0.8.x
+
+- **数据源品牌名优化（v0.8.1）**：已知实例显示名品牌化——javstash.org 显示 "JAVStash"、theporndb.net 显示 "ThePornDB"（未知实例仍显示去 .org 后缀的主机名），全 UI 文案随源动态显示，大小写更美观
 
 - **发现数据源可配置（v0.8.0）**：热门流、发现流、Stories 联动、关注、AddScene、演员页"未拥有"混排不再硬编码 stashdb.org——在 Stash 设置 → 插件 → binge 的 `sourceEndpoint` 填入任意 stash-box 实例的 GraphQL endpoint（如 `https://javstash.org/graphql`，须与 Stash 已配置的 stash-box 条目完全一致），重开 binge 页即全链路切换；未配置时行为与 v0.7.9 完全一致。缓存按源 host 隔离（切回旧源 TTL 内仍命中），follow/AddScene 写入的 stash\_ids 端点随源切换，全 UI 的 "StashDB" 文案/按钮随源动态显示为实例名（.org 后缀隐藏，如"在 javstash 上查看"），设置页新增数据源只读状态区（host + 链接演员计数健康提示，配置不匹配时说明回退原因）。已知局限：forage 联动仅支持 stashdb.org（其他源时入口禁用并说明）；单源库切源后联动流为空（需先用目标实例刮削库，设置页会黄字警告）；双源库（演员同时挂两个 stash\_ids）可无损切换
 
