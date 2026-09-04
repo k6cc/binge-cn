@@ -1,6 +1,6 @@
 # Binge（汉化版）
 
-> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.8.1**。
+> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.8.2**。
 
 为 [Stash](https://github.com/stashapp/stash) 提供的 Instagram 风格社交与发现层：竖屏 Reel、Stories、演员档案、StashDB 驱动的发现功能——全部基于 Stash 既有的 GraphQL API。Web 插件形态。
 
@@ -53,6 +53,10 @@ v0.4.17 将原硬编码中文迁移为基于 `react-i18next` 的动态多语言�
 ### 功能修复
 
 #### v0.8.x
+
+- **从数据源修复空壳演员（v0.8.2，合并上游 0.13.0）**：Stash 自带 tagger / forage 刮削会产生"只有名字 + 图片 + 源链接"的空壳演员——没有性别（发现流性别过滤失效）、没有社交链接（Stories 圈不亮）、档案显示 0 场景（库内明明有她的戏）。演员档案 ⋯ 菜单新增**从数据源修复**：从活动数据源补全空缺列（只填空白、绝不覆盖已有值）并把她挂接到库内已有的源匹配场景（只增不删），完成后原位报告做了什么。全链路按活动数据源参数化（stash\_id 匹配、刮削、错误文案），结果报告中英双语；场景查询改"诚实失败"——首页查询失败不再伪装成"她没有场景"，重复修复自动跳过已挂接的场景不再虚报计数
+
+- **i18n 补漏（v0.8.2）**：补齐 4 个存量缺失键（评分不可用 aria 标签、已评星提示、Pack 卡"再显示 N 个"），zh/en 各 673 键零缺失
 
 - **数据源品牌名优化（v0.8.1）**：已知实例显示名品牌化——javstash.org 显示 "JAVStash"、theporndb.net 显示 "ThePornDB"（未知实例仍显示去 .org 后缀的主机名），全 UI 文案随源动态显示，大小写更美观
 
