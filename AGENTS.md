@@ -5,9 +5,9 @@
 
 ## 当前状态
 
-- 已发布正式版：**v0.8.1**（已知数据源展示名品牌化 + 遗留 tag 预防法，changelog 小节 `8.33` / 修改 76；v0.7.x 系列已归档为 README 合并摘要）
+- 已发布正式版：**v0.8.3**（合并上游 0.14.0：移动端底部导航玻璃胶囊化，changelog 小节 `8.35` / 修改 79；v0.7.x 系列已归档为 README 合并摘要）
 
-- 下一次发布建议：**v0.8.2**（changelog 小节编号 `8.34`，修改序号从 `修改 77` 起）——以 `汉化及修复.md` 尾部模板区备注为准，发布时同步更新那里的三个值。
+- 下一次发布建议：**v0.8.4**（changelog 小节编号 `8.36`，修改序号从 `修改 80` 起）——以 `汉化及修复.md` 尾部模板区备注为准，发布时同步更新那里的三个值。
 
 ***
 
@@ -63,7 +63,7 @@
 
 - **避免撞名上游遗留 tag（根因 + 预防，2026-09-04 事故教训）**：上游 `ordureconnoisseur/binge` 每次发布都打 tag（其版本线已到 v0.12.x），而 `git fetch / pull upstream` 默认会顺带拉取指向所拉历史的 tag，累积后必与本仓库未来版本号撞名（`git tag` 报 "already exists" 即命中；v0.8.0 曾因此把上游旧 commit 推上远程、触发上游版 workflow 发布错误产物，已删 release + tag 后在正确 commit 重建）。
 
-  1. **一次性配置（根治）**：`git config remote.upstream.tagOpt --no-tags` —— 此后对该 remote 的 fetch / pull 不再自动拉 tag（2026-09-04 查证尚未配置，**建议尽快执行**）。
+  1. **一次性配置（根治）**：`git config remote.upstream.tagOpt --no-tags` —— 此后对该 remote 的 fetch / pull 不再自动拉 tag（2026-09-07 已配置落地）。
   2. **合并上游后自查**：`git ls-remote --tags upstream` 可看上游全部 tag；本地多出 origin 上不存在的 tag 即遗留。
   3. **一键清理**：`git fetch origin --prune --prune-tags` —— 删除所有 origin 上不存在的本地 tag，使本地 tag 与远程发布 tag 对齐（本地与 origin 已核实一致；注意：未 push 的新建 tag 也会被删，须在打新 tag **之前**执行）。
   4. **打 tag 前最后核对**：`git tag -l v<版本号>` 确认无同名遗留；创建后 `git rev-parse <tag>` 与 `git rev-parse HEAD` 输出一致再 push（PowerShell 下写 `^{commit}` 会被转义，用裸 tag 名比对即可）。
