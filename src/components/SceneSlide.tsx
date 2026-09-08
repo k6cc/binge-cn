@@ -408,8 +408,8 @@ export function SceneSlide({
             );
             if (!rw) return;
             // Bottom offset = distance from element bottom to content
-            // bottom (letterbox gap + 上移量) + 8px padding.
-            el.style.bottom = `${Math.max(8, (video.clientHeight - rh) / 2 + 8 + shift)}px`;
+            // bottom (letterbox gap + 上移量) + 4px padding.
+            el.style.bottom = `${Math.max(4, (video.clientHeight - rh) / 2 + 4 + shift)}px`;
             // Font size ~3% of rendered video width, clamped ≥10px.
             el.style.fontSize = `${Math.max(10, rw * 0.03)}px`;
         };
