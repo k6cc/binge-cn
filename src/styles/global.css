@@ -284,7 +284,10 @@ body,
    多一个 .binge-slide 达到同级 0,3,0 且后定义胜出——原先
    0,2,0 被 (0,3,0) 的全屏规则压住，细条从未贴底过），经
    .binge-progress 的 bottom 0.28s 过渡呈现"显隐升降"动效。
-   右侧操作栈 UI 可见时上移 0.5rem（5rem → 5.5rem）。 */
+   右侧操作栈 UI 可见时上移 0.5rem（5rem → 5.5rem）；手机端
+   演员行/标题 UI 可见时上移 0.3rem（720px 媒体查询内另有
+   .binge-slide.is-fullscreen .binge-overlay { bottom: 0.3rem }
+   后定义覆盖，桌面全屏维持贴底 0）。 */
 .binge-slide.is-fullscreen .binge-overlay {
     bottom: 0;
     padding-bottom: 2.5rem;
@@ -9459,24 +9462,22 @@ body:has(.binge-sheet-root, .binge-modal-overlay, .binge-story-viewer-root)
    the glass and the last row still scrolls clear of it. */
 @media (max-width: 720px) {
     /* 竖屏（非全屏）底部元素与导航胶囊大小联动（本地定制）：
-       胶囊大（tabBarVisible）时 overlay（含演员行/标题）、actions
-       （喜欢/收藏等右侧栈）、进度条、时间码同步上移 0.3rem；胶囊
-       收缩（is-contracted）时进度条回基准再下移 0.4rem、时间码
-       下移 0.7rem（overlay/actions 回基准不动）。三个 lift 变量
-       只在本媒体查询内的 calc 中消费；全屏定位规则
+       仅进度条与时间码跟随胶囊升降——胶囊大（tabBarVisible）时
+       同步上移 0.3rem，收缩（is-contracted）时进度条下移 0.4rem、
+       时间码下移 0.6rem；演员行/标题（overlay）与右侧栈（actions）
+       不跟随导航，恒定定位（内容不随滚动收缩抖动）。lift 变量只
+       在本媒体查询内的 calc 中消费；全屏定位规则
        （.binge-slide.is-fullscreen …，0,3,0）不含这些变量且
        specificity 高于这里的 (0,1,0)——全屏与竖屏分开定位，导航
        状态不影响全屏几何。BottomNav 仅移动端渲染且 saved/settings
        不渲染，:has 无匹配时 var fallback 0rem 即基准。 */
     body:has(.binge-bottom-nav:not(.is-contracted)) {
-        --binge-nav-el-lift: 0.3rem;
         --binge-nav-bar-lift: 0.3rem;
         --binge-nav-time-lift: 0.3rem;
     }
     body:has(.binge-bottom-nav.is-contracted) {
-        --binge-nav-el-lift: 0rem;
         --binge-nav-bar-lift: -0.4rem;
-        --binge-nav-time-lift: -0.7rem;
+        --binge-nav-time-lift: -0.6rem;
     }
     .binge-tab-scroll {
         padding-bottom: var(--binge-nav-footprint);
@@ -9500,11 +9501,16 @@ body:has(.binge-sheet-root, .binge-modal-overlay, .binge-story-viewer-root)
                 var(--binge-nav-time-lift, 0rem)
         );
     }
+    /* 演员行/标题不跟随导航收缩，恒定基准（见上方注释）。 */
     .binge-overlay {
-        bottom: calc(
-            var(--binge-nav-scrub) + var(--binge-nav-el-lift, 0rem)
-        );
+        bottom: var(--binge-nav-scrub);
         padding-bottom: 14px;
+    }
+    /* 全屏 UI 显示时左侧演员行/标题上移 0.3rem（仅手机端，桌面
+       全屏维持上方全局规则的贴底 0）。同选择器 (0,3,0) 且后定义
+       胜出于全局全屏复位规则。 */
+    .binge-slide.is-fullscreen .binge-overlay {
+        bottom: 0.3rem;
     }
     /* One material from the seek line down. Hard top edge on purpose:
        the seek line is where the chrome begins, and a fade here read
@@ -9592,12 +9598,10 @@ body:has(.binge-sheet-root, .binge-modal-overlay, .binge-story-viewer-root)
         padding: 1rem 0.6rem 0;
     }
     /* Reel action stack: clear the scrub line, which itself clears
-       the floating nav. --binge-nav-el-lift：竖屏与导航胶囊大小
-       联动的整体升降（定义在上方 720px 块的 :has 规则）。 */
+       the floating nav. 竖屏额外上移 0.8rem（本地定制，恒定值，
+       不随导航胶囊收缩联动）。 */
     .binge-actions {
-        bottom: calc(
-            var(--binge-nav-scrub) + 1.5rem + var(--binge-nav-el-lift, 0rem)
-        );
+        bottom: calc(var(--binge-nav-scrub) + 1.5rem + 0.8rem);
     }
     /* Settings + Saved have their own back-chevron headers — no
        fixed strip to clear, but the back-button-style header looks
