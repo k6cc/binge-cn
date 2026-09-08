@@ -9461,12 +9461,13 @@ body:has(.binge-sheet-root, .binge-modal-overlay, .binge-story-viewer-root)
    layout insetting for the nav, so the content keeps running behind
    the glass and the last row still scrolls clear of it. */
 @media (max-width: 720px) {
-    /* 竖屏（非全屏）底部元素与导航胶囊大小联动（本地定制）：
-       胶囊大（tabBarVisible）时 overlay（演员行/标题）、actions
-       （右侧栈）、进度条、时间码整体上移 0.3rem；胶囊收缩
-       （is-contracted）时 overlay/actions 回基准，进度条下移
-       0.4rem、时间码下移 0.6rem。右侧栈另有恒定 +0.8rem 抬升
-       （见下方 .binge-actions 规则）。
+    /* 竖屏（非全屏）底部元素与导航胶囊的刚性整体联动（本地定制）：
+       overlay（演员行/标题）、actions（右侧栈）、进度条、时间码
+       消费同一个 --binge-nav-lift——胶囊大（tabBarVisible）时全体
+       +0.3rem、收缩（is-contracted）时全体回基准，同升同降、元素
+       间相对间距恒定（此前收缩态给进度条/时间码额外下沉造成恢复
+       时间距收紧、"进度条贴住标题"的观感，按刚性联动要求移除）。
+       右侧栈另有恒定 +0.8rem 抬升（见下方 .binge-actions 规则）。
        联动由 React 驱动：BingeAppRoot（App.tsx）按 TabContext
        的 tabBarVisible 切换 .binge-app 的 nav-contracted 类。
        此前用 body:has(.binge-bottom-nav…) 实现过一版，静态分析
@@ -9476,14 +9477,10 @@ body:has(.binge-sheet-root, .binge-modal-overlay, .binge-story-viewer-root)
        这些变量且 specificity 高于这里的消费规则——全屏与竖屏
        分开定位，导航状态不影响全屏几何。 */
     .binge-app {
-        --binge-nav-el-lift: 0.3rem;
-        --binge-nav-bar-lift: 0.3rem;
-        --binge-nav-time-lift: 0.3rem;
+        --binge-nav-lift: 0.3rem;
     }
     .binge-app.nav-contracted {
-        --binge-nav-el-lift: 0rem;
-        --binge-nav-bar-lift: -0.4rem;
-        --binge-nav-time-lift: -0.6rem;
+        --binge-nav-lift: 0rem;
     }
     .binge-tab-scroll {
         padding-bottom: var(--binge-nav-footprint);
@@ -9493,26 +9490,23 @@ body:has(.binge-sheet-root, .binge-modal-overlay, .binge-story-viewer-root)
         padding-bottom: calc(2rem + var(--binge-nav-footprint));
     }
     /* Reel: the video runs full bleed behind the bar, as the
-       reference does, and the controls sit above the scrub line. */
+       reference does, and the controls sit above the scrub line.
+       --binge-nav-lift 为刚性整体联动位移（见上方 .binge-app 规则）。 */
     .binge-progress {
-        bottom: calc(
-            var(--binge-nav-scrub) + var(--binge-nav-bar-lift, 0rem)
-        );
+        bottom: calc(var(--binge-nav-scrub) + var(--binge-nav-lift, 0rem));
     }
     /* 时间码行（本地功能，上游无此元素）：跟随进度条抬到胶囊
-       上方，保持与轨道的原始相对间距（0.08rem + 0.25rem）。 */
+       上方，保持与轨道的原始相对间距（0.08rem + 0.25rem）。
+       --binge-nav-lift 同上刚性联动。 */
     .binge-progress-time {
         bottom: calc(
             var(--binge-nav-scrub) + 0.08rem + 0.25rem +
-                var(--binge-nav-time-lift, 0rem)
+                var(--binge-nav-lift, 0rem)
         );
     }
-    /* 演员行/标题跟随导航胶囊升降（--binge-nav-el-lift，见上方
-       .binge-app 规则）。 */
+    /* 演员行/标题：--binge-nav-lift 刚性联动（见上方 .binge-app 规则）。 */
     .binge-overlay {
-        bottom: calc(
-            var(--binge-nav-scrub) + var(--binge-nav-el-lift, 0rem)
-        );
+        bottom: calc(var(--binge-nav-scrub) + var(--binge-nav-lift, 0rem));
         padding-bottom: 14px;
     }
     /* 全屏 UI 显示时左侧演员行/标题上移 0.3rem（仅手机端，桌面
@@ -9608,12 +9602,11 @@ body:has(.binge-sheet-root, .binge-modal-overlay, .binge-story-viewer-root)
     }
     /* Reel action stack: clear the scrub line, which itself clears
        the floating nav. 竖屏额外上移 0.8rem（本地定制恒定值）+
-       跟随导航胶囊升降的 --binge-nav-el-lift（见上方 .binge-app
-       规则）。 */
+       --binge-nav-lift 刚性联动（见上方 .binge-app 规则）。 */
     .binge-actions {
         bottom: calc(
             var(--binge-nav-scrub) + 1.5rem + 0.8rem +
-                var(--binge-nav-el-lift, 0rem)
+                var(--binge-nav-lift, 0rem)
         );
     }
     /* Settings + Saved have their own back-chevron headers — no
