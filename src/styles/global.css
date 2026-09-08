@@ -9491,18 +9491,26 @@ body:has(.binge-sheet-root, .binge-modal-overlay, .binge-story-viewer-root)
     }
     /* Reel: the video runs full bleed behind the bar, as the
        reference does, and the controls sit above the scrub line.
-       --binge-nav-lift 为刚性整体联动位移（见上方 .binge-app 规则）。 */
+       --binge-nav-lift 为刚性整体联动位移（见上方 .binge-app 规则）；
+       竖屏基准 -0.5rem 为本地排布微调（进度条整体下沉，仅竖屏，
+       全屏定位不受影响）。 */
     .binge-progress {
-        bottom: calc(var(--binge-nav-scrub) + var(--binge-nav-lift, 0rem));
+        bottom: calc(
+            var(--binge-nav-scrub) - 0.5rem + var(--binge-nav-lift, 0rem)
+        );
     }
-    /* 时间码行（本地功能，上游无此元素）：跟随进度条抬到胶囊
-       上方，保持与轨道的原始相对间距（0.08rem + 0.25rem）。
-       --binge-nav-lift 同上刚性联动。 */
+    /* 时间码行（本地功能，上游无此元素）：--binge-nav-lift 刚性
+       联动（见上方 .binge-app 规则）。竖屏排布（仅竖屏）：
+       基准原为 nav-scrub + 0.33rem，下沉 0.8rem 后 = -0.47rem，
+       字面顶部贴近进度条轨道下缘；左右与轨道边缘（0.6rem）对齐
+       再内缩 2px（替代通用 2.4em 圆角避让——竖屏时间码远离屏幕
+       边缘，无遮挡风险）。 */
     .binge-progress-time {
         bottom: calc(
-            var(--binge-nav-scrub) + 0.08rem + 0.25rem +
-                var(--binge-nav-lift, 0rem)
+            var(--binge-nav-scrub) - 0.47rem + var(--binge-nav-lift, 0rem)
         );
+        left: calc(0.6rem + 2px);
+        right: calc(0.6rem + 2px);
     }
     /* 演员行/标题：--binge-nav-lift 刚性联动（见上方 .binge-app 规则）。 */
     .binge-overlay {
