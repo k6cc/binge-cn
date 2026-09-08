@@ -1391,7 +1391,7 @@ export function SceneSlide({
         }
         fullscreenUITimerRef.current = window.setTimeout(() => {
             setFullscreenUIVisible(false);
-        }, 3000);
+        }, 5000);
     }, []);
 
     const handleToggleFullscreen = useCallback(() => {
@@ -1461,7 +1461,15 @@ export function SceneSlide({
             }
             setIsFullscreen(isMine);
             if (isMine) {
-                showFullscreenUI();
+                // 进入全屏：UI 默认隐藏（YouTube 式）——仅细条进度
+                // 常驻可点，点按画面/移动鼠标/点击进度条唤出完整
+                // UI，5 秒无操作后再淡出。清残留定时器属防御（退出
+                // 路径已清），双保险防上一轮全屏的定时器迟到触发。
+                if (fullscreenUITimerRef.current !== null) {
+                    window.clearTimeout(fullscreenUITimerRef.current);
+                    fullscreenUITimerRef.current = null;
+                }
+                setFullscreenUIVisible(false);
             } else if (!fsEl) {
                 // 完全退出全屏（无任何元素全屏）：清理 UI 定时器。
                 // 仅在真正退出全屏时触发，避免其他卡片进入全屏时

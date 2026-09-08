@@ -276,16 +276,20 @@ body,
    胶囊（--binge-nav-scrub）上方；全屏时 slide 进入浏览器 top
    layer，nav 被整体遮蔽，这些元素须回到贴底几何。此处 specificity
    （0,2,0）与下方 .binge-progress.is-fs-collapsed 相同，置于其前
-   才能让细条的 bottom:0 后定义胜出。 */
+   才能让细条的 bottom:0 后定义胜出。
+   进度条双态定位（仅 progress/time，overlay/actions 不动）：
+   UI 可见时整体上移 0.5rem——时间码与轨道同步位移、相对间距
+   不变（0.08rem + 0.25rem）；UI 隐藏时细条仍贴底（bottom:0），
+   经 .binge-progress 的 bottom 0.28s 过渡呈现"显隐升降"动效。 */
 .binge-slide.is-fullscreen .binge-overlay {
     bottom: 0;
     padding-bottom: 2.5rem;
 }
 .binge-slide.is-fullscreen .binge-progress {
-    bottom: var(--hit-ext);
+    bottom: calc(var(--hit-ext) + 0.5rem);
 }
 .binge-slide.is-fullscreen .binge-progress-time {
-    bottom: calc(0.08rem + 0.25rem);
+    bottom: calc(0.08rem + 0.25rem + 0.5rem);
 }
 .binge-actions.is-fullscreen {
     bottom: 5rem;
