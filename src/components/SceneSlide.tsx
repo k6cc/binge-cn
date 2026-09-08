@@ -11,6 +11,7 @@ import {
 import { MuteToggle } from "./MuteToggle";
 import { SceneProgress } from "./SceneProgress";
 import { useMuteState } from "../hooks/useMuteState";
+import { useIsMobile } from "../hooks/useIsMobile";
 import {
     PLAYBACK_LAYER,
     isPlaybackGated,
@@ -265,6 +266,9 @@ export function SceneSlide({
     // non-reactive, so mounted slides kept the stale stream).
     const transcodeType = useTranscodeType();
     const videoRef = useRef<HTMLVideoElement>(null);
+    // The reflection under the picture. See the effect below.
+    const mirrorRef = useRef<HTMLCanvasElement>(null);
+    const isMobile = useIsMobile();
     const containerRef = useRef<HTMLDivElement>(null);
     const [isActive, setIsActive] = useState(false);
     // isActive 的 ref 镜像：seekToTime / error 重连的恢复播放回调里
@@ -570,6 +574,137 @@ export function SceneSlide({
             }
         });
     }, []);
+
+    // Reflection under the picture. Geometry from object-fit: contain,
+    // which centres the picture: its rendered bottom edge is where the
+    // mirror starts, and the mirror shows the bottom of the picture
+    // flipped so the seam is continuous. Only when that edge falls
+    // between the seek line and the screen edge; a landscape picture
+    // ends far above the seek line and gets nothing, since a
+    // reflection there would sit in the open above the frost.
+    useEffect(() => {
+        const video = videoRef.current;
+        const canvas = mirrorRef.current;
+        const host = containerRef.current;
+        if (!video || !canvas || !host) return;
+        if (!isMobile) {
+            canvas.hidden = true;
+            return;
+        }
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+
+        let poster: HTMLImageElement | null = null;
+        let crop: { sy: number; sh: number; sw: number } | null = null;
+
+        const source = () => {
+            if (video.videoWidth > 0) {
+                return {
+                    el: video as CanvasImageSource,
+                    w: video.videoWidth,
+                    h: video.videoHeight,
+                };
+            }
+            if (poster && poster.naturalWidth > 0) {
+                return {
+                    el: poster as CanvasImageSource,
+                    w: poster.naturalWidth,
+                    h: poster.naturalHeight,
+                };
+            }
+            return null;
+        };
+        const paint = () => {
+            const s = source();
+            if (!s || !crop) return;
+            try {
+                ctx.drawImage(
+                    s.el,
+                    0,
+                    crop.sy,
+                    crop.sw,
+                    crop.sh,
+                    0,
+                    0,
+                    canvas.width,
+                    canvas.height,
+                );
+            } catch {
+                // A frame that is not decodable yet. The next tick will be.
+            }
+        };
+        const layout = () => {
+            const s = source();
+            const W = host.clientWidth;
+            const H = host.clientHeight;
+            // Where the seek line sits, from the bottom. Zero anywhere
+            // the mobile stylesheet is not in force.
+            const scrub =
+                parseFloat(
+                    getComputedStyle(host).getPropertyValue(
+                        "--binge-nav-scrub",
+                    ),
+                ) || 0;
+            if (!s || !W || !H || !scrub) {
+                crop = null;
+                canvas.hidden = true;
+                return;
+            }
+            const scale = Math.min(W / s.w, H / s.h);
+            const h = s.h * scale;
+            // 本地适配：.binge-video 非全屏用 object-position: 50% 30%
+            // 上移内容（上游假设 contain 居中）。从实际 object-position
+            // 读 Y 比例，镜像接缝才能贴合画面真实底边；全屏恢复 50%
+            // 居中（frost/mirror 届时已被 is-fullscreen 规则隐藏）。
+            const posY =
+                parseFloat(
+                    getComputedStyle(video).objectPosition
+                        .split(/\s+/)
+                        .pop() || "50",
+                ) / 100;
+            const bottom =
+                (H - h) * (Number.isFinite(posY) ? posY : 0.5) + h;
+            const gap = H - bottom;
+            if (gap < 1 || gap >= scrub) {
+                crop = null;
+                canvas.hidden = true;
+                return;
+            }
+            const sh = gap / scale;
+            crop = { sy: s.h - sh, sh, sw: s.w };
+            canvas.style.top = `${bottom}px`;
+            canvas.style.height = `${gap}px`;
+            const cw = 96;
+            const ch = Math.max(2, Math.round((cw * gap) / W));
+            if (canvas.width !== cw) canvas.width = cw;
+            if (canvas.height !== ch) canvas.height = ch;
+            canvas.hidden = false;
+            paint();
+        };
+
+        video.addEventListener("loadedmetadata", layout);
+        video.addEventListener("loadeddata", paint);
+        video.addEventListener("timeupdate", paint);
+        video.addEventListener("seeked", paint);
+        const ro = new ResizeObserver(layout);
+        ro.observe(host);
+        if (scene.paths.screenshot) {
+            poster = new Image();
+            poster.onload = () => {
+                if (video.videoWidth === 0) layout();
+            };
+            poster.src = scene.paths.screenshot;
+        }
+        layout();
+        return () => {
+            video.removeEventListener("loadedmetadata", layout);
+            video.removeEventListener("loadeddata", paint);
+            video.removeEventListener("timeupdate", paint);
+            video.removeEventListener("seeked", paint);
+            ro.disconnect();
+            if (poster) poster.onload = null;
+        };
+    }, [isMobile, scene.paths.screenshot]);
 
     // Imperative <video src> management. We do this in a useEffect
     // instead of binding `src` as a React prop because:
@@ -1681,6 +1816,33 @@ export function SceneSlide({
                     {captionText}
                 </div>
             )}
+            {/* The strip below the seek line, on phones.
+
+                A 9:16 picture on a 393x852 screen ends about 77px short
+                of the bottom edge, just under the seek line, and that
+                gap used to be bare black under the floating nav with the
+                caption's gradient dying into it. Two things now happen
+                there. When the picture ends after the seek line and
+                before the screen edge, a vertically mirrored copy of its
+                bottom is appended so the picture runs to the edge as a
+                reflection; and one frosted band runs from the seek line
+                to the bottom, hard-edged, so the seek line is where the
+                chrome begins and everything under it is one material.
+
+                The reflection is a canvas, not a second <video>: a second
+                element would take a decoder slot per slide, which is the
+                exact budget the reel guards. It repaints on the video's
+                own timeupdate ticks (about four a second) at 96px wide,
+                which under the blur is indistinguishable from live and
+                costs nothing measurable. Before playback it shows the
+                poster. */}
+            <canvas
+                ref={mirrorRef}
+                className="binge-reel-mirror"
+                hidden
+                aria-hidden="true"
+            />
+            <div className="binge-reel-frost" aria-hidden="true" />
             {/* Full-frame tap target. Sits above the video but below the
                 overlay/action-stack so taps in the video area toggle
                 play/pause while UI controls remain hot. */}
