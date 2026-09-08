@@ -180,36 +180,14 @@ function App() {
                                 via internal timers — see
                                 BingeStartupSplash. */}
                                     <BingeStartupSplash />
-                                    <div
-                                        className={
-                                            refractActive
-                                                ? "binge-app refract"
-                                                : "binge-app"
-                                        }
-                                        // Inline overrides for refract's accent
-                                        // tokens — flows through every existing
-                                        // rgba(var(--accent-rgb), …) rule in
-                                        // global.css without needing to rewrite
-                                        // any of them.
-                                        style={
-                                            activeTheme
-                                                ? ({
-                                                      "--accent":
-                                                          activeTheme.accent,
-                                                      "--accent-bright":
-                                                          activeTheme.accentBright,
-                                                      "--accent-tint":
-                                                          activeTheme.accentTint,
-                                                      "--accent-rgb":
-                                                          activeTheme.accentRgb,
-                                                  } as React.CSSProperties)
-                                                : undefined
-                                        }
+                                    <BingeAppRoot
+                                        refractActive={refractActive}
+                                        activeTheme={activeTheme}
                                     >
                                         <TopHeader />
                                         <TabContent />
                                         <MobileBottomNav />
-                                    </div>
+                                    </BingeAppRoot>
                                     <PerformerProfile />
                                     <StoryViewer />
                                     <DebugMaybe />
@@ -283,6 +261,51 @@ function MobileBottomNav() {
     const isMobile = useIsMobile();
     if (!isMobile) return null;
     return <BottomNav />;
+}
+
+// .binge-app 根容器：除 refract 主题类/变量外，还按 TabContext 的
+// tabBarVisible 挂 nav-contracted 类——驱动竖屏底部元素（演员行/
+// 标题、右侧栈、进度条、时间码）与底部导航胶囊的联动升降
+// （global.css 720px 媒体查询内 --binge-nav-*-lift 变量的唯一
+// 写入点）。此前用 body:has(.binge-bottom-nav…) 实现该联动，但
+// :has 的失效重算在部分移动浏览器不可靠（实测胶囊收缩时元素
+// 不动），改为 React 类切换——确定性生效，不依赖选择器失效传播。
+function BingeAppRoot({
+    refractActive,
+    activeTheme,
+    children,
+}: {
+    refractActive: boolean;
+    activeTheme: RefractTheme | null;
+    children: React.ReactNode;
+}) {
+    const { tabBarVisible } = useTab();
+    return (
+        <div
+            className={
+                "binge-app" +
+                (refractActive ? " refract" : "") +
+                (tabBarVisible ? "" : " nav-contracted")
+            }
+            // Inline overrides for refract's accent
+            // tokens — flows through every existing
+            // rgba(var(--accent-rgb), …) rule in
+            // global.css without needing to rewrite
+            // any of them.
+            style={
+                activeTheme
+                    ? ({
+                          "--accent": activeTheme.accent,
+                          "--accent-bright": activeTheme.accentBright,
+                          "--accent-tint": activeTheme.accentTint,
+                          "--accent-rgb": activeTheme.accentRgb,
+                      } as React.CSSProperties)
+                    : undefined
+            }
+        >
+            {children}
+        </div>
+    );
 }
 
 // Filter-preferences icon for the For You reel — opens a bottom sheet
