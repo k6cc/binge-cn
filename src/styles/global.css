@@ -633,7 +633,11 @@ body,
     position: absolute;
     left: 0;
     right: 0;
-    bottom: var(--hit-ext); /* 时间码行高度的一半（下扩保留） */
+    /* 时间码行高度的一半（下扩保留）+ 0.1rem 本地微调：电脑端
+       （非全屏）轨道上移 0.1rem——距标题 -0.1rem、距时间码
+       +0.1rem（时间码位置不变）。移动端 720px 媒体查询与全屏
+       规则（0,3,0）均覆盖此值，不受影响。 */
+    bottom: calc(var(--hit-ext) + 0.1rem);
     height: calc(14px + 2 * var(--hit-ext)); /* enlarged hit-target; only the inner 2px is visible */
     z-index: 7;
     cursor: pointer;
