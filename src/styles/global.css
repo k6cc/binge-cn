@@ -9513,12 +9513,12 @@ body:has(.binge-sheet-root, .binge-modal-overlay, .binge-story-viewer-root)
         right: calc(0.6rem + 2px);
     }
     /* 演员行/标题：--binge-nav-lift 刚性联动（见上方 .binge-app
-       规则）；竖屏基准下移 0.4rem（与进度条/时间码下沉呼应的
-       整体收紧，仅竖屏）。 */
+       规则）；竖屏基准回到 nav-scrub（修改 88 曾随联动组下沉
+       0.4rem，后按要求把标题-进度条间距加大 0.4rem——时间码已
+       贴近导航胶囊、进度条再下沉会撞时间码文字行，唯一可行路径
+       是标题上移，即撤回该下沉量）。 */
     .binge-overlay {
-        bottom: calc(
-            var(--binge-nav-scrub) - 0.4rem + var(--binge-nav-lift, 0rem)
-        );
+        bottom: calc(var(--binge-nav-scrub) + var(--binge-nav-lift, 0rem));
         padding-bottom: 14px;
     }
     /* 全屏 UI 显示时左侧演员行/标题上移 0.3rem（仅手机端，桌面
