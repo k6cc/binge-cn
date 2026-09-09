@@ -302,6 +302,22 @@ body,
     bottom: 5.5rem;
 }
 
+/* 电脑端全屏微调（min-width: 720px 才生效；手机全屏几何不动，
+   沿用上方全局规则）。三条件——时间码不动、时间码距进度条
+   +0.2rem、进度条距标题 +0.4rem——的唯一几何解：进度条上移
+   0.2rem（hit-ext + 0.5 → + 0.7rem），标题上移 0.6rem（overlay
+   padding-bottom 2.5 → 3.1rem）；时间码规则不改。同选择器
+   (0,3,0) 后定义胜出于全局规则，且置于下方 fs-collapsed 规则
+   之前——细条贴底（UI 隐藏态）不受影响。 */
+@media (min-width: 720px) {
+    .binge-slide.is-fullscreen .binge-progress {
+        bottom: calc(var(--hit-ext) + 0.7rem);
+    }
+    .binge-slide.is-fullscreen .binge-overlay {
+        padding-bottom: 3.1rem;
+    }
+}
+
 /* 全屏时 slide 进入浏览器 top layer，nav 被整体遮蔽（同上：overlay/
    progress/time 均复位贴底几何）；frost/mirror 是为非全屏时胶囊下方
    留白服务的，全屏下视频铺满屏幕，两者必须隐藏。specificity (0,3,0)
