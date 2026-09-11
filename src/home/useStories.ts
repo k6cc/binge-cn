@@ -8,12 +8,13 @@ import {
 } from "./recentScenesCache";
 import {
     getSourceBox,
-    getLinkedPerformers,
+    getLinkedPerformersMemo,
     getOwnedStashDBSceneIds,
     getNewStashDBScenesForPerformers,
     readStashDBCache,
     writeStashDBCache,
     invalidateStashDBCache,
+    invalidateLinkedPerformersMemo,
     invalidateTrendingPerformersCache,
     type StashDBScene,
     type LinkedPerformer,
@@ -149,6 +150,9 @@ export function useStories(): StoriesResult {
         invalidateRecentScenes();
         invalidateRecentGalleries();
         invalidateStashDBCache();
+        // Drop the 60s linked-performer memo too: refresh means pull fresh,
+        // so new follows / newly scraped links must apply immediately.
+        invalidateLinkedPerformersMemo();
         invalidateRedditCaches();
         // Also drop the Feed discovery cache so useFeed (which watches
         // refreshTick) refetches trending + costar seeds instead of
@@ -411,7 +415,7 @@ async function mergeStashDBScenes(
 ): Promise<void> {
     const box = await getSourceBox();
     if (!box) return; // no API key configured
-    const linkedPerformers = await getLinkedPerformers();
+    const linkedPerformers = await getLinkedPerformersMemo();
     if (linkedPerformers.length === 0) return;
 
     const stashIdToLocal = new Map<string, LinkedPerformer>();
