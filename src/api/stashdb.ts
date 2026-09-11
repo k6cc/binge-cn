@@ -131,6 +131,14 @@ export function getLinkedPerformersMemo(): Promise<LinkedPerformer[]> {
     return value;
 }
 
+// refresh semantics = pull fresh: drop the 60s memo so the next read
+// rescans the whole library (new follows / newly scraped links take
+// effect immediately). Called from Home refresh alongside the other
+// invalidate* calls.
+export function invalidateLinkedPerformersMemo(): void {
+    linkedMemo = null;
+}
+
 export async function getLinkedPerformers(): Promise<LinkedPerformer[]> {
     const { endpoint } = await getActiveSource();
     const data = await gql<{
@@ -1000,12 +1008,53 @@ export async function getTrendingStashDBScenes(
 
 // null when any batch failed, so the caller can decline to cache a
 // partial or empty answer as if it were the whole truth.
-export async function getNewStashDBScenesForPerformers(
+// ---- In-flight dedupe -------------------------------------------------
+// On a single Home load, the stories merge (useStories.mergeStashDBScenes)
+// and the discovery costar seed (discoveryFeed) concurrently ask for the
+// same answer: "new releases for linked performers in this window" - same
+// active source, same sinceIsoDate, same ids (both callers now read the
+// same getLinkedPerformersMemo result). Without dedupe two serial N-batch
+// chains fire in parallel, doubling external requests. Key = apiKey +
+// sinceIsoDate: the source is fixed for the session and the window comes
+// from the lookback setting shared by stories and feed. A failure clears
+// the slot so the next caller retries (same policy as ownedIdsPromise).
+let newScenesFlight: {
+    key: string;
+    value: Promise<StashDBScene[] | null>;
+} | null = null;
+
+// null when any batch failed, so the caller can decline to cache a
+// partial or empty answer as if it were the whole truth.
+export function getNewStashDBScenesForPerformers(
     performerStashIds: string[],
     sinceIsoDate: string,
     apiKey: string,
 ): Promise<StashDBScene[] | null> {
-    if (performerStashIds.length === 0) return [];
+    if (performerStashIds.length === 0) return Promise.resolve([]);
+    const key = apiKey + "|" + sinceIsoDate;
+    if (newScenesFlight && newScenesFlight.key === key) {
+        return newScenesFlight.value;
+    }
+    const p = fetchNewStashDBScenesForPerformers(
+        performerStashIds,
+        sinceIsoDate,
+        apiKey,
+    );
+    newScenesFlight = { key, value: p };
+    // A rejection must not be what the next caller gets handed. Clearing
+    // here leaves the failure to the callers and lets the next request
+    // try again.
+    p.finally(() => {
+        if (newScenesFlight?.value === p) newScenesFlight = null;
+    });
+    return p;
+}
+
+async function fetchNewStashDBScenesForPerformers(
+    performerStashIds: string[],
+    sinceIsoDate: string,
+    apiKey: string,
+): Promise<StashDBScene[] | null> {
     const merged: StashDBScene[] = [];
     for (let i = 0; i < performerStashIds.length; i += PERFORMER_BATCH_SIZE) {
         const batch = performerStashIds.slice(i, i + PERFORMER_BATCH_SIZE);

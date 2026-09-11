@@ -14,10 +14,12 @@
 
 import {
     getSourceBox,
-    getLinkedPerformers,
+    getLinkedPerformersMemo,
     getOwnedStashDBSceneIds,
     getNewStashDBScenesForPerformers,
     getTrendingStashDBScenes,
+    readStashDBCache,
+    writeStashDBCache,
     type StashDBScene,
     type StashDBScenePerformer,
 } from "../api/stashdb";
@@ -174,7 +176,7 @@ export async function fetchDiscoveryFeedItems(
     const box = await getSourceBox();
     if (!box) return [];
 
-    const linkedPerformers = await getLinkedPerformers();
+    const linkedPerformers = await getLinkedPerformersMemo();
     const stashIdToLocal = new Map<
         string,
         { localId: string; name: string; favorite: boolean }
@@ -194,35 +196,43 @@ export async function fetchDiscoveryFeedItems(
     // cheap and depends on live library state, so we only cache the
     // raw stashdb pull — not the final items — so follow/unfollow
     // still takes effect immediately on the next build.
-    let cached = readDiscoveryCache(sinceIsoDate, skipTrending, box.endpoint);
+    const cached = readDiscoveryCache(sinceIsoDate, skipTrending, box.endpoint);
     let trendingScenes: StashDBScene[] = [];
     let costarScenes: StashDBScene[] = [];
+    // Trending and costar are fetched in PARALLEL via the shared tasks
+    // array: they're independent queries (trending = global top-N,
+    // costar = by linked performers), so running them together turns
+    // two 10s stashdb timeouts into one on degraded networks. Each is
+    // independently try-caught so a failure in one doesn't sink the other.
+    const tasks: Promise<void>[] = [];
+    let anyFetchAttempted = false;
+    let anyFetchSucceeded = false;
 
     if (cached) {
         trendingScenes = cached.trending;
-        costarScenes = cached.costar;
-    } else {
-        // Fetch both seeds in PARALLEL. They're independent queries
-        // (trending = global top-N, costar = by linked performers),
-        // so running them together turns two 10s stashdb timeouts
-        // into one on degraded networks. Each is independently
-        // try-caught so a failure in one doesn't sink the other.
-        const tasks: Promise<void>[] = [];
-        let anyFetchAttempted = false;
-        let anyFetchSucceeded = false;
+        // costar is no longer read from the discovery cache - it is the
+        // same answer the stories merge asks for, so both share the
+        // newScenes v4 cache (see the costar block below). Old v1
+        // entries that carry a costar field are simply ignored.
+    } else if (!skipTrending) {
+        anyFetchAttempted = true;
+        tasks.push(
+            getTrendingStashDBScenes(box.api_key)
+                .then((s) => {
+                    trendingScenes = s;
+                    anyFetchSucceeded = true;
+                })
+                .catch((err) => {
+                    console.warn("[binge] discovery trending fetch failed", err);
+                })
+        );
+    }
 
-        if (!skipTrending) {
-            anyFetchAttempted = true;
-            tasks.push(
-                getTrendingStashDBScenes(box.api_key)
-                    .then((s) => { trendingScenes = s; anyFetchSucceeded = true; })
-                    .catch((err) => {
-                        console.warn("[binge] discovery trending fetch failed", err);
-                    })
-            );
-        }
-
-        if (linkedPerformers.length > 0) {
+    if (linkedPerformers.length > 0) {
+        const cachedCostar = readStashDBCache(sinceIsoDate, box.endpoint);
+        if (cachedCostar) {
+            costarScenes = cachedCostar;
+        } else {
             anyFetchAttempted = true;
             tasks.push(
                 getNewStashDBScenesForPerformers(
@@ -236,32 +246,34 @@ export async function fetchDiscoveryFeedItems(
                         if (s == null) return;
                         costarScenes = s;
                         anyFetchSucceeded = true;
+                        // Write back to the shared newScenes cache so the
+                        // stories merge and the next visit reuse this pull.
+                        writeStashDBCache(sinceIsoDate, s, box.endpoint);
                     })
                     .catch((err) => {
                         console.warn("[binge] discovery co-star fetch failed", err);
                     })
             );
         }
+    }
 
-        await Promise.all(tasks);
+    await Promise.all(tasks);
 
-        // Only cache if at least one fetch actually ran and succeeded.
-        // On a flaky network both seeds come back as [] (10s timeout
-        // already swallowed above) — writing that empty result would
-        // silently overwrite valid cached data with nothing. When no
-        // fetch was attempted at all (skipTrending + no linked
-        // performers), the empty result is legitimate and we skip
-        // caching for a different reason: nothing worth storing.
-        if (anyFetchAttempted && anyFetchSucceeded) {
-            cached = {
+    // Only trending lives in the discovery cache now; costar lives in
+    // the shared newScenes cache. Cache only when at least one fetch
+    // actually ran and succeeded - an all-empty flaky-network answer
+    // must not overwrite valid cached data.
+    if (anyFetchAttempted && anyFetchSucceeded) {
+        writeDiscoveryCache(
+            {
                 sinceIsoDate,
                 skipTrending,
                 fetchedAt: Date.now(),
                 trending: trendingScenes,
-                costar: costarScenes,
-            };
-            writeDiscoveryCache(cached, box.endpoint);
-        }
+                costar: [],
+            },
+            box.endpoint
+        );
     }
 
     // Collect raw scenes from BOTH into a single pool keyed by
