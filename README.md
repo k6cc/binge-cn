@@ -1,6 +1,6 @@
 # Binge（汉化版）
 
-> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.8.5**。
+> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.8.6**。
 
 为 [Stash](https://github.com/stashapp/stash) 提供的 Instagram 风格社交与发现层：竖屏 Reel、Stories、演员档案、StashDB 驱动的发现功能——全部基于 Stash 既有的 GraphQL API。Web 插件形态。
 
@@ -53,6 +53,8 @@ v0.4.17 将原硬编码中文迁移为基于 `react-i18next` 的动态多语言�
 ### 功能修复
 
 #### v0.8.x
+
+- **首页近期窗口动态化 + 加载性能优化（v0.8.6）**：故事栏空态提示随「近期窗口」（7/14/30/60/90 天）动态显示实际天数，不再写死「过去 30 天」；首页 stories 与 discovery 共用 60 秒 memo 版已链接演员列表（消除双全库演员扫描），stories 联动与 discovery costar 共享 newScenes 12h 缓存 + in-flight 去重（835 位链接演员时外部批量请求 18 → 9）
 
 - **全屏/竖屏 UI 布局终版（v0.8.5）**：全屏 UI 改 YouTube 式开场——进入默认隐藏、仅细条进度常驻可点，点按画面 / 移动鼠标 / 点击进度条唤出完整 UI（首次点按只唤出不切播放），淡出 3s→5s，退出复位可见；全屏与竖屏分开定位，UI 可见时进度条/时间码整体上移、隐藏时细条贴底（显隐升降动效）。竖屏导航联动改 React 类切换（原 CSS `:has()` 在用户浏览器失效重算不可靠）+ 合并为单一 `--binge-nav-lift` 刚性联动——胶囊大时七组元素同升 0.3rem、收缩回基准，相对间距恒定，右侧操作栈恒定 +0.8rem 不随滚动抖动。竖屏排布终版：进度条/时间码下沉（`nav-scrub - 0.7/-0.87rem`）、时间码水平对齐轨道、标题-进度条间距 +0.4rem。字幕底边内边距 8px→4px（竖屏/全屏通用）。电脑端微调：非全屏进度条上移 0.1rem，全屏进度条再上移 0.2rem + 标题上移 0.6rem（标题-进度条间距共 +0.4rem）
 
