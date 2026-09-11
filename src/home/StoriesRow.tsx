@@ -4,6 +4,7 @@ import { Story } from "./Story";
 import { useStoryViewer } from "./StoryViewerContext";
 import { BingeLoading } from "../components/BingeLoading";
 import { useTranslation } from "react-i18next";
+import { useLookbackDays } from "./pluginSettings";
 
 // Horizontal scroller of performers in your library with new scenes.
 // Tap → opens the IG-style StoryViewer at that performer; the viewer's
@@ -18,6 +19,7 @@ export function StoriesRow({ stories }: { stories: StoriesResult }) {
     const [canScrollLeft, setCanScrollLeft] = useState(false);
     const [canScrollRight, setCanScrollRight] = useState(false);
     const { t } = useTranslation();
+    const lookbackDays = useLookbackDays();
 
     // Track scroll position so we know which chevrons to show. Update
     // on scroll + on content/size changes (new stories arriving,
@@ -78,7 +80,7 @@ export function StoriesRow({ stories }: { stories: StoriesResult }) {
         >
             {list.length === 0 ? (
                 <div className="binge-stories-empty">
-                    {t("status.no_new_scenes_last_30_days")}
+                    {t("status.no_new_scenes_last_days", { days: lookbackDays })}
                 </div>
             ) : (
                 <>

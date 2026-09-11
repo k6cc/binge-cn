@@ -151,7 +151,7 @@ export default {
             stashdb_scenes_count: "{{count}} scenes on StashDB",
             reposted: "Reposted",
             reposted_details: "Reposted — old content you re-added",
-            no_new_scenes_last_30_days: "No new scenes from your favorites in the past 30 days.",
+            no_new_scenes_last_days: "No new scenes from your favorites in the past {{days}} days.",
             reddit_image: "Reddit image",
             no_message: "no message",
             unknown_video_error: "unknown video error",

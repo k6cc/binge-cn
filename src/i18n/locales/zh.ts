@@ -151,7 +151,7 @@ export default {
             stashdb_scenes_count: "StashDB 上有 {{count}} 个场景",
             reposted: "转发了",
             reposted_details: "转发了 — 你重新添加的旧内容",
-            no_new_scenes_last_30_days: "过去 30 天内你的收藏没有新场景。",
+            no_new_scenes_last_days: "过去 {{days}} 天内你的收藏没有新场景。",
             reddit_image: "Reddit 图片",
             no_message: "无消息",
             unknown_video_error: "未知视频错误",
