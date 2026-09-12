@@ -29,6 +29,8 @@ const REFRACT_INTEGRATION_KEY = "binge.refractIntegration";
 const SHOWCASE_BLUR_KEY = "binge.showcaseBlur";
 const BINGE_SERVER_URL_KEY = "binge.bingeServerUrl";
 const LOOKBACK_DAYS_KEY = "binge.lookbackDays";
+const PREVIEW_DAYS_KEY = "binge.previewDays";
+const PREVIEW_SINK_KEY = "binge.previewSinkToBottom";
 // binge-server runs alongside Stash — every install path here sets it up
 // that way — so the host serving this page is the host running the daemon.
 //
@@ -71,6 +73,21 @@ export const ALLOWED_TRANSCODE: ReadonlyArray<TranscodeType> = [
 // window size bounds the fetch.
 export const ALLOWED_LOOKBACK_DAYS: ReadonlyArray<number> = [7, 14, 30, 60, 90];
 const DEFAULT_LOOKBACK_DAYS = 30;
+
+// "预告窗口" — how far ahead future-dated scenes may surface. JAV
+// sources pre-publish metadata weeks before any resource exists, so
+// the raw stashdb pull floods the home surface with unwatchable previews
+// unless bounded. Values: -1 = hide all previews, 0 = unlimited
+// (upstream behavior), N = only within N days of today. Default 7.
+export const ALLOWED_PREVIEW_DAYS: ReadonlyArray<number> = [
+    -1,
+    7,
+    14,
+    30,
+    60,
+    0,
+];
+const DEFAULT_PREVIEW_DAYS = 7;
 
 function readBool(key: string, defaultValue: boolean): boolean {
     try {
@@ -861,6 +878,25 @@ export function useLookbackDays(): number {
     );
 }
 
+// "预告窗口" (see ALLOWED_PREVIEW_DAYS). Gates the future-dated tail of
+// the stashdb pull before it reaches the stories row and the discovery /
+// trending feed. Read reactively by useStories / useFeed so changing the
+// dropdown re-merges without a reload.
+export function usePreviewDays(): number {
+    return useStoredNumber(
+        PREVIEW_DAYS_KEY,
+        DEFAULT_PREVIEW_DAYS,
+        ALLOWED_PREVIEW_DAYS,
+    );
+}
+
+// "预告沉底" — when on, feed items dated in the future sort below all
+// released content (soonest preview first) instead of sitting on top of
+// the feed by their naturally-max effectiveAt.
+export function usePreviewSinkToBottom(): boolean {
+    return useStoredBool(PREVIEW_SINK_KEY, false);
+}
+
 // Stream type (transcode preference) for the reel's video element.
 // Imperative reader lives in src/config.ts; this hook exposes it to
 // React components (e.g. the SettingsPage).
@@ -1014,6 +1050,13 @@ export function confirmDaemonOrigin(raw: string): void {
 export function setLookbackDays(value: number): void {
     if (!ALLOWED_LOOKBACK_DAYS.includes(value)) return;
     writeNumber(LOOKBACK_DAYS_KEY, value);
+}
+export function setPreviewDays(value: number): void {
+    if (!ALLOWED_PREVIEW_DAYS.includes(value)) return;
+    writeNumber(PREVIEW_DAYS_KEY, value);
+}
+export function setPreviewSinkToBottom(value: boolean): void {
+    writeBool(PREVIEW_SINK_KEY, value);
 }
 export function setTranscodeType(value: TranscodeType): void {
     if (!ALLOWED_TRANSCODE.includes(value)) return;

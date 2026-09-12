@@ -394,6 +394,17 @@ export default {
                 desc: "How far back in time to look for 'new' content in the home feed. Affects both story bar and initial feed load. Shorter window for more compact; longer window for more content, but slower initial load with large libraries.",
                 days: "days"
             },
+            preview_days: {
+                title: "Preview window",
+                desc: "Scenes dated in the future are previews. Bounds how far ahead a preview may surface — distant previews rarely have any resource yet. 'Off' hides previews entirely.",
+                off: "Off",
+                unlimited: "Unlimited"
+            },
+            preview_sink: {
+                title: "Sink previews to bottom",
+                desc: "When on, previews sort below all released content; the soonest preview comes first.",
+                label: "Sink"
+            },
             source: {
                 title: "Discovery data source",
                 desc: "The stash-box instance powering discovery, trending, follow and the performer-profile 'not owned' mix. Configure it as sourceEndpoint in Stash Settings → Plugins → binge (must exactly match one of the stash-box endpoints configured in Stash; defaults to stashdb.org); reopen the binge page after changing it. This row is read-only status.",

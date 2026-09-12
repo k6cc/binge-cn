@@ -15,9 +15,11 @@ import {
     confirmDaemonOrigin,
     ALLOWED_FORAGE_TARGETS,
     ALLOWED_LOOKBACK_DAYS,
+    ALLOWED_PREVIEW_DAYS,
     ALLOWED_TRANSCODE,
     setAllowedGenders,
     setBingeServerUrl,
+    setPreviewDays,
     setForageUrl,
     setForageWatchTarget,
     setIncludeReddit,
@@ -26,6 +28,7 @@ import {
     setIncludeStashDB,
     setIncludeStashDBInProfile,
     setLookbackDays,
+    setPreviewSinkToBottom,
     setRefractIntegration,
     setShowDebug,
     setShowGalleries,
@@ -33,6 +36,7 @@ import {
     setTranscodeType,
     useAllowedGenders,
     useBingeServerUrl,
+    usePreviewDays,
     useForageUrl,
     useForageWatchTarget,
     useIncludeReddit,
@@ -40,14 +44,15 @@ import {
     useIncludePornhub,
     useIncludeStashDB,
     useIncludeStashDBInProfile,
+    setLibraryFolderNames,
+    setGalleryIgnoreFolders,
     useLookbackDays,
+    usePreviewSinkToBottom,
     useRefractIntegration,
     useShowDebug,
     useShowGalleries,
     useLibraryFolderNames,
-    setLibraryFolderNames,
     useGalleryIgnoreFolders,
-    setGalleryIgnoreFolders,
     useShowcaseBlur,
     useTranscodeType,
     type ForageWatchTarget,
@@ -268,6 +273,8 @@ export function SettingsPage() {
                     >
                         <GenderRow />
                         <LookbackRow />
+                        <PreviewDaysRow />
+                        <PreviewSinkRow />
                         <GalleriesRow />
                         <GalleryIgnoreRow />
                         <LibraryFolderNamesRow />
@@ -735,6 +742,57 @@ function LookbackRow() {
                     </option>
                 ))}
             </select>
+        </SettingRow>
+    );
+}
+
+// "预告窗口"：发布日期在当前时间之后的场景视为预告（JAV 源常提前数周
+// 放出元数据，远期预告普遍尚无资源）。下拉限制预告最远可出现的范围，
+// 展示层过滤，缓存存全量，切换零网络成本。
+function PreviewDaysRow() {
+    const value = usePreviewDays();
+    const { t } = useTranslation();
+    return (
+        <SettingRow
+            title={t("settings.preview_days.title")}
+            description={t("settings.preview_days.desc")}
+        >
+            <select
+                className="binge-settings-select"
+                value={String(value)}
+                onChange={(e) =>
+                    setPreviewDays(parseInt(e.target.value, 10))
+                }
+            >
+                {ALLOWED_PREVIEW_DAYS.map((days) => (
+                    <option key={days} value={String(days)}>
+                        {days === -1
+                            ? t("settings.preview_days.off")
+                            : days === 0
+                              ? t("settings.preview_days.unlimited")
+                              : `${days} ${t("settings.lookback.days")}`}
+                    </option>
+                ))}
+            </select>
+        </SettingRow>
+    );
+}
+
+// "预告沉底"：开启后信息流中未来日期的条目排在全部已发布内容之后，
+// 预告组内按临近程度排（马上发布的预告最靠前）。
+function PreviewSinkRow() {
+    const value = usePreviewSinkToBottom();
+    const { t } = useTranslation();
+    return (
+        <SettingRow
+            title={t("settings.preview_sink.title")}
+            description={t("settings.preview_sink.desc")}
+        >
+            <SwitchToggle
+                checked={value}
+                onChange={(v) => setPreviewSinkToBottom(v)}
+                label={t("settings.preview_sink.label")}
+            />
         </SettingRow>
     );
 }

@@ -20,6 +20,7 @@ import {
     getTrendingStashDBScenes,
     readStashDBCache,
     writeStashDBCache,
+    previewCutoffDate,
     type StashDBScene,
     type StashDBScenePerformer,
 } from "../api/stashdb";
@@ -170,9 +171,12 @@ const MAX_TRENDING_ITEMS = 12;
 
 export async function fetchDiscoveryFeedItems(
     sinceIsoDate: string,
-    opts: { skipTrending?: boolean } = {}
+    opts: { skipTrending?: boolean; previewDays?: number } = {}
 ): Promise<DiscoveryFeedItem[]> {
     const skipTrending = !!opts.skipTrending;
+    // "预告窗口"：trending 和 costar 统一在构建层过滤（缓存种子存
+    // 全量，切换窗口零网络成本）。-1 = 隐藏全部预告，0 = 不限。
+    const previewCutoff = previewCutoffDate(opts.previewDays ?? 0);
     const box = await getSourceBox();
     if (!box) return [];
 
@@ -305,6 +309,9 @@ export async function fetchDiscoveryFeedItems(
         if (taken >= MAX_TRENDING_ITEMS) break;
         if (owned.has(s.id)) continue;
         if (!s.releaseDate || s.releaseDate < sinceIsoDate) continue;
+        // 预告窗口与日期窗口同规则：也在截断前过滤，否则 taken 会计入
+        // 后面构建层会丢弃的场景，热门位被远期预告空占。
+        if (previewCutoff && s.releaseDate > previewCutoff) continue;
         if (!scenesById.has(s.id)) {
             scenesById.set(s.id, { scene: s, source: "trending" });
             taken++;
@@ -335,6 +342,10 @@ export async function fetchDiscoveryFeedItems(
         // older-than-window scene must be dropped here, or trending
         // cards leak past the user's configured lookback.
         if (!scene.releaseDate || scene.releaseDate < sinceIsoDate) {
+            continue;
+        }
+        // ...and the "预告窗口" above it (costar enters here too).
+        if (previewCutoff && scene.releaseDate > previewCutoff) {
             continue;
         }
 

@@ -394,6 +394,17 @@ export default {
                 desc: "首页“新”内容的回溯范围。同时影响故事栏和初始动态加载。窗口越短越紧凑；窗口越长展示更多内容，但库较大时首屏加载会变慢。",
                 days: "天"
             },
+            preview_days: {
+                title: "预告窗口",
+                desc: "发布日期在未来的场景视为预告。限制预告最远可出现的范围，过远的预告普遍尚无资源。“关闭”则隐藏全部预告。",
+                off: "关闭",
+                unlimited: "不限"
+            },
+            preview_sink: {
+                title: "预告沉底",
+                desc: "开启后，预告排在已发布内容之后，越临近发布的越靠前。",
+                label: "沉底"
+            },
             source: {
                 title: "发现数据源",
                 desc: "发现流、热门、关注和演员页“未拥有”混排所使用的 stash-box 实例。在 Stash 设置 → 插件 → binge 的 sourceEndpoint 中配置（须与 Stash 配置的 stash-box endpoint 一致，默认 stashdb.org）；修改后重新打开 binge 页生效。此处仅展示当前状态。",

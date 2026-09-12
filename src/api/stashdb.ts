@@ -237,8 +237,15 @@ async function fetchOwnedStashDBSceneIds(): Promise<Set<string>> {
 // ── StashDB query ────────────────────────────────────────────────────
 
 const PERFORMER_BATCH_SIZE = 100;
-const PAGE_SIZE = 100;
+// 实测 javstash.org / stashdb.org 均不封顶 per_page（1000 一次全量返回），
+// 100 → 1000 把"每批 1-3 页串行分页"折叠为"每批 1 个请求"。终止条件
+// 同步改为 count 制（见 fetchStashDBScenesBatch），即使某个 box 偷偷把
+// per_page 压回 100 也仍然正确分页，不会截断。
+const PAGE_SIZE = 1000;
 const MAX_PAGES = 50;
+// How many performer batches query the box concurrently (see
+// fetchNewStashDBScenesForPerformers).
+const BATCH_CONCURRENCY = 3;
 
 // Abort stashdb fetches after 25s. Without a deadline, an unreachable
 // stashdb.org hangs the feed/stories load for the browser's own
@@ -247,6 +254,31 @@ const MAX_PAGES = 50;
 // its slowest observed answer and well short of a user giving up —
 // 之前的 10s 过紧，超时被上层当作"站点故障"缓存成 12 小时判定。
 const STASHDB_TIMEOUT_MS = 25_000;
+
+// ── "预告窗口"（binge.previewDays）──────────────────────────────────
+// stash-box 无法按区间过滤日期（date 条件只有单值 GREATER_THAN），
+// 服务端拉取必须包含未来日期的场景；预告的取舍在前端展示层做。
+// 缓存始终存全量，切换窗口零网络成本。
+
+// previewDays: -1 = 隐藏全部预告，0 = 不限（上游行为），N = 仅展示 N 天内
+// 发布的预告。返回预告允许的最远 releaseDate（YYYY-MM-DD），null = 不限。
+export function previewCutoffDate(previewDays: number): string | null {
+    if (previewDays === 0) return null;
+    if (previewDays === -1) return new Date().toISOString().slice(0, 10);
+    return new Date(Date.now() + previewDays * 86_400_000)
+        .toISOString()
+        .slice(0, 10);
+}
+
+// 按预告窗口过滤场景列表。无日期的场景不受影响（"预告"仅由未来日期定义）。
+export function filterPreviewScenes(
+    scenes: StashDBScene[],
+    previewDays: number,
+): StashDBScene[] {
+    const cutoff = previewCutoffDate(previewDays);
+    if (cutoff === null) return scenes;
+    return scenes.filter((s) => !s.releaseDate || s.releaseDate <= cutoff);
+}
 
 async function postStashDB<T>(
     apiKey: string,
@@ -457,7 +489,19 @@ async function fetchStashDBScenesBatch(
         if (data == null) return null;
         if (!data.queryScenes?.scenes) break;
         for (const s of data.queryScenes.scenes) out.push(shapeScene(s));
-        if (data.queryScenes.scenes.length < PAGE_SIZE) break;
+        // Count-based termination, NOT `scenes.length < PAGE_SIZE`: a
+        // box that silently caps per_page below what we asked returns
+        // short-but-full pages, which a length test reads as "last
+        // page" and silently drops everything after it. count is the
+        // server-side total across pages, so it stays authoritative
+        // whatever per_page the box actually honors.
+        if (
+            data.queryScenes.count != null &&
+            out.length >= data.queryScenes.count
+        ) {
+            break;
+        }
+        if (data.queryScenes.scenes.length === 0) break;
         page++;
     }
     return out;
@@ -1056,17 +1100,29 @@ async function fetchNewStashDBScenesForPerformers(
     apiKey: string,
 ): Promise<StashDBScene[] | null> {
     const merged: StashDBScene[] = [];
+    // Batches run 3-wide instead of strictly serial. 835 linked
+    // performers = 9 batches at ~1-2.5s per round-trip, so the serial
+    // chain was the whole cold-load story: 21 near-sequential
+    // requests / 40s measured against javstash. 3-wide cuts it to
+    // ceil(9/3) round-trips while staying polite to the box; each
+    // wave slot keeps its own internal pagination.
+    const batches: string[][] = [];
     for (let i = 0; i < performerStashIds.length; i += PERFORMER_BATCH_SIZE) {
-        const batch = performerStashIds.slice(i, i + PERFORMER_BATCH_SIZE);
-        const scenes = await fetchStashDBScenesBatch(
-            apiKey,
-            batch,
-            sinceIsoDate,
+        batches.push(performerStashIds.slice(i, i + PERFORMER_BATCH_SIZE));
+    }
+    for (let i = 0; i < batches.length; i += BATCH_CONCURRENCY) {
+        const wave = batches.slice(i, i + BATCH_CONCURRENCY);
+        const results = await Promise.all(
+            wave.map((batch) =>
+                fetchStashDBScenesBatch(apiKey, batch, sinceIsoDate),
+            ),
         );
         // One failed batch makes the whole answer partial. Caching a
         // partial as complete is what pins an outage in place.
-        if (scenes == null) return null;
-        merged.push(...scenes);
+        if (results.some((r) => r == null)) return null;
+        for (const r of results) {
+            if (r) merged.push(...r);
+        }
     }
     // Dedupe by id (a scene with two of our performers shows up in two
     // batches).
@@ -1087,6 +1143,10 @@ async function fetchNewStashDBScenesForPerformers(
 // Key 按源 host 隔离（binge.source.<host>.newScenes.v4）：切换活动源
 // 不串数据，切回旧源时 TTL 内仍能命中。
 const CACHE_TTL_MS = 12 * 60 * 60 * 1000;
+// Age cap for the SWR-stale reader: beyond a week the cached window is
+// too far from "recent releases" to be worth an instant render, and a
+// blocking fetch is preferable.
+const STALE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 function newScenesCacheKey(endpoint: string): string {
     return `binge.source.${sourceHost(endpoint)}.newScenes.v4`;
@@ -1098,15 +1158,15 @@ interface CacheEntry {
     scenes: StashDBScene[];
 }
 
-export function readStashDBCache(
-    sinceIsoDate: string,
-    endpoint: string,
-): StashDBScene[] | null {
+// Parse + structurally validate the stored entry. Shared by the fresh
+// reader below and the SWR-stale reader after it: a truncated or
+// hand-edited payload must not reach the story builder from either
+// path.
+function parseCacheEntry(endpoint: string): CacheEntry | null {
     try {
         const raw = localStorage.getItem(newScenesCacheKey(endpoint));
         if (!raw) return null;
         const entry = JSON.parse(raw) as CacheEntry;
-        if (entry.sinceIsoDate !== sinceIsoDate) return null;
         // Valid JSON is not the same as our JSON. A truncated or
         // hand-edited entry parses fine and then hands the caller
         // something it iterates, so the stories row dies with a
@@ -1154,15 +1214,44 @@ export function readStashDBCache(
         ) {
             return null;
         }
-        const age = Date.now() - entry.fetchedAt;
-        // Negative age means the entry claims to be from the future,
-        // which happens when the clock moves backwards. Treat it as
-        // stale rather than valid until the clock catches up.
-        if (age < 0 || age > CACHE_TTL_MS) return null;
-        return entry.scenes;
+        return entry;
     } catch {
         return null;
     }
+}
+
+export function readStashDBCache(
+    sinceIsoDate: string,
+    endpoint: string,
+): StashDBScene[] | null {
+    const entry = parseCacheEntry(endpoint);
+    if (!entry) return null;
+    if (entry.sinceIsoDate !== sinceIsoDate) return null;
+    const age = Date.now() - entry.fetchedAt;
+    // Negative age means the entry claims to be from the future,
+    // which happens when the clock moves backwards. Treat it as
+    // stale rather than valid until the clock catches up.
+    if (age < 0 || age > CACHE_TTL_MS) return null;
+    return entry.scenes;
+}
+
+// SWR reader: yesterday's answer, served only to a caller that is
+// about to revalidate in the background (useStories'
+// mergeStashDBScenes). The strict reader above misses once a day by
+// design — the window key (sinceIsoDate) rolls with the lookback
+// setting, so the 12h TTL is effectively a once-per-day expiry and
+// every first visit of the day used to eat the full cold fetch. This
+// reader ignores the window and the TTL and hands back whatever is on
+// disk, age-capped: content from a week-old window is no longer
+// "recent releases", and a blocking fetch is the better answer there.
+export function readStashDBCacheStale(
+    endpoint: string,
+): StashDBScene[] | null {
+    const entry = parseCacheEntry(endpoint);
+    if (!entry) return null;
+    const age = Date.now() - entry.fetchedAt;
+    if (age < 0 || age > STALE_MAX_AGE_MS) return null;
+    return entry.scenes;
 }
 
 // Drop entries this reader can never use again:

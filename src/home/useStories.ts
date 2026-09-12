@@ -12,6 +12,8 @@ import {
     getOwnedStashDBSceneIds,
     getNewStashDBScenesForPerformers,
     readStashDBCache,
+    readStashDBCacheStale,
+    filterPreviewScenes,
     writeStashDBCache,
     invalidateStashDBCache,
     invalidateLinkedPerformersMemo,
@@ -37,6 +39,7 @@ import {
     useIncludeStashDB,
     useIncludePornhub,
     useLookbackDays,
+    usePreviewDays,
 } from "./pluginSettings";
 
 // A single scene inside a performer's story strip. Discriminated by
@@ -136,6 +139,7 @@ export function useStories(): StoriesResult {
     const includeReddit = useIncludeReddit();
     const includePornhub = useIncludePornhub();
     const lookbackDays = useLookbackDays();
+    const previewDays = usePreviewDays();
     // Bumped by refresh() to force the effect below to re-run after
     // all in-memory/localStorage caches have been invalidated.
     const [refreshTick, setRefreshTick] = useState(0);
@@ -272,7 +276,22 @@ export function useStories(): StoriesResult {
                 const merges: Promise<void>[] = [];
                 if (includeStashDB) {
                     merges.push(
-                        mergeStashDBScenes(byPerformer, sinceIsoDate)
+                        mergeStashDBScenes(
+                            byPerformer,
+                            sinceIsoDate,
+                            previewDays,
+                            () => {
+                                // SWR second render: the background
+                                // revalidation replaced the stale tail in
+                                // place — rebuild the row from the same
+                                // buckets the other merges already filled.
+                                if (!alive) return;
+                                setState({
+                                    kind: "ready",
+                                    stories: buildStories(byPerformer),
+                                });
+                            }
+                        )
                     );
                 }
                 if (includeReddit) {
@@ -319,6 +338,7 @@ export function useStories(): StoriesResult {
         includeReddit,
         includePornhub,
         lookbackDays,
+        previewDays,
         refreshTick,
     ]);
 
@@ -404,19 +424,24 @@ interface PerformerBucket {
 // Fetch StashDB new releases for every linked local performer and
 // merge them into the per-performer buckets. Owned stash_ids are
 // filtered out (the user already has those scenes — they'll surface
-// via the library path). 12h cache via stashdb.ts/readStashDBCache.
+// via the library path). 12h cache via stashdb.ts/readStashDBCache,
+// served stale-while-revalidate when that strict read misses (see
+// readStashDBCacheStale).
 //
 // Discovery of UNFOLLOWED StashDB performers happens in the feed
 // (`src/home/discoveryFeed.ts`), not here — the stories row only
 // ever shows performers that already exist in the local library.
 async function mergeStashDBScenes(
     byPerformer: Map<string, PerformerBucket>,
-    sinceIsoDate: string
+    sinceIsoDate: string,
+    previewDays: number,
+    onRevalidated?: () => void
 ): Promise<void> {
     const box = await getSourceBox();
     if (!box) return; // no API key configured
     const linkedPerformers = await getLinkedPerformersMemo();
     if (linkedPerformers.length === 0) return;
+    const linkedStashIds = linkedPerformers.map((p) => p.stashId);
 
     const stashIdToLocal = new Map<string, LinkedPerformer>();
     for (const p of linkedPerformers) {
@@ -427,65 +452,119 @@ async function mergeStashDBScenes(
         sinceIsoDate,
         box.endpoint,
     );
+    let stale = false;
     if (!scenes) {
-        const fresh = await getNewStashDBScenesForPerformers(
-            linkedPerformers.map((p) => p.stashId),
-            sinceIsoDate,
-            box.api_key
-        );
-        // Only cached when the source actually answered. A failure used to
-        // arrive here as [] and be written as a valid 12-hour answer, so
-        // one 502 meant no new releases for half a day - and reloading
-        // did not help, because [] reads back as a hit.
-        if (fresh != null) writeStashDBCache(sinceIsoDate, fresh, box.endpoint);
-        scenes = fresh ?? [];
+        // Stale-while-revalidate. The window key rolls with the
+        // lookback setting, so the strict cache misses on the first
+        // visit of each day — which used to mean the full cold fetch
+        // (20-40s against javstash with 800+ linked performers) before
+        // ANY stashdb tail appeared. Yesterday's answer is close
+        // enough to render now; the fresh pull runs below and swaps it
+        // in via onRevalidated.
+        const swr = readStashDBCacheStale(box.endpoint);
+        if (swr && swr.length > 0) {
+            scenes = swr;
+            stale = true;
+        } else {
+            const fresh = await getNewStashDBScenesForPerformers(
+                linkedStashIds,
+                sinceIsoDate,
+                box.api_key
+            );
+            // Only cached when the source actually answered. A failure used to
+            // arrive here as [] and be written as a valid 12-hour answer, so
+            // one 502 meant no new releases for half a day - and reloading
+            // did not help, because [] reads back as a hit.
+            if (fresh != null) writeStashDBCache(sinceIsoDate, fresh, box.endpoint);
+            scenes = fresh ?? [];
+        }
     }
-    if (scenes.length === 0) return;
+    // "预告窗口"在展示层生效（缓存存全量，见 stashdb.ts）。
+    scenes = filterPreviewScenes(scenes, previewDays);
+    // 空结果 + 非 SWR：拉取本身就是空的（或预告窗口筛掉了全部），
+    // owned 全库查询无事可做。空结果 + SWR：仍需走到底 — 后台重验证
+    // 的新鲜数据可能含已发布内容，提前返回会让重验证永远不触发，
+    // 缓存停在"全被筛掉"的旧答案上。
+    if (scenes.length === 0 && !stale) return;
 
     // Deferred until we know there are scenes to filter: this is a
     // full-library query (~1.2s on a 131k-scene library) that the
     // cache-hit-with-no-new-scenes path used to pay for nothing.
     // Memoized in stashdb.ts, so the discovery feed's concurrent call
-    // shares the same flight.
+    // shares the same flight — and the background revalidation below
+    // reuses it for free.
     const owned = await getOwnedStashDBSceneIds();
 
-    for (const scene of scenes) {
-        if (owned.has(scene.id)) continue;
-        // Defensive — old v1 cache + malformed StashDB responses can
-        // leave performers undefined.
-        for (const sp of scene.performers ?? []) {
-            const local = stashIdToLocal.get(sp.id);
-            if (!local) continue;
-            let bucket = byPerformer.get(local.localId);
-            if (!bucket) {
-                bucket = {
-                    story: {
-                        performerId: local.localId,
-                        performerName: local.name,
-                        performerImagePath: local.imagePath,
-                        performerFavorite: local.favorite,
-                    },
-                    librarySceneIds: new Set(),
-                    library: [],
-                    stashdb: [],
-                    reddit: [],
-                    linkedStashId: local.stashId,
-                };
-                byPerformer.set(local.localId, bucket);
+    const mergeScenes = (list: StashDBScene[]): void => {
+        for (const scene of list) {
+            if (owned.has(scene.id)) continue;
+            // Defensive — old v1 cache + malformed StashDB responses can
+            // leave performers undefined.
+            for (const sp of scene.performers ?? []) {
+                const local = stashIdToLocal.get(sp.id);
+                if (!local) continue;
+                let bucket = byPerformer.get(local.localId);
+                if (!bucket) {
+                    bucket = {
+                        story: {
+                            performerId: local.localId,
+                            performerName: local.name,
+                            performerImagePath: local.imagePath,
+                            performerFavorite: local.favorite,
+                        },
+                        librarySceneIds: new Set(),
+                        library: [],
+                        stashdb: [],
+                        reddit: [],
+                        linkedStashId: local.stashId,
+                    };
+                    byPerformer.set(local.localId, bucket);
+                }
+                const effectiveAt =
+                    scene.releaseDate ?? new Date().toISOString().slice(0, 10);
+                bucket.stashdb.push({
+                    id: `stashdb:${scene.id}`,
+                    source: "stashdb",
+                    title: scene.title,
+                    cover: scene.coverUrl,
+                    date: scene.releaseDate,
+                    effectiveAt,
+                    stashboxUrl: sourceSceneUrl(box.endpoint, scene.id),
+                });
             }
-            const effectiveAt =
-                scene.releaseDate ?? new Date().toISOString().slice(0, 10);
-            bucket.stashdb.push({
-                id: `stashdb:${scene.id}`,
-                source: "stashdb",
-                title: scene.title,
-                cover: scene.coverUrl,
-                date: scene.releaseDate,
-                effectiveAt,
-                stashboxUrl: sourceSceneUrl(box.endpoint, scene.id),
-            });
         }
-    }
+    };
+    mergeScenes(scenes);
+
+    if (!stale) return;
+
+    // Background revalidation, fire-and-forget. The caller has already
+    // rendered the stale tail; when the fresh answer lands it replaces
+    // it wholesale — clearing every bucket's stashdb array and
+    // re-merging runs in one JS turn (no await between clear and
+    // re-merge), so no render can observe the half-state, and
+    // buildStories skips buckets left with nothing.
+    void (async () => {
+        try {
+            const fresh = await getNewStashDBScenesForPerformers(
+                linkedStashIds,
+                sinceIsoDate,
+                box.api_key
+            );
+            // null = partial/failed pull. Keep the stale render — the
+            // next load retries — and do NOT write the cache, same
+            // failure policy as the foreground path.
+            if (fresh == null) return;
+            writeStashDBCache(sinceIsoDate, fresh, box.endpoint);
+            for (const bucket of byPerformer.values()) {
+                bucket.stashdb.length = 0;
+            }
+            mergeScenes(filterPreviewScenes(fresh, previewDays));
+            onRevalidated?.();
+        } catch (err) {
+            console.warn("[binge] stashdb SWR revalidation failed", err);
+        }
+    })();
 }
 
 // Fetch reddit-post digests from binge-server and attach them to the

@@ -21,6 +21,8 @@ import {
     useGalleryIgnoreFolders,
     useAllowedGenders,
     orderedGenders,
+    usePreviewDays,
+    usePreviewSinkToBottom,
 } from "./pluginSettings";
 import {
     fetchDiscoveryFeedItems,
@@ -333,6 +335,10 @@ export interface FeedHookResult {
 
 export function useFeed(): FeedHookResult {
     const lookbackDays = useLookbackDays();
+    // "预告窗口" + "预告沉底"开关：前者限制未来日期内容能否出现，
+    // 后者改变它们出现的位置。两者都进 deps，切换即重排，无需重拉。
+    const previewDays = usePreviewDays();
+    const previewSink = usePreviewSinkToBottom();
     const [state, setState] = useState<FeedState>({ kind: "loading" });
     const showGalleries = useShowGalleries();
     const includeStashDB = useIncludeStashDB();
@@ -370,6 +376,25 @@ export function useFeed(): FeedHookResult {
         // dated before it reached the feed via the created_at query, so
         // it's back-catalog) and for the discovery window.
         const sinceDate = sinceIso.slice(0, 10);
+
+        // 信息流排序。"预告沉底"开启时：未来日期的条目（预告）沉到
+        // 全部已发布内容之后，且预告组内按临近程度排（马上发布的
+        // 最靠前）；已发布内容保持时间倒序不变。effectiveAt 可能是
+        // YYYY-MM-DD（场景日期）或完整 ISO 时间戳（导入时间），统一
+        // 取日期前缀比较，避免当天的 created_at 被误判为未来。
+        const todayDate = new Date().toISOString().slice(0, 10);
+        const isPreview = (f: FeedItem) => f.effectiveAt.slice(0, 10) > todayDate;
+        const feedSort = (a: FeedItem, b: FeedItem): number => {
+            if (previewSink) {
+                const aFuture = isPreview(a);
+                const bFuture = isPreview(b);
+                if (aFuture !== bFuture) return aFuture ? 1 : -1;
+                if (aFuture && bFuture) {
+                    return a.effectiveAt.localeCompare(b.effectiveAt);
+                }
+            }
+            return b.effectiveAt.localeCompare(a.effectiveAt);
+        };
 
         (async () => {
             try {
@@ -418,6 +443,7 @@ export function useFeed(): FeedHookResult {
                     includeStashDB
                         ? fetchDiscoveryFeedItems(sinceDate, {
                               skipTrending: hidden.has("trending"),
+                              previewDays,
                           }).catch(() => [])
                         : Promise.resolve([]);
                 if (!alive) return;
@@ -647,7 +673,7 @@ export function useFeed(): FeedHookResult {
                 );
 
                 const local: FeedItem[] = [...sceneList, ...galleryItems].sort(
-                    (a, b) => b.effectiveAt.localeCompare(a.effectiveAt),
+                    feedSort
                 );
 
                 // Show the library's own feed the moment it is ready.
@@ -675,10 +701,7 @@ export function useFeed(): FeedHookResult {
                             ? {
                                   ...prev,
                                   items: [...prev.items, ...wrapped].sort(
-                                      (a, b) =>
-                                          b.effectiveAt.localeCompare(
-                                              a.effectiveAt,
-                                          ),
+                                      feedSort
                                   ),
                               }
                             : prev,
@@ -701,6 +724,8 @@ export function useFeed(): FeedHookResult {
         // whole feed on every paint.
     }, [
         lookbackDays,
+        previewDays,
+        previewSink,
         showGalleries,
         includeStashDB,
         hidden,
