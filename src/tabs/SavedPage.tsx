@@ -145,8 +145,10 @@ export function SavedPage() {
             tags: [{ id: tagIdFromCachedCovers(c.tagName), name: c.name }],
             studios: [],
         });
-        setPinFirstSceneId(sceneId);
+        // setTab 会清除 pin，pin 必须在 setTab 之后设置（React 18 批处理
+        // "后写胜"），否则收藏夹点场景落入随机页而非定位到所点场景。
         setTab("foryou");
+        setPinFirstSceneId(sceneId);
     };
 
     const handleCreate = async () => {

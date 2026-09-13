@@ -11,7 +11,6 @@ import type { PackFeedItem } from "./useFeed";
 export function openPackAtScene(
     tab: {
         setTab: (t: "foryou") => void;
-        setPinFirstSceneId: (id: string | null) => void;
         setPinnedQueue: (q: { ids: string[]; startIndex: number }) => void;
     },
     pack: PackFeedItem,
@@ -22,10 +21,10 @@ export function openPackAtScene(
     // the tap target and walks the rest of the pack in order.
     const ids = pack.scenes.map((s) => s.sceneId);
     const startIndex = Math.max(0, ids.indexOf(sceneId));
-    // Clear any stale single-scene pin - the reel consumes the queue
-    // here, and a leftover pin would otherwise resurface in chained
-    // mode. Mirrors SceneFeedCard's "Watch full scene" handoff.
-    tab.setPinFirstSceneId(null);
-    tab.setPinnedQueue({ ids, startIndex });
+    // setTab 会清除 pin/queue（含旧顺序里需要单独清的 stale pin，由
+    // setTab 顺带完成），queue 必须在 setTab 之后设置，利用 React 18
+    // 批处理"后写胜"语义 —— 否则 queue 被 setTab 清掉，包马赛克点击
+    // 落入随机路径而非按包顺序播放。
     tab.setTab("foryou");
+    tab.setPinnedQueue({ ids, startIndex });
 }

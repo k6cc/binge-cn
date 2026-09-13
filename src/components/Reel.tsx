@@ -128,13 +128,23 @@ export function Reel() {
     // 重新加载场景（随机推荐）。tags/studios 同理 — 任何筛选维度被清空都
     // 视为用户想退出包模式。不清除 pinFirstSceneId（chained 模式有自己的
     // filter-takeover effect 处理）。
+    //
+    // 边界：只在"非空 → 空"的跳变时清除。入口时 filter 本就为空不算
+    // "清除"——包马赛克（openPackAtScene）不设置筛选、未归属批次的包
+    // （PackDetailSheet 无主演分支 replace 空筛选）也是空 filter，queue
+    // 应正常播放；原先"queue 活跃 + filter 为空"即清除的写法会让这两
+    // 类入口在挂载瞬间自毁 queue、落入随机路径。ref 在 queue 为 null
+    // 的轮次也持续更新，保证跳变检测不被 queue 生命周期打断。
+    const filterWasEmptyRef = useRef<boolean | null>(null);
     useEffect(() => {
-        if (!pinnedQueue) return;
         const empty =
             filter.performers.length === 0 &&
             filter.tags.length === 0 &&
             filter.studios.length === 0;
-        if (empty) {
+        const wasEmpty = filterWasEmptyRef.current;
+        filterWasEmptyRef.current = empty;
+        if (!pinnedQueue) return;
+        if (empty && wasEmpty === false) {
             setPinnedQueue(null);
         }
     }, [filter, pinnedQueue, setPinnedQueue]);

@@ -1,6 +1,6 @@
 # Binge（汉化版）
 
-> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.8.7**。
+> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.8.8**。
 
 为 [Stash](https://github.com/stashapp/stash) 提供的 Instagram 风格社交与发现层：竖屏 Reel、Stories、演员档案、StashDB 驱动的发现功能——全部基于 Stash 既有的 GraphQL API。Web 插件形态。
 
@@ -53,6 +53,8 @@ v0.4.17 将原硬编码中文迁移为基于 `react-i18next` 的动态多语言�
 ### 功能修复
 
 #### v0.8.x
+
+- **导航滑块跟随 + A 点防刷新 + 收藏夹/包入口修复（v0.8.8）**：发现页点击场景后底部导航滑块正确划到推荐按钮（上游遗留 bug，附带收益：浏览器 back 可从 reel 返回发现页）；已停留推荐页时再点推荐按钮不再刷新循环时段 A 点（同 tab 重复点击不再误清 pin 触发 Reel 重载）；收藏夹点场景定位到所点场景、首页包马赛克点击按包内顺序播放（pin/queue 统一改为 setTab 后写入 + Reel 仅在用户清除筛选时退出包模式，修复空筛选入口自毁 queue）
 
 - **javstash 冷加载优化 + 预告窗口/预告沉底 + 返回顶部分派（v0.8.7）**：newScenes 分页 `per_page` 100→1000 + count 终止、演员批次三波并发——javstash 源冷加载实测 40.7s → 约 7s；缓存新增 stale-while-revalidate，每日首次访问先秒开昨日数据、后台自动换新（7 天兜底）。新设置**预告窗口**（默认 7 天，关闭/7/14/30/60/不限）：JAV 源常提前数周放出元数据、远期预告普遍尚无资源，此处限制预告最远可出现的范围（缓存存全量，切换零网络成本，作用面含故事栏/发现/热门）；**预告沉底**开关（默认关）：开启后预告排到已发布内容之后、越临近发布的越靠前。返回顶部按钮改近距平滑/远距瞬时分派，修复从信息流深处回顶时平滑滚动被虚拟列表动态测量打断、停在中途的问题
 

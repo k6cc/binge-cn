@@ -146,19 +146,30 @@ export function TabProvider({ children }: { children: ReactNode }) {
         setTabRaw(next);
         // Always re-show the bar on tab switch — otherwise switching from a
         // scrolled tab would land on the new tab with the bar still hidden.
+        // 同 tab 重复点击（点击已收缩的胶囊）也重新展开导航。
         setTabBarVisible(true);
-        // A manual tab switch (TabBar tap, hashtag jump, story-viewer
-        // CTA, etc.) is an explicit takeover — drop any in-flight
-        // chained mode so e.g. tapping the "Explore" tab while
-        // watching a chained reel returns to the Explore grid rather
-        // than re-rendering the same reel.
-        setReelMode("random");
-        // Bug 5 修复：清除 pin 和 queue，防止下次进入 Reel 时残留的
-        // pin/queue 触发 chained/queue 路径覆盖随机场景。调用方若想
-        // 保留 pin/queue（如 handleWatchFullScene），必须在 setTab 之
-        // 后再次设置，利用 React 18 批处理"后写胜"语义。
-        setPinFirstSceneId(null);
-        setPinnedQueue(null);
+        // 重复点击当前 tab（如已在推荐页时再点推荐按钮）不是切换：
+        // 跳过下面的清除。入口路径（演员详情 / 故事 CTA / 首页"观看
+        // 完整场景"）在 setTab 之后设置的 pinFirstSceneId 会留在
+        // state 里（Reel 加载后不清除），若此处把它清成 null，Reel
+        // 的加载 effect（pin 在依赖数组中）会重跑 → 重新拉一页随机
+        // 场景跳回第 0 帧 → 正在观看的场景被刷新一次循环时段 A 点。
+        // 只有真实的 tab 切换才算"显式接管"。tabRef.current 是本次
+        // 更新前的 tab（ref 在 commit 后才同步，批处理期间保持旧值）。
+        if (next !== tabRef.current) {
+            // A manual tab switch (TabBar tap, hashtag jump, story-viewer
+            // CTA, etc.) is an explicit takeover — drop any in-flight
+            // chained mode so e.g. tapping the "Explore" tab while
+            // watching a chained reel returns to the Explore grid rather
+            // than re-rendering the same reel.
+            setReelMode("random");
+            // Bug 5 修复：清除 pin 和 queue，防止下次进入 Reel 时残留的
+            // pin/queue 触发 chained/queue 路径覆盖随机场景。调用方若想
+            // 保留 pin/queue（如 handleWatchFullScene），必须在 setTab 之
+            // 后再次设置，利用 React 18 批处理"后写胜"语义。
+            setPinFirstSceneId(null);
+            setPinnedQueue(null);
+        }
         writeTabToHash(next);
     }, []);
 

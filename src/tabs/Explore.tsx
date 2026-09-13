@@ -71,7 +71,7 @@ export function Explore() {
     const sentinelRef = useRef<HTMLDivElement>(null);
     const chipScrollerRef = useRef<HTMLDivElement>(null);
     const { replace } = useFilter();
-    const { setPinFirstSceneId, setReelMode } = useTab();
+    const { setPinFirstSceneId, setReelMode, setTab } = useTab();
     const { history: sceneSearchHistory, addEntry: addSceneSearchEntry, removeEntry: removeSceneSearchEntry, scheduleSave: scheduleSceneSave } =
         useSearchHistory("scenes");
     const [searchFocused, setSearchFocused] = useState(false);
@@ -253,10 +253,14 @@ export function Explore() {
 
     const handleTileClick = (scene: ExploreTile) => {
         // Tap a tile → drop into chained reel. App.tsx routes on
-        // (tab, reelMode): explore + chained → <Reel>, explore +
-        // random → <Explore grid>, so we stay on the Explore tab
-        // visually while showing reel content.
+        // (tab, reelMode): foryou（或 explore + chained）→ <Reel>。
+        // 滑块修复：同时切到 foryou tab，让底部导航滑块从发现按钮
+        // 划动到推荐按钮（原先停留在发现按钮上不跟随）。setTab 会
+        // 清除 pin/queue 并把 reelMode 重置为 random，因此 pin 与
+        // chained 必须在 setTab 之后设置（React 18 批处理"后写胜"，
+        // 与 PerformerSceneGrid / StoryViewer 的修复一致）。
         replace({ performers: [], tags: [], studios: [] });
+        setTab("foryou");
         setPinFirstSceneId(scene.id);
         setReelMode("chained");
     };
