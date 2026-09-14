@@ -307,7 +307,10 @@ export default {
             open_batch_aria: "Open batch — {{name}}",
             download_to_stash: "Download to Stash",
             browse_performer_content: "Browse {{name}}'s content",
-            send_to_forage: "Send to forage"
+            send_to_forage: "Send to forage",
+            preview_scene: "Preview scene images",
+            preview_scene_title: "Preview images for \"{{title}}\"",
+            download_image: "Download current image"
         },
 
         // Multiview
@@ -721,7 +724,9 @@ export default {
             progress: "Scene progress",
             stashdb_performers: "{{count}} performers on StashDB",
             performers_in_library: "({{count}} in library)",
-            stashdb_scene: "StashDB scene"
+            stashdb_scene: "StashDB scene",
+            gallery_probing: "Loading images…",
+            gallery_count: "{{count}} images"
         },
 
         // Form

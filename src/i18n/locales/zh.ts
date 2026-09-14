@@ -307,7 +307,10 @@ export default {
             open_batch_aria: "打开批次 — {{name}}",
             download_to_stash: "下载到 Stash",
             browse_performer_content: "浏览 {{name}} 的内容",
-            send_to_forage: "发送到 forage"
+            send_to_forage: "发送到 forage",
+            preview_scene: "预览场景剧照",
+            preview_scene_title: "预览“{{title}}”的剧照",
+            download_image: "下载当前图片"
         },
 
         // 多视图
@@ -721,7 +724,9 @@ export default {
             progress: "场景进度",
             stashdb_performers: "StashDB 上有 {{count}} 位演员",
             performers_in_library: "（{{count}} 位在库中）",
-            stashdb_scene: "StashDB 场景"
+            stashdb_scene: "StashDB 场景",
+            gallery_probing: "剧照识别中…",
+            gallery_count: "{{count}}张剧照"
         },
 
         // 表单

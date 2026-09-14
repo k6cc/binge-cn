@@ -5084,6 +5084,13 @@ p.binge-settings-source-note {
     background: rgba(255, 255, 255, 0.04);
     overflow: hidden;
     text-decoration: none;
+    /* 原为 <a> 跳转数据源，现为 button 弹出剧照预览：清除表单
+       控件默认样式，保持卡片主体视觉一致。 */
+    border: none;
+    padding: 0;
+    font: inherit;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
 }
 .binge-discovery-card-cover img {
     width: 100%;
@@ -9216,6 +9223,111 @@ p.binge-settings-source-note {
     font-variant-numeric: tabular-nums;
     letter-spacing: 0.04em;
     text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+/* ── 发现页卡片剧照预览（ScenePreviewOverlay）───────────────────
+   轨道/箭头/关闭/遮罩复用 .binge-lightbox-*（组合类名），此处仅
+   定义差异部分：封面页（第 0 页）底部的信息栏与底部居中的剧照数，
+   剧照页 n/N 计数直接用 .binge-lightbox-counter 的底部居中。
+   封面为横版，信息栏借下方黑边自然延展。 */
+.binge-scene-preview-info {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    padding: 3rem 1.25rem 1.4rem;
+    background: linear-gradient(
+        to top,
+        rgba(0, 0, 0, 0.92) 0%,
+        rgba(0, 0, 0, 0.6) 55%,
+        transparent 100%
+    );
+    color: #fff;
+    /* 无可点击内容：点击穿透到轨道 = 点空白关闭。 */
+    pointer-events: none;
+    /* 极端长内容防顶出屏幕：整体限高裁切。 */
+    max-height: 62%;
+    overflow: hidden;
+    /* 挂载渐显（打开预览窗/详情到达）；划走划回用 opacity 过渡。 */
+    animation: binge-scene-preview-info-in 0.3s ease both;
+    transition: opacity 0.25s ease;
+}
+.binge-scene-preview-info.is-hidden {
+    /* animation: none 让 opacity 声明生效（both 结束态会钉住 1）。 */
+    animation: none;
+    opacity: 0;
+}
+@keyframes binge-scene-preview-info-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+.binge-scene-preview-code {
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 1);
+}
+.binge-scene-preview-details {
+    margin: 0;
+    font-size: 0.78rem;
+    line-height: 1.55;
+    color: rgba(255, 255, 255, 0.86);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 1);
+    /* 4 行省略截断。 */
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.binge-scene-preview-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+.binge-scene-preview-tag {
+    font-size: 0.7rem;
+    line-height: 1.35;
+    padding: 0.12rem 0.55rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.16);
+    white-space: nowrap;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 1);
+}
+/* 番号后的小号"工作室 · 时长"（span 嵌在粗体番号行内）。 */
+.binge-scene-preview-meta {
+    font-size: 0.8rem;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.78);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 1);
+}
+/* 时长加粗强调。 */
+.binge-scene-preview-duration {
+    font-weight: 600;
+}
+/* 封面页剧照数：信息栏最后一行，水平居中（与剧照页计数对齐）。 */
+.binge-scene-preview-count {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.92);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 1);
+    text-align: center;
+}
+/* 下载按钮：复用关闭按钮样式，移到其左侧。 */
+.binge-lightbox-download {
+    right: calc(1rem + 44px + 0.8rem);
+}
+.binge-lightbox-download svg {
+    width: 20px;
+    height: 20px;
 }
 
 /* ── "More" page list (bottom-nav burger slot) ────────────────────── */

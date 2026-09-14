@@ -6,6 +6,7 @@ import {
 } from "./PerformerHoverCard";
 import { FollowPerformerModal } from "./FollowPerformerModal";
 import { AddSceneModal } from "./AddSceneModal";
+import { ScenePreviewOverlay } from "./ScenePreviewOverlay";
 import { SceneCardMenu, type SceneCardMenuItem } from "./SceneCardMenu";
 import type { DiscoveryFeedItemWrapped } from "./useFeed";
 import { VerifiedIcon } from "../performer/PerformerProfile";
@@ -68,6 +69,7 @@ export function DiscoveryFeedCard({
     });
     const [modalOpen, setModalOpen] = useState(false);
     const [sceneModalOpen, setSceneModalOpen] = useState(false);
+    const [previewOpen, setPreviewOpen] = useState(false);
     // Once we successfully scene-create, hide the "Add to library"
     // option so a second tap doesn't fire a duplicate sceneCreate
     // (Stash rejects it with a unique-constraint error).
@@ -323,15 +325,16 @@ export function DiscoveryFeedCard({
             </header>
 
             {item.coverUrl ? (
-                <a
-                    href={item.stashboxUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                <button
+                    type="button"
                     className="binge-discovery-card-cover"
+                    onClick={() => setPreviewOpen(true)}
                     aria-label={
                         item.title
-                            ? t("action.open_on_stashdb_title", { title: item.title })
-                            : t("action.open_on_stashdb_scene")
+                            ? t("action.preview_scene_title", {
+                                  title: item.title,
+                              })
+                            : t("action.preview_scene")
                     }
                 >
                     <img
@@ -339,7 +342,7 @@ export function DiscoveryFeedCard({
                         alt={item.title ?? t("scene.stashdb_scene")}
                         loading="lazy"
                     />
-                </a>
+                </button>
             ) : (
                 <div className="binge-discovery-card-cover binge-discovery-card-cover-empty" />
             )}
@@ -457,6 +460,21 @@ export function DiscoveryFeedCard({
                         onFollowed?.();
                     }}
                     onClose={() => setSceneModalOpen(false)}
+                />
+            )}
+            {previewOpen && item.coverUrl && (
+                <ScenePreviewOverlay
+                    sceneStashId={item.sceneStashId}
+                    coverUrl={item.coverUrl}
+                    title={item.title}
+                    performerNames={[
+                        item.primaryPerformer.name,
+                        ...item.coPerformers
+                            .filter((cp) => cp.localId !== null)
+                            .map((cp) => cp.name),
+                    ]}
+                    releaseDate={item.releaseDate}
+                    onClose={() => setPreviewOpen(false)}
                 />
             )}
         </article>

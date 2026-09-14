@@ -1,6 +1,6 @@
 # Binge（汉化版）
 
-> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.8.8**。
+> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.9.0**。
 
 为 [Stash](https://github.com/stashapp/stash) 提供的 Instagram 风格社交与发现层：竖屏 Reel、Stories、演员档案、StashDB 驱动的发现功能——全部基于 Stash 既有的 GraphQL API。Web 插件形态。
 
@@ -16,7 +16,7 @@
 
 - **演员档案** — 简介、统计、场景网格、图库网格、社交链接条（Twitter / Instagram / TikTok / Reddit / OnlyFans / Fansly 品牌图标）。库内 + StashDB-only 变体共享布局。
 
-- **StashDB 发现** — 首页的 DISCOVER + TRENDING 卡片；关注演员 + 添加你尚未拥有的场景。
+- **StashDB 发现** — 首页的 DISCOVER + TRENDING 卡片；关注演员 + 添加你尚未拥有的场景。卡片封面点击弹出全屏剧照预览（番号/简介/标签信息栏，javstash 源经 DMM 图床自动探测剧照序列）。
 
 - **移动优先** — 底部导航、悬停卡片迷你档案、演员 `@mention` 链接。触屏 + 桌面端一致体验。
 
@@ -51,6 +51,10 @@ v0.4.17 将原硬编码中文迁移为基于 `react-i18next` 的动态多语言�
 - 详见 [汉化及修复.md](./汉化及修复.md)
 
 ### 功能修复
+
+#### v0.9.x
+
+- **发现页场景剧照预览窗（v0.9.0）**：发现/热门卡片封面点击弹出全屏预览——第 0 页为封面 + 底部信息栏（番号 + 小号工作室·时长、4 行省略简介、标签胶囊、底部居中剧照数），右划进入剧照页（底部居中 n/N 计数）。javstash 源：场景含 r18.dev 链接时取其 id 推导 DMM 图床序列逐号探测（占位图按尺寸过滤、动态批 6→3 张、渐进追加右箭头随探测出现、会话缓存重开秒进）；无链接或探测无果时仅封面 + 信息栏。关闭按钮左侧下载按钮保存当前页图片（命名"番号 演员日期"，无 CORS 的图床退化为新标签打开）。按需加载：点击封面才发一次详情查询，首页零开销
 
 #### v0.8.x
 
