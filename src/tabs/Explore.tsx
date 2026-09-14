@@ -6,6 +6,7 @@ import { DiscoverPerformersBar } from "./DiscoverPerformersBar";
 import { useFilter } from "../filter/FilterContext";
 import { useTab } from "./TabContext";
 import { useAutoHideTabBar } from "../hooks/useAutoHideTabBar";
+import { useHorizontalScroller } from "../hooks/useHorizontalScroller";
 import { useSearchHistory } from "../hooks/useSearchHistory";
 import { useScrollToTop } from "../hooks/useScrollToTop";
 import { SearchHistoryDropdown } from "../components/SearchHistoryDropdown";
@@ -53,11 +54,6 @@ export function Explore() {
     const [activeTag, setActiveTag] = useState<TagScore | null>(null);
     const [searchInput, setSearchInput] = useState("");
     const [searchQuery, setSearchQuery] = useState("");
-    // Chevron visibility — true when there's content to scroll into
-    // on each side. Hidden chevrons keep their gutter so chips never
-    // jump when the user scrolls past the edges.
-    const [canScrollLeft, setCanScrollLeft] = useState(false);
-    const [canScrollRight, setCanScrollRight] = useState(false);
     const [topTags, setTopTags] = useState<TagScore[]>([]);
     // Server-derived fallback: tags from the user's most-recently-
     // liked scenes (Stash's o_counter + last_o_at). Used when the
@@ -69,7 +65,6 @@ export function Explore() {
 
     const scrollRef = useRef<HTMLDivElement>(null);
     const sentinelRef = useRef<HTMLDivElement>(null);
-    const chipScrollerRef = useRef<HTMLDivElement>(null);
     const { replace } = useFilter();
     const { setPinFirstSceneId, setReelMode, setTab } = useTab();
     const { history: sceneSearchHistory, addEntry: addSceneSearchEntry, removeEntry: removeSceneSearchEntry, scheduleSave: scheduleSceneSave } =
@@ -141,32 +136,13 @@ export function Explore() {
     const chipsToRender =
         topTags.length >= 3 ? topTags : fallbackTags;
 
-    // Track scroll position so the chevrons fade in/out. Refreshed on
-    // scroll, on resize, and when the chip set changes (so the
-    // right-chevron appears as soon as data lands).
-    useEffect(() => {
-        const el = chipScrollerRef.current;
-        if (!el) return;
-        const update = () => {
-            const max = el.scrollWidth - el.clientWidth;
-            setCanScrollLeft(el.scrollLeft > 4);
-            setCanScrollRight(el.scrollLeft < max - 4);
-        };
-        update();
-        el.addEventListener("scroll", update, { passive: true });
-        const ro = new ResizeObserver(update);
-        ro.observe(el);
-        return () => {
-            el.removeEventListener("scroll", update);
-            ro.disconnect();
-        };
-    }, [chipsToRender.length]);
+    // Chips 行横向滚动：chevron 显隐 + 压制 Chrome scroll restoration
+    //（轻刷新后滑块停在中间位置），见 useHorizontalScroller。
+    const { scrollerRef: chipScrollerRef, scrollBy: scrollChipsBy, canScrollLeft, canScrollRight } =
+        useHorizontalScroller([chipsToRender.length]);
 
     const scrollChips = (delta: number) => {
-        chipScrollerRef.current?.scrollBy({
-            left: delta,
-            behavior: "smooth",
-        });
+        scrollChipsBy({ left: delta, behavior: "smooth" });
     };
 
     const loadPage = useCallback(

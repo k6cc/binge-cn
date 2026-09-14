@@ -424,6 +424,44 @@ export function useFeed(): FeedHookResult {
                         : Promise.resolve([] as RecentGalleryRow[]),
                 ]);
 
+                // Fold discovery cards into the ready feed. Called twice on
+                // a stale-while-revalidate load: first with the stale
+                // build (append — nothing to replace), then from
+                // onRevalidated once the background pull lands, where the
+                // stale cards are swapped out wholesale instead of
+                // duplicated.
+                const foldDiscovery = (
+                    discoveryItems: DiscoveryFeedItem[],
+                    replace: boolean,
+                ): void => {
+                    if (!alive) return;
+                    if (discoveryItems.length === 0 && !replace) return;
+                    const wrapped: DiscoveryFeedItemWrapped[] =
+                        discoveryItems.map((d) => ({
+                            kind: "discovery",
+                            ...d,
+                        }));
+                    setState((prev) => {
+                        if (prev.kind !== "ready") return prev;
+                        const base = replace
+                            ? prev.items.filter((i) => i.kind !== "discovery")
+                            : prev.items;
+                        // Replacing with nothing when no stale card ever
+                        // rendered would be a pointless rerender.
+                        if (
+                            replace &&
+                            discoveryItems.length === 0 &&
+                            base.length === prev.items.length
+                        ) {
+                            return prev;
+                        }
+                        return {
+                            ...prev,
+                            items: [...base, ...wrapped].sort(feedSort),
+                        };
+                    });
+                };
+
                 // StashDB discovery is deliberately NOT awaited here.
                 // It is the slowest thing on the page by a distance —
                 // measured at 14.8s against 1.0s for the library's own
@@ -444,6 +482,8 @@ export function useFeed(): FeedHookResult {
                         ? fetchDiscoveryFeedItems(sinceDate, {
                               skipTrending: hidden.has("trending"),
                               previewDays,
+                              onRevalidated: (items) =>
+                                  foldDiscovery(items, true),
                           }).catch(() => [])
                         : Promise.resolve([]);
                 if (!alive) return;
@@ -689,24 +729,9 @@ export function useFeed(): FeedHookResult {
                 // scrolled will see it shift under them — which is the
                 // price of not making everyone wait fourteen seconds for
                 // a feed that was ready in one.
-                void discoveryPromise.then((discoveryItems) => {
-                    if (!alive || discoveryItems.length === 0) return;
-                    const wrapped: DiscoveryFeedItemWrapped[] =
-                        discoveryItems.map((d) => ({
-                            kind: "discovery",
-                            ...d,
-                        }));
-                    setState((prev) =>
-                        prev.kind === "ready"
-                            ? {
-                                  ...prev,
-                                  items: [...prev.items, ...wrapped].sort(
-                                      feedSort
-                                  ),
-                              }
-                            : prev,
-                    );
-                });
+                void discoveryPromise.then((discoveryItems) =>
+                    foldDiscovery(discoveryItems, false),
+                );
             } catch (err) {
                 if (!alive) return;
                 setState({

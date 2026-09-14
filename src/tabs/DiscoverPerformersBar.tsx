@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
     getSourceBox,
     getLinkedPerformers,
@@ -9,6 +9,7 @@ import { getActiveSource, sourceHost } from "../api/source";
 import { usePerformerProfile } from "../performer/PerformerProfileContext";
 import { useTab } from "./TabContext";
 import { PerformerHoverCard } from "../home/PerformerHoverCard";
+import { useHorizontalScroller } from "../hooks/useHorizontalScroller";
 import {
     useAllowedGenders,
     orderedGenders,
@@ -93,9 +94,8 @@ export function DiscoverPerformersBar() {
         | { kind: "ready"; performers: BarItem[] }
         | { kind: "error" }
     >({ kind: "loading" });
-    const scrollerRef = useRef<HTMLDivElement>(null);
-    const [canScrollLeft, setCanScrollLeft] = useState(false);
-    const [canScrollRight, setCanScrollRight] = useState(false);
+    const { scrollerRef, scrollBy, canScrollLeft, canScrollRight } =
+        useHorizontalScroller([state.kind]);
     const { t } = useTranslation();
     // 活动源在 Stash stashBoxes 中的下标，hover 卡的"关注"动作
     // scrapeSinglePerformer(stash_box_index) 需要它。undefined（box
@@ -162,30 +162,8 @@ export function DiscoverPerformersBar() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [genderKey, includeStashDB, visible]);
 
-    // Track scroll edges to show/hide chevrons.
-    useEffect(() => {
-        const el = scrollerRef.current;
-        if (!el) return;
-        const update = () => {
-            setCanScrollLeft(el.scrollLeft > 4);
-            setCanScrollRight(
-                el.scrollLeft + el.clientWidth < el.scrollWidth - 4,
-            );
-        };
-        update();
-        el.addEventListener("scroll", update, { passive: true });
-        const ro = new ResizeObserver(update);
-        ro.observe(el);
-        return () => {
-            el.removeEventListener("scroll", update);
-            ro.disconnect();
-        };
-    }, [state.kind]);
-
-    const scrollBy = (delta: number) => {
-        const el = scrollerRef.current;
-        if (!el) return;
-        el.scrollBy({ left: delta, behavior: "smooth" });
+    const scrollByAmount = (delta: number) => {
+        scrollBy({ left: delta, behavior: "smooth" });
     };
 
     // After every hook, so the hook order cannot change with the
@@ -202,7 +180,7 @@ export function DiscoverPerformersBar() {
                         "binge-discover-bar-chevron is-prev" +
                         (canScrollLeft ? "" : " is-hidden")
                     }
-                    onClick={() => scrollBy(-300)}
+                    onClick={() => scrollByAmount(-300)}
                     aria-label={t("nav.scroll_left")}
                     tabIndex={canScrollLeft ? 0 : -1}
                 >
@@ -234,7 +212,7 @@ export function DiscoverPerformersBar() {
                         "binge-discover-bar-chevron is-next" +
                         (canScrollRight ? "" : " is-hidden")
                     }
-                    onClick={() => scrollBy(300)}
+                    onClick={() => scrollByAmount(300)}
                     aria-label={t("nav.scroll_right")}
                     tabIndex={canScrollRight ? 0 : -1}
                 >

@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from "react";
 import { type Story as StoryData, type StoriesResult } from "./useStories";
 import { Story } from "./Story";
 import { useStoryViewer } from "./StoryViewerContext";
 import { BingeLoading } from "../components/BingeLoading";
+import { useHorizontalScroller } from "../hooks/useHorizontalScroller";
 import { useTranslation } from "react-i18next";
 import { useLookbackDays } from "./pluginSettings";
 
@@ -15,35 +15,13 @@ import { useLookbackDays } from "./pluginSettings";
 export function StoriesRow({ stories }: { stories: StoriesResult }) {
     const { state, refreshing } = stories;
     const storyViewer = useStoryViewer();
-    const scrollerRef = useRef<HTMLDivElement>(null);
-    const [canScrollLeft, setCanScrollLeft] = useState(false);
-    const [canScrollRight, setCanScrollRight] = useState(false);
+    const { scrollerRef, scrollBy, canScrollLeft, canScrollRight } =
+        useHorizontalScroller([state.kind]);
     const { t } = useTranslation();
     const lookbackDays = useLookbackDays();
 
-    // Track scroll position so we know which chevrons to show. Update
-    // on scroll + on content/size changes (new stories arriving,
-    // viewport resizes).
-    useEffect(() => {
-        const el = scrollerRef.current;
-        if (!el) return;
-        const update = () => {
-            const max = el.scrollWidth - el.clientWidth;
-            setCanScrollLeft(el.scrollLeft > 4);
-            setCanScrollRight(el.scrollLeft < max - 4);
-        };
-        update();
-        el.addEventListener("scroll", update, { passive: true });
-        const ro = new ResizeObserver(update);
-        ro.observe(el);
-        return () => {
-            el.removeEventListener("scroll", update);
-            ro.disconnect();
-        };
-    }, [state.kind]);
-
     const scrollByAmount = (delta: number) => {
-        scrollerRef.current?.scrollBy({ left: delta, behavior: "smooth" });
+        scrollBy({ left: delta, behavior: "smooth" });
     };
 
     const handleClick = (s: StoryData) => {
