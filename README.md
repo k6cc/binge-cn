@@ -1,6 +1,6 @@
 # Binge（汉化版）
 
-> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.9.0**。
+> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.9.1**。
 
 为 [Stash](https://github.com/stashapp/stash) 提供的 Instagram 风格社交与发现层：竖屏 Reel、Stories、演员档案、StashDB 驱动的发现功能——全部基于 Stash 既有的 GraphQL API。Web 插件形态。
 
@@ -54,6 +54,7 @@ v0.4.17 将原硬编码中文迁移为基于 `react-i18next` 的动态多语言�
 
 #### v0.9.x
 
+- **剧照获取改双通道（v0.9.1）**：预览窗剧照不再逐号穷举探测——优先走 r18.dev 官方 JSON 端点（`combined={contentId}/json`，响应带 CORS 头，浏览器直连）一次拿全量数量，URL 统一用 jp 全尺寸变体（pics.dmm.co.jp 与 awsimgsrc 同批文件、字节一致）；端点失败/403/超时自动回退原穷举探测，双通道互不依赖，任一可用即出剧照。顺带修掉个别厂牌（Prestige 等）图床命名不同导致的探测失效
 - **发现页场景剧照预览窗（v0.9.0）**：发现/热门卡片封面点击弹出全屏预览——第 0 页为封面 + 底部信息栏（番号 + 小号工作室·时长、4 行省略简介、标签胶囊、底部居中剧照数），右划进入剧照页（底部居中 n/N 计数）。javstash 源：场景含 r18.dev 链接时取其 id 推导 DMM 图床序列逐号探测（占位图按尺寸过滤、动态批 6→3 张、渐进追加右箭头随探测出现、会话缓存重开秒进）；无链接或探测无果时仅封面 + 信息栏。关闭按钮左侧下载按钮保存当前页图片（命名"番号 演员日期"，无 CORS 的图床退化为新标签打开）。按需加载：点击封面才发一次详情查询，首页零开销
 
 #### v0.8.x
