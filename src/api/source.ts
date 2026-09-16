@@ -1,9 +1,10 @@
 // 活动数据源（active stash-box source）——binge 发现/联动链路的单一事实源。
 //
 // binge 的热门流、发现流、stories、关注、AddScene、演员页"未拥有"混排
-// 全部指向同一个 stash-box 实例（默认 stashdb.org）。实例通过 Stash 插件
+// 全部指向同一个 stash-box 实例（默认 javstash.org——用户主要使用
+// javstash，首次安装为空或未设置时默认它）。实例通过 Stash 插件
 // 设置页的 `sourceEndpoint`（binge.yml settings 块）切换，语义为
-// "每次页面加载以插件配置为准"：
+// "每次页面加载以插件配置为准"（手动设置时的逻辑不变）：
 //   - 不落 localStorage（与 serverUrl 的"一次性种子"模式相反）——库是
 //     部署级共享的，不存在"这个浏览器看 javstash、那个看 stashdb"的
 //     合理场景；
@@ -13,11 +14,19 @@
 //     往返（旧 getStashDBBox 每次调用都独立查一次 configuration）。
 //
 // 回退规则：未设置 / 空值 / 归一化后与 stashBoxes 的 endpoint 都不匹配
-// → 一律回退 stashdb.org，并记录原因供设置页展示。
+// → 一律回退 javstash.org，并记录原因供设置页展示。
 
 import { gql } from "./graphql";
 
-export const DEFAULT_SOURCE_ENDPOINT = "https://stashdb.org/graphql";
+// 默认（未配置/空值/不匹配时回退）的 stash-box 实例。用户主要使用
+// javstash，首次安装为空或未设置时默认它；手动配置的 sourceEndpoint
+// 优先级与回退语义均不变。
+export const DEFAULT_SOURCE_ENDPOINT = "https://javstash.org/graphql";
+
+// forage 的 watch 语义绑定 stashdb.org 的 scene id（见 forageServer.ts），
+// 与默认源解耦：默认实例已改为 javstash.org，但 forage 仍只对 stashdb
+// 启用（javstash 等实例的 scene id 在 forage 侧查无此物，watch 会静默失效）。
+export const STASHDB_SOURCE_ENDPOINT = "https://stashdb.org/graphql";
 
 export interface ActiveSource {
     // 归一化后的 graphql endpoint（如 https://javstash.org/graphql）
@@ -30,7 +39,7 @@ export interface ActiveSource {
     // 在 stashBoxes 中的下标，scrapeSinglePerformer(stash_box_index) 用；
     // -1 = 未匹配
     boxIndex: number;
-    // 活动源是否为默认源 stashdb.org（无论是显式配置还是回退）
+    // 活动源是否为默认源 javstash.org（无论是显式配置还是回退）
     isDefault: boolean;
     // 回退原因；null = 按配置生效（含"未配置即默认"之外的正常路径）
     fallbackReason: "unset" | "empty" | "no-match" | null;
@@ -75,7 +84,7 @@ export function sourcePerformerUrl(endpoint: string, id: string): string {
 // 无需特殊分支。
 // i18n 的 sourceName 后处理器（i18n/config.ts）把文案里的 "StashDB"
 // 替换成它，所以这里提供同步读取的模块级缓存，首帧（源未解析时）
-// 返回 "StashDB" 与默认行为一致。
+// 返回 "JAVStash" 与默认行为一致。
 const KNOWN_SOURCE_BRANDS: ReadonlyArray<readonly [RegExp, string]> = [
     // 具体名在前，纯防御性排序（javstash 不含 stashdb 子串）
     [/javstash/i, "JAVStash"],
@@ -90,7 +99,7 @@ export function sourceDisplayName(host: string): string {
     return host.replace(/\.org$/, "");
 }
 
-let activeDisplayName = "StashDB";
+let activeDisplayName = "JAVStash";
 
 export function activeSourceDisplayName(): string {
     return activeDisplayName;

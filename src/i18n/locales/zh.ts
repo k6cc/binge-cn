@@ -410,14 +410,14 @@ export default {
             },
             source: {
                 title: "发现数据源",
-                desc: "发现流、热门、关注和演员页“未拥有”混排所使用的 stash-box 实例。在 Stash 设置 → 插件 → binge 的 sourceEndpoint 中配置（须与 Stash 配置的 stash-box endpoint 一致，默认 stashdb.org）；修改后重新打开 binge 页生效。此处仅展示当前状态。",
+                desc: "发现流、热门、关注和演员页“未拥有”混排所使用的 stash-box 实例。在 Stash 设置 → 插件 → binge 的 sourceEndpoint 中配置（须与 Stash 配置的 stash-box endpoint 一致，默认 javstash.org）；修改后重新打开 binge 页生效。此处仅展示当前状态。",
                 status_pending: "正在检测…",
                 status_ok: "已链接 {{count}} 位演员",
                 status_unlinked: "本地库没有演员链接到该实例，发现流和故事联动将为空（需先用该实例刮削库）",
                 status_no_key: "Stash 未配置该实例的 stash-box 条目（缺少 API 密钥）",
                 status_query_failed: "无法查询本地库的链接状态",
                 status_fault: "无法读取插件配置",
-                fallback_no_match: "配置的 endpoint 与 Stash 的 stash-box 列表不匹配，已回退到 stashdb.org。请检查插件设置中的 sourceEndpoint 是否与 Stash 设置 → 元数据提供商 → StashBox 中的 endpoint 完全一致。"
+                fallback_no_match: "配置的 endpoint 与 Stash 的 stash-box 列表不匹配，已回退到 javstash.org。请检查插件设置中的 sourceEndpoint 是否与 Stash 设置 → 元数据提供商 → StashBox 中的 endpoint 完全一致。"
             },
             stashdb: {
                 title: "在故事中包含 StashDB 新发布",

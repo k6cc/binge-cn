@@ -1,6 +1,6 @@
 # Binge（汉化版）
 
-> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.9.1**。
+> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.9.2**。
 
 为 [Stash](https://github.com/stashapp/stash) 提供的 Instagram 风格社交与发现层：竖屏 Reel、Stories、演员档案、StashDB 驱动的发现功能——全部基于 Stash 既有的 GraphQL API。Web 插件形态。
 
@@ -55,6 +55,7 @@ v0.4.17 将原硬编码中文迁移为基于 `react-i18next` 的动态多语言�
 #### v0.9.x
 
 - **剧照预览窗（v0.9.0–0.9.1）**：发现/热门卡片点击弹出全屏剧照预览——封面 + 底部信息栏 + 右划剧照页（n/N 计数），可保存当前页图片；剧照获取双通道：优先 r18.dev 官方 JSON 端点一次拿全量，失败自动回退逐号探测，互不依赖
+- **默认数据源 javstash（v0.9.2）**：首次安装/未设置时发现/热门/关注/AddScene 默认使用 javstash.org（手动设置逻辑不变）；forage 仍仅对 stashdb.org 生效
 
 #### v0.4.0–v0.8.x（合并摘要）
 

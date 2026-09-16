@@ -4,7 +4,7 @@
 //
 // Flow:
 //   1. Pull the active source endpoint + api_key (see src/api/source.ts —
-//      defaults to stashdb.org, switchable to any stash-box instance
+//      defaults to javstash.org, switchable to any stash-box instance
 //      via the plugin's sourceEndpoint setting).
 //   2. List local performers that have a stash_id pointing at the
 //      active source endpoint.

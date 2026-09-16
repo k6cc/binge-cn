@@ -1,6 +1,6 @@
 name: Binge
 description: Instagram-shaped social + discovery layer for Stash — stories, vertical reel, performer profiles, and StashDB-powered Follow/Discover.
-version: 0.9.1
+version: 0.9.2
 url: https://github.com/k6cc/binge-cn
 # Runs the binge-server installer on the machine hosting Stash. A browser
 # can't install software, so the Settings button calls runPluginTask and
@@ -31,7 +31,7 @@ settings:
         type: STRING
     sourceEndpoint:
         displayName: Discovery data source endpoint
-        description: GraphQL endpoint of the stash-box instance powering discovery/follow (e.g. https://javstash.org/graphql). Must exactly match one of the stash-box endpoints configured in Stash Settings. Defaults to https://stashdb.org/graphql. Reopen the binge page after changing.
+        description: GraphQL endpoint of the stash-box instance powering discovery/follow (e.g. https://stashdb.org/graphql). Must exactly match one of the stash-box endpoints configured in Stash Settings. Defaults to https://javstash.org/graphql. Reopen the binge page after changing.
         type: STRING
     forageUrl:
         displayName: forage server URL

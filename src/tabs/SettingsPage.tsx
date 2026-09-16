@@ -83,7 +83,7 @@ import {
     usePluginLoaded,
 } from "../plugins/PluginContext";
 import { fetchStashApiKey } from "../api/queries";
-import { getActiveSource, type ActiveSource } from "../api/source";
+import { getActiveSource, STASHDB_SOURCE_ENDPOINT, type ActiveSource } from "../api/source";
 import { getLinkedPerformers } from "../api/stashdb";
 import { DEFAULT_LIBRARY_FOLDER_NAMES } from "../home/impliedSource";
 import { DEFAULT_GALLERY_IGNORE_FOLDERS } from "../home/galleryNoise";
@@ -807,7 +807,7 @@ function PreviewSinkRow() {
 //   - fault       stashBoxes 无匹配条目（无 API key）或本地查询失败
 //   - pending     解析中
 // 另有一行回退说明：配置的 endpoint 与 Stash 的 stash-box 列表
-// 不匹配时说明已回退 stashdb.org 及原因，不静默。
+// 不匹配时说明已回退 javstash.org 及原因，不静默。
 type SourceRowState =
     | { kind: "pending" }
     | { kind: "fault" }
@@ -1800,18 +1800,19 @@ function ForageUrlRow() {
     const [draft, setDraft] = useState(stored);
     const { t } = useTranslation();
     // forage 的 watch 语义绑定 stashdb.org 的 scene id。活动数据源
-    // 非默认源时"发送到 forage"整体禁用（见 forageServer.ts 的
-    // forageAvailable）；此处用 badge 说明原因，而不是让入口静默
-    // 消失。
+    // 不是 stashdb.org 时"发送到 forage"整体禁用（见 forageServer.ts 的
+    // forageAvailable；与默认源解耦，默认实例已改为 javstash.org）；
+    // 此处用 badge 说明原因，而不是让入口静默消失。
     const [sourceLimited, setSourceLimited] = useState(false);
     useEffect(() => {
         let alive = true;
         getActiveSource()
             .then((s) => {
-                if (alive) setSourceLimited(!s.isDefault);
+                if (alive)
+                    setSourceLimited(s.endpoint !== STASHDB_SOURCE_ENDPOINT);
             })
             .catch(() => {
-                /* 配置读取失败 → 按默认源放行，不显示 badge */
+                /* 配置读取失败 → 无法确认是 stashdb.org，入口由 forageAvailable 把关，不显示 badge */
             });
         return () => {
             alive = false;

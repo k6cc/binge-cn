@@ -6,7 +6,7 @@ import {
 } from "../home/pluginSettings";
 import { isTrustedDaemonUrl } from "./bingeServer";
 import { fetchStashApiKey } from "./queries";
-import { getActiveSource } from "./source";
+import { getActiveSource, STASHDB_SOURCE_ENDPOINT } from "./source";
 
 // Client for the forage daemon (github.com/ordureconnoisseur/forager).
 // binge only uses ONE forage endpoint: POST /watches, which adds a
@@ -103,11 +103,15 @@ let probePromise: Promise<boolean> | null = null;
 export function forageAvailable(): Promise<boolean> {
     // forage 的 watch 语义绑定 stashdb.org 的 scene id——其他 stash-box
     // 实例（javstash 等）的 id 在 forage 侧查无此物，watch 会静默失效。
-    // 活动数据源非默认源时直接禁用入口（不 probe）；配置读取失败时
-    // 按默认源放行（与全代码的回退规则一致）。
+    // 与默认源解耦：默认实例已改为 javstash.org（见 source.ts），只有
+    // 活动数据源确为 stashdb.org 时才启用入口（不 probe）；配置读取失败
+    // 时无法确认是 stashdb.org，直接禁用（回退目标 javstash 不可用于
+    // forage）。
     return getActiveSource()
-        .then((src) => (src.isDefault ? probeForageUrl() : false))
-        .catch(() => probeForageUrl());
+        .then((src) =>
+            src.endpoint === STASHDB_SOURCE_ENDPOINT ? probeForageUrl() : false,
+        )
+        .catch(() => false);
 }
 
 function probeForageUrl(): Promise<boolean> {

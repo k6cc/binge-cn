@@ -410,14 +410,14 @@ export default {
             },
             source: {
                 title: "Discovery data source",
-                desc: "The stash-box instance powering discovery, trending, follow and the performer-profile 'not owned' mix. Configure it as sourceEndpoint in Stash Settings → Plugins → binge (must exactly match one of the stash-box endpoints configured in Stash; defaults to stashdb.org); reopen the binge page after changing it. This row is read-only status.",
+                desc: "The stash-box instance powering discovery, trending, follow and the performer-profile 'not owned' mix. Configure it as sourceEndpoint in Stash Settings → Plugins → binge (must exactly match one of the stash-box endpoints configured in Stash; defaults to javstash.org); reopen the binge page after changing it. This row is read-only status.",
                 status_pending: "Checking…",
                 status_ok: "{{count}} performers linked",
                 status_unlinked: "No performers in your library are linked to this instance — the discovery feed and stories linkage will be empty (scrape your library with this instance first)",
                 status_no_key: "Stash has no stash-box entry for this instance (missing API key)",
                 status_query_failed: "Could not query your library's link status",
                 status_fault: "Could not read the plugin configuration",
-                fallback_no_match: "The configured endpoint doesn't match any stash-box in Stash's list; fell back to stashdb.org. Check that sourceEndpoint in the plugin settings exactly matches an endpoint under Stash Settings → Metadata providers → StashBox."
+                fallback_no_match: "The configured endpoint doesn't match any stash-box in Stash's list; fell back to javstash.org. Check that sourceEndpoint in the plugin settings exactly matches an endpoint under Stash Settings → Metadata providers → StashBox."
             },
             stashdb: {
                 title: "Include StashDB new releases in stories",
