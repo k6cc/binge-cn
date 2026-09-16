@@ -99,19 +99,17 @@ v0.4.17 将原硬编码中文迁移为基于 `react-i18next` 的动态多语言�
 
 在 **Stash → 设置 → 插件 → 可用插件 → 添加源** 中添加以下任一 URL：
 
-**推荐（GitHub Pages，需启用 Pages）**：
+**推荐**：
 
 ```
 https://k6cc.github.io/stash-plugins/plugins/main/index.yml
 ```
 
-**备用（raw URL，无需启用 Pages，立即可用）**：
+**备用（raw URL，立即可用）**：
 
 ```
 https://raw.githubusercontent.com/k6cc/stash-plugins/main/plugins/main/index.yml
 ```
-
-> **启用 Pages 步骤**：stash-plugins 仓库 → Settings → Pages → Source: `Deploy from a branch` → Branch: `main` / `(root)` → Save。等待 1-2 分钟后 `k6cc.github.io/stash-plugins/` 即可访问。
 
 > 此 URL 是统一插件源，同时包含 Binge、nfoSceneParser、sceneTranslate 等多个插件，可一并安装。
 
