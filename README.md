@@ -2,7 +2,7 @@
 
 > 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.9.2**。
 
-为 [Stash](https://github.com/stashapp/stash) 提供的 Instagram 风格社交与发现层：竖屏 Reel、Stories、演员档案、StashDB 驱动的发现功能——全部基于 Stash 既有的 GraphQL API。Web 插件形态。
+为 [Stash](https://github.com/stashapp/stash) 提供的 Instagram 风格社交与发现层：竖屏 Reel、Stories、演员档案、可配置 stash-box 实例驱动的发现功能（默认 javstash.org）——全部基于 Stash 既有的 GraphQL API。Web 插件形态。
 
 <p align="center"><img src="assets/hero.webp" alt="binge — reels, stories, and discovery for your Stash library" width="840" /></p>
 
@@ -12,11 +12,11 @@
 
 - **竖屏 Reel** — 滑动浏览场景，双击点赞，操作栈（评分、多视图、Scribe、保存、⋯）。
 
-- **首页 Stories + Feed** — IG 风格的演员 Stories 行（库内 + StashDB + 可选 Reddit）位于分页场景流上方。批量导入折叠为单个 Pack 卡片。
+- **首页 Stories + Feed** — IG 风格的演员 Stories 行（库内 + 数据源新发布 + 可选 Reddit）位于分页场景流上方。批量导入折叠为单个 Pack 卡片。
 
-- **演员档案** — 简介、统计、场景网格、图库网格、社交链接条（Twitter / Instagram / TikTok / Reddit / OnlyFans / Fansly 品牌图标）。库内 + StashDB-only 变体共享布局。
+- **演员档案** — 简介、统计、场景网格、图库网格、社交链接条（Twitter / Instagram / TikTok / Reddit / OnlyFans / Fansly 品牌图标）。库内 + 数据源-only 变体共享布局。
 
-- **StashDB 发现** — 首页的 DISCOVER + TRENDING 卡片；关注演员 + 添加你尚未拥有的场景。卡片封面点击弹出全屏剧照预览（番号/简介/标签信息栏，javstash 源经 DMM 图床自动探测剧照序列）。
+- **数据源驱动发现** — 首页的 DISCOVER + TRENDING 卡片（默认 javstash.org，可在 Stash 插件设置切换到任意 stash-box 实例）；关注演员 + 添加你尚未拥有的场景。卡片封面点击弹出全屏剧照预览（番号/简介/标签信息栏，javstash 源经 DMM 图床自动探测剧照序列）。
 
 - **移动优先** — 底部导航、悬停卡片迷你档案、演员 `@mention` 链接。触屏 + 桌面端一致体验。
 
@@ -36,7 +36,7 @@
 
 - **评分维度**：`总体` / `默契度` / `美感` / `制作质量` / `创意` / `外形` / `表现` 等
 
-- 品牌名保持英文：Stash、StashDB、Reddit、X (Twitter)、PornHub、Cookie、forage、binge-server、HLS、MP4、WebM
+- 品牌名保持英文：Stash、StashDB、JAVStash、Reddit、X (Twitter)、PornHub、Cookie、forage、binge-server、HLS、MP4、WebM
 
 ### i18n 多语言架构（v0.4.17 新增）
 
@@ -142,7 +142,7 @@ unzip binge-vX.Y.Z.zip -d ~/.stash/plugins/binge/
 | 流媒体类型              | 自动                      | 自动 / 直连 / MP4 / WebM / HLS                                  |
 | 在动态中显示图库           | 开                       | 在首页混入图库                                                     |
 | 近期窗口               | 30 天                    | "新"的回溯范围。7 / 14 / 30 / 60 / 90 / 180 / 365                  |
-| 在故事中包含 StashDB 新发布 | 开                       | 无 StashDB API 密钥时无效。                                        |
+| 在故事中包含数据源新发布 | 开                       | 无该实例 API 密钥时无效。                                        |
 | 场景混入演员档案           | 关                       | 也可在档案场景标题处通过 pill 切换                                        |
 | 在故事中包含 Reddit 帖子   | 开                       | 需要 binge-server 可达（否则静默跳过）                                  |
 | binge-server URL   | `http://localhost:7878` | 远程时覆盖                                                       |
@@ -174,7 +174,7 @@ unzip binge-vX.Y.Z.zip -d ~/.stash/plugins/binge/
 
 - **所有 Stash 数据通过 GraphQL**（`/graphql`，同源 cookie 认证）。binge 自身后端。
 
-- **StashDB 直连** — 使用用户的 API 密钥查询 `https://stashdb.org/graphql`（从 Stash 的 stashbox 配置读取）。12 小时 localStorage 缓存。
+- **数据源直连** — 使用用户的 API 密钥查询活动 stash-box 实例的 GraphQL 端点（从 Stash 的 stashbox 配置读取）。12 小时 localStorage 缓存（按源隔离）。
 
 - **哈希路由** — `#/home`、`#/foryou`、`#/explore`、`#/following`、`#/saved`、`#/settings`、`#/menu`、`#/p/<id>`、`#/sdbp/<id>`。支持直接深链 + 浏览器后退。
 
