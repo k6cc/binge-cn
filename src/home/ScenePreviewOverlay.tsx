@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useDragPaging } from "../hooks/useDragPaging";
 import { getSourceBox, getStashDBScene } from "../api/stashdb";
@@ -60,6 +60,13 @@ export function ScenePreviewOverlay({
 }: ScenePreviewOverlayProps) {
     const { t } = useTranslation();
     const trackRef = useRef<HTMLDivElement>(null);
+    const infoRef = useRef<HTMLDivElement>(null);
+    const countRef = useRef<HTMLDivElement>(null);
+    const coverRef = useRef<HTMLImageElement>(null);
+    const detailsRef = useRef<HTMLParagraphElement>(null);
+    const [copied, setCopied] = useState(false);
+    const [detailsExpanded, setDetailsExpanded] = useState(false);
+    const [detailsTruncated, setDetailsTruncated] = useState(false);
 
     const [detail, setDetail] = useState<Awaited<
         ReturnType<typeof getStashDBScene>
@@ -157,18 +164,71 @@ export function ScenePreviewOverlay({
         downPosRef.current = { x: e.clientX, y: e.clientY };
         dragPagingDown(e);
     };
-    const handleTrackClick = (e: React.MouseEvent) => {
+    // 点击是否落在图片的 object-fit 内容矩形内（与 measureVideoContent
+    // 同款几何）。封面用 object-position 50% 30%（内容偏上），剧照默认
+    // 50% 50% 居中（元素盒即内容盒，无黑边）。未加载完成时保守视为内容内。
+    const isInsideImageContent = (
+        e: React.MouseEvent,
+        img: HTMLImageElement
+    ): boolean => {
+        const rect = img.getBoundingClientRect();
+        const nw = img.naturalWidth;
+        const nh = img.naturalHeight;
+        if (!nw || !nh || !rect.width || !rect.height) return true;
+        const ratio = nw / nh;
+        const cr = rect.width / rect.height;
+        let cw: number, chh: number;
+        if (ratio > cr) {
+            cw = rect.width;
+            chh = rect.width / ratio;
+        } else {
+            chh = rect.height;
+            cw = rect.height * ratio;
+        }
+        const isCover = img.classList.contains("binge-scene-preview-cover");
+        const topOff = isCover
+            ? (rect.height - chh) * 0.3
+            : (rect.height - chh) * 0.5;
+        const leftOff = (rect.width - cw) * 0.5;
+        return (
+            e.clientX >= rect.left + leftOff &&
+            e.clientX <= rect.left + leftOff + cw &&
+            e.clientY >= rect.top + topOff &&
+            e.clientY <= rect.top + topOff + chh
+        );
+    };
+
+    // 点击空白关闭（挂在 root 上）。按钮类（下载/关闭/箭头/番号/更多
+    // 收起）不关；图片点内容不关、点左右上黑边关闭（几何判定）；
+    // 有拖拽位移（>6px）不关（翻页手势）。信息栏本体可点：空白关闭。
+    const handleRootClick = (e: React.MouseEvent) => {
+        // 先取并清空拖拽起点：排除路径（点图/按钮）也清，避免残留
+        // 旧坐标影响后续空白点击的位移判断。
         const down = downPosRef.current;
         downPosRef.current = null;
-        if (!down) return;
+        const target = e.target as HTMLElement;
         if (
-            Math.abs(e.clientX - down.x) > 6 ||
-            Math.abs(e.clientY - down.y) > 6
+            target.closest(
+                ".binge-lightbox-download, " +
+                ".binge-lightbox-close, " +
+                ".binge-lightbox-nav, " +
+                ".binge-scene-preview-code-copy, " +
+                ".binge-scene-preview-more"
+            )
         ) {
             return;
         }
-        const target = e.target as HTMLElement;
-        if (target.closest(".binge-scene-preview-image")) return;
+        const img = target.closest(
+            ".binge-scene-preview-image"
+        ) as HTMLImageElement | null;
+        if (img && isInsideImageContent(e, img)) return;
+        if (
+            down &&
+            (Math.abs(e.clientX - down.x) > 6 ||
+                Math.abs(e.clientY - down.y) > 6)
+        ) {
+            return;
+        }
         onClose();
     };
 
@@ -216,11 +276,115 @@ export function ScenePreviewOverlay({
         }
     };
 
+    // 信息栏定位：紧跟封面内容底部（封面用 .binge-scene-preview-cover
+    // 的 object-position 50% 30% 上移后，内容底部 = 30% 黑边 + 内容高），
+    // 内容超高时上移侵入封面区域（触底保护，渐变背景保留）。
+    // 触底上限是「n 张剧照」行（countRef 顶部）：信息栏底部不越过
+    // 剧照数，计数始终底部居中。与 SceneSlide.measureVideoContent
+    // 同一几何：contain 内容高 rh，顶部偏移 = 0.3 × 垂直剩余空间
+    // （横版才有；竖版撑满高度无效果）。
+    useLayoutEffect(() => {
+        const root = trackRef.current?.parentElement;
+        const info = infoRef.current;
+        const cover = coverRef.current;
+        if (!root || !info || !cover) return;
+        let raf = 0;
+        const measure = () => {
+            raf = 0;
+            const cw = root.clientWidth;
+            const ch = root.clientHeight;
+            if (!cw || !ch) return;
+            const nw = cover.naturalWidth;
+            const nh = cover.naturalHeight;
+            // 封面自然尺寸未就绪时按发现页固定横版 16:9 假设，
+            // 加载完成后由 load 事件重测精确位置。
+            const ratio = nw && nh ? nw / nh : 16 / 9;
+            const cr = cw / ch;
+            const rh = ratio > cr ? cw / ratio : ch;
+            const topOff = ratio > cr ? 0.3 * (ch - rh) : 0;
+            const coverBottom = topOff + rh;
+            const infoH = info.offsetHeight;
+            // 触底边界 = 「n 张剧照」行顶部（相对视口）；未渲染时
+            // 退回视口底（计数缺失场景 info 贴底）。
+            const countTop =
+                countRef.current?.getBoundingClientRect().top ?? ch;
+            const top = Math.max(0, Math.min(coverBottom, countTop - infoH));
+            // 变量供信息栏与单一渐变层（.binge-scene-preview-fade）共用：
+            // 渐变从信息栏顶部（--binge-preview-info-top）一路延伸到
+            // 屏幕底，穿过「n 张剧照」行——单一渐变无拼接断层，宽屏
+            // 渐变自然铺满底部；信息栏自身不再画背景（文字靠渐变+
+            // text-shadow 衬底，且整体穿透不拦截图片划动）。
+            root.style.setProperty("--binge-preview-info-top", `${top}px`);
+            info.style.top = "var(--binge-preview-info-top)";
+            info.style.bottom = "auto";
+        };
+        const schedule = () => {
+            if (!raf) raf = requestAnimationFrame(measure);
+        };
+        measure();
+        const ro = new ResizeObserver(schedule);
+        ro.observe(info);
+        ro.observe(countRef.current ?? root);
+        window.addEventListener("resize", schedule);
+        if (!cover.complete) cover.addEventListener("load", schedule);
+        return () => {
+            if (raf) cancelAnimationFrame(raf);
+            ro.disconnect();
+            window.removeEventListener("resize", schedule);
+            cover.removeEventListener("load", schedule);
+        };
+        // index：划动翻页（剧照⇄封面）重测定位——count 行条件渲染，
+        // 划走卸载/划回重挂后 RO 不会自动跟随新节点，index 变化直接
+        // 重跑 measure 并重挂 RO；detailsExpanded：展开/收起后立即重测，
+        // 不依赖 RO 触发时序（避免"立即划走再划回"位置回退到贴图下方）。
+    }, [detail, gallery.length, probing, index, detailsExpanded]);
+
+    // 简介截断检测：4 行 clamp 生效且内容溢出时视为截断，尾部显示
+    // "更多"；展开后由 is-expanded 取消 clamp 并显示"收起"。
+    useEffect(() => {
+        const el = detailsRef.current;
+        if (!el) return;
+        const check = () => {
+            const truncated = el.scrollHeight > el.clientHeight + 1;
+            setDetailsTruncated((prev) =>
+                prev === truncated ? prev : truncated
+            );
+        };
+        check();
+        const ro = new ResizeObserver(check);
+        ro.observe(el);
+        window.addEventListener("resize", check);
+        return () => {
+            ro.disconnect();
+            window.removeEventListener("resize", check);
+        };
+    }, [detailsText, detailsExpanded]);
+
+    // 点击番号一键复制；失败降级 execCommand（非安全上下文）。
+    const handleCopyCode = async () => {
+        if (!code) return;
+        try {
+            await navigator.clipboard.writeText(code);
+        } catch {
+            const ta = document.createElement("textarea");
+            ta.value = code;
+            ta.style.position = "fixed";
+            ta.style.opacity = "0";
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand("copy");
+            ta.remove();
+        }
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 1600);
+    };
+
     return createPortal(
         <div
             className="binge-lightbox-root binge-scene-preview-root"
             role="dialog"
             aria-label={title ?? t("action.preview_scene")}
+            onClick={handleRootClick}
         >
             <button
                 type="button"
@@ -243,13 +407,13 @@ export function ScenePreviewOverlay({
                 className="binge-lightbox-track"
                 ref={trackRef}
                 onPointerDown={handleTrackPointerDown}
-                onClick={handleTrackClick}
             >
                 <div className="binge-lightbox-slide">
                     <img
                         src={coverUrl}
                         alt={title ?? ""}
-                        className="binge-lightbox-image binge-scene-preview-image"
+                        ref={coverRef}
+                        className="binge-lightbox-image binge-scene-preview-image binge-scene-preview-cover"
                         draggable={false}
                     />
                 </div>
@@ -288,6 +452,7 @@ export function ScenePreviewOverlay({
 
             {detail && (
                 <div
+                    ref={infoRef}
                     className={
                         "binge-scene-preview-info" +
                         (index === 0 ? "" : " is-hidden")
@@ -295,10 +460,21 @@ export function ScenePreviewOverlay({
                 >
                     {(code || hasMeta) && (
                         <div className="binge-scene-preview-code">
-                            {code}
+                            {code && (
+                                <button
+                                    type="button"
+                                    className={
+                                        "binge-scene-preview-code-copy" +
+                                        (copied ? " is-copied" : "")
+                                    }
+                                    onClick={() => void handleCopyCode()}
+                                    title={t("scene.copy_code")}
+                                >
+                                    {code}
+                                </button>
+                            )}
                             {hasMeta && (
                                 <span className="binge-scene-preview-meta">
-                                    {" "}
                                     {studioName}
                                     {studioName && duration != null
                                         ? " · "
@@ -313,9 +489,30 @@ export function ScenePreviewOverlay({
                         </div>
                     )}
                     {detailsText && (
-                        <p className="binge-scene-preview-details">
-                            {detailsText}
-                        </p>
+                        <div className="binge-scene-preview-details-wrap">
+                            <p
+                                ref={detailsRef}
+                                className={
+                                    "binge-scene-preview-details" +
+                                    (detailsExpanded ? " is-expanded" : "")
+                                }
+                            >
+                                {detailsText}
+                            </p>
+                            {(detailsExpanded || detailsTruncated) && (
+                                <button
+                                    type="button"
+                                    className="binge-scene-preview-more"
+                                    onClick={() =>
+                                        setDetailsExpanded((v) => !v)
+                                    }
+                                >
+                                    {detailsExpanded
+                                        ? t("settings.show_less")
+                                        : t("settings.show_more")}
+                                </button>
+                            )}
+                        </div>
                     )}
                     {tags.length > 0 && (
                         <div className="binge-scene-preview-tags">
@@ -329,16 +526,24 @@ export function ScenePreviewOverlay({
                             ))}
                         </div>
                     )}
-                    {(gallery.length > 0 || probing) && (
-                        <div className="binge-scene-preview-count">
-                            {probing && gallery.length === 0
-                                ? t("scene.gallery_probing")
-                                : t("scene.gallery_count", {
-                                      count: gallery.length,
-                                  })}
-                            {probing && gallery.length > 0 ? "…" : ""}
-                        </div>
-                    )}
+                </div>
+            )}
+
+            {detail && index === 0 && (
+                <div className="binge-scene-preview-fade" />
+            )}
+
+            {detail && index === 0 && (gallery.length > 0 || probing) && (
+                <div
+                    ref={countRef}
+                    className="binge-scene-preview-count"
+                >
+                    {probing && gallery.length === 0
+                        ? t("scene.gallery_probing")
+                        : t("scene.gallery_count", {
+                              count: gallery.length,
+                          })}
+                    {probing && gallery.length > 0 ? "…" : ""}
                 </div>
             )}
 

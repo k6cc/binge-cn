@@ -9225,41 +9225,60 @@ p.binge-settings-source-note {
     text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
 }
 
-/* ── 发现页卡片剧照预览（ScenePreviewOverlay）───────────────────
-   轨道/箭头/关闭/遮罩复用 .binge-lightbox-*（组合类名），此处仅
-   定义差异部分：封面页（第 0 页）底部的信息栏与底部居中的剧照数，
-   剧照页 n/N 计数直接用 .binge-lightbox-counter 的底部居中。
-   封面为横版，信息栏借下方黑边自然延展。 */
+/* 封面（第 0 页）复刻播放页 .binge-video 的"新居中点"：撑满容器
+   + contain + object-position 50% 30%（垂直剩余空间 30%/70% 上下
+   分配，内容偏上），宽屏无垂直剩余空间时自然铺满全屏；剧照页图片
+   保持 .binge-lightbox-image 的居中不动。 */
+.binge-scene-preview-cover {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: 50% 30%;
+    /* 与播放页同款定位过渡（封面加载/视口变化时平滑归位）。 */
+    transition: object-position 0.3s ease;
+}
 .binge-scene-preview-info {
     position: absolute;
     left: 0;
     right: 0;
-    bottom: 0;
+    /* top 由 JS 测量写入（--binge-preview-info-top）：默认紧跟封面
+       内容底部，内容超高触底时上移侵入封面。渐变背景在下方独立的
+       .binge-scene-preview-fade 单一渐变层（从本层顶部延伸到屏幕底，
+       穿过剧照数行，无拼接断层）。 */
+    top: var(--binge-preview-info-top, auto);
+    bottom: auto;
     z-index: 2;
     display: flex;
     flex-direction: column;
     gap: 0.45rem;
-    padding: 3rem 1.25rem 1.4rem;
-    background: linear-gradient(
-        to top,
-        rgba(0, 0, 0, 0.92) 0%,
-        rgba(0, 0, 0, 0.6) 55%,
-        transparent 100%
-    );
+    /* 贴封面下方：顶部缓冲取原 3rem 的 3/5，内容更贴封面。 */
+    padding: 1.8rem 1.25rem 1.4rem;
     color: #fff;
-    /* 无可点击内容：点击穿透到轨道 = 点空白关闭。 */
+    /* 文本禁止选中：信息栏全部文字（含简介）不可被鼠标选中，避免
+       长按拖选干扰翻页/关闭手势。 */
+    user-select: none;
+    -webkit-user-select: none;
+    /* 整体穿透（不拦截事件）：宽屏时本层悬浮在封面图上，穿透后由
+       root 几何判定——点在封面内容内不关闭，点在封面外（黑边）关闭；
+       且穿透保证左右划动翻页手势从本层区域开始也能触发轨道拖拽
+       （图片划动优先）。仅可点击子元素（复制番号、更多/收起）单独
+       pointer-events: auto。剧照页 .is-hidden 同样不拦截。 */
     pointer-events: none;
-    /* 极端长内容防顶出屏幕：整体限高裁切。 */
-    max-height: 62%;
+    /* 极端长内容兜底：JS 已把 top 钳制到 count 行上方，此处静态
+       预留底部剧照数区域（bottom 1.25rem + 行高），防超高内容
+       盖住「n 张剧照」。 */
+    max-height: calc(100% - 3rem);
     overflow: hidden;
     /* 挂载渐显（打开预览窗/详情到达）；划走划回用 opacity 过渡。 */
     animation: binge-scene-preview-info-in 0.3s ease both;
-    transition: opacity 0.25s ease;
+    transition: opacity 0.25s ease, top 0.25s ease;
 }
 .binge-scene-preview-info.is-hidden {
-    /* animation: none 让 opacity 声明生效（both 结束态会钉住 1）。 */
+    /* animation: none 让 opacity 声明生效（both 结束态会钉住 1）；
+       剧照页透明层不挡轨道点击。 */
     animation: none;
     opacity: 0;
+    pointer-events: none;
 }
 @keyframes binge-scene-preview-info-in {
     from {
@@ -9274,6 +9293,40 @@ p.binge-settings-source-note {
     font-weight: 700;
     letter-spacing: 0.02em;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 1);
+    /* 番号与「工作室 · 时长」之间加一点点间距。 */
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+}
+/* 番号复制按钮：重置 button 默认外观，继承粗体行样式，点击一键复制。 */
+.binge-scene-preview-code-copy {
+    appearance: none;
+    background: none;
+    border: none;
+    margin: 0;
+    padding: 0 0.1rem;
+    font: inherit;
+    color: inherit;
+    letter-spacing: inherit;
+    text-shadow: inherit;
+    cursor: pointer;
+    pointer-events: auto;
+    border-radius: 4px;
+    transition: background 0.18s ease, color 0.18s ease;
+}
+.binge-scene-preview-code-copy:hover {
+    background: rgba(255, 255, 255, 0.14);
+}
+/* 复制成功反馈：番号短暂变粉（发现按钮底色 --accent），无文字提示。 */
+.binge-scene-preview-code-copy.is-copied {
+    color: var(--accent, #f472b6);
+}
+/* 简介容器：文本 + 尾部「更多/收起」按钮纵向排列，按钮左对齐。 */
+.binge-scene-preview-details-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.3rem;
 }
 .binge-scene-preview-details {
     margin: 0;
@@ -9287,6 +9340,33 @@ p.binge-settings-source-note {
     line-clamp: 4;
     -webkit-box-orient: vertical;
     overflow: hidden;
+}
+/* 展开态：取消截断显示全文。 */
+.binge-scene-preview-details.is-expanded {
+    display: block;
+    -webkit-line-clamp: unset;
+    line-clamp: unset;
+    overflow: visible;
+}
+/* 简介尾部的「更多 / 收起」：比简介（0.78rem）略大且加粗。 */
+.binge-scene-preview-more {
+    appearance: none;
+    background: none;
+    border: none;
+    margin: 0;
+    padding: 0.05rem 0.15rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.92);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 1);
+    cursor: pointer;
+    pointer-events: auto;
+    border-radius: 4px;
+    margin-left: -0.15rem;
+    transition: background 0.18s ease;
+}
+.binge-scene-preview-more:hover {
+    background: rgba(255, 255, 255, 0.14);
 }
 .binge-scene-preview-tags {
     display: flex;
@@ -9313,13 +9393,47 @@ p.binge-settings-source-note {
 .binge-scene-preview-duration {
     font-weight: 600;
 }
-/* 封面页剧照数：信息栏最后一行，水平居中（与剧照页计数对齐）。 */
+/* 信息栏渐变层（单一渐变，无拼接）：从信息栏顶部（--binge-preview-
+   info-top）一路延伸到屏幕底，穿过「n 张剧照」行——宽屏时渐变自然
+   铺满底部不悬浮；信息栏自身不画背景，文字靠本渐变 + text-shadow
+   衬底。z-index 在轨道之上、信息栏/剧照数之下，不拦截点击。 */
+.binge-scene-preview-fade {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: var(--binge-preview-info-top, auto);
+    bottom: 0;
+    z-index: 1;
+    /* 渐变顶部完全透明（100% = 信息栏顶部，封面内容自然过渡到渐变），
+       向下加深到屏幕底 0.92，穿过「n 张剧照」行时约 0.8+——单一渐变
+       连续无断层；信息栏文字（含简介）靠 text-shadow 衬底。 */
+    background: linear-gradient(
+        to top,
+        rgba(0, 0, 0, 0.92) 0%,
+        rgba(0, 0, 0, 0.6) 55%,
+        transparent 100%
+    );
+    pointer-events: none;
+    /* 与信息栏 top 同频过渡（触底侵入时渐变跟随）。 */
+    transition: top 0.25s ease;
+}
+
+/* 封面页剧照数：独立固定底部居中（不随信息栏上移），触底边界为
+   本行顶部（信息栏 bottom 不越过计数）。与剧照页 .binge-lightbox-
+   counter 同款定位。 */
 .binge-scene-preview-count {
+    position: absolute;
+    bottom: 1.25rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 2;
     font-size: 0.8rem;
     font-weight: 600;
     color: rgba(255, 255, 255, 0.92);
     text-shadow: 0 1px 2px rgba(0, 0, 0, 1);
     text-align: center;
+    /* 点击穿透：不拦截点空白关闭。 */
+    pointer-events: none;
 }
 /* 下载按钮：复用关闭按钮样式，移到其左侧。 */
 .binge-lightbox-download {

@@ -726,7 +726,9 @@ export default {
             performers_in_library: "（{{count}} 位在库中）",
             stashdb_scene: "StashDB 场景",
             gallery_probing: "剧照识别中…",
-            gallery_count: "{{count}}张剧照"
+            gallery_count: "{{count}}张剧照",
+            copy_code: "复制番号",
+
         },
 
         // 表单

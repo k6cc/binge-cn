@@ -726,7 +726,9 @@ export default {
             performers_in_library: "({{count}} in library)",
             stashdb_scene: "StashDB scene",
             gallery_probing: "Loading images…",
-            gallery_count: "{{count}} images"
+            gallery_count: "{{count}} images",
+            copy_code: "Copy code",
+
         },
 
         // Form
