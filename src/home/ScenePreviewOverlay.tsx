@@ -413,7 +413,11 @@ export function ScenePreviewOverlay({
                         src={coverUrl}
                         alt={title ?? ""}
                         ref={coverRef}
-                        className="binge-lightbox-image binge-scene-preview-image binge-scene-preview-cover"
+                        className={
+                            "binge-lightbox-image binge-scene-preview-image " +
+                            "binge-scene-preview-cover" +
+                            (detailsExpanded ? " is-dimmed" : "")
+                        }
                         draggable={false}
                     />
                 </div>

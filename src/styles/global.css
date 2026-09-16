@@ -9235,8 +9235,16 @@ p.binge-settings-source-note {
     object-fit: contain;
     object-position: 50% 30%;
     /* 与播放页同款定位过渡（封面加载/视口变化时平滑归位）。 */
-    transition: object-position 0.3s ease;
+    transition: object-position 0.3s ease, filter 0.25s ease;
 }
+/* 展开简介（更多）时封面整体变暗：手机端竖屏渐变从信息栏顶部
+   才起始，封面上部处于渐变覆盖区之外；变暗封面后信息栏上方
+   区域也自然压暗，收回（收起）后恢复原亮度。filter 不改布局，
+   点击几何判定（isInsideImageContent）不受影响。 */
+.binge-scene-preview-cover.is-dimmed {
+    filter: brightness(0.5) saturate(0.85);
+}
+
 .binge-scene-preview-info {
     position: absolute;
     left: 0;
