@@ -27,6 +27,7 @@ import {
 } from "../api/stashdb";
 import { sourceHost, sourceSceneUrl } from "../api/source";
 import { readAllowedGenders } from "./pluginSettings";
+import { localDateStr } from "../utils/date";
 
 // ── 12h cache for discovery seeds ───────────────────────────────────
 //
@@ -396,8 +397,7 @@ export async function fetchDiscoveryFeedItems(
                 coverUrl: scene.coverUrl,
                 releaseDate: scene.releaseDate,
                 effectiveAt:
-                    scene.releaseDate ??
-                    new Date().toISOString().slice(0, 10),
+                    scene.releaseDate ?? localDateStr(new Date()),
                 stashboxUrl: sourceSceneUrl(box.endpoint, scene.id),
                 stashBoxIndex: box.index,
                 primaryPerformer: {

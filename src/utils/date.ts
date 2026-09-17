@@ -43,3 +43,11 @@ export function formatDate(raw: string | null, i18n: I18nInstance): string {
         return `${m[1]}年${month}月${day}日`;
     }
 }
+
+// 本地日历日期（YYYY-MM-DD）。new Date().toISOString() 返回的是 UTC 日期，
+// 在 UTC+8 等时区每天 0–8 点会滞后一天；凡"今天 / 最近 N 天 / +N 天窗口"
+// 这类日历语义必须用本地日期，而不是 UTC 日期前缀，否则今天的内容会被
+// 误判成未来（如"预告沉底"把当天的卡片沉到底部）。
+export function localDateStr(d: Date): string {
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { localDateStr } from "../utils/date";
 import type { RecentSceneRow, RecentScenePerformer } from "../api/queries";
 import {
     getRecentScenes,
@@ -171,10 +172,11 @@ export function useStories(): StoriesResult {
 
     useEffect(() => {
         let alive = true;
-        const sinceIso = new Date(
-            Date.now() - lookbackDays * 24 * 3600 * 1000
-        ).toISOString();
-        const sinceIsoDate = sinceIso.slice(0, 10);
+        const sinceMs = Date.now() - lookbackDays * 24 * 3600 * 1000;
+        const sinceIso = new Date(sinceMs).toISOString();
+        // 日期查询走本地日历边界（与 useFeed 的 sinceDate 同规则），
+        // 避免 UTC 日期前缀在 UTC+8 等时区让窗口漂移一天。
+        const sinceIsoDate = localDateStr(new Date(sinceMs));
 
         (async () => {
             try {
@@ -521,7 +523,7 @@ async function mergeStashDBScenes(
                     byPerformer.set(local.localId, bucket);
                 }
                 const effectiveAt =
-                    scene.releaseDate ?? new Date().toISOString().slice(0, 10);
+                    scene.releaseDate ?? localDateStr(new Date());
                 bucket.stashdb.push({
                     id: `stashdb:${scene.id}`,
                     source: "stashdb",

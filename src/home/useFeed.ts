@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { localDateStr } from "../utils/date";
 import {
     countUnidentifiedScenes,
     findImagesByGallery,
@@ -365,9 +366,8 @@ export function useFeed(): FeedHookResult {
 
     useEffect(() => {
         let alive = true;
-        const sinceIso = new Date(
-            Date.now() - lookbackDays * 24 * 3600 * 1000,
-        ).toISOString();
+        const sinceMs = Date.now() - lookbackDays * 24 * 3600 * 1000;
+        const sinceIso = new Date(sinceMs).toISOString();
 
         // Stash's date fields are YYYY-MM-DD strings (DateCriterionInput),
         // distinct from the full-precision ISO timestamps used for
@@ -375,14 +375,19 @@ export function useFeed(): FeedHookResult {
         // is also the boundary used for repost classification (a scene
         // dated before it reached the feed via the created_at query, so
         // it's back-catalog) and for the discovery window.
-        const sinceDate = sinceIso.slice(0, 10);
+        // sinceDate 取同一时刻的本地日历日期，而不是 UTC 日期前缀：
+        // UTC 边界在 UTC+8 等时区会让"最近 N 天"窗口漂移一天。
+        const sinceDate = localDateStr(new Date(sinceMs));
 
         // 信息流排序。"预告沉底"开启时：未来日期的条目（预告）沉到
         // 全部已发布内容之后，且预告组内按临近程度排（马上发布的
         // 最靠前）；已发布内容保持时间倒序不变。effectiveAt 可能是
         // YYYY-MM-DD（场景日期）或完整 ISO 时间戳（导入时间），统一
         // 取日期前缀比较，避免当天的 created_at 被误判为未来。
-        const todayDate = new Date().toISOString().slice(0, 10);
+        // "今天"必须是本地日历日期：toISOString() 是 UTC 日期，在
+        // UTC+8 等时区每天 0–8 点会滞后一天，把今天的内容误判成预告
+        // （预告沉底开启时今天的卡片被沉到底部）。
+        const todayDate = localDateStr(new Date());
         const isPreview = (f: FeedItem) => f.effectiveAt.slice(0, 10) > todayDate;
         const feedSort = (a: FeedItem, b: FeedItem): number => {
             if (previewSink) {

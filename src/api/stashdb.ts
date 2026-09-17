@@ -23,6 +23,7 @@
 import { gql } from "./graphql";
 import { getActiveSource, sourceHost } from "./source";
 import i18n from "../i18n/config";
+import { localDateStr } from "../utils/date";
 
 export interface StashBoxConfig {
     endpoint: string;
@@ -264,10 +265,10 @@ const STASHDB_TIMEOUT_MS = 25_000;
 // 发布的预告。返回预告允许的最远 releaseDate（YYYY-MM-DD），null = 不限。
 export function previewCutoffDate(previewDays: number): string | null {
     if (previewDays === 0) return null;
-    if (previewDays === -1) return new Date().toISOString().slice(0, 10);
-    return new Date(Date.now() + previewDays * 86_400_000)
-        .toISOString()
-        .slice(0, 10);
+    // 窗口边界用本地日历日期：toISOString() 的 UTC 日期在 UTC+8 等
+    // 时区会让"今天 / N 天内"偏移一天。
+    if (previewDays === -1) return localDateStr(new Date());
+    return localDateStr(new Date(Date.now() + previewDays * 86_400_000));
 }
 
 // 按预告窗口过滤场景列表。无日期的场景不受影响（"预告"仅由未来日期定义）。
