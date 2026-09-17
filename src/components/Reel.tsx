@@ -403,6 +403,62 @@ export function Reel() {
             suppressAutoHideRef.current = false;
         };
     }, [virtualizer, activeIndex, setTabBarVisible]);
+
+    // 普通窗口尺寸变化（非全屏）时保持 Reel 对齐当前 active 卡片。
+    //
+    // 问题：窗口 resize → dvh 变化 → .binge-reel 高度变化，virtualizer
+    // 重估卡片高度（vi.size = clientHeight），但 scrollTop 保持原值——
+    // 卡片整体偏移 activeIndex×Δh，越往后偏得越多。IntersectionObserver
+    // （0.7 阈值）随即激活漂移后落在视口的相邻卡片，其视频立即加载播放，
+    // 表现为"改一下窗口大小就跳去播别的影片"。scroll-snap mandatory 也
+    // 会主动吸附到最近的卡片顶部，加剧跳变。
+    //
+    // 修复：resize 时把 scrollTop 钉回到 active 卡片顶部（= activeIndex ×
+    // 新卡片高度，恰好是 snap 点）。用双重 rAF 而非同步执行：resize 事件
+    // 触发时新高度还没落到布局里；第一帧 React 才提交 virtualizer 重估
+    // 后的卡片高度（微任务），第二帧 rAF 在 layout / IO 回调之前运行——
+    // IO 重新计算相交比时看到的是已对齐的布局，不会误激活邻居。
+    //
+    // 全屏进出由上面的 fullscreenchange effect 自己校正，且过渡期间
+    // .binge-reel 高度被固定为 px，不存在漂移——这里跳过，避免双重校正。
+    const activeIndexRef = useRef(activeIndex);
+    useEffect(() => {
+        activeIndexRef.current = activeIndex;
+    }, [activeIndex]);
+    useEffect(() => {
+        const el = scrollRef.current;
+        if (!el) return;
+        let rafA = 0;
+        let rafB = 0;
+        const onResize = () => {
+            // 全屏过渡中：reel 高度被固定为 px，无漂移；退出校正由
+            // fullscreenchange effect 负责，这里不插手。
+            if (document.fullscreenElement || el.style.height) return;
+            const pin = activeIndexRef.current;
+            cancelAnimationFrame(rafA);
+            cancelAnimationFrame(rafB);
+            rafA = requestAnimationFrame(() => {
+                rafB = requestAnimationFrame(() => {
+                    const el2 = scrollRef.current;
+                    if (!el2) return;
+                    const target = pin * el2.clientHeight;
+                    if (Math.abs(el2.scrollTop - target) < 1) return;
+                    // 直接赋 scrollTop 会走 CSS scroll-behavior: smooth，
+                    // 改成瞬时定位（与全屏退出校正同一做法）。
+                    const orig = el2.style.scrollBehavior;
+                    el2.style.scrollBehavior = "auto";
+                    el2.scrollTop = target;
+                    el2.style.scrollBehavior = orig;
+                });
+            });
+        };
+        window.addEventListener("resize", onResize);
+        return () => {
+            window.removeEventListener("resize", onResize);
+            cancelAnimationFrame(rafA);
+            cancelAnimationFrame(rafB);
+        };
+    }, []);
     // Latest in-flight fetch token. Stale responses (from a previous
     // filter set, or duplicate next-page calls) compare and bail.
     const fetchTokenRef = useRef(0);
