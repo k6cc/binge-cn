@@ -124,6 +124,32 @@ function App() {
     // installed.
     const refractActive = refractEnabled && refractTheme !== null;
     const activeTheme = refractActive ? refractTheme : null;
+    // Portal 层组件（AddSceneModal / ScenePreviewOverlay 等）用
+    // createPortal 直挂 document.body，不在 .binge-app 子树内，继承
+    // 不到根容器的内联 --accent 系列变量。refract 启用时把主题色同
+    // 步到 :root（documentElement），portal 组件里的 var(--accent)
+    // 也能跟随主题强调色（如两处复制按钮的 is-copied 反馈）；关闭时
+    // 移除，回落到 global.css 的 :root 粉色 fallback。
+    useEffect(() => {
+        const root = document.documentElement;
+        if (refractActive && refractTheme) {
+            root.style.setProperty("--accent", refractTheme.accent);
+            root.style.setProperty(
+                "--accent-bright",
+                refractTheme.accentBright,
+            );
+            root.style.setProperty(
+                "--accent-tint",
+                refractTheme.accentTint,
+            );
+            root.style.setProperty("--accent-rgb", refractTheme.accentRgb);
+        } else {
+            root.style.removeProperty("--accent");
+            root.style.removeProperty("--accent-bright");
+            root.style.removeProperty("--accent-tint");
+            root.style.removeProperty("--accent-rgb");
+        }
+    }, [refractActive, refractTheme]);
 
     // Privacy blur — blurs all media app-wide so binge can be shown on a
     // shared screen (or screenshotted) without exposing the library.

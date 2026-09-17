@@ -1,4 +1,10 @@
-import { useEffect, useState, type ChangeEvent } from "react";
+import {
+    useEffect,
+    useRef,
+    useState,
+    type ChangeEvent,
+    type ReactNode,
+} from "react";
 import { createPortal } from "react-dom";
 import {
     buildSceneCreateForm,
@@ -7,6 +13,11 @@ import {
     type SceneCreateForm,
 } from "../api/mutations";
 import type { StashDBSceneDetail } from "../api/stashdb";
+import {
+    contentIdFromR18Url,
+    deriveContentId,
+    probeDmmGallery,
+} from "./dmmGallery";
 import { useSheetClose } from "../hooks/useSheetClose";
 import { useTranslation } from "react-i18next";
 
@@ -55,6 +66,12 @@ export function AddSceneModal({
     const { isExiting, beginClose } = useSheetClose(onClose);
     const [state, setState] = useState<ModalState>({ kind: "loading" });
     const [imageIndex, setImageIndex] = useState(0);
+    // 剧照预览列表（仅预览，不入库）。与首页剧照预览
+    // （ScenePreviewOverlay）同一探测路径，见下方 effect。
+    const [gallery, setGallery] = useState<string[]>([]);
+    // 番号复制反馈：点击后图标短暂变粉（is-copied，900ms 恢复）。
+    const [copied, setCopied] = useState(false);
+    const copyTimer = useRef<number | null>(null);
     const { t } = useTranslation();
 
     useEffect(() => {
@@ -98,6 +115,56 @@ export function AddSceneModal({
         };
     }, [stashDBSceneId, fallbackTitle, fallbackCover]);
 
+    // 卸载时清理复制反馈定时器。
+    useEffect(
+        () => () => {
+            if (copyTimer.current !== null) {
+                window.clearTimeout(copyTimer.current);
+            }
+        },
+        [],
+    );
+
+    // 剧照仅预览：与首页剧照预览同路径——从 detail.urls 找 r18.dev
+    // 链接提取 contentId，probeDmmGallery 双通道探测（r18.dev JSON
+    // 端点 + 穷举回退）。结果只进 previewImages 供翻页浏览；提交时
+    // cover_image 仍用原 StashDB 封面，预览剧照不写入库。探测结果
+    // 会话级缓存（dmmGallery 内部），重开弹窗秒进。
+    // 注意：依赖 sceneDetail 引用（updateField/submitting 都保留
+    // prev.detail），detail 首次加载完成时只探测一次。
+    const sceneDetail =
+        state.kind === "loading" ? null : state.detail;
+    useEffect(() => {
+        const d = sceneDetail;
+        if (!d) return;
+        let alive = true;
+        (async () => {
+            try {
+                const r18Url = d.urls.find((u) =>
+                    u.url.includes("r18.dev"),
+                );
+                if (!r18Url) return;
+                const contentId =
+                    contentIdFromR18Url(r18Url.url) ??
+                    deriveContentId(d.code);
+                if (!contentId) return;
+                // 首次探测经 onImage 渐进追加；resolve 值是完整序列，
+                // 结尾覆盖一次以覆盖会话缓存命中场景（缓存命中不触
+                // 发回调）。
+                const found = await probeDmmGallery(contentId, (url) => {
+                    if (alive) setGallery((prev) => [...prev, url]);
+                });
+                if (alive) setGallery(found);
+            } catch (err) {
+                // 探测失败静默降级：只保留封面可看，控制台留线索。
+                console.warn("[binge] add-scene gallery load failed", err);
+            }
+        })();
+        return () => {
+            alive = false;
+        };
+    }, [sceneDetail]);
+
     const updateField = <K extends keyof SceneCreateForm>(
         key: K,
         value: SceneCreateForm[K]
@@ -112,14 +179,42 @@ export function AddSceneModal({
         });
     };
 
+    // 一键复制番号：navigator.clipboard 优先，失败降级 execCommand
+    // （非安全上下文）；成功后图标短暂变粉。
+    const handleCopyCode = async () => {
+        const code = state.kind === "loading" ? "" : state.form.code;
+        if (!code) return;
+        try {
+            await navigator.clipboard.writeText(code);
+        } catch {
+            const ta = document.createElement("textarea");
+            ta.value = code;
+            ta.style.position = "fixed";
+            ta.style.opacity = "0";
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand("copy");
+            ta.remove();
+        }
+        setCopied(true);
+        if (copyTimer.current !== null) {
+            window.clearTimeout(copyTimer.current);
+        }
+        copyTimer.current = window.setTimeout(() => {
+            setCopied(false);
+            copyTimer.current = null;
+        }, 900);
+    };
+
     const handleSubmit = async () => {
         if (state.kind !== "ready") return;
         const form = state.form;
         const detail = state.detail;
         const submittedForm: SceneCreateForm = {
             ...form,
-            cover_image:
-                detail?.images[imageIndex]?.url || form.cover_image || "",
+            // 剧照翻页仅预览：提交封面固定用原 StashDB 封面，
+            // 不写入预览时翻到的剧照。
+            cover_image: form.cover_image || "",
         };
         setState({ kind: "submitting", form: submittedForm, detail });
         try {
@@ -138,10 +233,17 @@ export function AddSceneModal({
     const form = state.kind === "loading" ? null : state.form;
     const detail = state.kind === "loading" ? null : state.detail;
     const isSubmitting = state.kind === "submitting";
-    const images = detail?.images ?? [];
-    const hasMultipleImages = images.length > 1;
+    // 轮播列表 = StashDB 封面/图片 + 剧照探测结果（URL 去重）。
+    // 第 0 张是封面，之后是剧照；与首页剧照预览同源。
+    const previewImages = Array.from(
+        new Set([
+            ...(detail?.images ?? []).map((i) => i.url),
+            ...gallery,
+        ]),
+    ).filter(Boolean);
+    const hasMultipleImages = previewImages.length > 1;
     const currentImage =
-        images[imageIndex]?.url || form?.cover_image || "";
+        previewImages[imageIndex] ?? (form?.cover_image || "");
 
     return createPortal(
         <div
@@ -152,7 +254,7 @@ export function AddSceneModal({
         >
             <div className="binge-sheet-backdrop" onClick={beginClose} />
             <div
-                className="binge-sheet binge-follow-modal"
+                className="binge-sheet binge-follow-modal binge-add-scene-modal"
                 role="dialog"
                 aria-label={t("action.add_scene_to_library")}
             >
@@ -179,7 +281,12 @@ export function AddSceneModal({
                         <div className="binge-follow-modal-hero">
                             <div className="binge-follow-modal-hero-wrap">
                                 <div
-                                    className="binge-follow-modal-hero-img is-scene"
+                                    className={
+                                        "binge-follow-modal-hero-img is-scene" +
+                                        (gallery.includes(currentImage)
+                                            ? " is-gallery"
+                                            : "")
+                                    }
                                     style={
                                         currentImage
                                             ? {
@@ -203,8 +310,8 @@ export function AddSceneModal({
                                                 setImageIndex(
                                                     (imageIndex -
                                                         1 +
-                                                        images.length) %
-                                                        images.length
+                                                        previewImages.length) %
+                                                        previewImages.length
                                                 )
                                             }
                                             aria-label={t("action.previous_photo")}
@@ -217,7 +324,7 @@ export function AddSceneModal({
                                             onClick={() =>
                                                 setImageIndex(
                                                     (imageIndex + 1) %
-                                                        images.length
+                                                        previewImages.length
                                                 )
                                             }
                                             aria-label={t("action.next_photo")}
@@ -225,7 +332,7 @@ export function AddSceneModal({
                                             <ChevronRight />
                                         </button>
                                         <div className="binge-follow-modal-hero-counter">
-                                            {imageIndex + 1} / {images.length}
+                                            {imageIndex + 1} / {previewImages.length}
                                         </div>
                                     </>
                                 )}
@@ -281,6 +388,20 @@ export function AddSceneModal({
                                 label={t("form.code")}
                                 value={form.code}
                                 onChange={(v) => updateField("code", v)}
+                                suffix={
+                                    <button
+                                        type="button"
+                                        className={
+                                            "binge-follow-modal-code-copy" +
+                                            (copied ? " is-copied" : "")
+                                        }
+                                        onClick={() => void handleCopyCode()}
+                                        aria-label={t("scene.copy_code")}
+                                        title={t("scene.copy_code")}
+                                    >
+                                        <CopyIcon />
+                                    </button>
+                                }
                             />
                             <Field
                                 label={t("form.director")}
@@ -367,14 +488,26 @@ function Field({
     value,
     type,
     fullWidth,
+    suffix,
     onChange,
 }: {
     label: string;
     value: string;
     type?: "text" | "url" | "number" | "date";
     fullWidth?: boolean;
+    suffix?: ReactNode;
     onChange: (v: string) => void;
 }) {
+    const input = (
+        <input
+            type={type ?? "text"}
+            className="binge-follow-modal-input"
+            value={value}
+            onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                onChange(e.target.value)
+            }
+        />
+    );
     return (
         <label
             className={
@@ -383,14 +516,14 @@ function Field({
             }
         >
             <span className="binge-follow-modal-label-text">{label}</span>
-            <input
-                type={type ?? "text"}
-                className="binge-follow-modal-input"
-                value={value}
-                onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                    onChange(e.target.value)
-                }
-            />
+            {suffix ? (
+                <span className="binge-follow-modal-field-row">
+                    {input}
+                    {suffix}
+                </span>
+            ) : (
+                input
+            )}
         </label>
     );
 }
@@ -428,6 +561,26 @@ function TextareaField({
     );
 }
 
+function CopyIcon() {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+        >
+            {/* 两个相交方框：复制（拷贝）图案，与日期输入框内图标同源风格。 */}
+            <rect x="9" y="9" width="12" height="12" rx="2" ry="2" />
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+        </svg>
+    );
+}
 function ChevronLeft() {
     return (
         <svg

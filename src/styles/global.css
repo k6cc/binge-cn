@@ -5596,16 +5596,42 @@ p.binge-settings-source-note {
     accent-color: #2f7ee0;
 }
 
-/* Scene-mode hero: 16:9 landscape variant of the modal hero (vs the
+/* Scene-mode hero: ~3:2 landscape variant of the modal hero (vs the
    3:4 portrait variant used by FollowPerformerModal). */
 .binge-follow-modal-hero-img.is-scene {
     width: 320px;
-    height: 180px;
+    height: 216px;
+}
+/* 剧照显示模式：完整显示、保持原比例、四周自适应并居中（封面仍
+   cover 铺满）。is-gallery 由组件在轮播到 DMM 探测剧照时挂上。 */
+.binge-follow-modal-hero-img.is-scene.is-gallery {
+    background-size: contain;
+    background-repeat: no-repeat;
 }
 .binge-follow-modal-hero-wrap:has(.is-scene) {
     width: 320px;
     flex: 0 0 320px;
 }
+/* AddSceneModal（场景加入库）专属窄屏规则：与演员「加入库」弹窗分开
+   设置——≤720px 即换行（hero 纵向、封面相对弹窗居中、制片厂/演员统
+   计/查看链接三行左对齐），演员弹窗仍保持 480px 才换行。
+   同时修复场景 hero 纵向时的空白间隔：`:has(.is-scene)` 基础规则
+   `flex: 0 0 320px` 的 flex-basis 在 column 方向作用于高度，把 wrap
+   撑到 320px 而封面只有 180px，封面下方凭空多出约 140px 空白；这里
+   重置 flex-basis: auto，wrap 高度由封面内容决定。 */
+@media (max-width: 720px) {
+    .binge-add-scene-modal .binge-follow-modal-hero {
+        flex-direction: column;
+    }
+    .binge-add-scene-modal .binge-follow-modal-hero-wrap {
+        align-self: center;
+        flex-basis: auto;
+    }
+    .binge-add-scene-modal .binge-follow-modal-hero-meta {
+        width: 100%;
+    }
+}
+
 
 .binge-follow-modal-not-in-library {
     color: rgba(255, 255, 255, 0.45);
@@ -5747,6 +5773,12 @@ p.binge-settings-source-note {
     grid-template-columns: 1fr 1fr;
     gap: 0.75rem 0.85rem;
 }
+/* AddSceneModal（场景加入库）：日期/代码同行两列非对称——代码列多分
+   一点宽度，补偿尾部一键复制按钮（34px + gap），使两个输入框长度
+   大致均衡（演员弹窗仍是 1fr 1fr）。 */
+.binge-add-scene-modal .binge-follow-modal-grid {
+    grid-template-columns: 0.9fr 1.1fr;
+}
 .binge-follow-modal-label {
     display: flex;
     flex-direction: column;
@@ -5793,6 +5825,49 @@ p.binge-settings-source-note {
     resize: vertical;
     line-height: 1.4;
     min-height: 2.5rem;
+}
+/* 「代码」输入框尾部的一键复制按钮：输入框与按钮同行，按钮宽高
+   与输入框对齐；点击后短暂变粉（is-copied，组件 900ms 后移除）。 */
+.binge-follow-modal-field-row {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+.binge-follow-modal-field-row .binge-follow-modal-input {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+.binge-follow-modal-code-copy {
+    appearance: none;
+    flex: 0 0 auto;
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.72);
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    padding: 0;
+    transition:
+        background 0.15s ease,
+        color 0.15s ease,
+        border-color 0.15s ease;
+}
+.binge-follow-modal-code-copy:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+}
+.binge-follow-modal-code-copy:focus-visible {
+    outline: none;
+    border-color: rgba(255, 255, 255, 0.45);
+}
+/* 复制成功反馈：图标短暂变粉（与剧照预览番号复制同色 --accent）。 */
+.binge-follow-modal-code-copy.is-copied {
+    color: var(--accent, #f472b6);
+    border-color: var(--accent, #f472b6);
+    background: rgba(244, 114, 182, 0.12);
 }
 .binge-follow-modal-note-ok {
     appearance: none;
