@@ -9244,6 +9244,11 @@ p.binge-settings-source-note {
 .binge-scene-preview-cover.is-dimmed {
     filter: brightness(0.5) saturate(0.85);
 }
+/* 隐私模糊开启时 blur 的 !important 会压过上面的压暗：叠加两条
+   filter（模糊 + 压暗），保证"更多"展开时两种效果同时生效。 */
+.binge-showcase-blur .binge-scene-preview-cover.is-dimmed {
+    filter: blur(14px) brightness(0.5) saturate(0.85) !important;
+}
 
 .binge-scene-preview-info {
     position: absolute;

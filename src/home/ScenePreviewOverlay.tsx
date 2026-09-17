@@ -59,6 +59,7 @@ export function ScenePreviewOverlay({
     onClose,
 }: ScenePreviewOverlayProps) {
     const { t } = useTranslation();
+    const rootRef = useRef<HTMLDivElement>(null);
     const trackRef = useRef<HTMLDivElement>(null);
     const infoRef = useRef<HTMLDivElement>(null);
     const countRef = useRef<HTMLDivElement>(null);
@@ -78,32 +79,51 @@ export function ScenePreviewOverlay({
     useEffect(() => {
         let alive = true;
         (async () => {
-            const box = await getSourceBox();
-            if (!box || !alive) return;
-            const d = await loadSceneDetail(sceneStashId, box.api_key);
-            if (!alive) return;
-            setDetail(d);
-            if (!d) return;
-            const r18Url = d.urls.find((u) =>
-                u.url.includes("r18.dev"),
-            );
-            if (!r18Url) return;
-            const contentId =
-                contentIdFromR18Url(r18Url.url) ?? deriveContentId(d.code);
-            if (!contentId) return;
-            setProbing(true);
-            // 首次探测经 onImage 渐进追加；resolve 值是完整序列，结尾
-            // 覆盖一次以覆盖会话缓存命中场景（缓存命中不触发回调）。
-            const found = await probeDmmGallery(contentId, (url) => {
-                if (alive) setGallery((prev) => [...prev, url]);
-            });
-            if (alive) setGallery(found);
-            if (alive) setProbing(false);
+            try {
+                const box = await getSourceBox();
+                if (!box || !alive) return;
+                const d = await loadSceneDetail(sceneStashId, box.api_key);
+                if (!alive) return;
+                setDetail(d);
+                if (!d) return;
+                const r18Url = d.urls.find((u) =>
+                    u.url.includes("r18.dev"),
+                );
+                if (!r18Url) return;
+                const contentId =
+                    contentIdFromR18Url(r18Url.url) ?? deriveContentId(d.code);
+                if (!contentId) return;
+                setProbing(true);
+                // 首次探测经 onImage 渐进追加；resolve 值是完整序列，
+                // 结尾覆盖一次以覆盖会话缓存命中场景（缓存命中不触
+                // 发回调）。
+                const found = await probeDmmGallery(contentId, (url) => {
+                    if (alive) setGallery((prev) => [...prev, url]);
+                });
+                if (alive) setGallery(found);
+            } catch (err) {
+                // 详情/探测失败静默降级：停留封面页（与无 r18Url 链接
+                // 的场景同态），只留控制台线索供排查。
+                console.warn("[binge] scene preview load failed", err);
+            } finally {
+                if (alive) setProbing(false);
+            }
         })();
         return () => {
             alive = false;
         };
     }, [sceneStashId]);
+
+    // 模态焦点管理：打开时焦点移入对话框（键盘用户的 Tab 从预览窗
+    // 内部开始，而非落在被遮住的背景元素上）；关闭时归还给触发按
+    // 钮。触发按钮已被虚拟列表卸载时 focus 为 no-op，安全。
+    useEffect(() => {
+        const prev = document.activeElement as HTMLElement | null;
+        rootRef.current?.focus();
+        return () => {
+            prev?.focus();
+        };
+    }, []);
 
     // 方向键/Esc。stepRef 每渲染指向最新 step（slides.length 随探
     // 测增长），无 stale 上限。
@@ -383,7 +403,10 @@ export function ScenePreviewOverlay({
         <div
             className="binge-lightbox-root binge-scene-preview-root"
             role="dialog"
+            aria-modal="true"
             aria-label={title ?? t("action.preview_scene")}
+            tabIndex={-1}
+            ref={rootRef}
             onClick={handleRootClick}
         >
             <button
