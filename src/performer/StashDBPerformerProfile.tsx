@@ -224,8 +224,11 @@ export function StashDBPerformerProfile({
                             </div>
                             {state.performer.aliases.length > 0 && (
                                 <p className="binge-profile-aliases">
-                                    {t("performer.aka")}{" "}
-                                    {state.performer.aliases.join(", ")}
+                                    {t("performer.aka", {
+                                        aliases: state.performer.aliases.join(
+                                            ", "
+                                        ),
+                                    })}
                                 </p>
                             )}
                             <BioAttrs performer={state.performer} />

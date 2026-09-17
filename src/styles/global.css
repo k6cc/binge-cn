@@ -5413,6 +5413,43 @@ p.binge-settings-source-note {
         margin: auto;
     }
 }
+@media (max-width: 720px) {
+    /* 720px 以下：弹窗收窄并水平居中（不贴左、不铺满），演员图片
+       同步缩小。480px 以下另有铺满 + 纵向 hero 规则（见下）。 */
+    .binge-follow-modal {
+        width: min(560px, calc(100vw - 2rem));
+        margin: 0 auto;
+    }
+    .binge-follow-modal .binge-follow-modal-hero-wrap {
+        width: 200px;
+        flex: 0 0 200px;
+    }
+    .binge-follow-modal .binge-follow-modal-hero-img {
+        height: 267px;
+    }
+}
+@media (max-width: 480px) {
+    /* 极窄屏：弹窗左右铺满；hero 改纵向——演员图片相对弹窗居中，
+       stats / StashDB 链接 / 图片 URL 换行左对齐到下方姓名列。 */
+    .binge-follow-modal {
+        width: 100%;
+        max-width: 100vw;
+        margin: 0;
+    }
+    .binge-follow-modal-hero {
+        flex-direction: column;
+    }
+    .binge-follow-modal-hero-wrap {
+        align-self: center;
+    }
+    .binge-follow-modal-hero-meta {
+        /* Base hero has align-items: flex-start, which in column mode
+           would shrink meta to content width; force it to span the row
+           so stats / link / URL field sit at the name column. */
+        width: 100%;
+    }
+}
+
 .binge-follow-modal-header {
     display: flex;
     align-items: center;
