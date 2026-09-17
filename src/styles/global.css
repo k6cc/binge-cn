@@ -5863,11 +5863,13 @@ p.binge-settings-source-note {
     outline: none;
     border-color: rgba(255, 255, 255, 0.45);
 }
-/* 复制成功反馈：图标短暂变粉（与剧照预览番号复制同色 --accent）。 */
+/* 复制成功反馈：跟随 refract 主题强调色——图标/边框用亮色变体
+   --accent-bright（深色弹窗上暗色主题也清晰），背景用主题色淡底。
+   refract 关闭时回落粉色。 */
 .binge-follow-modal-code-copy.is-copied {
-    color: var(--accent, #f472b6);
-    border-color: var(--accent, #f472b6);
-    background: rgba(244, 114, 182, 0.12);
+    color: var(--accent-bright, var(--accent, #f472b6));
+    border-color: var(--accent-bright, var(--accent, #f472b6));
+    background: rgba(var(--accent-rgb, 244, 114, 182), 0.14);
 }
 .binge-follow-modal-note-ok {
     appearance: none;
@@ -9452,9 +9454,10 @@ p.binge-settings-source-note {
 .binge-scene-preview-code-copy:hover {
     background: rgba(255, 255, 255, 0.14);
 }
-/* 复制成功反馈：番号短暂变粉（发现按钮底色 --accent），无文字提示。 */
+/* 复制成功反馈：跟随 refract 主题强调色亮色变体（深色背景上
+   暗色主题也清晰），无文字提示。 */
 .binge-scene-preview-code-copy.is-copied {
-    color: var(--accent, #f472b6);
+    color: var(--accent-bright, var(--accent, #f472b6));
 }
 /* 简介容器：文本 + 尾部「更多/收起」按钮纵向排列，按钮左对齐。 */
 .binge-scene-preview-details-wrap {
