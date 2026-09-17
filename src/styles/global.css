@@ -9305,6 +9305,9 @@ p.binge-settings-source-note {
     display: flex;
     align-items: baseline;
     gap: 0.5rem;
+    /* 极窄屏：整行放不下时「工作室 · 时长」整体换到第二行，*/
+    /* 番号保持第一行完整不截断（flex-wrap 按 item 整体换行）。*/
+    flex-wrap: wrap;
 }
 /* 番号复制按钮：重置 button 默认外观，继承粗体行样式，点击一键复制。 */
 .binge-scene-preview-code-copy {
@@ -9318,6 +9321,8 @@ p.binge-settings-source-note {
     letter-spacing: inherit;
     text-shadow: inherit;
     cursor: pointer;
+    /* 番号优先保证不截断不换行（极窄时让 meta 先换行）。 */
+    white-space: nowrap;
     pointer-events: auto;
     border-radius: 4px;
     transition: background 0.18s ease, color 0.18s ease;
@@ -9395,12 +9400,23 @@ p.binge-settings-source-note {
     font-size: 0.8rem;
     font-weight: 400;
     color: rgba(255, 255, 255, 0.78);
+    /* 极窄时与番号同行放不下，「工作室 · 时长」整体换行不拆分。 */
+    white-space: nowrap;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 1);
 }
 /* 时长加粗强调。 */
 .binge-scene-preview-duration {
     font-weight: 600;
 }
+/* 更极端窄屏（<340px，如小屏安卓）：连番号也放不下时，番号与
+   「工作室 · 时长」各自按需换行（恢复现有逻辑，不再强制整体）。 */
+@media (max-width: 340px) {
+    .binge-scene-preview-code-copy,
+    .binge-scene-preview-meta {
+        white-space: normal;
+    }
+}
+
 /* 信息栏渐变层（单一渐变，无拼接）：从信息栏顶部（--binge-preview-
    info-top）一路延伸到屏幕底，穿过「n 张剧照」行——宽屏时渐变自然
    铺满底部不悬浮；信息栏自身不画背景，文字靠本渐变 + text-shadow
