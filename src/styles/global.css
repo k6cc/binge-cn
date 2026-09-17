@@ -9286,6 +9286,11 @@ p.binge-settings-source-note {
        剧照页透明层不挡轨道点击。 */
     animation: none;
     opacity: 0;
+    /* visibility: hidden：剧照页整棵子树不可交互——番号/更多按钮
+       显式 pointer-events: auto 会绕过父级 none，但无法绕过 visibility
+       （继承属性，子元素未显式恢复则整树失效）。opacity: 0 的元素仍
+       接收点击，单靠它挡不住。布局保留，不影响定位测量。 */
+    visibility: hidden;
     pointer-events: none;
 }
 @keyframes binge-scene-preview-info-in {
