@@ -5346,6 +5346,48 @@ p.binge-settings-source-note {
     line-height: 1.4;
 }
 
+/* ≤720px：演员 hover 卡片整体缩小一圈（发现页/首页发现/热门等大量
+   复用同一卡片，按视口收窄，不区分来源）。 */
+@media (max-width: 720px) {
+    .binge-performer-hovercard {
+        width: 232px;
+        padding: 0.7rem 0.78rem 0.74rem;
+        border-radius: 12px;
+        gap: 0.55rem;
+    }
+    .binge-performer-hovercard-row {
+        gap: 0.6rem;
+    }
+    .binge-performer-hovercard-img {
+        width: 48px;
+        height: 48px;
+        flex-basis: 48px;
+    }
+    .binge-performer-hovercard-initial {
+        font-size: 1rem;
+    }
+    .binge-performer-hovercard-name {
+        font-size: 0.88rem;
+    }
+    .binge-performer-hovercard-meta {
+        font-size: 0.74rem;
+    }
+    .binge-performer-hovercard-pill {
+        font-size: 0.64rem;
+        padding: 0.12rem 0.45rem;
+    }
+    .binge-performer-hovercard-open,
+    .binge-performer-hovercard-follow {
+        font-size: 0.78rem;
+        padding: 0.45rem 0.6rem;
+        border-radius: 7px;
+    }
+    .binge-performer-hovercard-error {
+        font-size: 0.72rem;
+    }
+}
+
+
 /* Wrapper that hover handlers attach to. Inline so it follows the
    text flow for "@name" mentions but also works around an avatar+
    name combo in a card header. */
