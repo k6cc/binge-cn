@@ -40,7 +40,7 @@
 
 - `plugins/main/index.yml` 不在本仓库（`k6cc/stash-plugins`），发布后检查是否已同步。
 - binge.yml version、zip 文件名、GitHub tag 三者必须同版本号。
-- tag 名必须 `v*.*.*` 格式，否则 workflow 不触发；打 tag 前执行第八节 tag 撞名预防流程。
+- tag 名必须 `v*.*.*` 格式，否则 workflow 不触发；打 tag 前执行第七节 tag 撞名预防流程。
 - 纯文档发布的版本 bump 同样同步全部 6 处版本号。
 
 ## 四、论坛介绍文章（forum-post-binge.md）
