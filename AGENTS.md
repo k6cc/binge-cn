@@ -98,3 +98,13 @@ Discourse 论坛帖：https://discourse.stashapp.cc/t/binge-fork/13843。更新�
 2. **合并后自查**：本地多出 origin 上不存在的 tag 即遗留。
 3. **一键清理（打新 tag 之前执行）**：`git fetch origin --prune --prune-tags`（未 push 的新建 tag 也会被删）。
 4. **打 tag 前核对**：`git tag -l v<版本号>` 无同名；创建后 `git rev-parse <tag>` 与 `git rev-parse HEAD` 一致再 push（PowerShell 下用裸 tag 名比对，`^{commit}` 会被转义）。
+
+***
+
+## 八、Shell 环境
+
+- **优先**用 `pwsh -Command`（PowerShell 7）执行 shell 操作；5.1（`powershell.exe`）不禁止，遇 7 特有语法/编码需求时切 7。
+- 本地已部署 **git** 与 **gh（GitHub CLI）**，发布、Release、API 查询等按需调用（如 `gh release view`、`gh api`）。
+- 单条命令前台上限约 15s，超出自动转后台，用 TaskOutput 取结果；输出上限约 30000 字符。
+- 涉及文件编码一律走 Python 脚本（显式 utf-8 / CRLF / BOM），不依赖 shell 重定向写文件。
+
