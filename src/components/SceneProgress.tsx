@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 
 interface SceneProgressProps {
@@ -24,6 +24,12 @@ interface SceneProgressProps {
     fullscreenUIVisible?: boolean;
     // 用户与进度条交互时的回调（用于唤出全屏 UI）。
     onInteract?: () => void;
+    // Stash 原生帧预览资源（Generate Previews 一并生成，官方播放器
+    // 进度条 scrub 预览同源）：sprite.jpg 雪碧图 + thumbs.vtt 时间戳
+    // 坐标。拖动/悬停进度条到时间 T，按 T 定位雪碧图对应帧显示
+    // （拖到哪显示哪的画面）。任一缺失 / 加载失败 → 回退纯时间码气泡。
+    previewSprite?: string | null;
+    previewVtt?: string | null;
 }
 
 // 时间码格式：分钟:秒。分钟补零到至少 2 位（"00:05"），超过 99
@@ -35,6 +41,60 @@ function formatTimecode(seconds: number): string {
     const m = Math.floor(s / 60);
     const sec = s % 60;
     return `${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+}
+
+// ── Stash 雪碧图帧预览（sprite.jpg + thumbs.vtt）解析 ──────────────
+// thumbs.vtt 形如：
+//   WEBVTT
+//
+//   00:00.000 --> 00:02.500
+//   x:0 y:0 w:160 h:96
+//
+//   00:02.500 --> 00:05.000
+//   x:160 y:0 w:160 h:96
+// 每个 cue 对应 sprite 上一帧格子：start/end 是该帧代表的视频时间
+// 区间（秒），x/y/w/h 是该帧在 sprite 大图中的像素坐标。
+interface ThumbCue {
+    start: number;
+    end: number;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+}
+
+// "mm:ss.mmm" 或 "hh:mm:ss.mmm" → 秒
+function parseVttTime(s: string): number {
+    const parts = s.split(":");
+    let sec = 0;
+    for (const p of parts) sec = sec * 60 + parseFloat(p);
+    return Number.isFinite(sec) ? sec : 0;
+}
+
+function parseThumbsVTT(text: string): ThumbCue[] {
+    const out: ThumbCue[] = [];
+    const blocks = text.replace(/\r\n/g, "\n").split("\n\n");
+    for (const block of blocks) {
+        const lines = block.trim().split("\n").filter(Boolean);
+        if (lines.length < 2) continue;
+        let timeIdx = -1;
+        for (let i = 0; i < lines.length; i++) {
+            if (lines[i].includes("-->")) { timeIdx = i; break; }
+        }
+        if (timeIdx < 0 || timeIdx + 1 >= lines.length) continue;
+        const timeMatch = lines[timeIdx].match(/([\d:.]+)\s*-->\s*([\d:.]+)/);
+        const xywh = lines[timeIdx + 1].match(/#xywh=(\d+),(\d+),(\d+),(\d+)/i);
+        if (!timeMatch || !xywh) continue;
+        out.push({
+            start: parseVttTime(timeMatch[1]),
+            end: parseVttTime(timeMatch[2]),
+            x: parseInt(xywh[1], 10),
+            y: parseInt(xywh[2], 10),
+            w: parseInt(xywh[3], 10),
+            h: parseInt(xywh[4], 10),
+        });
+    }
+    return out;
 }
 
 // Thin Instagram-style progress bar. Pinned to the bottom of the slide,
@@ -53,6 +113,8 @@ export function SceneProgress({
     isFullscreen = false,
     fullscreenUIVisible = true,
     onInteract,
+    previewSprite,
+    previewVtt,
 }: SceneProgressProps) {
     const { t } = useTranslation();
     const [progress, setProgress] = useState(0);
@@ -84,6 +146,80 @@ export function SceneProgress({
     // 全屏 + UI 已淡出：进度条变为"残留细条"模式（CSS 控制）。
     // 此状态下用户点击/悬停应先唤出完整 UI，再继续 seek 行为。
     const fsCollapsed = isFullscreen && !fullscreenUIVisible;
+
+    // ── 雪碧图帧预览加载（vtt → cues；sprite → natural 尺寸） ──
+    const [cues, setCues] = useState<ThumbCue[] | null>(null);
+    const [spriteSize, setSpriteSize] = useState<{ w: number; h: number } | null>(null);
+    const [previewError, setPreviewError] = useState(false);
+    // 预览框实际渲染宽度（ResizeObserver 实测），用于把 sprite 原图
+    // 坐标按比例缩放到显示尺寸。callback ref：预览 div 在用户 hover/
+    // 拖动后才挂载（此前 popoverRatio 为 null），用 callback ref 在
+    // 元素挂载时直接 observe，避免 effect 时机错位导致 observer 永远
+    // 挂不上、宽度恒 0。
+    const roRef = useRef<ResizeObserver | null>(null);
+    const [previewBoxW, setPreviewBoxW] = useState(0);
+    const setPreviewRef = useCallback((el: HTMLDivElement | null) => {
+        if (roRef.current) {
+            roRef.current.disconnect();
+            roRef.current = null;
+        }
+        if (el) {
+            const ro = new ResizeObserver((entries) => {
+                setPreviewBoxW(entries[0].contentRect.width);
+            });
+            ro.observe(el);
+            roRef.current = ro;
+        }
+    }, []);
+
+    useEffect(() => {
+        setCues(null);
+        setSpriteSize(null);
+        setPreviewError(false);
+        if (!previewVtt || !previewSprite) {
+            return;
+        }
+        let cancelled = false;
+        fetch(previewVtt)
+            .then((r) => {
+                if (!r.ok) throw new Error("vtt fetch failed: " + r.status);
+                return r.text();
+            })
+            .then((text) => {
+                if (cancelled) return;
+                const parsed = parseThumbsVTT(text);
+                if (parsed.length === 0) {
+                    setPreviewError(true);
+                    return;
+                }
+                setCues(parsed);
+                const img = new Image();
+                img.onload = () => {
+                    if (cancelled) return;
+                    setSpriteSize({ w: img.naturalWidth, h: img.naturalHeight });
+                };
+                img.onerror = () => {
+                    if (cancelled) return;
+                    setPreviewError(true);
+                };
+                img.src = previewSprite;
+            })
+            .catch(() => {
+                if (cancelled) return;
+                setPreviewError(true);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [previewVtt, previewSprite]);
+
+    // 预览框就绪条件（元素实际挂载由 hover/拖动 + previewReady 共同决定）。
+    const previewReady =
+        !previewError &&
+        !!previewSprite &&
+        !!cues &&
+        cues.length > 0 &&
+        !!spriteSize;
 
     useEffect(() => {
         const video = videoRef.current;
@@ -215,6 +351,22 @@ export function SceneProgress({
     // 气泡时间码用的时长（duration prop 优先，缺失回退 total state）。
     const displayDuration = duration && duration > 0 ? duration : total;
 
+    // 当前时间点对应的 sprite 帧：取 start <= T 的最后一个 cue（vtt
+    // cue 时间区间可能不均匀）。拖动时 T 随指针连续变化，仅改
+    // backgroundPosition，不触发任何 seek。
+    let frame: ThumbCue | null = null;
+    let frameScale = 0;
+    if (previewReady && cues && popoverRatio !== null) {
+        const t = popoverRatio * displayDuration;
+        let idx = cues.length - 1;
+        for (let i = 0; i < cues.length; i++) {
+            if (cues[i].start <= t) idx = i;
+            else break;
+        }
+        frame = cues[idx];
+        frameScale = previewBoxW > 0 ? previewBoxW / frame.w : 0;
+    }
+
     return (
         <>
             <div
@@ -262,17 +414,47 @@ export function SceneProgress({
                 {/* 定位浮层：拖动时显示拖动位置时间码；桌面 hover 时
                     显示悬停位置时间码（仅预览不 seek）。--binge-drag-x
                     为气泡锚点百分比（数值），CSS clamp 防止气泡超出屏幕
-                    边缘。扩展接口：后期加小窗预览（sprite 帧）时，预览
-                    元素作为本容器首个子元素插入，时间码气泡保持在底部。 */}
+                    边缘。有帧预览时预览元素作为本容器首个子元素插入，
+                    时间码气泡保持在底部、宽度不撑满预览图、居中。 */}
                 {popoverRatio !== null && (
                     <div
-                        className="binge-progress-popover"
+                        className={
+                            "binge-progress-popover" + (previewReady ? " has-preview" : "")
+                        }
                         style={
                             {
                                 "--binge-drag-x": `${popoverRatio * 100}`,
                             } as React.CSSProperties
                         }
                     >
+                        {/* 帧预览：Stash sprite 雪碧图，按当前时间 T 定位
+                            对应帧（拖到哪显示哪的画面）。背景图一次加载，
+                            拖动仅改 backgroundPosition，零额外请求。
+                            任一资源缺失/加载失败 → 整块不渲染，回退纯
+                            时间码气泡。 */}
+                        {previewReady && frame && previewSprite && spriteSize && (
+                            <div
+                                ref={setPreviewRef}
+                                className="binge-progress-preview"
+                                style={{
+                                    /* 高度按帧实际比例；未量到宽度时交给
+                                       CSS aspect-ratio 16/9 兜底。 */
+                                    height:
+                                        frameScale > 0
+                                            ? `${(previewBoxW * frame.h) / frame.w}px`
+                                            : undefined,
+                                    backgroundImage: `url("${previewSprite}")`,
+                                    backgroundSize:
+                                        frameScale > 0
+                                            ? `${spriteSize.w * frameScale}px ${spriteSize.h * frameScale}px`
+                                            : undefined,
+                                    backgroundPosition:
+                                        frameScale > 0
+                                            ? `${-frame.x * frameScale}px ${-frame.y * frameScale}px`
+                                            : undefined,
+                                }}
+                            />
+                        )}
                         <div className="binge-progress-bubble">
                             {formatTimecode(popoverRatio * displayDuration)}
                         </div>

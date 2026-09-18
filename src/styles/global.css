@@ -317,6 +317,43 @@ body,
         padding-bottom: 3.1rem;
     }
 }
+/* 手机全屏预览/时间码：横屏全屏视口 >720px 不命中竖屏媒体查询，故
+   必须用全局 .is-fullscreen 选择器（横/竖屏手机全屏都生效）。预览、
+   时间码、边距全部极小；PC 宽屏全屏在下方 @media (min-width:1000px)
+   覆盖回桌面档。 */
+.binge-slide.is-fullscreen .binge-progress-preview {
+    width: clamp(96px, 26vw, 128px);
+}
+.binge-slide.is-fullscreen .binge-progress-popover {
+    --binge-popover-edge: clamp(3rem, 13vw, 4rem);
+}
+.binge-slide.is-fullscreen .binge-progress-bubble {
+    font-size: clamp(11px, 1vw, 13px);
+}
+@media (min-width: 1000px) {
+    .binge-slide.is-fullscreen .binge-progress-preview {
+        width: clamp(110px, 20vw, 220px);
+    }
+    .binge-slide.is-fullscreen .binge-progress-popover {
+        --binge-popover-edge: clamp(3.8rem, 10vw, 7rem);
+    }
+    .binge-slide.is-fullscreen .binge-progress-bubble {
+        font-size: clamp(12px, 0.9vw, 15px);
+    }
+}
+/* 手机全屏：演员项（overlay）内容距底 ~2.6rem；侧边项（actions）
+   保持全局 5.5rem 不缩进。横/竖屏手机全屏都生效；PC 宽屏全屏在
+   下方 @media (min-width:1000px) 覆盖回桌面档。 */
+.binge-slide.is-fullscreen .binge-overlay {
+    bottom: 0;
+    padding-bottom: 2.7rem;
+}
+@media (min-width: 1000px) {
+    .binge-slide.is-fullscreen .binge-overlay {
+        bottom: 0;
+        padding-bottom: 3.1rem;
+    }
+}
 
 /* 全屏时 slide 进入浏览器 top layer，nav 被整体遮蔽（同上：overlay/
    progress/time 均复位贴底几何）；frost/mirror 是为非全屏时胶囊下方
@@ -708,31 +745,74 @@ body,
 }
 
 /* ── 拖动擦洗浮层（进度条上方） ───────────────────────────────── */
-/* 拖动期间跟随拖动位置显示目标位置的时间码。--binge-drag-x 为拖动
-   位置百分比（0~100 数值，JS 经 inline style 写入）；clamp 防止
-   气泡在两端超出屏幕（随字号加大，钳位边距同步加大）。扩展点：后期
-   加拖动小窗预览（sprite 帧）时，预览元素作为
-   .binge-progress-popover 的首个子元素插入，时间码气泡保持在底部。 */
+/* 拖动/悬停期间跟随位置显示目标时间码；有预览图时在其上方叠 Stash
+   原生预览（.binge-progress-preview 作为本容器首个子元素插入，时间
+   码气泡保持在底部——原预留扩展点已落地）。--binge-drag-x 为拖动
+   位置百分比（0~100 数值，JS 经 inline style 写入）；
+   --binge-popover-edge 为边缘钳位边距，须 >= 预览框半宽（预览框最宽
+   320px=20rem 半宽 10rem；流体 20vw 在 >=768px 视口 >=9.6rem，上限
+   11rem=176px 覆盖 320px 全宽），否则预览框会溢出屏幕。 */
 .binge-progress-popover {
+    --binge-popover-edge: clamp(3.8rem, 10vw, 7rem);
     position: absolute;
+    /* 预览框在上、时间码气泡在下；二者整体水平居中对齐锚点。
+       align-items: center 让时间码气泡按自身内容宽度居中，不被
+       预览框撑宽。 */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     /* 命中区容器顶边上方，留 1.7rem 间隙（悬浮层明显脱离进度条，
        不与其放大动画粘连）。容器上下对称扩出命中区后顶边上移了
        --hit-ext，气泡锚点扣除该偏移保持相对轨道位置不变。 */
     bottom: calc(100% + 1.7rem - var(--hit-ext));
     left: clamp(
-        2.5rem,
+        var(--binge-popover-edge),
         calc(var(--binge-drag-x, 50) * 1%),
-        calc(100% - 2.5rem)
+        calc(100% - var(--binge-popover-edge))
     );
     transform: translateX(-50%);
     pointer-events: none;
+    /* 指针激活（hover/拖动）时整体渐显：从下方 4px + 透明淡入。
+       transform 需带上 translateX(-50%) 否则位移跳变。 */
+    animation: binge-popover-fade 0.12s ease-out;
 }
+@keyframes binge-popover-fade {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%);
+    }
+}
+/* 拖动/悬停帧预览（本地新增）：Stash sprite 雪碧图（Generate Previews
+   生成，官方播放器进度条 scrub 同源），按当前时间定位对应帧显示
+   （拖到哪显示哪的画面）。宽度随视口 clamp；高度由 JS 按帧实际
+   宽高比内联计算，aspect-ratio 16/9 仅作首帧兜底。竖屏断点整体
+   调小。无 sprite/vtt / 加载失败时整块不渲染，回退纯时间码气泡。 */
+.binge-progress-preview {
+    width: clamp(110px, 20vw, 220px);
+    aspect-ratio: 16 / 9;
+    margin-bottom: 0.25rem;
+    border-radius: 0.4rem;
+    overflow: hidden;
+    background: #000;
+    background-repeat: no-repeat;
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+}
+
 /* 时间码气泡：大号加粗纯白字体，深色圆角背景 + 极细灰边框（浅色
    画面可读、独立于背景自成一体的浮层观感）；tabular-nums 等宽数字
    防跳动。层级：气泡随 .binge-progress（z-index:7，slide 内最高层）
    绘制，天然位于标题（overlay z:5）等所有元素之上。 */
 .binge-progress-bubble {
-    font-size: clamp(14px, 1.2vw, 18px);
+    /* 保持原字号/内边距/样式，宽度由内容决定（fit-content），不被
+       预览框撑宽；margin auto 在 flex 列里水平居中于预览框下方。 */
+    width: fit-content;
+    /* 桌面档字号（纯时间码回退与有预览统一大小，竖屏/全屏在断点再收）。 */
+    font-size: clamp(12px, 0.9vw, 15px);
     line-height: 1.2;
     font-weight: 700;
     letter-spacing: 0.04em;
@@ -9949,6 +10029,17 @@ body:has(.binge-sheet-root, .binge-modal-overlay, .binge-story-viewer-root)
         left: calc(0.6rem + 2px);
         right: calc(0.6rem + 2px);
     }
+    /* 拖动预览图（本地新增）：竖屏预览尺寸已确认合适（168px 上限）；
+       边缘钳位边距贴边。时间码竖屏档（纯时间码回退与有预览统一）。 */
+    .binge-progress-preview {
+        width: clamp(96px, 32vw, 168px);
+    }
+    .binge-progress-popover {
+        --binge-popover-edge: clamp(3rem, 16vw, 5.5rem);
+    }
+    .binge-progress-bubble {
+        font-size: clamp(11px, 1vw, 13px);
+    }
     /* 演员行/标题：--binge-nav-lift 刚性联动（见上方 .binge-app
        规则）；竖屏基准回到 nav-scrub（修改 88 曾随联动组下沉
        0.4rem，后按要求把标题-进度条间距加大 0.4rem——时间码已
@@ -9961,9 +10052,6 @@ body:has(.binge-sheet-root, .binge-modal-overlay, .binge-story-viewer-root)
     /* 全屏 UI 显示时左侧演员行/标题上移 0.3rem（仅手机端，桌面
        全屏维持上方全局规则的贴底 0）。同选择器 (0,3,0) 且后定义
        胜出于全局全屏复位规则。 */
-    .binge-slide.is-fullscreen .binge-overlay {
-        bottom: 0.3rem;
-    }
     /* One material from the seek line down. Hard top edge on purpose:
        the seek line is where the chrome begins, and a fade here read
        as a gradient dying into the picture rather than a surface the

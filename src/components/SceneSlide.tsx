@@ -2013,6 +2013,8 @@ export function SceneSlide({
                 isFullscreen={isFullscreen}
                 fullscreenUIVisible={fullscreenUIVisible}
                 onInteract={showFullscreenUI}
+                previewSprite={scene.paths.sprite}
+                                previewVtt={scene.paths.vtt}
             />
         </article>
     );

@@ -18,6 +18,12 @@ export interface BingeScene {
         stream: string;
         screenshot: string;
         preview: string | null;
+        // Generate Previews 一并生成的帧预览资源（官方播放器进度条
+        // scrub 预览同源）：sprite.jpg 雪碧图 + thumbs.vtt 时间戳坐标。
+        // 未生成（老数据/未跑任务）时为 null，播放页进度预览回退纯
+        // 时间码气泡。
+        vtt: string | null;
+        sprite: string | null;
     };
     sceneStreams: {
         url: string;
@@ -107,6 +113,8 @@ const FIND_SCENES = /* GraphQL */ `
                     stream
                     screenshot
                     preview
+                    vtt
+                    sprite
                 }
                 sceneStreams {
                     url
@@ -832,6 +840,8 @@ const FIND_SCENE = /* GraphQL */ `
                 stream
                 screenshot
                 preview
+                vtt
+                sprite
             }
             sceneStreams {
                 url
