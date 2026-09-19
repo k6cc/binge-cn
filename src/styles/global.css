@@ -322,10 +322,10 @@ body,
    时间码、边距全部极小；PC 宽屏全屏在下方 @media (min-width:1000px)
    覆盖回桌面档。 */
 .binge-slide.is-fullscreen .binge-progress-preview {
-    width: clamp(96px, 26vw, 128px);
+    width: clamp(96px, 15vw, 138px);
 }
 .binge-slide.is-fullscreen .binge-progress-popover {
-    --binge-popover-edge: clamp(3rem, 13vw, 4rem);
+    --binge-popover-edge: clamp(3rem, 13vw, 4.5rem);
 }
 .binge-slide.is-fullscreen .binge-progress-bubble {
     font-size: clamp(11px, 1vw, 13px);
@@ -10032,7 +10032,7 @@ body:has(.binge-sheet-root, .binge-modal-overlay, .binge-story-viewer-root)
     /* 拖动预览图（本地新增）：竖屏预览尺寸已确认合适（168px 上限）；
        边缘钳位边距贴边。时间码竖屏档（纯时间码回退与有预览统一）。 */
     .binge-progress-preview {
-        width: clamp(96px, 32vw, 168px);
+        width: clamp(96px, 32vw, 138px);
     }
     .binge-progress-popover {
         --binge-popover-edge: clamp(3rem, 16vw, 5.5rem);
