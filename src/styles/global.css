@@ -9939,7 +9939,7 @@ p.binge-settings-source-note {
    exactly where the capsule floats and its panel is translucent, so
    without this the icons ghost through the sheet. Modal on iOS covers
    the nav outright; this is the same outcome. */
-body:has(.binge-sheet-root, .binge-modal-overlay, .binge-story-viewer-root)
+body:has(.binge-sheet-root, .binge-modal-overlay, .binge-story-viewer-root, .binge-profile-root)
     .binge-bottom-nav {
     opacity: 0;
     pointer-events: none;
