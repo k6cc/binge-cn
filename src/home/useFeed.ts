@@ -402,7 +402,7 @@ export function useFeed(): FeedHookResult {
         };
 
         // 热门/预告卡片均匀穿插：前 2 个位置固定日期序（让最新已发布内容第一眼可见），
-        // 之后每 6 个位置里 1 个热门 + 1 个预告（O, O, T, O, O, F…）。
+        // 之后每 3 个位置 1 个推荐位（O, O, +, O, O, +…），+ 交替 T/F。
         // - 热门（T）：按 trendingRank 升序，12h 刷一次
         // - 预告（F）：previewSink=false 时按最远日期靠前（descending），避免同一部影片
         //   预告期和发布后都霸屏；previewSink=true 时沉底排最后，越近越靠前
