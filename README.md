@@ -1,6 +1,6 @@
 # Binge（汉化版）
 
-> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.10.3**。
+> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.10.4**。
 
 为 [Stash](https://github.com/stashapp/stash) 提供的 Instagram 风格社交与发现层：竖屏 Reel、Stories、演员档案、可配置 stash-box 实例驱动的发现功能（默认 javstash.org）——全部基于 Stash 既有的 GraphQL API。Web 插件形态。
 
@@ -57,7 +57,7 @@ v0.4.17 将原硬编码中文迁移为基于 `react-i18next` 的动态多语言�
 - **预告窗口/预告沉底本地日历日期修复（v0.10.0）**：binge 曾用 `toISOString()` 的 UTC 日期当"今天"，UTC+8 等时区每天 0–8 点把当天发布的卡片误判为未来预告沉到底部；新增 `localDateStr()` 统一取浏览器本地日历日期，"最近 N 天"/预告窗口边界同步修正，各时区用户在各自日历上结果正确
 - **演员 hover 卡片窄屏缩小（v0.10.1）**：点击演员头像/名字弹出的「打开主页/关注」小卡片在 ≤720px 整体缩小一圈（卡片 260→232px、头像 56→48、字号同步收窄），>720px 保持原尺寸
 - **播放页进度条帧预览（v0.10.2）**：拖动/悬停进度条时上方叠 Stash 原生 sprite 雪碧图帧预览（Generate Previews 生成，官方播放器 scrub 同源），拖到哪显示哪一时刻画面；无 sprite/vtt 回退纯时间码气泡；尺寸按桌面/竖屏/手机全屏分档自适应
-- **移动端预览尺寸自适应（v0.10.3）**：移动端预览框 vw 真正参与自适应——竖屏小屏 120px/大屏 138px、横屏全屏小屏 100px/大屏 138px；iPad mini 按桌面档
+- **移动端预览尺寸自适应（v0.10.4）**：移动端预览框 vw 真正参与自适应——竖屏小屏 120px/大屏 138px、横屏全屏小屏 100px/大屏 138px；iPad mini 按桌面档
 
 #### v0.4.0–v0.9.x（合并摘要）
 

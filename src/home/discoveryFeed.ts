@@ -179,6 +179,10 @@ export interface DiscoveryFeedItem {
         favorite: boolean;
     }[];
     source: "costar" | "trending";
+    // 热门种子在 trending 榜中的排名（0,1,2…），costar 为 null。
+    // 首页排序用：热门卡片按此 rank 均匀穿插到日期序内容里，
+    // 而不是按 releaseDate 沉到底部。
+    trendingRank: number | null;
 }
 
 // Gender filter — both the primary picker AND the co-performer
@@ -200,7 +204,7 @@ const MAX_SCENES_PER_PRIMARY = 2;
 // How many trending scenes (Seed 2) to drop into the feed at most.
 // Co-star scenes (Seed 1) are uncapped — they're the high-signal
 // seed and naturally limited by the size of the user's library.
-const MAX_TRENDING_ITEMS = 12;
+const MAX_TRENDING_ITEMS = 20;
 
 export async function fetchDiscoveryFeedItems(
     sinceIsoDate: string,
@@ -256,19 +260,19 @@ export async function fetchDiscoveryFeedItems(
         // never surfaces in practice.
         const scenesById = new Map<
             string,
-            { scene: StashDBScene; source: "costar" | "trending" }
+            { scene: StashDBScene; source: "costar" | "trending"; trendingRank?: number }
         >();
 
         // Capped AFTER the filters that reject, not before.
         //
         // Trending is sorted by heat and returns scenes of any age, so
-        // taking the top twelve first and filtering afterwards meant a
-        // run of old or already-owned scenes at the top of the chart
-        // emptied the section completely - thirty were fetched and paid
-        // for, eighteen of them qualified, and none were shown. The
-        // date rule below in the assembly loop is the same one; applying
-        // it here too is what lets the cap count only scenes that will
-        // survive.
+        // taking the top N (MAX_TRENDING_ITEMS) first and filtering
+        // afterwards meant a run of old or already-owned scenes at the
+        // top of the chart emptied the section completely - thirty were
+        // fetched and paid for, eighteen of them qualified, and none
+        // were shown. The date rule below in the assembly loop is the
+        // same one; applying it here too is what lets the cap count only
+        // scenes that will survive.
         let taken = 0;
         for (const s of trendingPool) {
             if (taken >= MAX_TRENDING_ITEMS) break;
@@ -278,7 +282,7 @@ export async function fetchDiscoveryFeedItems(
             // 后面构建层会丢弃的场景，热门位被远期预告空占。
             if (previewCutoff && s.releaseDate > previewCutoff) continue;
             if (!scenesById.has(s.id)) {
-                scenesById.set(s.id, { scene: s, source: "trending" });
+                scenesById.set(s.id, { scene: s, source: "trending", trendingRank: taken });
                 taken++;
             }
         }
@@ -300,7 +304,7 @@ export async function fetchDiscoveryFeedItems(
         const perfCounts = new Map<string, number>(); // headline cap
         const isAllowedGender = makeGenderFilter();
 
-        for (const { scene, source } of scenesById.values()) {
+        for (const { scene, source, trendingRank } of scenesById.values()) {
             // Obey the recent window. The co-star query already filters
             // server-side by date, but the trending query (sort: TRENDING)
             // returns globally-hot scenes of ANY age — so an undated or
@@ -412,6 +416,7 @@ export async function fetchDiscoveryFeedItems(
                 primaryInLibrary: !!posterLocal,
                 coPerformers,
                 source,
+                trendingRank: source === "trending" ? (trendingRank ?? null) : null,
             });
         }
 

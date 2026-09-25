@@ -401,6 +401,88 @@ export function useFeed(): FeedHookResult {
             return b.effectiveAt.localeCompare(a.effectiveAt);
         };
 
+        // 热门/预告卡片均匀穿插：前 2 个位置固定日期序（让最新已发布内容第一眼可见），
+        // 之后每 6 个位置里 1 个热门 + 1 个预告（O, O, T, O, O, F…）。
+        // - 热门（T）：按 trendingRank 升序，12h 刷一次
+        // - 预告（F）：previewSink=false 时按最远日期靠前（descending），避免同一部影片
+        //   预告期和发布后都霸屏；previewSink=true 时沉底排最后，越近越靠前
+        // - 已发布/本地影片/本地图片（O）：同优先级，按日期倒序
+        // 边界：T=0 时 F 继续穿插；F=0 时 T 继续穿插；都用完则 O 直接排完。
+        const interleaveTrending = (items: FeedItem[]): FeedItem[] => {
+            const trending: DiscoveryFeedItemWrapped[] = [];
+            const other: FeedItem[] = [];
+            const future: FeedItem[] = [];
+
+            for (const item of items) {
+                if (isPreview(item)) {
+                    future.push(item);
+                    continue;
+                }
+                if (item.kind === "discovery" &&
+                    item.source === "trending" &&
+                    item.trendingRank !== null) {
+                    trending.push(item);
+                } else {
+                    other.push(item);
+                }
+            }
+
+            trending.sort((a, b) => (a.trendingRank ?? 0) - (b.trendingRank ?? 0));
+            other.sort(feedSort);
+            // previewSink=false：最远日期靠前（descending），每天新出的远预告插到前面
+            // previewSink=true：越近越靠前（ascending），沉底后翻到底部看到的是即将发布的
+            future.sort(previewSink
+                ? (a, b) => a.effectiveAt.localeCompare(b.effectiveAt)
+                : (a, b) => b.effectiveAt.localeCompare(a.effectiveAt)
+            );
+
+            // 前 2 个位置固定 other（日期序）
+            const interleaved: FeedItem[] = [];
+            let oi = 0;
+            for (let k = 0; k < 2 && oi < other.length; k++) {
+                interleaved.push(other[oi++]);
+            }
+
+            if (previewSink) {
+                // previewSink=true：O,O,T,O,O,T… 循环，F 全部排最后
+                let ti = 0;
+                while (ti < trending.length || oi < other.length) {
+                    if (ti < trending.length) interleaved.push(trending[ti++]);
+                    for (let k = 0; k < 2 && oi < other.length; k++) {
+                        interleaved.push(other[oi++]);
+                    }
+                }
+                return [...interleaved, ...future];
+            }
+
+            // previewSink=false：O,O,+,O,O,+… 循环（每 3 位一个推荐位）
+            // "+" 交替 T,F,T,F…；谁用完了就一直用另一个，O 不够就直接连下一个
+            // 这样 T/F 之间始终隔 2 个 O，不会出现 4+1 的稀松排布
+            let ti = 0, fi = 0, toggle = 0; // 0=T, 1=F
+            while (ti < trending.length || fi < future.length || oi < other.length) {
+                // 推荐位：交替 T/F，用完谁就跳过
+                if (toggle === 0) {
+                    if (ti < trending.length) {
+                        interleaved.push(trending[ti++]);
+                    } else if (fi < future.length) {
+                        interleaved.push(future[fi++]);
+                    }
+                } else {
+                    if (fi < future.length) {
+                        interleaved.push(future[fi++]);
+                    } else if (ti < trending.length) {
+                        interleaved.push(trending[ti++]);
+                    }
+                }
+                toggle = 1 - toggle;
+                // 2 个 O
+                for (let k = 0; k < 2 && oi < other.length; k++) {
+                    interleaved.push(other[oi++]);
+                }
+            }
+            return interleaved;
+        };
+
         (async () => {
             try {
                 // 4 parallel fetches: two filters × two content types.
@@ -462,7 +544,7 @@ export function useFeed(): FeedHookResult {
                         }
                         return {
                             ...prev,
-                            items: [...base, ...wrapped].sort(feedSort),
+                            items: interleaveTrending([...base, ...wrapped]),
                         };
                     });
                 };
