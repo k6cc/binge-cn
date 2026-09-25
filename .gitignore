@@ -9,6 +9,8 @@ forum-post-*.md
 
 # 本地回归测试清单（仅本地维护，不推送）
 回归测试清单.md
+# 演员详情导航胶囊交互设计备忘（本地方向记录，不推送）
+演员详情导航交互设计.md
 
 # TRAE 生成的临时 HTML 分享包，不推送
 .trae-html-share-packages/
