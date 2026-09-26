@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { useTab, type Tab } from "../tabs/TabContext";
+import { usePerformerProfile } from "../performer/PerformerProfileContext";
 
 // Floating bottom nav for mobile viewports (<=720px), in the shape the
 // iOS app settled on: a glass capsule hovering over the content rather
@@ -17,11 +18,25 @@ import { useTab, type Tab } from "../tabs/TabContext";
 // with --binge-nav-footprint. Nothing measures the nav, so shrinking
 // it cannot reflow a feed.
 //
-// Renders nothing on Saved + Settings since those tabs have their own
-// back-chevron header and a nav over the top would be redundant.
+// On Saved + Settings (secondary pages with their own back-chevron
+// header) the capsule still renders — the layout already reserves its
+// footprint at the bottom of those pages — but dimmed via
+// .is-nav-disabled, and tapping it returns to home instead of
+// switching tabs. Same while the performer profile is open: it is a
+// modal intercept (iOS pattern) — tap the tab bar first dismisses the
+// overlay, doesn't switch tabs; tap the target again to go there.
+// pill 落位：详情打开时 pill 停在底层 tab 槽；saved/settings 下
+// findIndex 未命中、activeIndex 兜底为 0 → pill 停在 home 槽。两种
+// 情形下 pill 都恰好压在返回锚点上，与 dismiss 目标（closeProfile /
+// setTab("home")）语义一致。
+// 弱化态去色：refract 主题下 pill 平时跟随强调色，弱化态由 CSS
+// （global.css 的 .is-nav-disabled 规则）将其褪回中性白，恢复时
+// 随 background-color 过渡回色——"锁定即去色"的状态反馈。默认
+// 主题 pill 本就为白，该规则无操作。
 
 export function BottomNav() {
     const { tab, setTab, tabBarVisible } = useTab();
+    const { currentProfile, close: closeProfile } = usePerformerProfile();
     const { t } = useTranslation();
 
     const SLOTS: { id: Tab; label: string }[] = [
@@ -32,7 +47,8 @@ export function BottomNav() {
         { id: "menu", label: t("nav.menu") },
     ];
 
-    if (tab === "saved" || tab === "settings") return null;
+    const secondaryPage = tab === "saved" || tab === "settings";
+    const dimmed = currentProfile !== null || secondaryPage;
 
     // tabBarVisible is the shared scroll verdict (see useAutoHideTabBar):
     // on desktop it hides the top strip, here it shrinks the capsule.
@@ -45,7 +61,9 @@ export function BottomNav() {
     return (
         <nav
             className={
-                "binge-bottom-nav" + (tabBarVisible ? "" : " is-contracted")
+                "binge-bottom-nav" +
+                (tabBarVisible ? "" : " is-contracted") +
+                (dimmed ? " is-nav-disabled" : "")
             }
             role="tablist"
             aria-label={t("nav.sections")}
@@ -68,7 +86,19 @@ export function BottomNav() {
                             "binge-bottom-nav-item" +
                             (active ? " is-active" : "")
                         }
-                        onClick={() => setTab(slot.id)}
+                        onClick={() => {
+                            // Modal intercept：弱化态下单击 = 收起当前
+                            // 覆盖层，不切 tab；第二次点击才导航。
+                            if (currentProfile) {
+                                closeProfile();
+                                return;
+                            }
+                            if (secondaryPage) {
+                                setTab("home");
+                                return;
+                            }
+                            setTab(slot.id);
+                        }}
                     >
                         {iconFor(slot.id, active)}
                     </button>

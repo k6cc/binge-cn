@@ -9874,7 +9874,10 @@ p.binge-settings-source-note {
         right var(--binge-nav-resize),
         bottom var(--binge-nav-resize),
         height var(--binge-nav-resize),
-        padding var(--binge-nav-resize);
+        padding var(--binge-nav-resize),
+        /* 弱化态进出双向渐变（is-nav-disabled / 浮层隐藏），声明在
+           基础规则上而非状态规则里，类摘除方向才有过渡可走。 */
+        opacity 0.18s ease;
 }
 .binge-bottom-nav.is-contracted {
     --binge-nav-side: 44px;
@@ -9907,7 +9910,9 @@ p.binge-settings-source-note {
     transition:
         left var(--binge-nav-travel),
         width var(--binge-nav-resize),
-        height var(--binge-nav-resize);
+        height var(--binge-nav-resize),
+        /* 弱化态"去色/回色"渐变（refract 强调色 ↔ 基准中性白）。 */
+        background-color 0.18s ease;
 }
 .binge-bottom-nav-item {
     appearance: none;
@@ -9938,12 +9943,34 @@ p.binge-settings-source-note {
 /* Out of the way while anything modal is up. A sheet's rows sit
    exactly where the capsule floats and its panel is translucent, so
    without this the icons ghost through the sheet. Modal on iOS covers
-   the nav outright; this is the same outcome. */
-body:has(.binge-sheet-root, .binge-modal-overlay, .binge-story-viewer-root, .binge-profile-root)
-    .binge-bottom-nav {
+   the nav outright; this is the same outcome.
+   演员详情（.binge-profile-root）不在此列：它 z:90 在胶囊之下，打开时
+   胶囊保持可见并转入下方 .is-nav-disabled 弱化态，充当"单击收详情"的
+   拦截目标（iOS modal intercept 模式）。binge-modal-overlay 为已删除
+   的 All Performers modal 遗留类名，无组件生成，从列表移除。 */
+body:has(.binge-sheet-root, .binge-story-viewer-root) .binge-bottom-nav {
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.18s ease;
+}
+
+/* 弱化态：演员详情打开 / saved/settings 二级页时，胶囊整体降透明
+   0.35 但仍可点（pointer-events 默认 auto）。单击语义由 BottomNav.tsx
+   守卫：收详情 / 回 home，不切 tab。根 opacity 过渡声明在基础规则的
+   transition 列表上，进出双向 0.18s 渐变（只写在状态规则里时，类摘除
+   瞬间 transition 随之消失，回亮会瞬跳）。sheet 盖在详情上时由上方
+   :has 规则接管（特异度 (0,2,1) 高于本规则 (0,2,0)）。
+   去色：refract 主题下 pill 平时带强调色（下方 rgba(var(--accent-rgb),
+   0.38) 规则），弱化态将其褪回基准中性白——"锁定即去色"，恢复时色彩
+   随 0.18s 过渡回流，构成状态切换的反馈。默认主题 pill 本就为白，该
+   规则无操作，仅 refract 可见。特异度 (0,4,0) 高于强调色规则 (0,3,0)。
+   background-color 可插值，过渡声明在 pill 基础规则上。 */
+.binge-bottom-nav.is-nav-disabled {
+    opacity: 0.35;
+}
+.binge-app.refract
+    .binge-bottom-nav.is-nav-disabled
+    .binge-bottom-nav-pill {
+    background: rgba(255, 255, 255, 0.17);
 }
 .binge-bottom-nav-item:active {
     transform: scale(0.92);

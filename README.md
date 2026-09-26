@@ -1,6 +1,6 @@
 # Binge（汉化版）
 
-> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.10.6**。
+> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.10.7**。
 
 为 [Stash](https://github.com/stashapp/stash) 提供的 Instagram 风格社交与发现层：竖屏 Reel、Stories、演员档案、可配置 stash-box 实例驱动的发现功能（默认 javstash.org）——全部基于 Stash 既有的 GraphQL API。Web 插件形态。
 
@@ -59,6 +59,7 @@ v0.4.17 将原硬编码中文迁移为基于 `react-i18next` 的动态多语言�
 - **播放页进度条帧预览（v0.10.2）**：拖动/悬停进度条时上方叠 Stash 原生 sprite 雪碧图帧预览（Generate Previews 生成，官方播放器 scrub 同源），拖到哪显示哪一时刻画面；无 sprite/vtt 回退纯时间码气泡；尺寸按桌面/竖屏/手机全屏分档自适应
 - **移动端预览尺寸自适应（v0.10.5）**：移动端预览框 vw 真正参与自适应——竖屏小屏 120px/大屏 138px、横屏全屏小屏 100px/大屏 138px；iPad mini 按桌面档
 - **演员详情页打开时隐藏底部导航胶囊（v0.10.6）**：上游 iOS 风格浮动胶囊（z:95）原本浮在演员详情（z:90）之上且漏在 `:has()` 模态隐藏名单外，打开详情仍可点胶囊，导致 tab 静默切换（pill 滑过但详情盖住页面，关闭后才看到 tab 已变）；现将 `.binge-profile-root` 并入已有隐藏名单，详情打开时胶囊自动淡出且不可点
+- **底部导航胶囊弱化态（v0.10.7）**：演员详情/saved/settings 打开时胶囊不再完全隐藏，转为弱化态（降透明 0.35、仍可点）——单击胶囊 = 收起详情/返回 home，不切 tab（iOS modal intercept 模式），再点一次目标 tab 才导航；saved/settings 底部原本纯空占位的 81px 空间补渲染弱化胶囊；refract 强调色主题下弱化时 pill 0.18s 褪回中性白、恢复回色（"锁定即去色"），默认主题 pill 本就为白、观感不变
 
 #### v0.4.0–v0.9.x（合并摘要）
 
