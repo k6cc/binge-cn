@@ -79,6 +79,26 @@ export function isWebCompatible(scene: BingeScene): boolean {
 //
 // 已有 query 参数时用 & 拼接；已有 start= 时替换；start 秒数四舍五入到
 // 3 位小数（毫秒精度足够，避免 URL 过长）。
+// HLS 流判定：Stash 的 HLS 端点 URL 是 /scene/{id}/stream.m3u8，
+// mime 为 application/vnd.apple.mpegurl。
+//
+// HLS 的 seek 机制与 MP4/WebM 转码完全不同：
+//   - 转码流：客户端用 ?start={秒} 请求，服务端把 start 交给 ffmpeg
+//     （internal/api streamTranscode 读取该参数 → -ss）。
+//   - HLS：manifest 路由（streamManifest → serveHLSManifest）**根本不读
+//     start**，它按 ffprobe 时长一次性生成完整 VOD playlist
+//     （#EXT-X-MEDIA-SEQUENCE:0 + ENDLIST）。seek 靠客户端请求具体段号
+//     /stream.m3u8/{N}.ts，服务端再按段号 -ss N*2 重启 ffmpeg。
+//
+// 因此 HLS 上 ?start=N 是无效的：服务端仍从段 0 开始转码，画面从头播，
+// 而客户端若据此叠加"seek 偏移量"，时间码会假跳到目标位置。识别 HLS
+// 后播放器必须走原生 seek（video.currentTime = T），由浏览器自行换算段号。
+export function isHlsStreamUrl(url: string): boolean {
+    if (!url) return false;
+    const u = url.toLowerCase();
+    return u.includes(".m3u8") || u.includes("mpegurl");
+}
+
 export function buildTranscodeSeekUrl(
     streamUrl: string,
     startSeconds: number

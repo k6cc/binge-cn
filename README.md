@@ -1,6 +1,6 @@
 # Binge（汉化版）
 
-> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.10.7**。
+> 基于 [ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge) v0.4.0 的中文汉化 + 功能修复分支。当前版本 **v0.10.8**。
 
 为 [Stash](https://github.com/stashapp/stash) 提供的 Instagram 风格社交与发现层：竖屏 Reel、Stories、演员档案、可配置 stash-box 实例驱动的发现功能（默认 javstash.org）——全部基于 Stash 既有的 GraphQL API。Web 插件形态。
 
@@ -60,6 +60,7 @@ v0.4.17 将原硬编码中文迁移为基于 `react-i18next` 的动态多语言�
 - **移动端预览尺寸自适应（v0.10.5）**：移动端预览框 vw 真正参与自适应——竖屏小屏 120px/大屏 138px、横屏全屏小屏 100px/大屏 138px；iPad mini 按桌面档
 - **演员详情页打开时隐藏底部导航胶囊（v0.10.6）**：上游 iOS 风格浮动胶囊（z:95）原本浮在演员详情（z:90）之上且漏在 `:has()` 模态隐藏名单外，打开详情仍可点胶囊，导致 tab 静默切换（pill 滑过但详情盖住页面，关闭后才看到 tab 已变）；现将 `.binge-profile-root` 并入已有隐藏名单，详情打开时胶囊自动淡出且不可点
 - **底部导航胶囊弱化态（v0.10.7）**：演员详情/saved/settings 打开时胶囊不再完全隐藏，转为弱化态（降透明 0.35、仍可点）——单击胶囊 = 收起详情/返回 home，不切 tab（iOS modal intercept 模式），再点一次目标 tab 才导航；saved/settings 底部原本纯空占位的 81px 空间补渲染弱化胶囊；refract 强调色主题下弱化时 pill 0.18s 褪回中性白、恢复回色（"锁定即去色"），默认主题 pill 本就为白、观感不变
+- **HLS 流 seek 修复（v0.10.8）**：「流媒体类型 = HLS 流式传输」下播放 wmv/avi/mkv 等需转码的视频时，拖动进度条与随机时段起点会让画面从头播放、底部时间码却跳到目标位置——Stash 的 HLS manifest 路由不读 `?start=`，仍从段 0 开始转码；现改为识别 HLS 后走原生 seek，由浏览器自行换算段号请求（进度条拖动、随机起点、手势快进/快退、B 点循环一并生效）。同时补齐 HLS 的转圈指示，段级错误改为原地重载回跳而非重建 src（重建对 HLS 等于从段 0 重来，会触发服务端停止再重启转码）
 
 #### v0.4.0–v0.9.x（合并摘要）
 

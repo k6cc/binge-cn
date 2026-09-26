@@ -5,6 +5,7 @@ import { ActionStack } from "./ActionStack";
 import { PerformerRow } from "./PerformerRow";
 import {
     buildTranscodeSeekUrl,
+    isHlsStreamUrl,
     isWebCompatible,
     pickStreamUrl,
 } from "../util/pickStream";
@@ -731,7 +732,15 @@ export function SceneSlide({
     // URL，与相对 URL 永不相等。loadedUrlRef 记录我们自己赋的值。
     const loadedSigRef = useRef("");
     const loadedUrlRef = useRef("");
-    const needsTranscodeSeek = !isWebCompatible(scene);
+    // 实际播放的流与它的类型。HLS 必须单独识别：它的 seek 靠段号
+    // （/stream.m3u8/{N}.ts）驱动，服务端 manifest 忽略 ?start=，走硬
+    // seek 只会让 ffmpeg 从头转码、时间码假跳。识别为 HLS 后播放器改用
+    // 原生 seek（video.currentTime = T），由浏览器自行换算段号请求。
+    const { baseStreamUrl: pickedStreamUrl, isHlsStream } = useMemo(() => {
+        const url = pickStreamUrl(scene, transcodeType);
+        return { baseStreamUrl: url, isHlsStream: isHlsStreamUrl(url) };
+    }, [scene, transcodeType]);
+    const needsTranscodeSeek = !isWebCompatible(scene) && !isHlsStream;
     // 转码硬 seek 偏移量：硬 seek 用 ?start=N 重建 src 后，新流的
     // currentTime 从 0 重新计起，进度条需知道偏移量才能显示真实位置。
     // 加载新基础流（换场景/重进视口）时重置为 0。
@@ -798,7 +807,7 @@ export function SceneSlide({
             }
             randomWindowRef.current = win;
         }
-        let url = pickStreamUrl(scene, transcodeType);
+        let url = pickedStreamUrl;
         let initialOffset = 0;
         // 转码流直接用 ?start= 预置随机起点，避免"先从头转码再硬
         // seek"的双重等待；直连流在 loadedmetadata 后原生 seek。
@@ -840,7 +849,7 @@ export function SceneSlide({
         if (video.paused) {
             playPreferred(video);
         }
-    }, [currentlyScrolling, scene.id, isActive, transcodeType, needsTranscodeSeek, randomStart, randomSeconds, stashDuration]);
+    }, [currentlyScrolling, scene.id, isActive, transcodeType, needsTranscodeSeek, randomStart, randomSeconds, stashDuration, pickedStreamUrl]);
 
     // 转码流（avi/wmv/mkv/...）的 seek 处理。
     // 原生 <video>.currentTime = N 依赖 HTTP Range 请求，而 Stash 的 live
@@ -938,6 +947,9 @@ export function SceneSlide({
     // 连续快速失败 3 次后放弃（源文件损坏等确定性错误），稳定播放
     // 5s 后计数归零。
     const transcodeRetryRef = useRef(0);
+    // HLS 段级错误重试计数（与转码重连分开计：HLS 是段 500，转码是连接
+    // 断开，成因与处置都不同）。
+    const hlsRetryRef = useRef(0);
     useEffect(() => {
         const video = videoRef.current;
         if (!video) return;
@@ -958,6 +970,41 @@ export function SceneSlide({
             // 空源（卸载清理 / 尚未加载）触发的 error 不处理。
             if (!video.currentSrc) return;
             if (!needsTranscodeSeek) {
+                // HLS：段级错误（服务端 15s 内没生成出请求的段 → 500）。
+                // 绝不能重建 src —— manifest 忽略 ?start=，重建只会从段
+                // 0 重新开始，并再触发一次服务端 stop/start 抖动。原地
+                // 重载同一 manifest（浏览器重新拉 playlist 与当前段），
+                // 元数据回来后回跳断点续播。
+                if (isHlsStream) {
+                    if (hlsRetryRef.current >= 3) return;
+                    const pos = video.currentTime;
+                    if (!Number.isFinite(pos)) return;
+                    const wasPaused = video.paused;
+                    hlsRetryRef.current++;
+                    clearTimers();
+                    retryTimer = window.setTimeout(() => {
+                        retryTimer = null;
+                        const v = videoRef.current;
+                        if (!v || !v.isConnected) return;
+                        // load() 会把播放位置归零，元数据就绪后回跳。
+                        v.addEventListener(
+                            "loadedmetadata",
+                            () => {
+                                try {
+                                    if (pos > 0.5) v.currentTime = pos;
+                                } catch {
+                                    /* 尚不可 seek，忽略 */
+                                }
+                                if (!wasPaused) {
+                                    void v.play().catch(() => {});
+                                }
+                            },
+                            { once: true },
+                        );
+                        v.load();
+                    }, 1000);
+                    return;
+                }
                 loadedSigRef.current = "";
                 loadedUrlRef.current = "";
                 return;
@@ -986,6 +1033,7 @@ export function SceneSlide({
             stableTimer = window.setTimeout(() => {
                 stableTimer = null;
                 transcodeRetryRef.current = 0;
+                hlsRetryRef.current = 0;
             }, 5000);
         };
         // 锁屏/切后台（>20s）后转码连接大概率已被服务端杀掉。回到
@@ -1022,7 +1070,7 @@ export function SceneSlide({
             document.removeEventListener("visibilitychange", onVisibility);
             clearTimers();
         };
-    }, [needsTranscodeSeek, seekToTime]);
+    }, [needsTranscodeSeek, isHlsStream, seekToTime]);
 
     // 随机时段：元数据就绪后应用随机起点。
     //   - 直连流：原生 currentTime = A。
@@ -1716,10 +1764,16 @@ export function SceneSlide({
                    - canplay / playing：数据就绪、真正出画面 → 熄灭；
                    - error：连接断开 → 先熄灭；重连逻辑 1s 后重建 src
                      会再次触发 loadstart 点亮（重连耗尽则不再常驻
-                     误导用户）。 */
-                onLoadStart={() => setTranscodeLoading(needsTranscodeSeek)}
+                     误导用户）。
+                   HLS 同样按"需转码"处理：ts 段由服务端按需转码生成，
+                   冷启动与 seek 后的 ffmpeg 重启都要等数据。 */
+                onLoadStart={() =>
+                    setTranscodeLoading(needsTranscodeSeek || isHlsStream)
+                }
                 onWaiting={() => {
-                    if (needsTranscodeSeek) setTranscodeLoading(true);
+                    if (needsTranscodeSeek || isHlsStream) {
+                        setTranscodeLoading(true);
+                    }
                 }}
                 onCanPlay={() => setTranscodeLoading(false)}
                 onPlaying={() => setTranscodeLoading(false)}
